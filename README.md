@@ -1,2 +1,3 @@
 # VariantCalling
-Code connected to variant calling
+Variant calling with Ultima data
+
