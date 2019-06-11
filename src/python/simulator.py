@@ -290,6 +290,7 @@ def seqToRecord(seq: str, rname: str,
     def alt2str(x):
         return "%d,%s,%s,%.2f" % x
 
+    alts = sorted(alts, key = lambda x : x[0] )
     alts = ";".join([alt2str(x) for x in alts])
     seg.tags = ([('LL', llk), ("AL", alts)])
 
