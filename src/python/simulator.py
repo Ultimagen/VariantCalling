@@ -228,10 +228,12 @@ def getMutationChange(gtr_calls: np.ndarray, mutation: tuple, baseCalls: str,
                 flow_order[mutation[0]] * (-diff)
         elif seq_base == -1:
             seq_base = 0
+            start_pos = 0 
             start_seq = baseCalls[seq_base: seq_base + 1]
             end_seq = flow_order[mutation[0]] * \
-                diff + baseCalls[seq_base:seq_base + 1]
-
+                (-diff) + baseCalls[seq_base:seq_base + 1]
+    assert start_pos >= 0 , "Assertion failed - start_pos < 0"
+    assert len(start_seq) != len(end_seq), "Assertion failed - no difference b/w alleles"
     return start_pos, start_seq, end_seq
 
 
