@@ -1,12 +1,10 @@
-import sys
-sys.path.append("/home/ilya/proj/Base-Calling/ContextResearch")
-
 import numpy as np
 from typing import Optional
 
 from os.path import join as pjoin
-import utils
+from . import utils
 import pysam
+
 error_rates = np.logspace(.001, .01, 10)
 DEFAULT_FLOW_ORDER = "TACG"
 _workdir = "/home/ilya/proj/VariantCalling/work/190605/"
@@ -122,7 +120,7 @@ def identifyMutations(flow_matrix: np.ndarray, n_mutations: int, threshold: floa
     flow_matrix: np.ndarray
             Modified flow matrix with mutations
     n_mutations: int
-            Maximal number of mutations to return 
+            Maximal number of mutations to return
     threshold: float
             Minimal mutation probability
     gtr_calls: np.ndarray
@@ -218,8 +216,8 @@ def getMutationChange(gtr_calls: np.ndarray, mutation: tuple, baseCalls: str,
         else:
             assert b == 0, "Weird mutation, should not happen"
             start_pos = seq_base
-            start_seq = baseCalls[start_pos:start_pos+diff+1]
-            end_seq = baseCalls[start_pos+diff:start_pos+diff+1]
+            start_seq = baseCalls[start_pos:start_pos + diff + 1]
+            end_seq = baseCalls[start_pos + diff:start_pos + diff + 1]
     elif diff < 0:
         start_pos = seq_base
         if seq_base >= 0:
@@ -228,12 +226,13 @@ def getMutationChange(gtr_calls: np.ndarray, mutation: tuple, baseCalls: str,
                 flow_order[mutation[0]] * (-diff)
         elif seq_base == -1:
             seq_base = 0
-            start_pos = 0 
+            start_pos = 0
             start_seq = baseCalls[seq_base: seq_base + 1]
             end_seq = flow_order[mutation[0]] * \
                 (-diff) + baseCalls[seq_base:seq_base + 1]
-    assert start_pos >= 0 , "Assertion failed - start_pos < 0"
-    assert len(start_seq) != len(end_seq), "Assertion failed - no difference b/w alleles"
+    assert start_pos >= 0, "Assertion failed - start_pos < 0"
+    assert len(start_seq) != len(
+        end_seq), "Assertion failed - no difference b/w alleles"
     return start_pos, start_seq, end_seq
 
 
@@ -292,8 +291,29 @@ def seqToRecord(seq: str, rname: str,
     def alt2str(x):
         return "%d,%s,%s,%.2f" % x
 
-    alts = sorted(alts, key = lambda x : x[0] )
+    alts = sorted(alts, key=lambda x: x[0])
+    for a in alts:
+        assert validate_alt(seq, a), "Weird mutation sequence"
     alts = ";".join([alt2str(x) for x in alts])
     seg.tags = ([('LL', llk), ("AL", alts)])
 
     return seg
+
+
+def validate_alt(seq: str, alt: tuple) -> bool:
+    '''Check that the reference alleles are right
+
+    Parameters
+    ----------
+    seq: str
+        Sequence of the read
+    alt: tuple
+        Mutation
+
+    Returns
+    bool
+    '''
+    pos = alt[0]
+    if seq[pos:pos + len(alt[1])] == alt[1]:
+        return True
+    return False
