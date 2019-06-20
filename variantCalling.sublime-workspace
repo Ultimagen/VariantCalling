@@ -4,6 +4,62 @@
 		"selected_items":
 		[
 			[
+				"start",
+				"start\tparam"
+			],
+			[
+				"runs_",
+				"runs_of_ones"
+			],
+			[
+				"depths",
+				"pos_depths"
+			],
+			[
+				"appl",
+				"apply_variant\tfunction"
+			],
+			[
+				"ex",
+				"expected_sequence\tparam"
+			],
+			[
+				"apply",
+				"apply_variant"
+			],
+			[
+				"read",
+				"readExpander\tmodule"
+			],
+			[
+				"valid",
+				"validate_rcalt\tfunction"
+			],
+			[
+				"new_",
+				"new_rcomp_del_seq\tstatement"
+			],
+			[
+				"rev",
+				"reverse_complement\tstatement"
+			],
+			[
+				"expe",
+				"expected_dest_length\tstatement"
+			],
+			[
+				"mutation",
+				"mutation_comb\tparam"
+			],
+			[
+				"cur_",
+				"cur_source_pos\tstatement"
+			],
+			[
+				"alt",
+				"alts"
+			],
+			[
 				"p",
 				"path\tinstance"
 			],
@@ -55,7 +111,7 @@
 			"file": "src/python/simulator.py",
 			"settings":
 			{
-				"buffer_size": 9714,
+				"buffer_size": 11958,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -64,26 +120,10 @@
 			"file": "src/python/readExpander.py",
 			"settings":
 			{
-				"buffer_size": 140,
+				"buffer_size": 2643,
 				"encoding": "UTF-8",
 				"line_ending": "Unix",
 				"name": "class ReadExpander"
-			}
-		},
-		{
-			"file": "variantCalling.sublime-project",
-			"settings":
-			{
-				"buffer_size": 359,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "src/python/utils.py",
-			"settings":
-			{
-				"buffer_size": 594,
-				"line_ending": "Unix"
 			}
 		}
 	],
@@ -99,12 +139,32 @@
 		"selected_items":
 		[
 			[
-				"ena",
-				"Package Control: Enable Package"
+				"au",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"aut",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"ind",
+				"Indentation: Convert to Spaces"
+			],
+			[
+				"sublime",
+				"Sublime Merge: Blame File"
 			],
 			[
 				"auto",
-				"User: Python PEP8 Autoformat"
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"convert to ",
+				"Indentation: Convert to Spaces"
+			],
+			[
+				"ena",
+				"Package Control: Enable Package"
 			],
 			[
 				"pep",
@@ -203,20 +263,22 @@
 	},
 	"expanded_folders":
 	[
+		"/home/ilya/proj/Base-Calling/ContextResearch",
 		"/home/ilya/proj/VariantCalling/src",
 		"/home/ilya/proj/VariantCalling/src/python"
 	],
 	"file_history":
 	[
+		"/home/ilya/proj/VariantCalling/src/python/utils.py",
+		"/home/ilya/.config/sublime-text-3/Packages/User/Anaconda.sublime-settings",
+		"/home/ilya/proj/VariantCalling/variantCalling.sublime-project",
 		"/home/ilya/proj/VariantCalling/src/utils.py",
 		"/home/ilya/proj/VariantCalling/src/simulator.py",
 		"/home/ilya/proj/Base-Calling/ContextResearch/BeadsData.py",
 		"/home/ilya/proj/Base-Calling/ContextResearch/BeadsAnalysis.py",
-		"/home/ilya/proj/VariantCalling/variantCalling.sublime-project",
 		"/home/ilya/.config/sublime-text-3/Packages/Anaconda/README.md",
 		"/home/ilya/.config/sublime-text-3/Packages/Python Flake8 Lint/Flake8Lint.sublime-settings",
-		"/home/ilya/anaconda3/envs/genomics.py3/lib/python3.7/site-packages/numpy/__init__.py",
-		"/home/ilya/.config/sublime-text-3/Packages/User/Anaconda.sublime-settings"
+		"/home/ilya/anaconda3/envs/genomics.py3/lib/python3.7/site-packages/numpy/__init__.py"
 	],
 	"find":
 	{
@@ -234,6 +296,10 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"last",
+			"key2base",
+			"seqToRe",
+			"0",
 			"gtr_flows",
 			"Optional",
 			"generate",
@@ -265,21 +331,22 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 9714,
+						"buffer_size": 11958,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								9714,
-								9714
+								2364,
+								2364
 							]
 						],
 						"settings":
 						{
 							"SL.13.region_keys":
 							[
+								"sublime_linter.protected_regions"
 							],
 							"SL.17.region_keys":
 							[
@@ -295,15 +362,16 @@
 									"selector": "source.python - string - constant.numeric"
 								}
 							],
+							"spell_check": false,
 							"syntax": "Packages/Python/Python.sublime-syntax",
 							"tab_size": 4,
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 3377.0,
+						"translation.y": 663.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
@@ -312,19 +380,23 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 140,
+						"buffer_size": 2643,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								140,
-								140
+								2474,
+								2474
 							]
 						],
 						"settings":
 						{
+							"SL.14.region_keys":
+							[
+								"sublime_linter.protected_regions"
+							],
 							"SL.17.region_keys":
 							[
 							],
@@ -340,77 +412,14 @@
 								}
 							],
 							"auto_name": "class ReadExpander",
-							"syntax": "Packages/Python/Python.sublime-syntax"
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 0.0,
+						"translation.y": 354.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 0,
-					"type": "text"
-				},
-				{
-					"buffer": 2,
-					"file": "variantCalling.sublime-project",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 359,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/JavaScript/JSON.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"type": "text"
-				},
-				{
-					"buffer": 3,
-					"file": "src/python/utils.py",
-					"semi_transient": true,
-					"settings":
-					{
-						"buffer_size": 594,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"SL.14.region_keys":
-							[
-							],
-							"SL.18.region_keys":
-							[
-							],
-							"syntax": "Packages/Python/Python.sublime-syntax",
-							"translate_tabs_to_spaces": false
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 3,
 					"type": "text"
 				}
 			]
