@@ -1,32 +1,6 @@
 import numpy as np
 import itertools
 
-
-def searchsorted2d(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    '''
-    Inserts ith element of b into sorted ith row of a
-
-    Parameters
-    ----------
-    a: np.ndarray
-            rxc matrix, each rows is sorted
-    b: np.ndarray
-            rx1 vector 
-
-    Returns
-    -------
-    np.ndarray
-            rx1 vector of locations 
-    '''
-    m, n = a.shape
-    b = b.ravel()
-    assert b.shape[0] == a.shape[0], "Number of values of b equal number of rows of a"
-    max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
-    r = max_num * np.arange(a.shape[0])
-    p = np.searchsorted(((a.T + r).T).ravel(), b + r)
-    return p - n * np.arange(m)
-
-
 def revcomp(seq: str) -> str:
     '''Reverse complements DNA given as string
 
@@ -125,3 +99,33 @@ def read_genomecov_vector(bg_file, chrom, start, end):
             if st >= 0 and en <= end - start:
                 result[st:en] = int(lsp[3])
     return result
+
+def searchsorted2d(a: np.ndarray ,b: np.ndarray) -> np.ndarray:
+	'''
+	Inserts ith element of b into sorted ith row of a
+
+	Parameters
+	----------
+	a: np.ndarray
+		rxc matrix, each rows is sorted
+	b: np.ndarray
+		rx1 vector 
+
+	Returns
+	-------
+	np.ndarray
+		rx1 vector of locations 
+	'''
+	m,n = a.shape
+	b = b.ravel()
+	assert b.shape[0] == a.shape[0], "Number of values of b equal number of rows of a"
+	max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
+	r = max_num*np.arange(a.shape[0])
+	p = np.searchsorted( ((a.T+r).T).ravel(), b+r )
+	return p - n*np.arange(m)
+
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return itertools.zip_longest(fillvalue=fillvalue, *args)

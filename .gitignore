@@ -30,3 +30,4 @@ work/
 .ipynb_checkpoints
 .mypy_cache/
 __pycache__/
+*sublime*
