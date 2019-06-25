@@ -1,4 +1,105 @@
 import numpy as np
+import itertools
+
+def revcomp(seq: str) -> str:
+    '''Reverse complements DNA given as string
+
+    Parameters
+    ----------
+    seq: str
+        DNA string
+
+    Returns
+    -------
+    str
+    '''
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A',
+                  'a': 't', 'c': 'g', 'g': 'c', 't': 'a'}
+    reverse_complement = "".join(complement.get(base, base)
+                                 for base in reversed(seq))
+    return reverse_complement
+
+
+def runs_of_one(array, axis=None):
+    '''
+    returns start and end (half open) of intervals of ones in a binary vector
+    if axis=None - runs are identified according to the (only) non-singleton axis
+    '''
+    array = array.astype(np.int8)
+    if isinstance(array, np.ndarray):
+        array = np.array(array)
+    if not axis:
+        sh = [x for x in array.shape if x != 1]
+        if len(sh) != 1:
+            raise RuntimeError('runs_of_one - too many non-singleton axes in array')
+        else:
+            array = np.squeeze(array).reshape(1, -1)
+            axis = 1
+    if axis != 1:
+        array.reshape(array.shape[::-1])
+    runs_of_ones = []
+    for i in range(array.shape[0]):
+        one_line = array[i, :]
+
+        diffs = np.diff(one_line)
+
+        starts = np.nonzero(diffs == 1)[0] + 1
+        if one_line[0] == 1:
+            starts = np.concatenate(([0], starts))
+        ends = np.nonzero(diffs == -1)[0] + 1
+        if one_line[-1] == 1:
+            ends = np.concatenate((ends, [len(one_line)]))
+
+        runs_of_ones.append(zip(starts, ends))
+
+    return runs_of_ones
+
+
+def depth2bed(depth_file: str, output_bed_file: str, cutoff: int) -> None:
+    '''Generates bed file of regions with coverage above certain cutoff
+
+    Parameters
+    ----------
+    depth_file: str
+        Name of a file that is output of `samtools depth`
+    output_bed_file: str
+        Name of the output file
+    cutoff: int
+        Minimal depth to be included
+
+    Returns
+    -------
+    None
+        Writes into `output_bed_file`
+    '''
+    iter1 = map(lambda x: x.split(), open(depth_file))
+    iter2 = map(lambda x: (x[0], int(x[1]), int(x[2])), iter1)
+    with open(output_bed_file, 'w') as out:
+        for chroms in itertools.groupby(iter2, lambda x: x[0]):
+            pos_depths = [x[1:] for x in chroms[1]]
+            poss = [x[0] for x in pos_depths]
+            depths = [x[1] for x in pos_depths]
+            chrpos = np.zeros(max(poss) + 1)
+            chrpos[poss] = depths
+            chrpos = chrpos >= cutoff
+            intervals = runs_of_one(chrpos)[0]
+            for interval in intervals:
+                out.write("{}\t{}\t{}\n".format(chroms[0], interval[0], interval[1]))
+
+
+def read_genomecov_vector(bg_file, chrom, start, end):
+    result = np.zeros(end - start)
+    for line in open(bg_file):
+        lsp = line.strip().split()
+        if lsp[0] != chrom:
+            continue
+        else:
+            st = int(lsp[1]) - start
+            en = int(lsp[2]) - start
+            if st >= 0 and en <= end - start:
+                result[st:en] = int(lsp[3])
+    return result
+
 def searchsorted2d(a: np.ndarray ,b: np.ndarray) -> np.ndarray:
 	'''
 	Inserts ith element of b into sorted ith row of a
@@ -22,3 +123,9 @@ def searchsorted2d(a: np.ndarray ,b: np.ndarray) -> np.ndarray:
 	r = max_num*np.arange(a.shape[0])
 	p = np.searchsorted( ((a.T+r).T).ravel(), b+r )
 	return p - n*np.arange(m)
+
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return itertools.zip_longest(fillvalue=fillvalue, *args)
