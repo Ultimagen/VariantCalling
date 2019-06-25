@@ -152,6 +152,10 @@ def identifyMutations(flow_matrix: np.ndarray, n_mutations: int, threshold: floa
     -------
     tuple:
             (np.ndarray, np.ndarray) List of flows in key space and list of key values corresponding to each mutation
+
+    Note
+    ----
+    All mutations that have probability of n_mutation strongest mutations are passed (potentially more than n_mutations)
     '''
 
     mutation_id_matrix = flow_matrix.copy()
@@ -160,11 +164,20 @@ def identifyMutations(flow_matrix: np.ndarray, n_mutations: int, threshold: floa
     if gtr_calls is None:
         gtr_calls = np.argmax(flow_matrix, axis=0)
 
-    # do not identify flows
+    # do not identify ground truth calls
     mutation_id_matrix[gtr_calls, np.arange(flow_matrix.shape[1])] = 0
-    strongest_candidates = np.argsort(mutation_id_matrix, axis=None)[
-        ::-1][:n_mutations]
 
+    strongest_candidates = np.argsort(mutation_id_matrix, axis=None)[
+        ::-1]
+
+    # in case of several mutations with the same probability - pass all of them
+    # this is needed to prevent cases of different reverse complement mutations
+    cur_idx = n_mutations-1
+    while mutation_id_matrix.flat[strongest_candidates[cur_idx]] > 0 and \
+        mutation_id_matrix.flat[strongest_candidates[cur_idx]]==mutation_id_matrix.flat[strongest_candidates[n_mutations-1]]:
+        cur_idx += 1
+    n_mutations = cur_idx
+    strongest_candidates = strongest_candidates[:n_mutations]
     # convert flat index that argsort returns to rows and columns
     take = mutation_id_matrix.flat[strongest_candidates] > 0
     tmp = np.unravel_index(
