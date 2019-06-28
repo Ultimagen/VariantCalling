@@ -4,6 +4,7 @@ from typing import Optional
 from os.path import join as pjoin
 from . import utils
 import pysam
+from . import readExpander
 
 error_rates = np.logspace(.001, .01, 10)
 DEFAULT_FLOW_ORDER = "TACG"
@@ -85,6 +86,26 @@ def getFlow2Base(flow_order: str, desired_length: int) -> np.ndarray:
     return flow_order
 
 
+def get_rflow_order(flow_matrix: np.ndarray, flow_order: str=DEFAULT_FLOW_ORDER) -> str:
+    '''Finds the flow of the first base of the reverse of the expected sequence
+    Parameters
+    ----------
+    flow_matrix: np.ndarray
+        Flow matrix
+    flow_order: str
+        Flow order that generated the flow matrix
+
+    Returns
+    -------
+    str
+        Reversed flow order
+    '''
+    tmp = flow_order * flow_matrix.shape[1]
+    tmp = tmp[:flow_matrix.shape[1]]
+    rflow = utils.revcomp(tmp)
+    return rflow[:len(flow_order)]
+
+
 def keySpace2BaseSpace(flow_matrix: np.ndarray, flow_order: str=DEFAULT_FLOW_ORDER) -> tuple:
     '''
     Converts from matrix of hmer probabilities to sequence (most probable)
@@ -99,14 +120,15 @@ def keySpace2BaseSpace(flow_matrix: np.ndarray, flow_order: str=DEFAULT_FLOW_ORD
     Returns
     -------
     tuple (str, np.ndarray, np.ndarray)
-            1. String of most probable bases in the read 
-            2. Array of the last output base at each flow (For instance for flows 0102 the output is -1 0 0 2)
-            3. Array of the call for each flow
+            1. String of most probable bases in the read
+            2. Array of the last output base BEFORE each flow (For instance for flows 01021 the output is -1 -1 0 0 2 )
+            3. Array of the call for each flow (integer array)
 
     '''
     flow_order = getFlow2Base(flow_order, flow_matrix.shape[1])
     n_reps = np.argmax(flow_matrix, axis=0)
-    flow2base = -1 + np.cumsum(n_reps)
+    n_reps_shifted = np.array([0] + list(np.argmax(flow_matrix, axis=0)))[:-1]
+    flow2base = -1 + np.cumsum(n_reps_shifted)
     return ''.join(np.repeat(flow_order, n_reps)), flow2base, n_reps
 
 
@@ -130,6 +152,10 @@ def identifyMutations(flow_matrix: np.ndarray, n_mutations: int, threshold: floa
     -------
     tuple:
             (np.ndarray, np.ndarray) List of flows in key space and list of key values corresponding to each mutation
+
+    Note
+    ----
+    All mutations that have probability of n_mutation strongest mutations are passed (potentially more than n_mutations)
     '''
 
     mutation_id_matrix = flow_matrix.copy()
@@ -138,11 +164,20 @@ def identifyMutations(flow_matrix: np.ndarray, n_mutations: int, threshold: floa
     if gtr_calls is None:
         gtr_calls = np.argmax(flow_matrix, axis=0)
 
-    # do not identify flows
+    # do not identify ground truth calls
     mutation_id_matrix[gtr_calls, np.arange(flow_matrix.shape[1])] = 0
-    strongest_candidates = np.argsort(mutation_id_matrix, axis=None)[
-        ::-1][:n_mutations]
 
+    strongest_candidates = np.argsort(mutation_id_matrix, axis=None)[
+        ::-1]
+
+    # in case of several mutations with the same probability - pass all of them
+    # this is needed to prevent cases of different reverse complement mutations
+    cur_idx = n_mutations-1
+    while mutation_id_matrix.flat[strongest_candidates[cur_idx]] > 0 and \
+        mutation_id_matrix.flat[strongest_candidates[cur_idx]]==mutation_id_matrix.flat[strongest_candidates[n_mutations-1]]:
+        cur_idx += 1
+    n_mutations = cur_idx
+    strongest_candidates = strongest_candidates[:n_mutations]
     # convert flat index that argsort returns to rows and columns
     take = mutation_id_matrix.flat[strongest_candidates] > 0
     tmp = np.unravel_index(
@@ -185,10 +220,10 @@ def getMutationChange(gtr_calls: np.ndarray, mutation: tuple, baseCalls: str,
             List of original (unmutated hmers)
     mutation: tuple
             (int, int) - flow index, new hmer
-    baseCalls: str 
+    baseCalls: str
             ground truth read
     key2base: np.ndarray
-            For each flow - what was the last generated base AFTER the call
+            For each flow - what was the last generated base BEFORE the call
     flow_order: str
             Flow order
 
@@ -206,30 +241,29 @@ def getMutationChange(gtr_calls: np.ndarray, mutation: tuple, baseCalls: str,
     assert diff != 0, "No mutation in this position"
     seq_base = key2base[mutation[0]]
     if diff > 0:
-        if seq_base - diff >= 0:
-            if seq_base + 1 < len(baseCalls):
-                start_pos = seq_base - diff
-            else:
-                start_pos = seq_base - diff - 1
-            start_seq = baseCalls[start_pos:seq_base + 1]
-            end_seq = baseCalls[start_pos:start_pos + 1]
-        else:
-            assert b == 0, "Weird mutation, should not happen"
+        # DELETION
+        if seq_base >= 0:
             start_pos = seq_base
             start_seq = baseCalls[start_pos:start_pos + diff + 1]
-            end_seq = baseCalls[start_pos + diff:start_pos + diff + 1]
+            end_seq = baseCalls[start_pos]
+        elif seq_base < 0:
+            # If we are deleting the first bases in the key
+            start_pos = 0
+            start_seq = baseCalls[start_pos:start_pos + diff + 1]
+            end_seq = baseCalls[start_pos + diff]
+
     elif diff < 0:
+        # INSERTION
         start_pos = seq_base
         if seq_base >= 0:
-            start_seq = baseCalls[seq_base: seq_base + 1]
-            end_seq = baseCalls[seq_base:seq_base + 1] + \
+            start_seq = baseCalls[start_pos: start_pos + 1]
+            end_seq = baseCalls[start_pos:start_pos + 1] + \
                 flow_order[mutation[0]] * (-diff)
         elif seq_base == -1:
-            seq_base = 0
             start_pos = 0
-            start_seq = baseCalls[seq_base: seq_base + 1]
+            start_seq = baseCalls[start_pos: start_pos + 1]
             end_seq = flow_order[mutation[0]] * \
-                (-diff) + baseCalls[seq_base:seq_base + 1]
+                (-diff) + baseCalls[start_pos:start_pos + 1]
     assert start_pos >= 0, "Assertion failed - start_pos < 0"
     assert len(start_seq) != len(
         end_seq), "Assertion failed - no difference b/w alleles"
@@ -256,7 +290,9 @@ def getLogLikDiff(flow_matrix: np.ndarray, gtr_calls: np.ndarray, mutation: tupl
 
 
 def seqToRecord(seq: str, rname: str,
-                llk: float = Optional[float], alts: list = None) -> pysam.AlignedSegment:
+                llk: float = Optional[float],
+                alts: list = None,
+                ralts: list = None) -> pysam.AlignedSegment:
     '''Convert string to pysam record
 
     Parameters
@@ -269,7 +305,8 @@ def seqToRecord(seq: str, rname: str,
         Log likelihood of the sequence
     alts: list
         List of tuples (pos, ref, alt, diff)
-
+    ralts: list
+        Same as alts, but for reverse complement sequence
     Returns
     -------
     pysam.AlignedSegment
@@ -291,13 +328,51 @@ def seqToRecord(seq: str, rname: str,
     def alt2str(x):
         return "%d,%s,%s,%.2f" % x
 
-    alts = sorted(alts, key=lambda x: x[0])
+    alts = sorted(alts, key=lambda x: (x[3], x[0]))
+    # note different sorting order for ralts so that it is the same as alts when we reverse
+    ralts = sorted(ralts, key=lambda x: (x[3], -x[0]))
+    rseq = utils.revcomp(seq)
+
     for a in alts:
         assert validate_alt(seq, a), "Weird mutation sequence"
+    for a in ralts:
+        assert validate_alt(rseq, a), "Weird rmutation sequence"
+    valts = [validate_rcalt_v2(*x, seq, rseq) for x in zip(alts, ralts)]
+    for a in valts:
+        assert a, "Weird rvariant"
+    alts = sorted(alts, key=lambda x: x[0])
+    ralts = sorted(ralts, key=lambda x: (x[0]))
+
     alts = ";".join([alt2str(x) for x in alts])
-    seg.tags = ([('LL', llk), ("AL", alts)])
+    ralts = ";".join([alt2str(x) for x in ralts])
+    seg.tags = ([('LL', llk), ("AL", alts), ("RA", ralts)])
 
     return seg
+
+
+def validate_rcalt_v2(alt: tuple, ralt: tuple, seq: str, rseq: str) -> bool:
+    '''Check that the read after application of ralt is the same as after applying alt
+
+    Parameters
+    ----------
+    alt: tuple
+        Alternative allele
+    ralt: tuple
+        Revcomp
+    seq: str
+        Sequence
+    rseq: str
+        Revcomp
+    '''
+    if apply_variant(rseq, ralt) == utils.revcomp(apply_variant(seq, alt)):
+        return True
+    return False
+
+
+def apply_variant(seq: str, variant: tuple) -> str:
+    '''Apply variant to sequence
+    '''
+    return readExpander.ReadExpander.get_read_variant_str(seq, [variant])
 
 
 def validate_alt(seq: str, alt: tuple) -> bool:
@@ -314,6 +389,8 @@ def validate_alt(seq: str, alt: tuple) -> bool:
     bool
     '''
     pos = alt[0]
+    if pos < 0 or pos >= len(seq):
+        return False
     if seq[pos:pos + len(alt[1])] == alt[1]:
         return True
     return False

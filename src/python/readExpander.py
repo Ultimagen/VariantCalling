@@ -33,15 +33,14 @@ class ReadExpander:
             return True
         return False
 
-    def get_read_variant(self, mutations):
-        reference = self.read
+    def get_read_variant_str(reference, mutations):
         mutated = ''
         cur_source_pos = 0
         cur_dest_pos = 0
         if len(mutations) == 0:
-            return self.read
+            return reference
         expected_diff = sum([len(x[2]) - len(x[1]) for x in mutations], 0)
-        expected_dest_length = len(self.read) + expected_diff
+        expected_dest_length = len(reference) + expected_diff
         for m in mutations:
             update = m[0] - cur_source_pos
             if update >= 0:
@@ -64,4 +63,9 @@ class ReadExpander:
         mutated += reference[cur_source_pos:]
         assert len(mutated) == expected_dest_length, "Resultant sequence \
         different in length from expected"
+        
         return mutated
+
+    def get_read_variant(self, mutations):
+        reference = self.read
+        return ReadExpander.get_read_variant_str(reference, mutations)
