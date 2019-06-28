@@ -4,6 +4,62 @@
 		"selected_items":
 		[
 			[
+				"start",
+				"start\tparam"
+			],
+			[
+				"runs_",
+				"runs_of_ones"
+			],
+			[
+				"depths",
+				"pos_depths"
+			],
+			[
+				"appl",
+				"apply_variant\tfunction"
+			],
+			[
+				"ex",
+				"expected_sequence\tparam"
+			],
+			[
+				"apply",
+				"apply_variant"
+			],
+			[
+				"read",
+				"readExpander\tmodule"
+			],
+			[
+				"valid",
+				"validate_rcalt\tfunction"
+			],
+			[
+				"new_",
+				"new_rcomp_del_seq\tstatement"
+			],
+			[
+				"rev",
+				"reverse_complement\tstatement"
+			],
+			[
+				"expe",
+				"expected_dest_length\tstatement"
+			],
+			[
+				"mutation",
+				"mutation_comb\tparam"
+			],
+			[
+				"cur_",
+				"cur_source_pos\tstatement"
+			],
+			[
+				"alt",
+				"alts"
+			],
+			[
 				"p",
 				"path\tinstance"
 			],
@@ -52,30 +108,22 @@
 	"buffers":
 	[
 		{
-			"file": "src/simulator.py",
+			"file": "src/python/simulator.py",
 			"settings":
 			{
-				"buffer_size": 8300,
+				"buffer_size": 11958,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
 		},
 		{
-			"file": "/home/ilya/proj/Base-Calling/ContextResearch/BeadsData.py",
+			"file": "src/python/readExpander.py",
 			"settings":
 			{
-				"buffer_size": 120104,
+				"buffer_size": 2643,
 				"encoding": "UTF-8",
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "src/utils.py",
-			"settings":
-			{
-				"buffer_size": 594,
-				"encoding": "UTF-8",
-				"line_ending": "Unix"
+				"line_ending": "Unix",
+				"name": "class ReadExpander"
 			}
 		}
 	],
@@ -91,7 +139,43 @@
 		"selected_items":
 		[
 			[
+				"au",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"aut",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"ind",
+				"Indentation: Convert to Spaces"
+			],
+			[
+				"sublime",
+				"Sublime Merge: Blame File"
+			],
+			[
 				"auto",
+				"Anaconda: Autoformat PEP8 Errors"
+			],
+			[
+				"convert to ",
+				"Indentation: Convert to Spaces"
+			],
+			[
+				"ena",
+				"Package Control: Enable Package"
+			],
+			[
+				"pep",
+				"User: Python PEP8 Autoformat"
+			],
+			[
+				"inst",
+				"Package Control: Install Package"
+			],
+			[
+				"pep8",
 				"Anaconda: Autoformat PEP8 Errors"
 			],
 			[
@@ -109,10 +193,6 @@
 			[
 				"remov",
 				"Package Control: Remove Package"
-			],
-			[
-				"inst",
-				"Package Control: Install Package"
 			],
 			[
 				"remo",
@@ -145,10 +225,6 @@
 			[
 				"dia",
 				"Package Control: Disable Package"
-			],
-			[
-				"ena",
-				"Package Control: Enable Package"
 			],
 			[
 				"key",
@@ -187,19 +263,22 @@
 	},
 	"expanded_folders":
 	[
+		"/home/ilya/proj/Base-Calling/ContextResearch",
 		"/home/ilya/proj/VariantCalling/src",
-		"/home/ilya/proj/VariantCalling/src/__pycache__"
+		"/home/ilya/proj/VariantCalling/src/python"
 	],
 	"file_history":
 	[
+		"/home/ilya/proj/VariantCalling/src/python/utils.py",
+		"/home/ilya/.config/sublime-text-3/Packages/User/Anaconda.sublime-settings",
+		"/home/ilya/proj/VariantCalling/variantCalling.sublime-project",
+		"/home/ilya/proj/VariantCalling/src/utils.py",
+		"/home/ilya/proj/VariantCalling/src/simulator.py",
 		"/home/ilya/proj/Base-Calling/ContextResearch/BeadsData.py",
 		"/home/ilya/proj/Base-Calling/ContextResearch/BeadsAnalysis.py",
-		"/home/ilya/proj/VariantCalling/variantCalling.sublime-project",
 		"/home/ilya/.config/sublime-text-3/Packages/Anaconda/README.md",
 		"/home/ilya/.config/sublime-text-3/Packages/Python Flake8 Lint/Flake8Lint.sublime-settings",
-		"/home/ilya/proj/VariantCalling/src/simulator.py",
-		"/home/ilya/anaconda3/envs/genomics.py3/lib/python3.7/site-packages/numpy/__init__.py",
-		"/home/ilya/.config/sublime-text-3/Packages/User/Anaconda.sublime-settings"
+		"/home/ilya/anaconda3/envs/genomics.py3/lib/python3.7/site-packages/numpy/__init__.py"
 	],
 	"find":
 	{
@@ -217,6 +296,10 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"last",
+			"key2base",
+			"seqToRe",
+			"0",
 			"gtr_flows",
 			"Optional",
 			"generate",
@@ -244,87 +327,28 @@
 			[
 				{
 					"buffer": 0,
-					"file": "src/simulator.py",
+					"file": "src/python/simulator.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 8300,
+						"buffer_size": 11958,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								2683,
-								2683
+								2364,
+								2364
 							]
 						],
 						"settings":
 						{
-							"SL.15.region_keys":
+							"SL.13.region_keys":
 							[
 								"sublime_linter.protected_regions"
 							],
-							"SL.80.region_keys":
-							[
-							],
-							"auto_complete_triggers":
-							[
-								{
-									"characters": "<",
-									"selector": "text.html"
-								},
-								{
-									"characters": ".",
-									"selector": "source.python - string - constant.numeric"
-								},
-								{
-									"characters": ".",
-									"selector": "source.python - string - constant.numeric"
-								},
-								{
-									"characters": ".",
-									"selector": "source.python - string - constant.numeric"
-								},
-								{
-									"characters": ".",
-									"selector": "source.python - string - constant.numeric"
-								}
-							],
-							"complete_all_parameters": false,
-							"complete_parameters": false,
-							"syntax": "Packages/Python/Python.sublime-syntax"
-						},
-						"translation.x": 0.0,
-						"translation.y": 718.0,
-						"zoom_level": 1.0
-					},
-					"stack_index": 1,
-					"type": "text"
-				},
-				{
-					"buffer": 1,
-					"file": "/home/ilya/proj/Base-Calling/ContextResearch/BeadsData.py",
-					"semi_transient": false,
-					"settings":
-					{
-						"buffer_size": 120104,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								106484,
-								106484
-							]
-						],
-						"settings":
-						{
-							"SL.14.region_keys":
-							[
-							],
-							"SL.20.region_keys":
+							"SL.17.region_keys":
 							[
 							],
 							"auto_complete_triggers":
@@ -338,61 +362,64 @@
 									"selector": "source.python - string - constant.numeric"
 								}
 							],
+							"spell_check": false,
 							"syntax": "Packages/Python/Python.sublime-syntax",
 							"tab_size": 4,
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 34026.0,
+						"translation.y": 663.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 1,
 					"type": "text"
 				},
 				{
-					"buffer": 2,
-					"file": "src/utils.py",
+					"buffer": 1,
+					"file": "src/python/readExpander.py",
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 594,
+						"buffer_size": 2643,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								594,
-								594
+								2474,
+								2474
 							]
 						],
 						"settings":
 						{
-							"SL.17.region_keys":
+							"SL.14.region_keys":
 							[
+								"sublime_linter.protected_regions"
 							],
-							"SL.84.region_keys":
+							"SL.17.region_keys":
 							[
 							],
 							"auto_complete_triggers":
 							[
 								{
-									"characters": "<",
-									"selector": "text.html"
+									"characters": ".",
+									"selector": "source.python - string - comment - constant.numeric"
 								},
 								{
 									"characters": ".",
 									"selector": "source.python - string - constant.numeric"
 								}
 							],
+							"auto_name": "class ReadExpander",
 							"syntax": "Packages/Python/Python.sublime-syntax",
-							"translate_tabs_to_spaces": false
+							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 0.0,
+						"translation.y": 354.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 2,
+					"stack_index": 0,
 					"type": "text"
 				}
 			]
