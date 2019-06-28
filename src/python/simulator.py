@@ -122,7 +122,7 @@ def keySpace2BaseSpace(flow_matrix: np.ndarray, flow_order: str=DEFAULT_FLOW_ORD
     tuple (str, np.ndarray, np.ndarray)
             1. String of most probable bases in the read
             2. Array of the last output base BEFORE each flow (For instance for flows 01021 the output is -1 -1 0 0 2 )
-            3. Array of the call for each flow
+            3. Array of the call for each flow (integer array)
 
     '''
     flow_order = getFlow2Base(flow_order, flow_matrix.shape[1])
