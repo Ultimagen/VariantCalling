@@ -129,3 +129,26 @@ def grouper(iterable, n, fillvalue=None):
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     return itertools.zip_longest(fillvalue=fillvalue, *args)
+
+def shiftarray(arr: np.ndarray, num: int, fill_value: np.float=np.nan) -> np.ndarray:
+    '''Shifts array by num to the right
+
+    Parameters
+    ----------
+    arr: np.ndarray
+        Array to be shifted
+    num: int
+        Shift size (negative - left shift)
+    fill_value: np.float
+        Fill value
+    '''
+    result = np.empty_like(arr)
+    if num > 0:
+        result[:num] = fill_value
+        result[num:] = arr[:-num]
+    elif num < 0:
+        result[num:] = fill_value
+        result[:num] = arr[-num:]
+    else:
+        result[:] = arr
+    return result
