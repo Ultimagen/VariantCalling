@@ -15,8 +15,14 @@ def revcomp(seq: str) -> str:
     '''
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A',
                   'a': 't', 'c': 'g', 'g': 'c', 't': 'a'}
-    reverse_complement = "".join(complement.get(base, base)
+    if type(seq) == str:
+        reverse_complement = "".join(complement.get(base, base)
                                  for base in reversed(seq))
+    elif type(seq) == list : 
+        reverse_complement =  [ complement.get(base, base) for base in reversed(seq)]
+    elif type(seq) == np.ndarray : 
+        reverse_complement =  np.array([ complement.get(base, base) for base in reversed(seq)])
+
     return reverse_complement
 
 

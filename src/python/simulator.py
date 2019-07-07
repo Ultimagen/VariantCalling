@@ -17,6 +17,9 @@ CONFUSION_MATRIX = np.clip(_CONFUSION_MATRIX, min_prob, None)
 CONFUSION_MATRIX = (CONFUSION_MATRIX.T / CONFUSION_MATRIX.sum(axis=1)).T
 
 
+
+
+
 def generateFlowMatrix(gtr_calls: np.ndarray,
                        confusion_matrix: np.ndarray = CONFUSION_MATRIX) -> np.ndarray:
     '''
@@ -133,7 +136,7 @@ def keySpace2BaseSpace(flow_matrix: np.ndarray, flow_order: str=DEFAULT_FLOW_ORD
 
 
 def identifyMutations(flow_matrix: np.ndarray, n_mutations: int, threshold: float,
-                      gtr_calls: Optional[np.ndarray] = None) -> np.ndarray:
+                      gtr_calls: Optional[np.ndarray] = None) -> tuple:
     '''
     Identifies mutations to report in the read
 

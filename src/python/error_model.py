@@ -216,4 +216,42 @@ def convert2readGivenData( source_dataframe: pd.DataFrame) -> pd.DataFrame :
     result_dataframe.dropna(how='all',inplace=True)
 
     return result_dataframe
+
+class ErrorModel : 
+    '''Contains error model and functions to access it. The design of the class 
+    is mosty for efficiency purposes
+
+    Attributes
+    ----------
+    _em - error model. Currently implemented as numpy array, keeps only probabilities
+    _hash_dict - dictionary between hash of the index and the index in the array
+
+    Methods
+    -------
+    get_hash - fetch by hash of the tuple
+    get_tuple - fetch by tuple
+    get_index - directly fetch by index in the array
+    ''' 
+
+    def __init__ (self, error_model_file: str):
+        error_model = pd.read_hdf(error_model_file, key="error_model_hashed")
+        hashed_idx = [ hash(x) for x in error_model.index ] 
+        self.hashed_dict = dict(zip(hashed_idx, range(len(hashed_idx))))
+        del hashed_idx
+        self.error_model = np.array(error_model[['P(-1)', 'P(0)', 'P(+1)']])
+        self.error_model = np.concatenate((self.error_model, np.zeros((1, self.error_model.shape[1]))))
+        del error_model
+
+    def hash2idx( self, hash_list):
+        return [ self.hashed_dict.get(x, self.error_model.shape[0]-1) for x in hash_list]
         
+    def get_hash( self, tuple_hash: int ) -> np.array : 
+        hashed_idx = self.hashed_dict.get(tuple_hash, self.error_model.shape[0]-1)
+        return self.error_model[hashed_idx,:]
+
+    def get_tuple( self, tup: tuple ) -> np.array : 
+        hashed_idx = self.hashed_dict.get(hash(tup), self.error_model.shape[0]-1)
+        return self.error_model[hashed_idx,:]
+
+    def get_index( self, index_list ) -> np.array : 
+        return self.error_model[index_list,:]
