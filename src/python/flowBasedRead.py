@@ -14,11 +14,11 @@ DEFAULT_ERROR_MODEL_FN = "/home/ilya/proj/VariantCalling/work/190628/error_model
 
 def get_bam_header(rgid: Optional[str] = None):
 
-    if rgid is None: 
+    if rgid is None:
         rgid = '1'
     dct = {'HQ': {'VN': '0.1', 'SO': 'unsorted'},
-           'RG': {'ID':rgid, 'FO': simulator.DEFAULT_FLOW_ORDER, 
-           'PL': 'ULTIMA', 'SM':'NA12878'} }
+           'RG': {'ID': rgid, 'FO': simulator.DEFAULT_FLOW_ORDER,
+                  'PL': 'ULTIMA', 'SM': 'NA12878'}}
 
     header = pysam.AlignmentHeader(dct)
     return header
@@ -56,9 +56,21 @@ class FlowBasedRead:
         Returns a new read with cigar applied (takes care of hard clipping and soft clipping)
     '''
 
-    def __init__(self, read_name: str, read: str, error_model: error_model.ErrorModel,
-                 flow_order: str=simulator.DEFAULT_FLOW_ORDER,
-                 motif_size: int=5, max_hmer_size: int=9):
+    def __init__(self, dict):
+        for k in dict:
+            setattr(self, k, dict[k])
+        self.flow2base = self._key2base(self.key)
+        self.flow2rbase = self._key2base(self.rkey)
+        self.flow_order = simulator.getFlow2Base(
+            self.flow_order, max(len(self.key), len(self.rkey)))
+        self.flow_rorder = utils.revcomp(self.flow_order)
+
+        self._validate_seq()
+
+    @classmethod
+    def from_tuple(cls, read_name: str, read: str, error_model: error_model.ErrorModel,
+                   flow_order: str=simulator.DEFAULT_FLOW_ORDER,
+                   motif_size: int=5, max_hmer_size: int=9, ):
         '''Constructor from FASTA record and error model. Sets `seq`, `r_seq`, `key`, 
         `rkey`, `flow_order`, `r_flow_order` attributes. 
 
@@ -75,19 +87,64 @@ class FlowBasedRead:
         motif_size: int
             Size of the motif
         '''
-        self.read_name = read_name
-        self.seq = read
-        self.key = BeadsData.BeadsData.generateKeyFromSequence(self.seq)
-        self.flow2base = self._key2base(self.key)
-        self.r_seq = utils.revcomp(read)
-        self.rkey = self.key[::-1]
-        self.flow2rbase = self._key2base(self.rkey)
-        self.flow_order = simulator.getFlow2Base(flow_order, max(len(self.key), len(self.rkey)))
-        self.flow_rorder = utils.revcomp(self.flow_order)
-        self._error_model = error_model
-        self._max_hmer = max_hmer_size
-        self._motif_size = motif_size
-        self._validate_seq()
+        dct = {}
+        dct['read_name'] = read_name
+        dct['seq'] = read
+        dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct['seq'])
+        dct['r_seq'] = utils.revcomp(read)
+        dct['rkey'] = dct['key'][::-1]
+        dct['flow_order'] = flow_order
+        dct['_error_model'] = error_model
+        dct['_max_hmer'] = max_hmer_size
+        dct['_motif_size'] = motif_size
+        return cls(dct)
+
+    @classmethod
+    def from_sam_record(cls, sam_record: pysam.AlignedSegment,
+                        error_model: Optional[error_model.ErrorModel] = None,
+                        flow_order: str=simulator.DEFAULT_FLOW_ORDER,
+                        motif_size: int=5, max_hmer_size: int=9):
+        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`, 
+        `rkey`, `flow_order`, `r_flow_order` attributes. 
+
+        Parameters
+        ----------
+        read_name: str
+            Name of the read
+        seq: str
+            DNA sequence of the read (basecalling output)
+        flow_order: np.ndarray
+            Array of chars - base for each flow
+        error_model: pd.DataFrame
+            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif
+        motif_size: int
+            Size of the motif
+        '''
+        dct = {}
+        dct['record'] = sam_record
+        dct['read_name'] = sam_record.query_name
+        dct['seq'] = sam_record.query_sequence
+
+        if sam_record.has_tag('ks'):
+            dct['key'] = np.array(sam_record.get_tag('ks'))
+        else:
+            dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(self.seq)
+
+        dct['r_seq'] = utils.revcomp(dct['seq'])
+        dct['rkey'] = dct['key'][::-1]
+        dct['_max_hmer'] = max_hmer_size
+        dct['flow_order'] = flow_order
+        if sam_record.has_tag("ks"):
+            flow_matrix = np.zeros((max_hmer_size + 1, len(dct['key'])))
+            kq = np.array(sam_record.get_tag('kq'),dtype=np.float)
+            gtr_probs = 1 - 10**(-kq / 10)
+
+            flow_matrix[sam_record.get_tag('kh'),
+                        sam_record.get_tag('kf')] = 10**((-np.array(sam_record.get_tag('kd'), dtype=np.float) 
+                                                        - kq[sam_record.get_tag('kf')]) / 10)
+            flow_matrix[dct['key'], np.arange(len(dct['key']))] = gtr_probs
+            dct['flow_matrix'] = flow_matrix
+        return cls(dct)
 
     def _validate_seq(self) -> None:
         '''Validates that there are no hmers longer than _max_hmer
@@ -120,7 +177,8 @@ class FlowBasedRead:
             np.ndarray, np.ndarray of matrices that correspond to the forward and the reverse sequence
         '''
         if not hasattr(self, "_flowMatrix"):
-            self._flowMatrix = self._getSingleFlowMatrix(self.key, self.flow2base, self.seq)
+            self._flowMatrix = self._getSingleFlowMatrix(
+                self.key, self.flow2base, self.seq)
         return self._flowMatrix, self._flowMatrix[:, ::-1]
 
     def _getSingleFlowMatrix(self, key: np.ndarray, flow2base: np.ndarray, seq: str) -> np.ndarray:
@@ -145,22 +203,28 @@ class FlowBasedRead:
             if left_base < 0:
                 motifs_left.append('')
             else:
-                motifs_left.append(seq[max(left_base - self._motif_size + 1, 0):left_base + 1])
-                assert seq[left_base] != self.flow_order[i], "Something wrong with motifs"
+                motifs_left.append(
+                    seq[max(left_base - self._motif_size + 1, 0):left_base + 1])
+                assert seq[left_base] != self.flow_order[
+                    i], "Something wrong with motifs"
         motifs_right = []
         for i in range(key.shape[0] - 1):
             right_base = flow2base[i + 1]
-            motifs_right.append(seq[right_base + 1:right_base + self._motif_size + 1])
-            assert seq[right_base + 1] != self.flow_order[i], "Something wrong with motifs"
+            motifs_right.append(
+                seq[right_base + 1:right_base + self._motif_size + 1])
+            assert seq[right_base +
+                       1] != self.flow_order[i], "Something wrong with motifs"
         motifs_right.append('')
 
-        index = [x for x in zip(motifs_left, key, self.flow_order[:len(key)], motifs_right)]
+        index = [x for x in zip(motifs_left, key, self.flow_order[
+                                :len(key)], motifs_right)]
         hash_idx = [hash(x) for x in index]
         idx_list = self._error_model.hash2idx(hash_idx)
         tmp = self._error_model.get_index(idx_list)
         #tmp = np.array(self._error_model.loc[index][['P(-1)','P(0)', 'P(+1)']])
 
-        # return motifs_left, key, self.flow_order[:len(key)], motifs_right, index
+        # return motifs_left, key, self.flow_order[:len(key)], motifs_right,
+        # index
         pos = np.arange(len(key))
         key = key
 
@@ -175,7 +239,7 @@ class FlowBasedRead:
         flow_matrix = self._fix_nan(flow_matrix)
         return flow_matrix
 
-    def _fix_nan( self, flow_matrix: np.ndarray ) -> np.ndarray:
+    def _fix_nan(self, flow_matrix: np.ndarray) -> np.ndarray:
         ''' Fixes cases when there is nan in the flow matrix. 
         This is an ugly hack - we assume that nan come from cases when 
         there is not enough data - currently we will them by 0.8 for P(R=i|H=i) and 
@@ -191,8 +255,8 @@ class FlowBasedRead:
         np.ndarray 
             Corrected matrix
         '''
-        gtr = self.key 
-        row,col = np.nonzero(np.isnan(flow_matrix))
+        gtr = self.key
+        row, col = np.nonzero(np.isnan(flow_matrix))
         take = (row == gtr[col])
         flow_matrix[row[take], col[take]] = 0.8
         flow_matrix[row[~take], col[~take]] = 0.2
@@ -267,16 +331,20 @@ class FlowBasedRead:
         -------
         pysam.AlignedSegment
         '''
+        if hasattr(self, 'record'):
+            res = self.record
+        else:
+            res = pysam.AlignedSegment(hdr)
+            res.query_sequence = self.seq
+            res.query_name = self.read_name
 
-        res = pysam.AlignedSegment(hdr)
-        res.query_sequence = self.seq
-        res.query_name = self.read_name
         alt_row, alt_col, alt_val = self._matrix_to_sparse()
-        res.set_tags([('ks', [ int(x) for x in self.key]),
-                      ('kq', [ int(x) for x in self._get_phred_flow()]),
+        res.set_tags([('ks', [int(x) for x in self.key]),
+                      ('kq', [int(x) for x in self._get_phred_flow()]),
                       ('kh', [int(x) for x in alt_row]),
                       ('kf', [int(x) for x in alt_col]),
                       ('kd', [int(x) for x in alt_val])])
+        self.record = res
         return res
 
     # def get_seq_errors(self, n_mutations: int, threshold: float) -> tuple:
@@ -302,4 +370,5 @@ class FlowBasedRead:
     #         self._flowMatrix[:, ::-1], n_mutations, threshold, gtr_calls=self.rkey)
     #     return (mutations_forward, mutations_reverse)
 
-    # def _mutation_to_change(self, mutations: np.ndarray, is_reverse: bool=False) -> np.ndarray
+    # def _mutation_to_change(self, mutations: np.ndarray, is_reverse:
+    # bool=False) -> np.ndarray

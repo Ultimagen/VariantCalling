@@ -2,13 +2,14 @@ import numpy as np
 from typing import Optional
 
 from os.path import join as pjoin
+import os
 from . import utils
 import pysam
 from . import readExpander
 
 error_rates = np.logspace(.001, .01, 10)
 DEFAULT_FLOW_ORDER = "TACG"
-_workdir = "/home/ilya/proj/VariantCalling/work/190605/"
+_workdir = pjoin(os.environ["HOME"], "proj/VariantCalling/work/190605/")
 
 # We always allow for a bit of error
 _CONFUSION_MATRIX = np.load(pjoin(_workdir, "confusion.npy"))
