@@ -1,5 +1,6 @@
 # Flow-based read/haplotype class
 # This will be a class that would hold a read in flow base
+from __future__ import annotations
 from . import utils
 from . import simulator
 from . import error_model
@@ -36,16 +37,10 @@ class FlowBasedRead:
         Read name
     seq: str
         Original read sequence
-    r_seq: str
-        Reverse complement read sequence
     key: np.ndarray
         sequence in flow base
     flow2base: np.ndarray
         position of the last output sequence base _before_ each flow for forward key
-    rkey: np.ndarray
-        reverse complement sequence in flow base
-    flow2rbase: np.ndarray
-        position of the last output sequence base _before_ each flow for reverse key
     flow_order: str
         sequence of flows
     _motif_size: int
@@ -56,19 +51,28 @@ class FlowBasedRead:
         Returns a new read with cigar applied (takes care of hard clipping and soft clipping)
     '''
 
-    def __init__(self, dict):
-        for k in dict:
-            setattr(self, k, dict[k])
-        self.flow2base = self._key2base(self.key)
-        self.flow2rbase = self._key2base(self.rkey)
+    def __init__(self, dct: dict):
+        '''Generic constructor
+
+        Parameters
+        ----------
+        Receives key-value dictionary and sets the corresponding properties of the object
+
+        Returns
+        -------
+        None
+        '''
+
+        for k in dct:
+            setattr(self, k, dct[k])
+        self.flow2base = self._key2base(self.key).astype(np.int)
         self.flow_order = simulator.getFlow2Base(
-            self.flow_order, max(len(self.key), len(self.rkey)))
-        self.flow_rorder = utils.revcomp(self.flow_order)
+            self.flow_order, len(self.key))
 
         self._validate_seq()
 
     @classmethod
-    def from_tuple(cls, read_name: str, read: str, error_model: error_model.ErrorModel,
+    def from_tuple(cls, read_name: str, read: str, error_model: error_model.ErrorModel = None,
                    flow_order: str=simulator.DEFAULT_FLOW_ORDER,
                    motif_size: int=5, max_hmer_size: int=9, ):
         '''Constructor from FASTA record and error model. Sets `seq`, `r_seq`, `key`, 
@@ -83,20 +87,22 @@ class FlowBasedRead:
         flow_order: np.ndarray
             Array of chars - base for each flow
         error_model: pd.DataFrame
-            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif
+            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif. 
+            Error model could be None, in this case it will be assumed that there are no errors
         motif_size: int
             Size of the motif
         '''
         dct = {}
         dct['read_name'] = read_name
         dct['seq'] = read
-        dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct['seq'])
-        dct['r_seq'] = utils.revcomp(read)
-        dct['rkey'] = dct['key'][::-1]
+        dct['forward_seq'] = read
+        dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct[
+                                                                 'forward_seq'])
         dct['flow_order'] = flow_order
         dct['_error_model'] = error_model
         dct['_max_hmer'] = max_hmer_size
         dct['_motif_size'] = motif_size
+        dct['direction'] = 'synthesis'
         return cls(dct)
 
     @classmethod
@@ -105,7 +111,7 @@ class FlowBasedRead:
                         flow_order: str=simulator.DEFAULT_FLOW_ORDER,
                         motif_size: int=5, max_hmer_size: int=9):
         '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`, 
-        `rkey`, `flow_order`, `r_flow_order` attributes. 
+        `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
 
         Parameters
         ----------
@@ -117,33 +123,48 @@ class FlowBasedRead:
             Array of chars - base for each flow
         error_model: pd.DataFrame
             Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif
+            Can be optional if the read has ks, kq, kd fields
         motif_size: int
             Size of the motif
+        max_hmer_size: int
+            Maximal reported hmer size
+
+        Returns
+        -------
+        Object 
         '''
+
         dct = {}
         dct['record'] = sam_record
         dct['read_name'] = sam_record.query_name
         dct['seq'] = sam_record.query_sequence
-
-        if sam_record.has_tag('ks'):
-            dct['key'] = np.array(sam_record.get_tag('ks'))
+        dct['is_reverse'] = sam_record.is_reverse
+        if sam_record.is_reverse:
+            dct['forward_seq'] = utils.revcomp(dct['seq'])
         else:
-            dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(self.seq)
+            dct['forward_seq'] = dct['seq']
+        dct['_error_model'] = error_model
+        if sam_record.has_tag('ks'):
+            dct['key'] = np.array(sam_record.get_tag('ks'), dtype=np.int8)
+        else:
+            dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct[
+                                                                     'forward_seq'])
 
-        dct['r_seq'] = utils.revcomp(dct['seq'])
-        dct['rkey'] = dct['key'][::-1]
         dct['_max_hmer'] = max_hmer_size
+        dct['_motif_size'] = motif_size
         dct['flow_order'] = flow_order
-        if sam_record.has_tag("ks"):
+        if sam_record.has_tag("kq"):
             flow_matrix = np.zeros((max_hmer_size + 1, len(dct['key'])))
-            kq = np.array(sam_record.get_tag('kq'),dtype=np.float)
+            kq = np.array(sam_record.get_tag('kq'), dtype=np.float)
             gtr_probs = 1 - 10**(-kq / 10)
 
             flow_matrix[sam_record.get_tag('kh'),
-                        sam_record.get_tag('kf')] = 10**((-np.array(sam_record.get_tag('kd'), dtype=np.float) 
-                                                        - kq[sam_record.get_tag('kf')]) / 10)
+                        sam_record.get_tag('kf')] = 10**((-np.array(sam_record.get_tag('kd'), dtype=np.float)
+                                                          - kq[sam_record.get_tag('kf')]) / 10)
             flow_matrix[dct['key'], np.arange(len(dct['key']))] = gtr_probs
-            dct['flow_matrix'] = flow_matrix
+            dct['_flowMatrix'] = flow_matrix
+        dct['cigar'] = sam_record.cigartuples
+        dct['direction'] = 'synthesis'
         return cls(dct)
 
     def _validate_seq(self) -> None:
@@ -173,16 +194,17 @@ class FlowBasedRead:
 
         Returns 
         -------
-        tuple
-            np.ndarray, np.ndarray of matrices that correspond to the forward and the reverse sequence
+        np.ndarray 
+            Flow matrix of (max_hmer_size+1) x n_flow
         '''
         if not hasattr(self, "_flowMatrix"):
             self._flowMatrix = self._getSingleFlowMatrix(
-                self.key, self.flow2base, self.seq)
-        return self._flowMatrix, self._flowMatrix[:, ::-1]
+                self.key, self.flow2base, self.forward_seq)
+        return self._flowMatrix
 
     def _getSingleFlowMatrix(self, key: np.ndarray, flow2base: np.ndarray, seq: str) -> np.ndarray:
-        '''Returns matrix flow matrix for a given flow key
+        '''Returns matrix flow matrix for a given flow key. Note that if the error model is None 
+        it is assumed that there are no errors (useful for getting flow matrix of a haplotype)
 
         Parameters
         ----------
@@ -196,6 +218,12 @@ class FlowBasedRead:
         -------
         hmerxflow probability matrix 
         '''
+
+        if self._error_model is None:
+            flow_matrix = np.zeros((self._max_hmer + 1, len(key)))
+            flow_matrix[np.clip(self.key, 0, self.max_hmer_size),
+                        np.arange(len(self.key))] = 1
+            return flow_matrix
 
         motifs_left = []
         for i in range(key.shape[0]):
@@ -337,38 +365,113 @@ class FlowBasedRead:
             res = pysam.AlignedSegment(hdr)
             res.query_sequence = self.seq
             res.query_name = self.read_name
+        res.set_tag("KS", ''.join(self.flow_order[:4]))
+        if hasattr(self, "_flowMatrix"):
+            alt_row, alt_col, alt_val = self._matrix_to_sparse()
+            res.set_tag('ks', [int(x) for x in self.key])
+            res.set_tag('kq', [int(x) for x in self._get_phred_flow()])
+            res.set_tag('kh', [int(x) for x in alt_row])
+            res.set_tag('kf', [int(x) for x in alt_col])
+            res.set_tag('kd', [int(x) for x in alt_val])
 
-        alt_row, alt_col, alt_val = self._matrix_to_sparse()
-        res.set_tags([('ks', [int(x) for x in self.key]),
-                      ('kq', [int(x) for x in self._get_phred_flow()]),
-                      ('kh', [int(x) for x in alt_row]),
-                      ('kf', [int(x) for x in alt_col]),
-                      ('kd', [int(x) for x in alt_val])])
+        else:
+            res.set_tag('ks', [int(x) for x in self.key])
         self.record = res
         return res
 
-    # def get_seq_errors(self, n_mutations: int, threshold: float) -> tuple:
-    #     '''Returns locations of probable sequencing errors
+    def _left_clipped_flows(self) -> tuple:
+        '''Returns number of flows clipped from the left
 
-    #     Parameters
-    #     ----------
-    #     n_mutations: int
-    #         Maximal number of mutations to return, None - if all mutations with higher than threshold
-    #         probability
-    #     threshold: float
-    #         Minimal mutation probability
+        Parameters
+        ----------
+        None
 
-    #     Returns
-    #     -------
-    #     tuple
-    #         (forward_errors: (np.ndarray, np.ndarray, np.ndarray),
-    #         reverse_errors: (np.ndarray, np.ndarray, np.ndarray)).
-    #          Each tuple is (flows, call_diffs, log2DeltaLikelihood)
-    #     '''
-    #     mutations_forward = simulator.identifyMutations(self._flowMatrix, n_mutations, threshold, gtr_calls=self.key)
-    #     mutations_reverse = simulator.identifyMutations(
-    #         self._flowMatrix[:, ::-1], n_mutations, threshold, gtr_calls=self.rkey)
-    #     return (mutations_forward, mutations_reverse)
+        Returns
+        -------
+        tuple (int, int)
+            Number of flows clipped from the left, number of bases clipped of the left hmer
+        '''
 
-    # def _mutation_to_change(self, mutations: np.ndarray, is_reverse:
-    # bool=False) -> np.ndarray
+        if self.cigar[0][0] != 5:
+            return (0, 0)
+        else:
+            bases_clipped = self.cigar[0][1]
+            flowsclipped = 0
+            idx = 0
+            stop_clip = np.argmax(self.flow2base > bases_clipped)
+            stop_clip_flow = stop_clip
+            hmer_clipped = self.flow2base[stop_clip] - bases_clipped
+            return (stop_clip_flow, hmer_clipped)
+
+    def _right_clipped_flows(self) -> tuple:
+        '''Returns number of flows clipped from the left
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        tuple (int, int)
+            Number of flows clipped from the left, number of bases clipped of the left hmer
+        '''
+
+        if self.cigar[-1][0] != 5:
+            return (0, 0)
+        else:
+            bases_clipped = self.cigar[-1][1]
+            flowsclipped = 0
+            idx = 0
+            stop_clip = np.argmax(self.flow2base[::-1] > bases_clipped)
+            stop_clip_flow = stop_clip
+            hmer_clipped = self.flow2base[::-1][stop_clip] - bases_clipped
+            return (stop_clip_flow, hmer_clipped)
+
+    def apply_alignment(self) -> FlowBasedRead:
+        '''Applies alignment (inversion / hard clipping ) to the flowBasedRead
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        New FlowBasedRead with 
+        Modifies `key`, `_flowMatrix`, `flow2base`, `flow_order` attributes
+        '''
+
+        assert(hasattr(self, 'cigar')), "Only aligned read can be modified"
+        attrs_dict = vars(self)
+        other = FlowBasedRead(attrs_dict.copy())
+        if other.is_reverse and self.direction != 'reference':
+            if hasattr(other, '_flowMatrix'):
+                other._flowMatrix = other._flowMatrix[:, ::-1]
+            #other.seq = utils.revcomp(other.forward_seq)
+
+            other.key = other.key[::-1]
+            other.flow2base = other._key2base(other.key)
+            other.flow_order = utils.revcomp(other.flow_order)
+
+        clip_left, left_hmer_clip = other._left_clipped_flows()
+        clip_right, right_hmer_clip = other._right_clipped_flows()
+        original_length = len(other.key)
+
+        other.key = other.key[clip_left:original_length - clip_right]
+        affected_left_hmer = np.argmax(other.key > 0)
+        other.key[affected_left_hmer] -= left_hmer_clip
+        affected_right_hmer = len(other.key) - 1 - \
+            np.argmax(other.key[::-1] > 0)
+        other.key[affected_right_hmer] -= right_hmer_clip
+
+        other.flow_order = other.flow_order[
+            clip_left:original_length - clip_right]
+
+        if hasattr(other, '_flowMatrix'):
+            other._flowMatrix = other._flowMatrix[:,
+                clip_left:original_length - clip_right]
+            other._flowMatrix[:, affected_left_hmer] = utils.shiftarray(
+                other._flowMatrix[:, affected_left_hmer], -left_hmer_clip)
+            other._flowMatrix[:, affected_right_hmer] = utils.shiftarray(
+                other._flowMatrix[:, affected_right_hmer], -right_hmer_clip)
+        other.direction = 'reference'
+        return other
