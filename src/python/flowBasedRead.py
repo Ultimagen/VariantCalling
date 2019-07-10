@@ -8,6 +8,7 @@ import numpy as np
 import pysam
 import BeadsData
 from typing import Optional
+import copy
 
 DEFAULT_ERROR_MODEL_FN = "/home/ilya/proj/VariantCalling/work/190628/error_model.r2d.hd5"
 #DEFAULT_ERROR_MODEL = pd.read_hdf(DEFAULT_ERROR_MODEL_FN, "error_model")
@@ -68,6 +69,9 @@ class FlowBasedRead:
         self.flow2base = self._key2base(self.key).astype(np.int)
         self.flow_order = simulator.getFlow2Base(
             self.flow_order, len(self.key))
+        if hasattr(self, 'cigar') and self.cigar is not None:
+            if 5 in [x[0] for x in self.cigar if x is not None]:
+                self.cigar = self._infer_cigar()
 
         self._validate_seq()
 
@@ -157,7 +161,6 @@ class FlowBasedRead:
             flow_matrix = np.zeros((max_hmer_size + 1, len(dct['key'])))
             kq = np.array(sam_record.get_tag('kq'), dtype=np.float)
             gtr_probs = 1 - 10**(-kq / 10)
-
             flow_matrix[sam_record.get_tag('kh'),
                         sam_record.get_tag('kf')] = 10**((-np.array(sam_record.get_tag('kd'), dtype=np.float)
                                                           - kq[sam_record.get_tag('kf')]) / 10)
@@ -166,6 +169,41 @@ class FlowBasedRead:
         dct['cigar'] = sam_record.cigartuples
         dct['direction'] = 'synthesis'
         return cls(dct)
+
+    def _infer_cigar(self) -> list:
+        '''Infers the right cigar. This is a hack due to a wrong CIGAR string that GATK outputs
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        list:
+            The correct cigar tuples
+        '''
+        orig_sequence = self._key2str()
+        orig_sequence_r = utils.revcomp(orig_sequence)
+        current_cigar  = self.cigar
+        if not self.is_reverse and self.seq in orig_sequence : 
+            idx = orig_sequence.index(self.seq)
+        elif self.is_reverse: 
+            idx = orig_sequence_r.index(self.seq)
+        else:
+            raise AssertionError("substring not found")
+        if idx == 0 : 
+            if current_cigar[0][0] == 5:
+                current_cigar = current_cigar[1:]
+        else: 
+            current_cigar[0] = (5, idx) 
+        remainder = len(orig_sequence) - len(self.seq) - idx 
+        if remainder == 0 :
+            if current_cigar[-1][0] == 5: 
+                current_cigar = current_cigar[:-1]
+        else: 
+            current_cigar[-1] = (5,remainder)
+        return current_cigar
+
 
     def _validate_seq(self) -> None:
         '''Validates that there are no hmers longer than _max_hmer
@@ -389,22 +427,26 @@ class FlowBasedRead:
         Returns
         -------
         tuple (int, int)
-            Number of flows clipped from the left, number of bases clipped of the left hmer
+            (fn, n) subtract n from the hmer count of flow fn, trim all flows before fn
         '''
 
         if self.cigar[0][0] != 5:
             return (0, 0)
         else:
             bases_clipped = self.cigar[0][1]
-            flowsclipped = 0
             idx = 0
-            stop_clip = np.argmax(self.flow2base > bases_clipped)
+            stop_clip = np.argmax(self.flow2base+1 >= bases_clipped)
+            for c in range(stop_clip-1, -1,-1):
+                if self.key[c]>0: 
+                    stop_clip = c
+                    break
             stop_clip_flow = stop_clip
-            hmer_clipped = self.flow2base[stop_clip] - bases_clipped
+            hmer_clipped = bases_clipped - self.flow2base[stop_clip]-1 
+
             return (stop_clip_flow, hmer_clipped)
 
     def _right_clipped_flows(self) -> tuple:
-        '''Returns number of flows clipped from the left
+        '''Returns number of flows clipped from the right
 
         Parameters
         ----------
@@ -413,19 +455,25 @@ class FlowBasedRead:
         Returns
         -------
         tuple (int, int)
-            Number of flows clipped from the left, number of bases clipped of the left hmer
+            (fn, n) subtract n from the hmer count of flow -fn-1, trim all flows after -fn-1
         '''
 
         if self.cigar[-1][0] != 5:
             return (0, 0)
         else:
             bases_clipped = self.cigar[-1][1]
-            flowsclipped = 0
             idx = 0
-            stop_clip = np.argmax(self.flow2base[::-1] > bases_clipped)
+            reverse_flow2base = self._key2base(self.key[::-1])
+
+            stop_clip = np.argmax(reverse_flow2base + 1 >= bases_clipped)
+            for c in range(stop_clip-1, -1,-1):
+                if self.key[::-1][c]>0: 
+                    stop_clip = c
+                    break
+
             stop_clip_flow = stop_clip
-            hmer_clipped = self.flow2base[::-1][stop_clip] - bases_clipped
-            return (stop_clip_flow, hmer_clipped)
+            hmer_clipped = bases_clipped - reverse_flow2base[stop_clip]-1 
+            return (stop_clip, hmer_clipped)
 
     def apply_alignment(self) -> FlowBasedRead:
         '''Applies alignment (inversion / hard clipping ) to the flowBasedRead
@@ -442,36 +490,47 @@ class FlowBasedRead:
 
         assert(hasattr(self, 'cigar')), "Only aligned read can be modified"
         attrs_dict = vars(self)
-        other = FlowBasedRead(attrs_dict.copy())
+        other = FlowBasedRead(copy.deepcopy(attrs_dict))
         if other.is_reverse and self.direction != 'reference':
             if hasattr(other, '_flowMatrix'):
                 other._flowMatrix = other._flowMatrix[:, ::-1]
-            #other.seq = utils.revcomp(other.forward_seq)
 
             other.key = other.key[::-1]
             other.flow2base = other._key2base(other.key)
             other.flow_order = utils.revcomp(other.flow_order)
 
         clip_left, left_hmer_clip = other._left_clipped_flows()
+
         clip_right, right_hmer_clip = other._right_clipped_flows()
+        assert left_hmer_clip >=0 and right_hmer_clip >= 0, "Some problem with hmer clips"
         original_length = len(other.key)
+        other.key[clip_left]-=left_hmer_clip
+        # if no flows left on the left hmer - truncate it too
+        shift_left = True
+        if other.key[clip_left] == 0 : 
+            clip_left += 1
+            shift_left=False
+        other.key[-1-clip_right]-=right_hmer_clip
+        shift_right=True
+        if other.key[-1-clip_right] == 0 : 
+            shift_right=False
+            clip_right += 1
 
         other.key = other.key[clip_left:original_length - clip_right]
-        affected_left_hmer = np.argmax(other.key > 0)
-        other.key[affected_left_hmer] -= left_hmer_clip
-        affected_right_hmer = len(other.key) - 1 - \
-            np.argmax(other.key[::-1] > 0)
-        other.key[affected_right_hmer] -= right_hmer_clip
-
         other.flow_order = other.flow_order[
             clip_left:original_length - clip_right]
 
         if hasattr(other, '_flowMatrix'):
             other._flowMatrix = other._flowMatrix[:,
                 clip_left:original_length - clip_right]
-            other._flowMatrix[:, affected_left_hmer] = utils.shiftarray(
-                other._flowMatrix[:, affected_left_hmer], -left_hmer_clip)
-            other._flowMatrix[:, affected_right_hmer] = utils.shiftarray(
-                other._flowMatrix[:, affected_right_hmer], -right_hmer_clip)
+            if shift_left:
+                other._flowMatrix[:, 0] = utils.shiftarray(
+                    other._flowMatrix[:, 0], -left_hmer_clip)
+            if shift_right: 
+                other._flowMatrix[:, -1] = utils.shiftarray(
+                    other._flowMatrix[:, -1], -right_hmer_clip)
         other.direction = 'reference'
         return other
+
+    def _key2str(self):
+        return ''.join(np.repeat(self.flow_order, self.key))
