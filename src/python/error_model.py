@@ -229,7 +229,7 @@ class ErrorModel :
     Methods
     -------
     get_hash - fetch by hash of the tuple
-    get_tuple - fetch by tuple
+    get_tuple - fetch by tuple (left, hmer_number, hmer_letter, right)
     get_index - directly fetch by index in the array
     ''' 
 

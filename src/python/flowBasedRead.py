@@ -162,11 +162,12 @@ class FlowBasedRead:
             kq = np.array(sam_record.get_tag('kq'), dtype=np.float)
             gtr_probs = 1 - 10**(-kq / 10)
             flow_matrix[sam_record.get_tag('kh'),
-                        sam_record.get_tag('kf')] = 10**((-np.array(sam_record.get_tag('kd'), dtype=np.float)
-                                                          - kq[sam_record.get_tag('kf')]) / 10)
+                        sam_record.get_tag('kf')] = 10**(-np.array(sam_record.get_tag('kd'), dtype=np.float) / 10)
             flow_matrix[dct['key'], np.arange(len(dct['key']))] = gtr_probs
-            dct['_flowMatrix'] = flow_matrix
+            dct['_flow_matrix'] = flow_matrix
         dct['cigar'] = sam_record.cigartuples
+        dct['start'] = sam_record.reference_start
+        dct['end'] = sam_record.reference_end
         dct['direction'] = 'synthesis'
         return cls(dct)
 
@@ -184,26 +185,25 @@ class FlowBasedRead:
         '''
         orig_sequence = self._key2str()
         orig_sequence_r = utils.revcomp(orig_sequence)
-        current_cigar  = self.cigar
-        if not self.is_reverse and self.seq in orig_sequence : 
+        current_cigar = self.cigar
+        if not self.is_reverse and self.seq in orig_sequence:
             idx = orig_sequence.index(self.seq)
-        elif self.is_reverse: 
+        elif self.is_reverse:
             idx = orig_sequence_r.index(self.seq)
         else:
             raise AssertionError("substring not found")
-        if idx == 0 : 
+        if idx == 0:
             if current_cigar[0][0] == 5:
                 current_cigar = current_cigar[1:]
-        else: 
-            current_cigar[0] = (5, idx) 
-        remainder = len(orig_sequence) - len(self.seq) - idx 
-        if remainder == 0 :
-            if current_cigar[-1][0] == 5: 
+        else:
+            current_cigar[0] = (5, idx)
+        remainder = len(orig_sequence) - len(self.seq) - idx
+        if remainder == 0:
+            if current_cigar[-1][0] == 5:
                 current_cigar = current_cigar[:-1]
-        else: 
-            current_cigar[-1] = (5,remainder)
+        else:
+            current_cigar[-1] = (5, remainder)
         return current_cigar
-
 
     def _validate_seq(self) -> None:
         '''Validates that there are no hmers longer than _max_hmer
@@ -235,10 +235,10 @@ class FlowBasedRead:
         np.ndarray 
             Flow matrix of (max_hmer_size+1) x n_flow
         '''
-        if not hasattr(self, "_flowMatrix"):
-            self._flowMatrix = self._getSingleFlowMatrix(
+        if not hasattr(self, "_flow_matrix"):
+            self._flow_matrix = self._getSingleFlowMatrix(
                 self.key, self.flow2base, self.forward_seq)
-        return self._flowMatrix
+        return self._flow_matrix
 
     def _getSingleFlowMatrix(self, key: np.ndarray, flow2base: np.ndarray, seq: str) -> np.ndarray:
         '''Returns matrix flow matrix for a given flow key. Note that if the error model is None 
@@ -360,8 +360,11 @@ class FlowBasedRead:
         np.ndarray 
             Phred scaled **integer** qualities
         '''
-        tmp = np.max(self._flowMatrix, axis=0)
+
+        tmp = np.max(self._flow_matrix, axis=0)
+        high_conf = (tmp==1)
         tmp = -10 * np.log10(1 - tmp)
+        tmp[high_conf] = 60
         return tmp.astype(np.int8)
 
     def _matrix_to_sparse(self) -> tuple:
@@ -376,12 +379,11 @@ class FlowBasedRead:
         tuple (np.ndarray, np.ndarray, np.ndarray): 
             row, column, values (differences in int(log10) from the maximal value)
         '''
-        row_max = np.max(self._flowMatrix, axis=0)
+        row_max = np.max(self._flow_matrix, axis=0)
 
-        row, column = np.nonzero(self._flowMatrix)
-        values = np.log10(self._flowMatrix[row, column])
-        normalize = np.log10(row_max[column])
-        normalized_values = -10 * (values - normalize)
+        row, column = np.nonzero(self._flow_matrix)
+        values = np.log10(self._flow_matrix[row, column])
+        normalized_values = -10 * values
         rm = normalized_values == 0
         return row[~rm], column[~rm], normalized_values[~rm]
 
@@ -404,7 +406,7 @@ class FlowBasedRead:
             res.query_sequence = self.seq
             res.query_name = self.read_name
         res.set_tag("KS", ''.join(self.flow_order[:4]))
-        if hasattr(self, "_flowMatrix"):
+        if hasattr(self, "_flow_matrix"):
             alt_row, alt_col, alt_val = self._matrix_to_sparse()
             res.set_tag('ks', [int(x) for x in self.key])
             res.set_tag('kq', [int(x) for x in self._get_phred_flow()])
@@ -417,12 +419,13 @@ class FlowBasedRead:
         self.record = res
         return res
 
-    def _left_clipped_flows(self) -> tuple:
+    def _left_clipped_flows(self, cigar: Optional[list] = None) -> tuple:
         '''Returns number of flows clipped from the left
 
         Parameters
         ----------
-        None
+        cigar: list
+            Optional cigar, if None - the object's cigar will be used
 
         Returns
         -------
@@ -430,49 +433,45 @@ class FlowBasedRead:
             (fn, n) subtract n from the hmer count of flow fn, trim all flows before fn
         '''
 
-        if self.cigar[0][0] != 5:
+        if cigar is None : 
+            cigar = self.cigar
+        if cigar[0][0] != 5:
             return (0, 0)
         else:
-            bases_clipped = self.cigar[0][1]
+            bases_clipped = cigar[0][1]
             idx = 0
-            stop_clip = np.argmax(self.flow2base+1 >= bases_clipped)
-            for c in range(stop_clip-1, -1,-1):
-                if self.key[c]>0: 
-                    stop_clip = c
-                    break
+            stop_clip = np.argmax(self.flow2base + self.key >= bases_clipped)
             stop_clip_flow = stop_clip
-            hmer_clipped = bases_clipped - self.flow2base[stop_clip]-1 
+            hmer_clipped = bases_clipped - self.flow2base[stop_clip] - 1
 
             return (stop_clip_flow, hmer_clipped)
 
-    def _right_clipped_flows(self) -> tuple:
+    def _right_clipped_flows(self, cigar: Optional[list] = None) -> tuple:
         '''Returns number of flows clipped from the right
 
         Parameters
         ----------
-        None
+        cigar: list
+            Optional cigar, if None - the object's cigar will be used
 
         Returns
         -------
         tuple (int, int)
             (fn, n) subtract n from the hmer count of flow -fn-1, trim all flows after -fn-1
         '''
+        if cigar is None : 
+            cigar = self.cigar
 
-        if self.cigar[-1][0] != 5:
+        if cigar[-1][0] != 5:
             return (0, 0)
         else:
-            bases_clipped = self.cigar[-1][1]
+            bases_clipped = cigar[-1][1]
             idx = 0
             reverse_flow2base = self._key2base(self.key[::-1])
 
-            stop_clip = np.argmax(reverse_flow2base + 1 >= bases_clipped)
-            for c in range(stop_clip-1, -1,-1):
-                if self.key[::-1][c]>0: 
-                    stop_clip = c
-                    break
-
+            stop_clip = np.argmax(reverse_flow2base + self.key[::-1] >= bases_clipped)
             stop_clip_flow = stop_clip
-            hmer_clipped = bases_clipped - reverse_flow2base[stop_clip]-1 
+            hmer_clipped = bases_clipped - reverse_flow2base[stop_clip] - 1
             return (stop_clip, hmer_clipped)
 
     def apply_alignment(self) -> FlowBasedRead:
@@ -485,15 +484,15 @@ class FlowBasedRead:
         Returns
         -------
         New FlowBasedRead with 
-        Modifies `key`, `_flowMatrix`, `flow2base`, `flow_order` attributes
+        Modifies `key`, `_flow_matrix`, `flow2base`, `flow_order` attributes
         '''
 
         assert(hasattr(self, 'cigar')), "Only aligned read can be modified"
         attrs_dict = vars(self)
         other = FlowBasedRead(copy.deepcopy(attrs_dict))
         if other.is_reverse and self.direction != 'reference':
-            if hasattr(other, '_flowMatrix'):
-                other._flowMatrix = other._flowMatrix[:, ::-1]
+            if hasattr(other, '_flow_matrix'):
+                other._flow_matrix = other._flow_matrix[:, ::-1]
 
             other.key = other.key[::-1]
             other.flow2base = other._key2base(other.key)
@@ -502,35 +501,136 @@ class FlowBasedRead:
         clip_left, left_hmer_clip = other._left_clipped_flows()
 
         clip_right, right_hmer_clip = other._right_clipped_flows()
-        assert left_hmer_clip >=0 and right_hmer_clip >= 0, "Some problem with hmer clips"
+        assert left_hmer_clip >= 0 and right_hmer_clip >= 0, "Some problem with hmer clips"
         original_length = len(other.key)
-        other.key[clip_left]-=left_hmer_clip
+        other.key[clip_left] -= left_hmer_clip
         # if no flows left on the left hmer - truncate it too
+
         shift_left = True
-        if other.key[clip_left] == 0 : 
-            clip_left += 1
-            shift_left=False
-        other.key[-1-clip_right]-=right_hmer_clip
-        shift_right=True
-        if other.key[-1-clip_right] == 0 : 
-            shift_right=False
-            clip_right += 1
+        if clip_left >= 0 or left_hmer_clip >= 0 :
+            while other.key[clip_left] == 0:
+                clip_left += 1
+                shift_left = False
+
+        other.key[-1 - clip_right] -= right_hmer_clip
+        shift_right = True
+        if clip_right >= 0 or right_hmer_clip >= 0 :
+            while other.key[-1 - clip_right] == 0:
+                shift_right = False
+                clip_right += 1
 
         other.key = other.key[clip_left:original_length - clip_right]
+        other.flow2base = other.flow2base[clip_left:original_length - clip_right]
         other.flow_order = other.flow_order[
             clip_left:original_length - clip_right]
 
-        if hasattr(other, '_flowMatrix'):
-            other._flowMatrix = other._flowMatrix[:,
-                clip_left:original_length - clip_right]
+        if hasattr(other, '_flow_matrix'):
+            other._flow_matrix = other._flow_matrix[:,
+                                                  clip_left:original_length - clip_right]
             if shift_left:
-                other._flowMatrix[:, 0] = utils.shiftarray(
-                    other._flowMatrix[:, 0], -left_hmer_clip)
-            if shift_right: 
-                other._flowMatrix[:, -1] = utils.shiftarray(
-                    other._flowMatrix[:, -1], -right_hmer_clip)
+                other._flow_matrix[:, 0] = utils.shiftarray(
+                    other._flow_matrix[:, 0], -left_hmer_clip)
+            if shift_right:
+                other._flow_matrix[:, -1] = utils.shiftarray(
+                    other._flow_matrix[:, -1], -right_hmer_clip)
         other.direction = 'reference'
         return other
 
     def _key2str(self):
         return ''.join(np.repeat(self.flow_order, self.key))
+
+    def haplotype_matching(self, read:FlowBasedRead) -> np.float:
+        '''Returns log likelihood for the match of the read and the haplotype. 
+        Both the haplotype and the read flow matrices should be aligned in the reference direction.
+        It is assumed that haplotype does not have probabilities.
+
+        Parameters
+        ----------
+            read: FlowBasedRead
+                flow based read **after `apply_alignment`**. 
+        Returns
+        -------
+        np.float
+            Log likelihood of the match
+        '''
+        assert self.direction == read.direction \
+                and self.direction == "reference", \
+                    "Only reads aligned to the reference please"
+
+        assert self.start <= read.start and self.end >= read.end, \
+                    "Read alignment should be contained in the haplotype"
+
+        hap_locs = np.array([x[0] for x in self.record.get_aligned_pairs(matches_only=True)])
+        ref_locs = np.array([x[1] for x in self.record.get_aligned_pairs(matches_only=True)])
+        hap_start_loc = hap_locs[np.searchsorted(ref_locs, read.start)]
+        hap_end_loc = hap_locs[np.searchsorted(ref_locs, read.end-1)]
+
+        left_clip = hap_start_loc
+        right_clip = len(self.seq) - hap_end_loc - 1
+#        print(left_clip)
+        right_clip = max(0,right_clip)
+        clipping = [] 
+        if left_clip > 0 :
+            clipping.append((5,left_clip))
+        clipping.append((0, len(read.seq)))
+        if right_clip > 0 : 
+            clipping.append((5,right_clip))
+
+        if left_clip < 0 or right_clip < 0 or left_clip >= len(self.seq) or right_clip >= len(self.seq):
+            return 1
+
+        if self.key.max() >= 9 : 
+            return -np.Inf
+
+        clip_left, left_hmer_clip = self._left_clipped_flows(clipping)
+        clip_right, right_hmer_clip = self._right_clipped_flows(clipping)
+
+        assert abs(left_hmer_clip) < 11 and abs(right_hmer_clip) < 11 , "Weird hmer_clip"
+        if clip_left >= len(self.key) or clip_right >= len(self.key): 
+            return -np.Inf
+
+        assert left_hmer_clip >= 0 and right_hmer_clip >= 0, "Some problem with hmer clips"
+        key = self.key.copy()
+        original_length = len(key)
+        clip_left = max(clip_left-4, 0)
+        clip_right = min(original_length, original_length - clip_right+4)
+        key = key[clip_left:clip_right]
+        flow_order = self.flow_order[clip_left:clip_right]
+        starting_points = np.nonzero(flow_order==read.flow_order[0])[0]
+        starting_points = starting_points[starting_points+len(read.key) <= len(key)]
+        best_alignment = -np.Inf
+        for s in starting_points :
+            fetch = np.log10(read._flow_matrix[np.clip(key[s:s+len(read.key)], None, 
+                        read._flow_matrix.shape[0]-1),np.arange(len(read.key))])[1:-1].sum()
+            if fetch > best_alignment:
+                best_alignment = fetch
+        return best_alignment
+
+def get_haplotype_by_read_matrix( haplotypes: list, reads: list ) -> np.ndarray : 
+    '''Matrix of likelihoods of reads from each haplotype
+
+    Parameters
+    ----------
+    haplotypes: list
+        List of haplotypes (n_hap FlowBasedReads)
+    reads: list
+        List of reads (n_reads FlowBasedReads)
+
+    Returns
+    -------
+    n_hapxn_reads matrix of likelihood log(P(read|hap)
+    '''
+
+    n_hap = len(haplotypes)
+    n_reads = len(reads)
+    result = np.zeros((n_hap, n_reads))
+    for i in range(n_hap):
+        for j in range(n_reads): 
+            result[i,j] = haplotypes[i].haplotype_matching(reads[j])
+    return result
+
+
+
+
+
+
