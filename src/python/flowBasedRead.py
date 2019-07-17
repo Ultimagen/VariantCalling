@@ -69,9 +69,9 @@ class FlowBasedRead:
         self.flow2base = self._key2base(self.key).astype(np.int)
         self.flow_order = simulator.getFlow2Base(
             self.flow_order, len(self.key))
-        if hasattr(self, 'cigar') and self.cigar is not None:
-            if 5 in [x[0] for x in self.cigar if x is not None]:
-                self.cigar = self._infer_cigar()
+#        if hasattr(self, 'cigar') and self.cigar is not None:
+#            if 5 in [x[0] for x in self.cigar if x is not None]:
+#                self.cigar = self._infer_cigar()
 
         self._validate_seq()
 
@@ -171,39 +171,39 @@ class FlowBasedRead:
         dct['direction'] = 'synthesis'
         return cls(dct)
 
-    def _infer_cigar(self) -> list:
-        '''Infers the right cigar. This is a hack due to a wrong CIGAR string that GATK outputs
+    # def _infer_cigar(self) -> list:
+    #     '''Infers the right cigar. This is a hack due to a wrong CIGAR string that GATK outputs
 
-        Parameters
-        ----------
-        None
+    #     Parameters
+    #     ----------
+    #     None
 
-        Returns
-        -------
-        list:
-            The correct cigar tuples
-        '''
-        orig_sequence = self._key2str()
-        orig_sequence_r = utils.revcomp(orig_sequence)
-        current_cigar = self.cigar
-        if not self.is_reverse and self.seq in orig_sequence:
-            idx = orig_sequence.index(self.seq)
-        elif self.is_reverse:
-            idx = orig_sequence_r.index(self.seq)
-        else:
-            raise AssertionError("substring not found")
-        if idx == 0:
-            if current_cigar[0][0] == 5:
-                current_cigar = current_cigar[1:]
-        else:
-            current_cigar[0] = (5, idx)
-        remainder = len(orig_sequence) - len(self.seq) - idx
-        if remainder == 0:
-            if current_cigar[-1][0] == 5:
-                current_cigar = current_cigar[:-1]
-        else:
-            current_cigar[-1] = (5, remainder)
-        return current_cigar
+    #     Returns
+    #     -------
+    #     list:
+    #         The correct cigar tuples
+    #     '''
+    #     orig_sequence = self._key2str()
+    #     orig_sequence_r = utils.revcomp(orig_sequence)
+    #     current_cigar = self.cigar
+    #     if not self.is_reverse and self.seq in orig_sequence:
+    #         idx = orig_sequence.index(self.seq)
+    #     elif self.is_reverse:
+    #         idx = orig_sequence_r.index(self.seq)
+    #     else:
+    #         raise AssertionError("substring not found")
+    #     if idx == 0:
+    #         if current_cigar[0][0] == 5:
+    #             current_cigar = current_cigar[1:]
+    #     else:
+    #         current_cigar[0] = (5, idx)
+    #     remainder = len(orig_sequence) - len(self.seq) - idx
+    #     if remainder == 0:
+    #         if current_cigar[-1][0] == 5:
+    #             current_cigar = current_cigar[:-1]
+    #     else:
+    #         current_cigar[-1] = (5, remainder)
+    #     return current_cigar
 
     def _validate_seq(self) -> None:
         '''Validates that there are no hmers longer than _max_hmer
@@ -432,7 +432,6 @@ class FlowBasedRead:
         tuple (int, int)
             (fn, n) subtract n from the hmer count of flow fn, trim all flows before fn
         '''
-
         if cigar is None : 
             cigar = self.cigar
         if cigar[0][0] != 5:
@@ -499,8 +498,8 @@ class FlowBasedRead:
             other.flow_order = utils.revcomp(other.flow_order)
 
         clip_left, left_hmer_clip = other._left_clipped_flows()
-
         clip_right, right_hmer_clip = other._right_clipped_flows()
+        
         assert left_hmer_clip >= 0 and right_hmer_clip >= 0, "Some problem with hmer clips"
         original_length = len(other.key)
         other.key[clip_left] -= left_hmer_clip
@@ -526,13 +525,14 @@ class FlowBasedRead:
 
         if hasattr(other, '_flow_matrix'):
             other._flow_matrix = other._flow_matrix[:,
-                                                  clip_left:original_length - clip_right]
+                                clip_left:original_length - clip_right]
+            
             if shift_left:
                 other._flow_matrix[:, 0] = utils.shiftarray(
-                    other._flow_matrix[:, 0], -left_hmer_clip)
+                    other._flow_matrix[:, 0], -left_hmer_clip,0)
             if shift_right:
                 other._flow_matrix[:, -1] = utils.shiftarray(
-                    other._flow_matrix[:, -1], -right_hmer_clip)
+                    other._flow_matrix[:, -1], -right_hmer_clip,0)
         other.direction = 'reference'
         return other
 
