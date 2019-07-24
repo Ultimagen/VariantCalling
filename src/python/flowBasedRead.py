@@ -585,9 +585,7 @@ class FlowBasedRead:
 
         clip_left, left_hmer_clip = self._left_clipped_flows(clipping)
         clip_right, right_hmer_clip = self._right_clipped_flows(clipping)
-        print(clip_left, clip_right)
-        print(left_hmer_clip, right_hmer_clip)
-
+        
         assert abs(left_hmer_clip) < 11 and abs(right_hmer_clip) < 11 , "Weird hmer_clip"
         if clip_left >= len(self.key) or clip_right >= len(self.key): 
             return -np.Inf
@@ -599,7 +597,6 @@ class FlowBasedRead:
         clip_right = min(original_length, original_length - clip_right+4)
         key = key[clip_left:clip_right]
         flow_order = self.flow_order[clip_left:clip_right]
-        print(flow_order[:10])
         starting_points = np.nonzero(flow_order==read.flow_order[0])[0]
         starting_points = starting_points[starting_points+len(read.key) <= len(key)]
         best_alignment = -np.Inf
@@ -607,7 +604,6 @@ class FlowBasedRead:
             fetch = np.log10(read._flow_matrix[np.clip(key[s:s+len(read.key)], None, 
                         read._flow_matrix.shape[0]-1),np.arange(len(read.key))])[1:-1].sum()
             if fetch > best_alignment:
-                print(s)
                 best_alignment = fetch
         return best_alignment
 
