@@ -1,27 +1,37 @@
 import pandas as pd
 import numpy as np
+from typing import Optional, Union
 ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
 
 
-def read_error_probs(error_probs_csv: str = ERROR_PROBS) -> pd.DataFrame:
+def read_error_probs(error_probs_csv: str = ERROR_PROBS, binned_by_quality: bool = False, 
+    left_motif_size: int= 5, right_motif_size: int=5, n_regression_bins: int=0) -> Union[pd.DataFrame, list]:
     '''Read error probs CSV and produces data frame
 
     Parameters
     ----------
     error_probs_csv: str
-            CSV file with error probabilities. Example %s
+        CSV file with error probabilities. Example %s
+    binned_by_quality: bool
+        Optional - True if the probabilities are binned by the regressed signal of the base
+    left_motif_size: int
+        Length of the left motif. 
+    right_motif_size: int
+        Length of the right motif
+    n_regression_bins: int
+        Default - 0 - number of regression bins
 
     Returns
     -------
-    pd.DataFrame
+    pd.DataFrame or list of pd.DataFrame
             DataFrame with multiindex: left context, hmer nuc, hmer length, right context
             and columns:
     ''' % ERROR_PROBS
 
     source_dataframe = pd.read_csv(error_probs_csv)
-    source_dataframe['left'] = source_dataframe['motif'].apply(lambda x: x[:5])
-    source_dataframe['right'] = source_dataframe['motif'].apply(lambda x: x[-5:])
-    source_dataframe['middle'] = source_dataframe['motif'].apply(lambda x: x[6:8])
+    source_dataframe['left'] = source_dataframe['motif'].apply(lambda x: x[:left_motif_size])
+    source_dataframe['right'] = source_dataframe['motif'].apply(lambda x: x[-right_motif_size:])
+    source_dataframe['middle'] = source_dataframe['motif'].apply(lambda x: x[left_motif_size+1:-right_motif_size-1])
     source_dataframe['hmer_letter'] = source_dataframe['middle'].apply(lambda x: x[1])
     source_dataframe['hmer_number'] = source_dataframe['middle'].apply(lambda x: x[0]).astype(np.int)
     source_dataframe.drop(['motif', 'middle'], axis=1, inplace=True)
@@ -30,8 +40,15 @@ def read_error_probs(error_probs_csv: str = ERROR_PROBS) -> pd.DataFrame:
 
     source_dataframe.drop(['left', 'right', 'hmer_letter', 'hmer_number'], axis=1, inplace=True)
 
-    source_dataframe.columns = ['n(-1)', 'n(0)', 'n(+1)', 'P(-1)', 'P(0)', 'P(+1)']
-    return source_dataframe
+    assert (n_regression_bins > 0 and binned_by_quality) or ( n_regression_bins == 0 and not binned_by_quality), "If not binned by quality - 0 bins"
+
+    if binned_by_quality:
+        dfs = [ source_dataframe.iloc[:,i::n_regression_bins] for i in range(n_regression_bins)]
+        dfs.columns = (np.arange(dfs.shape[1]) - (dfs.shape[1]-1)/2).astype(np.int)
+        return dfs
+    else :
+        source_dataframe.columns = ['n(-1)', 'n(0)', 'n(+1)', 'P(-1)', 'P(0)', 'P(+1)']
+        return source_dataframe
 
 
 def _convert_to_probs(source_dataframe: pd.DataFrame):
