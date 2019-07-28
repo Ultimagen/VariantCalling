@@ -32,3 +32,4 @@ work
 .mypy_cache/
 __pycache__/
 *sublime*
+srcvm/
