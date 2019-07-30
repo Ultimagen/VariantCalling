@@ -19,6 +19,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
 
     input_files = [ f'{input_prefix}.{x}.vcf' for x in range(1,n_parts+1)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
+    print(" ".join(cmd))
     subprocess.check_call(cmd)
     cmd = ['bcftools','index','-t', output_fname]
     subprocess.check_call(cmd)
@@ -117,7 +118,7 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
             '-wa', '-header']
         subprocess.check_call(cmd, stdout=highconf_file)
     with open(runs_file_name, "wb") as runs_file : 
-        cmd = ['bedtools', 'subtract', '-a', input_file_calls, '-b', runs_regions,'-nonamecheck',
+        cmd = ['bedtools', 'subtract', '-a', highconf_file_name, '-b', runs_regions,'-nonamecheck',
             '-A', '-header']
         subprocess.check_call(cmd, stdout=runs_file)
 

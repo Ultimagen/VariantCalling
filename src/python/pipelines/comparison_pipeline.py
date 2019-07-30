@@ -24,6 +24,7 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
     concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "runs.vcf.gz"), 
                                                             output_prefix + ".genotype_concordance.runs.vcf.gz")
     filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
+    filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index,names=['qual','sor'])
     return concordance, filtering_results
 
 
