@@ -160,13 +160,12 @@ class FlowBasedRead:
         dct['_max_hmer'] = max_hmer_size
         dct['_motif_size'] = motif_size
         dct['flow_order'] = flow_order
-        if sam_record.has_tag("kq"):
-            flow_matrix = np.zeros((max_hmer_size + 1, len(dct['key'])))
-            kq = np.array(sam_record.get_tag('kq'), dtype=np.float)
-            gtr_probs = 1 - 10**(-kq / 10)
-            flow_matrix[sam_record.get_tag('kh'),
-                        sam_record.get_tag('kf')] = 10**(-np.array(sam_record.get_tag('kd'), dtype=np.float) / 10)
-            flow_matrix[dct['key'], np.arange(len(dct['key']))] = gtr_probs
+        if sam_record.has_tag("kf"):
+            row = sam_record.get_tag("kh")
+            col = sam_record.get_tag("kf")
+            vals = sam_record.get_tag("kd")
+            shape = (max_hmer_size+1, len(dct['key']))
+            flow_matrix = cls._matrix_from_sparse(row, col, vals, shape)
             dct['_flow_matrix'] = flow_matrix
         dct['cigar'] = sam_record.cigartuples
         dct['start'] = sam_record.reference_start
@@ -345,8 +344,9 @@ class FlowBasedRead:
     def _fix_nan(self, flow_matrix: np.ndarray) -> np.ndarray:
         ''' Fixes cases when there is nan in the flow matrix. 
         This is an ugly hack - we assume that nan come from cases when 
-        there is not enough data - currently we will them by 0.8 for P(R=i|H=i) and 
-        by 0.2 P(r=i+-1|H=i).
+        there is not enough data - currently we will them by 0.9 for P(R=i|H=i) and 
+        by 0.1 P(r=i+-1|H=i). The only exception is P(R=i|H=0) these missing data tend to 
+        come from the fact that such an insertion would require cycle skip that we do not allow
 
         Parameters
         ----------
@@ -419,13 +419,34 @@ class FlowBasedRead:
         tuple (np.ndarray, np.ndarray, np.ndarray): 
             row, column, values (differences in int(log10) from the maximal value)
         '''
+
         row_max = np.max(self._flow_matrix, axis=0)
 
         row, column = np.nonzero(self._flow_matrix)
-        values = np.log10(self._flow_matrix[row, column])
-        normalized_values = -10 * values
+        values = (self._flow_matrix[row, column])
+        sign_values = values>.5
+        values[sign_values] = 1-values[sign_values]
+        values = np.log10(values)
+        normalized_values = 10 * values
+        normalized_values  = 2*(0.5-sign_values.astype(np.float)) * normalized_values
         rm = normalized_values == 0
+        normalized_values = np.clip(normalized_values, -60, 60)
+        
         return row[~rm], column[~rm], normalized_values[~rm]
+
+    @classmethod
+    def _matrix_from_sparse( self, row, column, values, shape ):
+        flow_matrix = np.zeros(shape)
+        kd = np.array(values, dtype=np.float)
+        sign = kd > 0 
+        kd = -np.abs(kd)
+        kd = kd/10
+        kd = 10**kd
+        kd[sign] = 1-kd[sign]
+
+        flow_matrix[row,  column] = kd
+        
+        return flow_matrix
 
     def to_record(self, hdr: Optional[pysam.AlignmentHeader]=None) -> pysam.AlignedSegment:
         '''Converts flowBasedRead into BAM record
@@ -448,14 +469,13 @@ class FlowBasedRead:
         res.set_tag("KS", ''.join(self.flow_order[:4]))
         if hasattr(self, "_flow_matrix"):
             alt_row, alt_col, alt_val = self._matrix_to_sparse()
+
             res.set_tag('ks', [int(x) for x in self.key])
-            res.set_tag('kq', [int(x) for x in self._get_phred_flow()])
             res.set_tag('kh', [int(x) for x in alt_row])
             res.set_tag('kf', [int(x) for x in alt_col])
             res.set_tag('kd', [int(x) for x in alt_val])
-
         else:
-            res.set_tag('ks', [int(x) for x in self.key])
+            res.set_tag('ks', [int(x) for x in self.key]) 
         self.record = res
         return res
 
