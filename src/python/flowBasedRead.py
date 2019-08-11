@@ -424,28 +424,22 @@ class FlowBasedRead:
 
         row, column = np.nonzero(self._flow_matrix)
         values = (self._flow_matrix[row, column])
-        sign_values = values>.5
-        values[sign_values] = 1-values[sign_values]
+
         values = np.log10(values)
-        normalized_values = 10 * values
-        normalized_values  = 2*(0.5-sign_values.astype(np.float)) * normalized_values
-        rm = normalized_values == 0
+        row_max = np.log10(row_max)
+        normalized_values = -10 * (values - row_max[column])
         normalized_values = np.clip(normalized_values, -60, 60)
         
-        return row[~rm], column[~rm], normalized_values[~rm]
+        return row, column, normalized_values
 
     @classmethod
     def _matrix_from_sparse( self, row, column, values, shape ):
         flow_matrix = np.zeros(shape)
         kd = np.array(values, dtype=np.float)
-        sign = kd > 0 
-        kd = -np.abs(kd)
+        kd = -kd
         kd = kd/10
-        kd = 10**kd
-        kd[sign] = 1-kd[sign]
-
+        kd = 10**(kd)
         flow_matrix[row,  column] = kd
-        
         return flow_matrix
 
     def to_record(self, hdr: Optional[pysam.AlignmentHeader]=None) -> pysam.AlignedSegment:
@@ -556,6 +550,8 @@ class FlowBasedRead:
             other.key = other.key[::-1]
             other.flow2base = other._key2base(other.key)
             other.flow_order = utils.revcomp(other.flow_order)
+            if hasattr(other, "_regressed_signal"):
+                other._regressed_signal = other._regressed_signal[::-1]
 
         clip_left, left_hmer_clip = other._left_clipped_flows()
         clip_right, right_hmer_clip = other._right_clipped_flows()
@@ -563,6 +559,8 @@ class FlowBasedRead:
         assert left_hmer_clip >= 0 and right_hmer_clip >= 0, "Some problem with hmer clips"
         original_length = len(other.key)
         other.key[clip_left] -= left_hmer_clip
+        if hasattr(other, "_regressed_signal"):
+            other._regressed_signal[clip_left] -= left_hmer_clip
         # if no flows left on the left hmer - truncate it too
 
         shift_left = True
@@ -572,6 +570,9 @@ class FlowBasedRead:
                 shift_left = False
 
         other.key[-1 - clip_right] -= right_hmer_clip
+        if hasattr(other, "_regressed_signal") : 
+            other._regressed_signal[-1-clip_right] -= left_hmer_clip
+
         shift_right = True
         if clip_right >= 0 or right_hmer_clip >= 0 :
             while other.key[-1 - clip_right] == 0:
@@ -579,6 +580,7 @@ class FlowBasedRead:
                 clip_right += 1
 
         other.key = other.key[clip_left:original_length - clip_right]
+        other._regressed_signal = other._regressed_signal[clip_left:original_length - clip_right]
         other.flow2base = other.flow2base[clip_left:original_length - clip_right]
         other.flow_order = other.flow_order[
             clip_left:original_length - clip_right]
