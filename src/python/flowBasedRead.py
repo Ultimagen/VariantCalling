@@ -550,6 +550,7 @@ class FlowBasedRead:
             other.key = other.key[::-1]
             other.flow2base = other._key2base(other.key)
             other.flow_order = utils.revcomp(other.flow_order)
+            
             if hasattr(other, "_regressed_signal"):
                 other._regressed_signal = other._regressed_signal[::-1]
 

@@ -83,6 +83,7 @@ def _convert_to_probs(source_dataframe: pd.DataFrame):
     source_dataframe = source_dataframe[count_columns]
     prob_columns = ['P({})'.format(x) for x in count_columns]
     sum_counts = source_dataframe[count_columns].sum(axis=1)
+    sum_counts[sum_counts==0]=.01
     probs = source_dataframe[count_columns].multiply(1 / sum_counts, axis=0)
 
     probs.columns = prob_columns

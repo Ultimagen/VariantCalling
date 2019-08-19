@@ -158,3 +158,24 @@ def shiftarray(arr: np.ndarray, num: int, fill_value: np.float=np.nan) -> np.nda
     else:
         result[:] = arr
     return result
+
+def hmer_length(seq: str, start_point: int) -> int:
+    '''Return length of hmer starting at point start_point
+    
+    Parameters
+    ---------- 
+    seq: str
+        Sequence
+    start_point: int
+        Starting point
+
+    Returns
+    -------
+    int
+        Length of hmer (at least 1)
+    '''
+
+    idx = start_point 
+    while seq[idx].seq.upper()==seq[start_point].seq.upper():
+        idx+=1
+    return idx - start_point
