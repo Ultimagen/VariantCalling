@@ -4,7 +4,7 @@ import pandas as pd
 import pysam
 import numpy as np 
 import tqdm 
-
+import python.vcftools as vcftools
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
     Parameters
@@ -174,7 +174,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str) -> pd.DataFrame:
 
 def find_thresholds( concordance: pd.DataFrame ) -> pd.DataFrame : 
     quals = np.linspace(0,2000,30)
-    sors = np.linspace(0,5,20)
+    sors = np.linspace(0,10,40)
     results = []
     pairs = []
     for q in tqdm.tqdm_notebook(quals) : 
@@ -198,3 +198,21 @@ def find_thresholds( concordance: pd.DataFrame ) -> pd.DataFrame :
     results.index=pairs
     return results
 
+def annotate_concordance(df: pd.DataFrame, fasta: str, alnfile: str) -> pd.DataFrame: 
+    '''Annotates concordance data with information about SNP/INDELs and motifs
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Concordance dataframe
+    fasta: str
+        Indexed FASTA of the reference genome
+    alnfile: str
+        Alignment file
+    '''
+
+    df = vcftools.classify_indel(df)
+    df = vcftools.is_hmer_indel(df, fasta)
+    df = vcftools.get_motif_around(df, 5, fasta)
+    df = vcftools.get_coverage( df, alnfile, 10 )
+    return df

@@ -4,11 +4,16 @@ TRUTH_FILE= "/home/ec2-user/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_high
 CMP_INTERVALS = "/home/ec2-user/proj/VariantCalling/work/190614/interval.list"
 HIGHCONF_INTERVALS = "/home/ec2-user/proj/VariantCalling/work/190614/GIAB_highconf.bed"
 RUNS_INTERVALS = "/home/ec2-user/proj/VariantCalling/work/190724/runs.bed"
+REFERENCE = "/home/ec2-user/proj/VariantCalling/data/genomes/hg19.fa"
 
 def pipeline( n_parts: int, input_prefix: str, header: str,
     truth_file: str= TRUTH_FILE, cmp_intervals: str = CMP_INTERVALS, 
     highconf_intervals: str = HIGHCONF_INTERVALS, 
-    runs_intervals: str = RUNS_INTERVALS) -> tuple:
+    runs_intervals: str = RUNS_INTERVALS, 
+    ref_genome: str = REFERENCE) -> tuple:
+    '''Run comparison between the two sets of dataframes
+    '''
+
     output_fn = input_prefix + ".vcf.gz"
     if n_parts > 0 :
         vcf_pipeline_utils.combine_vcf( n_parts, input_prefix, output_fn)
@@ -23,8 +28,10 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
     vcf_pipeline_utils.filter_bad_areas( output_prefix + ".genotype_concordance.vcf.gz", highconf_intervals, runs_intervals)
     concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "runs.vcf.gz"), 
                                                             output_prefix + ".genotype_concordance.runs.vcf.gz")
+
     filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
     filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index,names=['qual','sor'])
+
     return concordance, filtering_results
 
 

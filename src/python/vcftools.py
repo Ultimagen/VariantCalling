@@ -163,7 +163,9 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
 
 
 def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
-    '''
+    '''Checks if the indel is hmer indel and outputs its length
+    Note: The length of the reference allele is output. 
+
     Parameters
     ----------
     concordance: pd.DataFrame
@@ -191,7 +193,7 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
                 
                 return (0, None)
             else:
-                return (len(alt) + utils.hmer_length(fasta_idx[rec['chrom']], rec['pos']), alt[0])
+                return (utils.hmer_length(fasta_idx[rec['chrom']], rec['pos']), alt[0])
 
         if rec['indel_classify'] == 'del':
             del_seq = rec['ref'][1:]
@@ -206,3 +208,68 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
     concordance['hmer_indel_length'] = [x[0] for x in results]
     concordance['hmer_indel_nuc'] = [ x[1] for x in results ]
     return concordance
+
+def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> pd.DataFrame: 
+    '''Extract sequence around the indel
+    
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    motif_size: int
+        Size of motif on each side
+    fasta: str
+        Indexed fasta
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame. Adds "left_motif" and right_motif
+    '''
+
+    def _get_motif_around_snp( rec, size, faidx )  :
+        chrom = faidx[rec['chrom']]
+        pos = rec['pos']
+        return chrom[pos-size-1:pos-1].seq.upper(), chrom[pos:pos+size].seq.upper()
+
+    def _get_motif_around_non_hmer_indel( rec, size, faidx) : 
+        chrom = faidx[rec['chrom']]
+        pos = rec['pos']
+        return chrom[pos-size:pos].seq.upper(), chrom[pos+len(rec['ref']):pos+len(rec['ref'])+size].seq.upper()
+
+    def _get_motif_around_hmer_indel( rec, size, faidx ): 
+        chrom = faidx[rec['chrom']]
+        pos = rec['pos']
+        hmer_length = rec['hmer_indel_length']
+        return chrom[pos-size:pos].seq.upper(), chrom[pos+hmer_length:pos+hmer_length+size].seq.upper()        
+
+    def _get_motif( rec, size, faidx ): 
+        if rec['indel'] and rec['hmer_indel_length']>0 : 
+            return _get_motif_around_hmer_indel(rec,size, faidx)
+        elif rec['indel'] and rec['hmer_indel_length']==0 : 
+            return _get_motif_around_non_hmer_indel(rec,size, faidx)
+        else :
+            return _get_motif_around_snp( rec, size, faidx)
+    faidx = pyfaidx.Fasta(fasta)
+    tmp = concordance.apply(lambda x: _get_motif(x, motif_size, faidx), axis=1)
+    concordance['left_motif'] = [ x[0] for x in list(tmp)]
+    concordance['right_motif'] = [ x[1] for x in list(tmp)]    
+    return concordance
+
+def get_coverage( df: pd.DataFrame, alnfile: str, min_quality: int) : 
+    results=[]
+    with pysam.AlignmentFile(alnfile) as alns:
+        for r in tqdm.tqdm(df.iterrows()):
+            reads = alns.fetch(r[1].chrom, r[1].pos-1, r[1].pos+1)
+            count_total = 0
+            count_well = 0 
+            for read in reads :
+                if read.mapping_quality > min_quality : 
+                    count_well+=1
+                count_total+=1
+            results.append((count_total, count_well))
+
+    df['coverage'] = [ x[0] for x in results ]
+    df['well_mapped_coverage'] = [ x[1] for x in results ]
+    df['repetitive_read_coverage'] = [ x[0]-x[1] for x in results]
+    return df
