@@ -72,9 +72,6 @@ class FlowBasedRead:
         self.flow2base = self._key2base(self.key).astype(np.int)
         self.flow_order = simulator.getFlow2Base(
             self.flow_order, len(self.key))
-#        if hasattr(self, 'cigar') and self.cigar is not None:
-#            if 5 in [x[0] for x in self.cigar if x is not None]:
-#                self.cigar = self._infer_cigar()
 
         self._validate_seq()
 
@@ -206,6 +203,40 @@ class FlowBasedRead:
         dct = vars(cls.from_sam_record(sam_record, error_model, flow_order, motif_size, max_hmer_size))
 
         dct['_regressed_signal'] = regressed_signal[:len(dct['key'])]
+        return cls(dct)
+
+    @classmethod
+    def from_sam_record_flow_matrix(cls, sam_record: pysam.AlignedSegment, flow_matrix = np.ndarray, 
+                        flow_order: str=simulator.DEFAULT_FLOW_ORDER,
+                        motif_size: int=5, max_hmer_size: int=9):
+        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`, 
+        `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
+
+        Parameters
+        ----------
+        read_name: str
+            Name of the read
+        seq: str
+            DNA sequence of the read (basecalling output)
+        flow_order: np.ndarray
+            Array of chars - base for each flow
+        regressed_signal: np.ndarray
+            Array of regressed_signals
+        error_model: pd.DataFrame
+            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif
+            Can be optional if the read has ks, kq, kd fields
+        motif_size: int
+            Size of the motif
+        max_hmer_size: int
+            Maximal reported hmer size
+
+        Returns
+        -------
+        Object 
+        '''
+        dct = vars(cls.from_sam_record(sam_record, None, flow_order, motif_size, max_hmer_size))
+
+        dct['_flow_matrix'] = flow_matrix[:, :len(dct['key'])]
         return cls(dct)
 
 
@@ -407,12 +438,13 @@ class FlowBasedRead:
         tmp[high_conf] = 60
         return tmp.astype(np.int8)
 
-    def _matrix_to_sparse(self) -> tuple:
+    def _matrix_to_sparse(self, probability_threshold: float=0) -> tuple:
         '''Converts the flow matrix to the tag representation
 
         Parameters
         ----------
-        None
+        probability_threshold: float
+            Optional threshold that would suppress variants with ratio to the best variant below the threshold
 
         Returns
         -------
@@ -420,6 +452,7 @@ class FlowBasedRead:
             row, column, values (differences in int(log10) from the maximal value)
         '''
 
+        probability_threshold = -10*np.log10(probability_threshold)
         row_max = np.max(self._flow_matrix, axis=0)
 
         row, column = np.nonzero(self._flow_matrix)
@@ -430,7 +463,8 @@ class FlowBasedRead:
         normalized_values = -10 * (values - row_max[column])
         normalized_values = np.clip(normalized_values, -60, 60)
         
-        return row, column, normalized_values
+        suppress = normalized_values > probability_threshold
+        return row[~suppress], column[~suppress], normalized_values[~suppress]
 
     @classmethod
     def _matrix_from_sparse( self, row, column, values, shape ):
@@ -442,14 +476,16 @@ class FlowBasedRead:
         flow_matrix[row,  column] = kd
         return flow_matrix
 
-    def to_record(self, hdr: Optional[pysam.AlignmentHeader]=None) -> pysam.AlignedSegment:
+    def to_record(self, hdr: Optional[pysam.AlignmentHeader]=None, probability_threshold: float=0) -> pysam.AlignedSegment:
         '''Converts flowBasedRead into BAM record
 
         Parameters
         ----------
         hdr: pysam.AlignmentHeader
             Optional header
-
+        probability_threshold : float
+            Optional - do not report variants with probability ratio to the best variant 
+            less than probability_threshold (default: 0)
         Returns
         -------
         pysam.AlignedSegment
@@ -462,7 +498,7 @@ class FlowBasedRead:
             res.query_name = self.read_name
         res.set_tag("KS", ''.join(self.flow_order[:4]))
         if hasattr(self, "_flow_matrix"):
-            alt_row, alt_col, alt_val = self._matrix_to_sparse()
+            alt_row, alt_col, alt_val = self._matrix_to_sparse( probability_threshold = probability_threshold)
 
             res.set_tag('ks', [int(x) for x in self.key])
             res.set_tag('kh', [int(x) for x in alt_row])
