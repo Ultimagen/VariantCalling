@@ -12,10 +12,11 @@ DEFAULT_FLOW_ORDER = "TACG"
 _workdir = pjoin(os.environ["HOME"], "proj/VariantCalling/work/190605/")
 
 # We always allow for a bit of error
-_CONFUSION_MATRIX = np.load(pjoin(_workdir, "confusion.npy"))
-min_prob = np.min(_CONFUSION_MATRIX[_CONFUSION_MATRIX > 0])
-CONFUSION_MATRIX = np.clip(_CONFUSION_MATRIX, min_prob, None)
-CONFUSION_MATRIX = (CONFUSION_MATRIX.T / CONFUSION_MATRIX.sum(axis=1)).T
+#_CONFUSION_MATRIX = np.load(pjoin(_workdir, "confusion.npy"))
+#min_prob = np.min(_CONFUSION_MATRIX[_CONFUSION_MATRIX > 0])
+#CONFUSION_MATRIX = np.clip(_CONFUSION_MATRIX, min_prob, None)
+#CONFUSION_MATRIX = (CONFUSION_MATRIX.T / CONFUSION_MATRIX.sum(axis=1)).T
+CONFUSION_MATRIX=np.NaN
 
 
 
