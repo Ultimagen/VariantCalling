@@ -138,7 +138,6 @@ class FlowBasedRead:
         -------
         Object 
         '''
-
         dct = {}
         dct['record'] = sam_record
         dct['read_name'] = sam_record.query_name
@@ -156,10 +155,9 @@ class FlowBasedRead:
                 dct['key'] = np.array(sam_record.get_tag('ks'), dtype=np.int8)
             else:
                 dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct[
-                                                                     'forward_seq'], flow_order=flow_order)
+                                                'forward_seq'], flow_order=flow_order)
         elif format == 'matt': 
             dct['key'] = np.array(sam_record.get_tag('kr'), dtype=np.int8)
-
         dct['_max_hmer'] = max_hmer_size
         dct['_motif_size'] = motif_size
         dct['flow_order'] = flow_order
@@ -253,7 +251,7 @@ class FlowBasedRead:
         Object 
         '''
         dct = vars(cls.from_sam_record(sam_record, None, flow_order, motif_size, max_hmer_size))
-
+        
         dct['_flow_matrix'] = flow_matrix[:, :len(dct['key'])]
         return cls(dct)
 
@@ -365,14 +363,8 @@ class FlowBasedRead:
         else: 
             bins = None
         idx_list = np.array(self._error_model.hash2idx(hash_idx, bins))
-        #print(hash_idx[:10])
-        #print(bins[:10])
-        #print(idx_list[:10])
         tmp = self._error_model.get_index(idx_list, bins)
 
-        #tmp = np.array(self._error_model.loc[index][['P(-1)','P(0)', 'P(+1)']])
-
-        # return motifs_left, key, self.flow_order[:len(key)], motifs_right,
         # index
         pos = np.arange(len(key))
         key = key
@@ -471,10 +463,13 @@ class FlowBasedRead:
         '''
 
         probability_threshold = -10*np.log10(probability_threshold)
+        tmp_matrix = self._flow_matrix.copy()
+        tmp_matrix[self.key[self.key <= self._max_hmer], 
+                    np.arange(len(self.key))[self.key <= self._max_hmer]] = 0
         row_max = np.max(self._flow_matrix, axis=0)
 
-        row, column = np.nonzero(self._flow_matrix)
-        values = (self._flow_matrix[row, column])
+        row, column = np.nonzero(tmp_matrix)
+        values = (tmp_matrix[row, column])
 
         values = np.log10(values)
         row_max = np.log10(row_max)
