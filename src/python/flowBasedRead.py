@@ -113,7 +113,7 @@ class FlowBasedRead:
     def from_sam_record(cls, sam_record: pysam.AlignedSegment,
                         error_model: Optional[error_model.ErrorModel] = None,
                         flow_order: str=simulator.DEFAULT_FLOW_ORDER,
-                        motif_size: int=5, max_hmer_size: int=9):
+                        motif_size: int=5, max_hmer_size: int=9, format: str='ilya'):
         '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`, 
         `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
 
@@ -132,7 +132,8 @@ class FlowBasedRead:
             Size of the motif
         max_hmer_size: int
             Maximal reported hmer size
-
+        format: str
+            Can be 'matt' or 'ilya'
         Returns
         -------
         Object 
@@ -148,22 +149,39 @@ class FlowBasedRead:
         else:
             dct['forward_seq'] = dct['seq']
         dct['_error_model'] = error_model
-        if sam_record.has_tag('ks'):
-            dct['key'] = np.array(sam_record.get_tag('ks'), dtype=np.int8)
-        else:
-            dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct[
+
+        assert format in ['ilya','matt'], f"Format {format} not supported"
+        if format == 'ilya':
+            if sam_record.has_tag('ks'):
+                dct['key'] = np.array(sam_record.get_tag('ks'), dtype=np.int8)
+            else:
+                dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct[
                                                                      'forward_seq'], flow_order=flow_order)
+        elif format == 'matt': 
+            dct['key'] = np.array(sam_record.get_tag('kr'), dtype=np.int8)
 
         dct['_max_hmer'] = max_hmer_size
         dct['_motif_size'] = motif_size
         dct['flow_order'] = flow_order
-        if sam_record.has_tag("kf"):
-            row = sam_record.get_tag("kh")
-            col = sam_record.get_tag("kf")
-            vals = sam_record.get_tag("kd")
+        if format == 'ilya':
+            if sam_record.has_tag("kf"):
+                row = sam_record.get_tag("kh")
+                col = sam_record.get_tag("kf")
+                vals = sam_record.get_tag("kd")
+                shape = (max_hmer_size+1, len(dct['key']))
+                flow_matrix = cls._matrix_from_sparse(row, col, vals, shape)
+                dct['_flow_matrix'] = flow_matrix
+        elif format=='matt':
+            row = np.array(sam_record.get_tag("kh"))
+            col = np.array(sam_record.get_tag("kf"))
+            vals = np.array(sam_record.get_tag("kd"))
+            row = np.concatenate((row, dct['key'].astype(row.dtype)))
+            col = np.concatenate((col, np.arange(len(dct['key'])).astype(col.dtype)))
+            vals = np.concatenate((vals, np.zeros(len(dct['key']), dtype=np.float)))
             shape = (max_hmer_size+1, len(dct['key']))
             flow_matrix = cls._matrix_from_sparse(row, col, vals, shape)
             dct['_flow_matrix'] = flow_matrix
+
         dct['cigar'] = sam_record.cigartuples
         dct['start'] = sam_record.reference_start
         dct['end'] = sam_record.reference_end

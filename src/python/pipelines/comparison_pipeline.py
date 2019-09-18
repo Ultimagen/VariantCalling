@@ -1,10 +1,10 @@
 from . import vcf_pipeline_utils
 import pandas as pd
-TRUTH_FILE= "/home/ec2-user/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
-CMP_INTERVALS = "/home/ec2-user/proj/VariantCalling/work/190614/interval.list"
-HIGHCONF_INTERVALS = "/home/ec2-user/proj/VariantCalling/work/190614/GIAB_highconf.bed"
-RUNS_INTERVALS = "/home/ec2-user/proj/VariantCalling/work/190724/runs.bed"
-REFERENCE = "/home/ec2-user/proj/VariantCalling/data/genomes/hg19.fa"
+TRUTH_FILE= "/home/ubuntu/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
+CMP_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/interval.list"
+HIGHCONF_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/GIAB_highconf.bed"
+RUNS_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190724/runs.bed"
+REFERENCE = "/home/ubuntu/proj/VariantCalling/data/genomes/hg19.fa"
 
 def pipeline( n_parts: int, input_prefix: str, header: str,
     truth_file: str= TRUTH_FILE, cmp_intervals: str = CMP_INTERVALS, 
