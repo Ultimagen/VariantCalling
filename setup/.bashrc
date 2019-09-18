@@ -402,20 +402,6 @@ function xtitle()
 }
 
 
-# Aliases that use xtitle
-alias top='xtitle Processes on $HOST && top'
-alias make='xtitle Making $(basename $PWD) ; make'
-
-# .. and functions
-function man()
-{
-    for i ; do
-        xtitle The $(basename $1|tr -d .[:digit:]) manual
-        command man -a "$i"
-    done
-}
-
-
 #-------------------------------------------------------------
 # Make the following commands run in background automatically:
 #-------------------------------------------------------------
