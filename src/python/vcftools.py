@@ -164,7 +164,7 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
 
 def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
     '''Checks if the indel is hmer indel and outputs its length
-    Note: The length of the reference allele is output. 
+    Note: The length of the shorter allele is output. 
 
     Parameters
     ----------
@@ -235,7 +235,7 @@ def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> 
     def _get_motif_around_non_hmer_indel( rec, size, faidx) : 
         chrom = faidx[rec['chrom']]
         pos = rec['pos']
-        return chrom[pos-size:pos].seq.upper(), chrom[pos+len(rec['ref']):pos+len(rec['ref'])+size].seq.upper()
+        return chrom[pos-size:pos].seq.upper(), chrom[pos+len(rec['ref'])-1:pos+len(rec['ref'])-1+size].seq.upper()
 
     def _get_motif_around_hmer_indel( rec, size, faidx ): 
         chrom = faidx[rec['chrom']]
