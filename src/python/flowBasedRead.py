@@ -153,11 +153,14 @@ class FlowBasedRead:
         if format == 'ilya':
             if sam_record.has_tag('ks'):
                 dct['key'] = np.array(sam_record.get_tag('ks'), dtype=np.int8)
+            elif sam_record.has_tag('kr'):
+                dct['key'] = np.array(sam_record.get_tag('kr'), dtype=np.int8)
             else:
                 dct['key'] = BeadsData.BeadsData.generateKeyFromSequence(dct[
                                                 'forward_seq'], flow_order=flow_order)
         elif format == 'matt': 
             dct['key'] = np.array(sam_record.get_tag('kr'), dtype=np.int8)
+
         dct['_max_hmer'] = max_hmer_size
         dct['_motif_size'] = motif_size
         dct['flow_order'] = flow_order
@@ -472,12 +475,16 @@ class FlowBasedRead:
         values = (tmp_matrix[row, column])
 
         values = np.log10(values)
-        row_max = np.log10(row_max)
-        normalized_values = -10 * (values - row_max[column])
+        col_max = tmp_matrix[np.clip(self.key, 0, self._max_hmer), np.arange(len(self.key)) ]
+        normalized_values = -10 * (values - col_max[column])
         normalized_values = np.clip(normalized_values, -60, 60)
         
         suppress = normalized_values > probability_threshold
+        
+        # do not output the key itself as it is always zero
+        suppress = suppress | ( self.key[column]==row )
         return row[~suppress], column[~suppress], normalized_values[~suppress]
+
 
     @classmethod
     def _matrix_from_sparse( self, row, column, values, shape ):
@@ -513,12 +520,12 @@ class FlowBasedRead:
         if hasattr(self, "_flow_matrix"):
             alt_row, alt_col, alt_val = self._matrix_to_sparse( probability_threshold = probability_threshold)
 
-            res.set_tag('ks', [int(x) for x in self.key])
+            res.set_tag('kr', [int(x) for x in self.key])
             res.set_tag('kh', [int(x) for x in alt_row])
             res.set_tag('kf', [int(x) for x in alt_col])
             res.set_tag('kd', [int(x) for x in alt_val])
         else:
-            res.set_tag('ks', [int(x) for x in self.key]) 
+            res.set_tag('kr', [int(x) for x in self.key]) 
         self.record = res
         return res
 
