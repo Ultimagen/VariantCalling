@@ -179,3 +179,19 @@ def hmer_length(seq: str, start_point: int) -> int:
     while seq[idx].seq.upper()==seq[start_point].seq.upper():
         idx+=1
     return idx - start_point
+
+def get_chr_sizes( sizes_file: str) -> dict : 
+    '''Returns dictionary from chromosome name to size
+
+    Parameters
+    ----------
+    sizes_file: str
+        .sizes file (use e.g.  cut -f1,2 Homo_sapiens_assembly19.fasta.fai > Homo_sapiens_assembly19.fasta.sizes to generate)
+
+    Returns
+    -------
+    dict:
+        Dictionary from name to size
+    '''
+
+    return dict([ x.strip().split() for x in open(sizes_file)])
