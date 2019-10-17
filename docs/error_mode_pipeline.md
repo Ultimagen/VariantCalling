@@ -29,7 +29,7 @@ Optionally, this could be a section in a general config file with header
 
 ### Run
 ```
-/home/ubuntu/proj/work/191015/
+cd /home/ubuntu/proj/work/191015/
 conda activate genomics.py3
 python /home/ubuntu/software/VariantCalling/src/python/pipelines/error_rate_metrics_pipeline.py -c error_metrics.config
 ```
