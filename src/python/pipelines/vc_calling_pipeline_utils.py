@@ -9,6 +9,7 @@ import sys
 dname = dirname(abspath(__file__))
 sys.path.append(pjoin(dname, ".."))
 import utils
+import pandas as pd
 # Align and merge
 def parse_params_file(params_file):
     ap = configargparse.ArgParser()
@@ -19,13 +20,14 @@ def parse_params_file(params_file):
     ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
     ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")
     ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
-    return ap.parse()
+    ap.add('--em_vc_number_of_cpus', required=False, help="Number of CPUs on the machine", type=int, default = 12)
+    return ap.parse_known_args()[0]
 
-def head_file( input_file, output_file, number_to_sample) : 
+def head_file( input_file, output_file, number_to_sample, nthreads) : 
     output_bam, output_err = output_file 
-    cmd1 = ["samtools", "view", '-@5', '-h', input_file]
+    cmd1 = ["samtools", "view", '-@%d'%int((nthreads-2)/2), '-h', input_file]
     cmd2 = ["head", f"-{number_to_sample+100}"]
-    cmd3 = ["samtools", "view", "-b", "-o", output_bam]
+    cmd3 = ["samtools", "view", '-@%d'%int((nthreads-2)/2), "-b", "-o", output_bam]
     with open(output_err, 'w') as output_err_handle : 
         task1 = subprocess.Popen(cmd1, stdout = subprocess.PIPE, stderr=output_err_handle)
         task2 = subprocess.Popen(cmd2, stdin = task1.stdout, stdout = subprocess.PIPE, stderr=output_err_handle)
@@ -34,20 +36,26 @@ def head_file( input_file, output_file, number_to_sample) :
         task2.stdout.close()
         output=task3.communicate()
 
-def align( input_file, output_file, genome_file ) : 
+def align( input_file, output_file, genome_file, nthreads ) : 
     output_bam, output_err = output_file 
     output_err_handle = open(output_err, "w")
-    cmd1 = ['picard' ,'-Xms5000m','SamToFastq', 'INPUT=%s'%input_file[0], 'FASTQ=/dev/stdout']
+    nthreads_alignment = int(0.8*(nthreads-1))
+    nthreads_samtools= int(0.2*(nthreads-1))
+    if type(input_file) == list:
+        cmd1 = ['picard' ,'-Xms5000m','SamToFastq', 'INPUT=%s'%input_file[0], 'FASTQ=/dev/stdout']
+    else : 
+        cmd1 = ['picard' ,'-Xms5000m','SamToFastq', 'INPUT=%s'%input_file, 'FASTQ=/dev/stdout']
+
     output_err_handle.write(" ".join(cmd1))
     output_err_handle.flush()
     task1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, stderr=output_err_handle)
-    cmd2 = ['bwa','mem', '-t', '14', genome_file, '-']
+    cmd2 = ['bwa','mem', '-t', str(nthreads_alignment), genome_file, '-']
     output_err_handle.write(" | ")
     output_err_handle.write(" ".join(cmd2))
     output_err_handle.flush()
     task2 = subprocess.Popen(cmd2, stdin = task1.stdout, stdout = subprocess.PIPE, stderr = output_err_handle)
     task1.stdout.close()
-    cmd3 = ["samtools", 'view', '-b', '-o', output_bam, '-']
+    cmd3 = ["samtools", 'view', '-@%d'%nthreads_samtools, '-b', '-o', output_bam, '-']
     output_err_handle.write(" | ")
     output_err_handle.write(" ".join(cmd2))
     output_err_handle.flush()    
@@ -56,16 +64,20 @@ def align( input_file, output_file, genome_file ) :
     output = task3.communicate()
     output_err_handle.close()
 
-def align_and_merge( input_file, output_file, genome_file ): 
+def align_and_merge( input_file, output_file, genome_file, nthreads ): 
 
 
     output_bam, output_err = output_file 
-    output_err_handle = open(output_err, "w")
+    output_err_handle = open(output_err, "w")    
+
+    nthreads_alignment = int(nthreads-3)
+    
+
     cmd1 = ['picard' ,'-Xms5000m','SamToFastq', 'INPUT=%s'%input_file, 'FASTQ=/dev/stdout']
     output_err_handle.write(" ".join(cmd1))
     output_err_handle.flush()
     task1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, stderr=output_err_handle)
-    cmd2 = ['bwa','mem', '-t', '14', genome_file, '-']
+    cmd2 = ['bwa','mem', '-t', str(nthreads_alignment), genome_file, '-']
     output_err_handle.write(" | ")
     output_err_handle.write(" ".join(cmd2))
     output_err_handle.flush()
@@ -88,6 +100,7 @@ def align_and_merge( input_file, output_file, genome_file ):
     task2.stdout.close()
     output = task3.communicate()
     output_err_handle.close()
+
 # Prepare fetch intervals 
 def prepare_fetch_intervals( input_file, output_file, genome_file ) : 
     genome_dct = utils.get_chr_sizes(genome_file + ".sizes")
@@ -97,10 +110,10 @@ def prepare_fetch_intervals( input_file, output_file, genome_file ) :
                 output_handle.write(f"{chrom.strip()}\t0\t{genome_dct[chrom.strip()]}\n")
 
 
-def filter_quality( input_file, output_files ):
+def filter_quality( input_file, output_files, nthreads ):
     output_bam, output_err = output_files
     input_file = input_file[0]
-    cmd = [ 'samtools', 'view', '-q20', '-@10', '-b', '-o',output_bam, input_file]
+    cmd = [ 'samtools', 'view', '-q20', '-@%d'%(nthreads-1), '-b', '-o',output_bam, input_file]
     with open(output_err,'w') as output_err_handle : 
         subprocess.check_call(cmd, stdout=output_err_handle, stderr=output_err_handle)
 
@@ -115,21 +128,24 @@ def fetch_intervals( input_file, output_files):
     output_file_handle.close()
     output_err_handle.close()
 
-def sort_file ( input_file, output_file ): 
+def sort_file ( input_file, output_file, nthreads ): 
     output_bam, output_err = output_file 
     with open(output_err, "w") as output_err_handle  : 
-        cmd1 = [ 'samtools', 'sort', '-@12', '-T', dirname(output_bam), '-o' , output_bam, input_file[0] ]
+        cmd1 = [ 'samtools', 'sort', '-@%d'%(nthreads-1), '-T', dirname(output_bam), '-o' , output_bam, input_file[0] ]
         subprocess.check_call(cmd1, stderr=output_err_handle)
 
-def recalibrate_file( input_file, output_files, recalibration_model ): 
+def recalibrate_file( input_file, output_files, recalibration_model,nthreads ): 
     input_file = input_file[0]
     output_bam, output_err = output_files
+    pthreads = int(0.8 * nthreads)
+    dthreads = int(0.1 * nthreads)
+    cthreads = int(0.1 * nthreads)
     with open(output_err,'w') as output_err_handle : 
         cmd1 = ["LD_LIBRARY_PATH=/usr/local/lib", 
          "/home/ubuntu/proj/Utils/recalibration/recalibrate", 
          "--input=%s"%input_file, "--binary",
          "--output=%s"%output_bam, "--model=%s"%recalibration_model,
-         "--threshold=0.003", "--dthreads=2", "--pthreads=10", "--cthreads=2"]
+         "--threshold=0.003", "--dthreads=%d"%dthreads, "--pthreads=%d"%pthreads, "--cthreads=%d"%cthreads]
         subprocess.check_call(" ".join(cmd1), stdout=output_err_handle, stderr=output_err_handle, shell=True)
 
 
@@ -181,7 +197,7 @@ def variant_calling (input_files, output_files, genome_file) :
         raise RuntimeError(" ".join(cmd1) + " exited abnormally")
 
 def error_metrics( input_files, output_files, genome_file) : 
-    aligned_bam, interval_file = input_files
+    aligned_bam, _ = input_files
     output_metrics, output_log = output_files 
     cmd = ["picard", "CollectAlignmentSummaryMetrics", "R=%s"%genome_file, 
      "I=%s"%aligned_bam, "O=%s"%output_metrics, "VALIDATION_STRINGENCY=LENIENT"]
@@ -189,5 +205,25 @@ def error_metrics( input_files, output_files, genome_file) :
     with open(output_log,'w') as output_err_handle:
         subprocess.check_call(cmd, stdout=output_err_handle, stderr=output_err_handle)
 
+
+def idxstats( input_files, output_files ) : 
+    aligned_bam, _ = input_files
+    output_stats, output_log = output_files 
+    cmd = ["samtools", "idxstats", aligned_bam]
+    
+    with open(output_log,'w') as output_err_handle:
+        with open(output_stats,'w') as output_stats_handle : 
+            subprocess.check_call(cmd, stdout=output_stats_handle, stderr=output_err_handle)
+
+def collect_idxstats( input_file: str ) -> pd.DataFrame : 
+    df = pd.read_csv(input_file, sep="\t", 
+            header=None, index_col=0, names=['length','aligned_reads', 'unaligned_reads'])
+    df = df.sum()
+    df.drop(['length'], inplace=True)
+    return df
+
+def collect_metrics( input_file: str) -> pd.DataFrame : 
+    df = pd.read_csv(input_file, sep="\t",comment="#").T
+    return df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE', 'PCT_CHIMERAS']]
 
 
