@@ -14,7 +14,7 @@ mdtask=vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "interval_files"))
 aln_merge = vc_pipeline.transform(vc_calling_pipeline_utils.align_and_merge, params.em_vc_demux_file, 
 	ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"), 
 	pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.aln.log")],
-	extras=[params.em_vc_genome])
+	extras=[params.em_vc_genome, params.em_vc_number_of_cpus])
 fi_file = vc_pipeline.transform(vc_calling_pipeline_utils.prepare_fetch_intervals, params.em_vc_chromosomes_list, 
 	ruffus.formatter(),
 	pjoin(params.em_vc_output_dir, "filter.bed"), extras=[params.em_vc_genome])
@@ -25,11 +25,12 @@ filtered_bam = vc_pipeline.transform(vc_calling_pipeline_utils.fetch_intervals ,
 
 sorted_bam = vc_pipeline.transform(vc_calling_pipeline_utils.sort_file, filtered_bam, ruffus.formatter("filter.aln.bam"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.sort.bam"), 
-     pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.sort.log")])
+     pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.sort.log")], extras=[params.em_vc_number_of_cpus])
 
 recalibrated_bam = vc_pipeline.transform(vc_calling_pipeline_utils.recalibrate_file, sorted_bam, ruffus.formatter("sort.bam"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.recal.bam"), 
-     pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.recal.log")], extras=[params.em_vc_recalibration_model])
+     pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.recal.log")], 
+     extras=[params.em_vc_recalibration_model, params.em_vc_number_of_cpus])
 
 index_bam = vc_pipeline.transform(vc_calling_pipeline_utils.index_file, recalibrated_bam, ruffus.formatter("recal.bam"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.bam.bai"), 
