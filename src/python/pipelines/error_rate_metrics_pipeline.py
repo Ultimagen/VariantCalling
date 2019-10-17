@@ -11,7 +11,7 @@ md2 = vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "logs"))
 
 head_file = vc_pipeline.transform(vc_calling_pipeline_utils.head_file, params.em_vc_demux_file, ruffus.formatter(), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.head.bam"),
-	pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.head.log")], params.em_vc_number_to_sample).follows([md1,md2])
+	pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.head.log")], params.em_vc_number_to_sample).follows(md1)
 
 aln = vc_pipeline.transform(vc_calling_pipeline_utils.align, head_file, 
 	ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"), 
