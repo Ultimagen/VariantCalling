@@ -22,6 +22,7 @@ em_vc_demux_file=/home/ubuntu/proj/work/191015/420159_1p.demux.bam
 em_vc_genome=/data/genomes/broad-references/hg19/v0/Homo_sapiens_assembly19.fasta
 em_vc_output_dir=/home/ubuntu/proj/VariantCalling/work/191015/em
 em_vc_number_to_sample=20000000 # Set -1 if the input file is already sampled
+em_vc_number_of_cpus=12
 ```
 
 Optionally, this could be a section in a general config file with header 
@@ -29,7 +30,16 @@ Optionally, this could be a section in a general config file with header
 
 ### Run
 ```
-/home/ubuntu/proj/work/191015/
+cd /home/ubuntu/proj/work/191015/
 conda activate genomics.py3
-python /home/ubuntu/software/VariantCalling/python/pipelines/error_rate_metrics_pipeline.py -c error_metrics.config
+python /home/ubuntu/software/VariantCalling/src/python/pipelines/error_rate_metrics_pipeline.py -c error_metrics.config
 ```
+
+### Output
+Text output files will be named: 
+ - `.sort.metrics` - error metrics for unfiltered aligned data
+ - `.sort.filter.metrics` - error metrics for filtered (>Q20) aligned data
+ - `.idxstats` - alignment statistics
+
+All outputs will be concatenated into HDF5 file `metrics.h5` with keys `bwa_alignment_stats` and `bwa_error_rates`
+
