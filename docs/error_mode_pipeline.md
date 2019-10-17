@@ -22,6 +22,7 @@ em_vc_demux_file=/home/ubuntu/proj/work/191015/420159_1p.demux.bam
 em_vc_genome=/data/genomes/broad-references/hg19/v0/Homo_sapiens_assembly19.fasta
 em_vc_output_dir=/home/ubuntu/proj/VariantCalling/work/191015/em
 em_vc_number_to_sample=20000000 # Set -1 if the input file is already sampled
+em_vc_number_of_cpus=12
 ```
 
 Optionally, this could be a section in a general config file with header 
