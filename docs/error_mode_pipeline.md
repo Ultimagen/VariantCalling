@@ -36,9 +36,9 @@ python /home/ubuntu/software/VariantCalling/src/python/pipelines/error_rate_metr
 
 ### Output
 Text output files will be named: 
-`.sort.metrics` - error metrics for unfiltered aligned data
-`.sort.filter.metrics` - error metrics for filtered (>Q20) aligned data
-`.idxstats` - alignment statistics
+ - `.sort.metrics` - error metrics for unfiltered aligned data
+ - `.sort.filter.metrics` - error metrics for filtered (>Q20) aligned data
+ - `.idxstats` - alignment statistics
 
 All outputs will be concatenated into HDF5 file `metrics.h5` with keys `bwa_alignment_stats` and `bwa_error_rates`
 
