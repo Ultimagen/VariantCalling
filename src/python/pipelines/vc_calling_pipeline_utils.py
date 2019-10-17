@@ -1,6 +1,7 @@
 # Functions that for variant calling pipeline
 import subprocess
 import configargparse
+
 from os.path import join as pjoin
 from os.path import basename, dirname, abspath
 import os
@@ -12,12 +13,12 @@ import utils
 def parse_params_file(params_file):
     ap = configargparse.ArgParser()
     ap.add("-c", required=True, is_config_file=True, help='config file path')
-    ap.add("-d", '--demux_file', required=True)
-    ap.add('--genome', required=True, help="Path to genome file (bwa index, dict should exist)")
-    ap.add('--output_dir', required=True, help="Output directory")
-    ap.add('--chromosomes_list', required=False, help="File with the list of chromosomes to test")
-    ap.add('--recalibration_model', required=False, help="recalibration model (h5)")
-    ap.add('--number_to_sample', required=False, help="Number of records to downsample", type=int)
+    ap.add('--em_vc_demux_file', required=True)
+    ap.add('--em_vc_genome', required=True, help="Path to genome file (bwa index, dict should exist)")
+    ap.add('--em_vc_output_dir', required=True, help="Output directory")
+    ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
+    ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")
+    ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
     return ap.parse()
 
 def head_file( input_file, output_file, number_to_sample) : 
