@@ -48,8 +48,4 @@ vc_variant_calls = vc_pipeline.product(vc_calling_pipeline_utils.variant_calling
 										[pjoin(params.em_vc_output_dir, "{basename[0][0]}{ext[1][0]}.vcf"),
 										pjoin(params.em_vc_output_dir, "logs", "{basename[0][0]}{ext[1][0]}.vcf.log"),], 
 										extras=[params.em_vc_genome])
-<<<<<<< HEAD
-vc_pipeline.run()
-=======
 vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
->>>>>>> 5b1565c8338a40177eb445e27632adb928fda0bc
