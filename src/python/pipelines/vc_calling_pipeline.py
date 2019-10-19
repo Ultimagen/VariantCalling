@@ -14,10 +14,10 @@ mdtask=vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "interval_files"))
 aln_merge = vc_pipeline.transform(vc_calling_pipeline_utils.align_and_merge, params.em_vc_demux_file, 
 	ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"), 
 	pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.aln.log")],
-	extras=[params.em_vc_genome, params.em_vc_number_of_cpus])
+	extras=[params.em_vc_genome, params.em_vc_number_of_cpus]).follows(mdtask)
 fi_file = vc_pipeline.transform(vc_calling_pipeline_utils.prepare_fetch_intervals, params.em_vc_chromosomes_list, 
 	ruffus.formatter(),
-	pjoin(params.em_vc_output_dir, "filter.bed"), extras=[params.em_vc_genome])
+	pjoin(params.em_vc_output_dir, "filter.bed"), extras=[params.em_vc_genome]).follows(mdtask)
 
 filtered_bam = vc_pipeline.transform(vc_calling_pipeline_utils.fetch_intervals , aln_merge, ruffus.formatter(".aln.bam"), 
 	ruffus.add_inputs(fi_file), [pjoin(params.em_vc_output_dir, "{basename[0]}.filter.aln.bam"), 
