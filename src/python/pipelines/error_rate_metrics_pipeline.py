@@ -14,24 +14,24 @@ if params.em_vc_number_to_sample >= 0 :
 	head_file = vc_pipeline.transform(vc_calling_pipeline_utils.head_file, params.em_vc_demux_file, ruffus.formatter(), 
 		[pjoin(params.em_vc_output_dir, "{basename[0]}.head.bam"),
 		pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.head.log")], 
-		extras=[params.em_vc_number_to_sample, params.em_vc_number_of_cpus]).follows(md2)
+		extras=[params.em_vc_number_to_sample, params.em_vc_number_of_cpus]).follows(md2).jobs_limit(1,'parallel_task')
 
 	aln = vc_pipeline.transform(vc_calling_pipeline_utils.align, head_file, 
 		ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"), 
 		pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.aln.log")],
-		extras=[params.em_vc_genome, params.em_vc_number_of_cpus])
+		extras=[params.em_vc_genome, params.em_vc_number_of_cpus]).jobs_limit(1,'parallel_task')
 
 else: 
 
 	aln = vc_pipeline.transform(vc_calling_pipeline_utils.align, params.em_vc_demux_file,
 			ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"), 
 			pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.aln.log")],
-			extras=[params.em_vc_genome, params.em_vc_number_of_cpus]).follows(md2)
+			extras=[params.em_vc_genome, params.em_vc_number_of_cpus]).follows(md2).jobs_limit(1,'parallel_task')
 
 sorted_bam = vc_pipeline.transform(vc_calling_pipeline_utils.sort_file, aln, ruffus.formatter("aln.bam"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.sort.bam"), 
      pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.sort.log")], 
-     extras=[ params.em_vc_number_of_cpus])
+     extras=[ params.em_vc_number_of_cpus]).jobs_limit(1,'parallel_task')
 
 index_bam = vc_pipeline.transform(vc_calling_pipeline_utils.index_file, sorted_bam, ruffus.formatter("sort.bam"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.bam.bai"), 
@@ -41,7 +41,7 @@ index_bam = vc_pipeline.transform(vc_calling_pipeline_utils.index_file, sorted_b
 filtered_bam = vc_pipeline.transform(vc_calling_pipeline_utils.filter_quality, sorted_bam, ruffus.formatter("aln.sort.bam"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.filter.bam"), 
 	                             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.filter.log")], 
-	                             extras=[params.em_vc_number_of_cpus])
+	                             extras=[params.em_vc_number_of_cpus]).jobs_limit(1,'parallel_task')
 
 index_bam_1 = vc_pipeline.transform(vc_calling_pipeline_utils.index_file, filtered_bam, ruffus.formatter("filter.bam"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.bam.bai"), 
@@ -63,7 +63,7 @@ idxstats_metrics = vc_pipeline.transform(vc_calling_pipeline_utils.idxstats, sor
      							   pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.idxstats.log")]).follows(index_bam)
 
 
-vc_pipeline.run()
+vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
 
 # Parsing and processing
 idxstats_metrics_file = (idxstats_metrics._get_output_files(True, []))[0][0]
