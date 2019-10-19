@@ -182,7 +182,7 @@ def variant_calling (input_files, output_files, genome_file) :
 
     gatk="/home/ubuntu/software/gatk/gatk"
     my_env = os.environ.copy()
-    my_env["GATK_LOCAL_JAR"] = "/home/ubuntu/software/gatk/gatk-package-ultima-v0.2-3-g2925eaa-SNAPSHOT-local.jar"
+    my_env["GATK_LOCAL_JAR"] = "/home/ubuntu/software/gatk/gatk-package-ultima-v0.2-6-ge3bfd5d-SNAPSHOT-local.jar"
 
     interval = [ x.strip() for x in open(interval_file) ][0]
     
