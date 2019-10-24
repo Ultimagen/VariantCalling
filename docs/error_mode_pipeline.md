@@ -10,7 +10,7 @@
 ```
 2. Create conda environment `conda env create -f /home/ubuntu/software/VariantCalling/setup/environment.yml`
 (the path should be the right path in the computer).
-3. Activate environment `conda activate genomics.py3`
+3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
 `aws s3 sync s3://broad-references/hg19/ /data/genomes/broad-references/hg19/`
