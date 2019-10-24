@@ -14,14 +14,22 @@ import pandas as pd
 def parse_params_file(params_file):
     ap = configargparse.ArgParser()
     ap.add("-c", required=True, is_config_file=True, help='config file path')
-    ap.add('--em_vc_demux_file', required=True)
+    ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
+    group1 = ap.add_mutually_exclusive_group(required=True)
+    group1.add('--DataFileName', help="Path + prefix of the output_files")
+    group1.add('--em_vc_output_dir', help="Output dir")
     ap.add('--em_vc_genome', required=True, help="Path to genome file (bwa index, dict should exist)")
-    ap.add('--em_vc_output_dir', required=True, help="Output directory")
     ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
     ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")
     ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
     ap.add('--em_vc_number_of_cpus', required=False, help="Number of CPUs on the machine", type=int, default = 12)
-    return ap.parse_known_args()[0]
+    args = ap.parse_known_args()[0]
+    if 'DataFileName' in args:
+        args.em_vc_output_dir = dirname(args.DataFileName)
+        args.em_vc_basename = basename(args.DataFileName)
+    else: 
+        args.em_vc_basename = basename(args.em_vc_demux_file)
+    return args
 
 def head_file( input_file, output_file, number_to_sample, nthreads) : 
     output_bam, output_err = output_file 
@@ -215,15 +223,34 @@ def idxstats( input_files, output_files ) :
         with open(output_stats,'w') as output_stats_handle : 
             subprocess.check_call(cmd, stdout=output_stats_handle, stderr=output_err_handle)
 
-def collect_idxstats( input_file: str ) -> pd.DataFrame : 
-    df = pd.read_csv(input_file, sep="\t", 
+def collect_alnstats( idxstats_file: str, filter_metrics: str ) -> pd.DataFrame : 
+    '''
+    Parameters
+    ----------
+    idxstats_file: str
+        idxstats output
+    filter_metrics: str
+        Alignment metrics filter
+    '''
+    print(idxstats_file)
+    print(filter_metrics)
+    df = pd.read_csv(idxstats_file, sep="\t", 
             header=None, index_col=0, names=['length','aligned_reads', 'unaligned_reads'])
     df = df.sum()
     df.drop(['length'], inplace=True)
-    return df
+    df1 = pd.read_csv(filter_metrics, sep="\t",comment="#").T[0]
+    df['hq_aligned_reads'] = df1.loc['TOTAL_READS']
+    df['total_reads'] = df['aligned_reads'] + df['unaligned_reads']
+    df['pct_aligned'] = df['aligned_reads']/ (df['unaligned_reads'] + df['aligned_reads'])*100
+    df['pct_high_quality'] = df['hq_aligned_reads']/ df['aligned_reads']*100     
+    return pd.DataFrame(df)
 
 def collect_metrics( input_file: str) -> pd.DataFrame : 
     df = pd.read_csv(input_file, sep="\t",comment="#").T
-    return df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE', 'PCT_CHIMERAS']]
+    df = df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE', 'PCT_CHIMERAS']]
+    df.loc['PF_MISMATCH_RATE']*=100
+    df.loc['PF_INDEL_RATE']*=100
+    df.index = ['mismatch rate', 'indel rate', 'chimera rate']
+    return df
 
 

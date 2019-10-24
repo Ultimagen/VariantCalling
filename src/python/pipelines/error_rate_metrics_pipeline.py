@@ -69,11 +69,11 @@ vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
 idxstats_metrics_file = (idxstats_metrics._get_output_files(True, []))[0][0]
 error_metrics_q0_file = (error_metrics_q0._get_output_files(True, []))[0][0]
 error_metrics_q20_file = (error_metrics_q20._get_output_files(True, []))[0][0]
-idxstats_df = vc_calling_pipeline_utils.collect_idxstats(idxstats_metrics_file)
+idxstats_df = vc_calling_pipeline_utils.collect_alnstats(idxstats_metrics_file, error_metrics_q20_file)
 q0_df = vc_calling_pipeline_utils.collect_metrics(error_metrics_q0_file)
 q20_df = vc_calling_pipeline_utils.collect_metrics(error_metrics_q20_file)
 em_df = pd.concat((q0_df, q20_df),axis=1)
 em_df.columns = (['Unfiltered', 'Q20 filtered'])
-output_hdf_file = pjoin(params.em_vc_output_dir, '.'.join((basename(params.em_vc_demux_file), "metrics", "h5")))
+output_hdf_file = pjoin(params.em_vc_output_dir, '.'.join((params.em_vc_basename, "bwa_metrics", "h5")))
 idxstats_df.to_hdf(output_hdf_file, key="bwa_alignment_stats")
 em_df.to_hdf(output_hdf_file, key="bwa_error_rates")
