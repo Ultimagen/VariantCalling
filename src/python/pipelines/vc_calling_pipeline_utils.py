@@ -3,7 +3,7 @@ import subprocess
 import configargparse
 
 from os.path import join as pjoin
-from os.path import basename, dirname, abspath
+from os.path import basename, dirname, abspath, splitext
 import os
 import sys
 dname = dirname(abspath(__file__))
@@ -23,8 +23,13 @@ def parse_params_file(params_file):
     ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")
     ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
     ap.add('--em_vc_number_of_cpus', required=False, help="Number of CPUs on the machine", type=int, default = 12)
+    ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
+    ap.add('--em_vc_ground_truth_highconf', required=False, help="Ground truth high confidence file", type=str)    
+    ap.add('--em_vc_gaps_hmers_filter', required=False, help="Bed file with regions to filter out", type=str)
+
+
     args = ap.parse_known_args()[0]
-    if 'DataFileName' in args:
+    if args.DataFileName is not None:
         args.em_vc_output_dir = dirname(args.DataFileName)
         args.em_vc_basename = basename(args.DataFileName)
     else: 
@@ -251,4 +256,27 @@ def collect_metrics( input_file: str) -> pd.DataFrame :
     df.index = ['mismatch rate', 'indel rate', 'chimera rate']
     return df
 
+def generate_comparison_intervals( intervals_file: str, genome_file: str, output_dir: str ) -> list: 
 
+    bed_files_to_convert = []
+    genome_dict_file = '.'.join((splitext(genome_file)[0],'dict'))
+    with open(intervals_file) as chromosomes : 
+        for chrom in map(lambda x: x.strip().split(), chromosomes) : 
+            with open(pjoin(output_dir, ".".join(("chr"+chrom[0], 'intervals','bed'))),'w') as outfile : 
+                bed_files_to_convert.append(outfile.name)
+                outfile.write("\t".join(chrom) + "\n")
+    interval_files = [ splitext(x)[0] for x in bed_files_to_convert]
+    for i in range(len(interval_files)) : 
+        cmd = ['picard', 'BedToIntervalList','I=%s'%bed_files_to_convert[i], 
+        'O=%s'%interval_files[i], 'SD=%s'%genome_dict_file]
+        with open(pjoin(output_dir, "logs", "bed2intv.log"),'a') as logfile : 
+            subprocess.check_call(cmd, stdout=logfile, stderr=logfile)
+    return interval_files 
+
+def generate_header( input_file: str, output_file: str, output_dir: str) -> str: 
+    output_file = pjoin(output_dir, output_file)
+    with (open(output_file, 'w')) as out : 
+        cmd = ['bcftools', 'view', '-h', input_file]
+        with open(pjoin(output_dir, 'logs', "header.err"),'w') as errs : 
+            subprocess.check_call(cmd, stdout = out, stderr = errs )
+    return output_file

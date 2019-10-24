@@ -2,7 +2,9 @@
 import ruffus
 import sys
 import vc_calling_pipeline_utils
+import python.pipelines.comparison_pipeline as comparison_pipeline
 from os.path import join as pjoin
+from os.path import splitext
 
 params = vc_calling_pipeline_utils.parse_params_file( sys.argv[1] )
 print(params)
@@ -48,4 +50,32 @@ vc_variant_calls = vc_pipeline.product(vc_calling_pipeline_utils.variant_calling
 										[pjoin(params.em_vc_output_dir, "{basename[0][0]}{ext[1][0]}.vcf"),
 										pjoin(params.em_vc_output_dir, "logs", "{basename[0][0]}{ext[1][0]}.vcf.log"),], 
 										extras=[params.em_vc_genome])
+
+
 vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
+
+
+comparison_interval_files = vc_calling_pipeline_utils.generate_comparison_intervals( 
+														pjoin(params.em_vc_output_dir, "filter.bed"), 
+														params.em_vc_genome, params.em_vc_output_dir)
+recalibrated_bam_name = recalibrated_bam._get_output_files(True, [])[0][0]
+
+header_file = vc_calling_pipeline_utils.generate_header(
+	'.'.join((splitext(recalibrated_bam_name)[0], '1','vcf')),
+	'h1.hdr', params.em_vc_output_dir)
+
+for ci_file in comparison_interval_files : 
+
+	concordance, results = comparison_pipeline.pipeline(len(comparison_interval_files)*10, 
+	    splitext(recalibrated_bam_name)[0],
+	    header_file, 
+	    truth_file=params.em_vc_ground_truth, 
+	    highconf_intervals=params.em_vc_ground_truth_highconf,
+	    runs_intervals=params.em_vc_gaps_hmers_filter, 
+	    cmp_intervals=ci_file, 
+	    ref_genome=params.em_vc_genome,
+	    call_sample='sm1', 
+	    truth_sample='sm1')
+	concordance.to_hdf('.'.join((splitext(ci_file)[0], 'h5')), key='concordance', mode='w')
+	results.to_hdf('.'.join((splitext(ci_file)[0], 'h5')), key='results', mode='a')
+
