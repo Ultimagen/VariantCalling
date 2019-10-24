@@ -1,7 +1,7 @@
 
 import ruffus
 import sys
-import vc_calling_pipeline_utils
+import vc_pipeline_utils
 import python.pipelines.comparison_pipeline as comparison_pipeline
 from os.path import join as pjoin
 from os.path import splitext
