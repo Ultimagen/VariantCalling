@@ -49,7 +49,7 @@ def reheader_vcf( input_file: str, new_header: str, output_file: str) :
 
 
 def run_genotype_concordance ( input_file: str, truth_file: str, output_prefix: str, 
-    comparison_intervals: str,input_sample: str='NA12878', tuth_sample='HG001'): 
+    comparison_intervals: str,input_sample: str='NA12878', truth_sample='HG001'): 
     '''Run GenotypeConcordance, correct the bug and reindex
 
     Parameters
@@ -75,7 +75,7 @@ def run_genotype_concordance ( input_file: str, truth_file: str, output_prefix: 
     cmd = ['picard','GenotypeConcordance', 'CALL_VCF={}'.format(input_file), \
             'CALL_SAMPLE={}'.format(input_sample), 'O={}'.format(output_prefix), \
             'TRUTH_VCF={}'.format(truth_file), 'INTERVALS={}'.format(comparison_intervals), \
-            'TRUTH_SAMPLE={}'.format('HG001'), 'OUTPUT_VCF=true']
+            'TRUTH_SAMPLE={}'.format(truth_sample), 'OUTPUT_VCF=true']
     subprocess.check_call(cmd)
 
     cmd = ['gunzip','-f', f'{output_prefix}.genotype_concordance.vcf.gz']
