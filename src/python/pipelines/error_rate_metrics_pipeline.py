@@ -69,6 +69,8 @@ vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
 idxstats_metrics_file = (idxstats_metrics._get_output_files(True, []))[0][0]
 error_metrics_q0_file = (error_metrics_q0._get_output_files(True, []))[0][0]
 error_metrics_q20_file = (error_metrics_q20._get_output_files(True, []))[0][0]
+#print(idxstats_metrics_file)
+#print(error_metrics_q20_file)
 idxstats_df = vc_calling_pipeline_utils.collect_alnstats(idxstats_metrics_file, error_metrics_q20_file)
 q0_df = vc_calling_pipeline_utils.collect_metrics(error_metrics_q0_file)
 q20_df = vc_calling_pipeline_utils.collect_metrics(error_metrics_q20_file)

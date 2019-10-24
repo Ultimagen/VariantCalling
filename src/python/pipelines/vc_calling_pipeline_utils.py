@@ -232,13 +232,11 @@ def collect_alnstats( idxstats_file: str, filter_metrics: str ) -> pd.DataFrame 
     filter_metrics: str
         Alignment metrics filter
     '''
-    print(idxstats_file)
-    print(filter_metrics)
-    df = pd.read_csv(idxstats_file, sep="\t", 
+    df = pd.read_csv(idxstats_file, sep="\t", engine="python",
             header=None, index_col=0, names=['length','aligned_reads', 'unaligned_reads'])
     df = df.sum()
     df.drop(['length'], inplace=True)
-    df1 = pd.read_csv(filter_metrics, sep="\t",comment="#").T[0]
+    df1 = pd.read_csv(filter_metrics, sep="\t",comment="#", engine="python").T[0]
     df['hq_aligned_reads'] = df1.loc['TOTAL_READS']
     df['total_reads'] = df['aligned_reads'] + df['unaligned_reads']
     df['pct_aligned'] = df['aligned_reads']/ (df['unaligned_reads'] + df['aligned_reads'])*100
