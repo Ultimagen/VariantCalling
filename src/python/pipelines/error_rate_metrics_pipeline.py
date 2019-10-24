@@ -1,6 +1,6 @@
 import ruffus
 import sys
-import vc_calling_pipeline_utils
+import vc_pipeline_utils
 from os.path import join as pjoin
 from os.path import basename, dirname
 import pandas as pd
