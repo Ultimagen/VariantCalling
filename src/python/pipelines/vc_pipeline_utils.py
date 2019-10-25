@@ -120,7 +120,8 @@ def prepare_fetch_intervals( input_file, output_file, genome_file ) :
     with open(output_file,'w') as output_handle: 
         with open(input_file) as input_handle: 
             for chrom in input_handle : 
-                output_handle.write(f"{chrom.strip()}\t0\t{genome_dct[chrom.strip()]}\n")
+                if chrom :
+                    output_handle.write(f"{chrom.strip()}\t0\t{genome_dct[chrom.strip()]}\n")
 
 
 def filter_quality( input_file, output_files, nthreads ):
