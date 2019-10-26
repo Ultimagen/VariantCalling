@@ -156,7 +156,7 @@ def recalibrate_file( input_file, output_files, recalibration_model,nthreads ):
     cthreads = int(0.1 * nthreads)
     with open(output_err,'w') as output_err_handle : 
         cmd1 = ["LD_LIBRARY_PATH=/usr/local/lib", 
-         "/home/ubuntu/proj/Utils/recalibration/recalibrate", 
+         "recalibrate", 
          "--input=%s"%input_file, "--binary",
          "--output=%s"%output_bam, "--model=%s"%recalibration_model,
          "--threshold=0.003", "--dthreads=%d"%dthreads, "--pthreads=%d"%pthreads, "--cthreads=%d"%cthreads]
@@ -194,7 +194,7 @@ def variant_calling (input_files, output_files, genome_file) :
     aligned_bam = aligned_bam[0]
     output_vcf, output_log = output_files 
 
-    gatk="/home/ubuntu/software/gatk/gatk"
+    gatk="gatk"
     my_env = os.environ.copy()
 
     interval = [ x.strip() for x in open(interval_file) ][0]
