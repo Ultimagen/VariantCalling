@@ -15,14 +15,16 @@
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
 `aws s3 sync s3://broad-references/hg19/ /data/genomes/broad-references/hg19/`
+
 5. Copy helper files for variant calling
 `aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/ /data/genomes/broad-references/hg19/concordance/`
+
 6. Copy additional files to the location of the genome: 
 
 `aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.fasta.dict 
  /data/genomes/broad-references/hg19/v0/`
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.sizes 
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.fasta.sizes 
 /data/genomes/broad-references/hg19/v0/`
 
 
