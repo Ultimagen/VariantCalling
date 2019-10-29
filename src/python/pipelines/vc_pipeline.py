@@ -11,12 +11,12 @@ print(params)
 vc_pipeline = ruffus.Pipeline(name="Variant calling pipeline")
 vc_pipeline.mkdir(params.em_vc_output_dir)
 mdtask=vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "logs"))
-mdtask1=vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "interval_files"))
+mdtask1=vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "interval_files")).follows(mdtask)
 
 aln_merge = vc_pipeline.transform(vc_pipeline_utils.align_and_merge, params.em_vc_demux_file, 
 	ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"), 
 	pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.aln.log")],
-	extras=[params.em_vc_genome, params.em_vc_number_of_cpus]).jobs_limit(1,'parallel_task').follows([mdtask, mdtask1])
+	extras=[params.em_vc_genome, params.em_vc_number_of_cpus]).jobs_limit(1,'parallel_task').follows(mdtask1)
 fi_file = vc_pipeline.transform(vc_pipeline_utils.prepare_fetch_intervals, params.em_vc_chromosomes_list, 
 	ruffus.formatter(),
 	pjoin(params.em_vc_output_dir, "filter.bed"), extras=[params.em_vc_genome]).follows(mdtask)
