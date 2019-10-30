@@ -9,6 +9,7 @@
   or:
   git clone https://github.com/Ultimagen/VariantCalling
 ```
+1.1 Clone recalibration repository and buid
 2. Create conda environment `conda env create -f /home/ec2-user/software/VariantCalling/setup/environment.yml`
 (the path should be the right path in the computer).
 3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
