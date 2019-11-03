@@ -9,23 +9,30 @@
   or:
   git clone https://github.com/Ultimagen/VariantCalling
 ```
+1.1 Clone recalibration repository and buid
 2. Create conda environment `conda env create -f /home/ec2-user/software/VariantCalling/setup/environment.yml`
 (the path should be the right path in the computer).
 3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
 `aws s3 sync s3://broad-references/hg19/ /data/genomes/broad-references/hg19/`
+
 5. Copy helper files for variant calling
 `aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/ /data/genomes/broad-references/hg19/concordance/`
+
 6. Copy additional files to the location of the genome: 
 
 `aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.fasta.dict 
  /data/genomes/broad-references/hg19/v0/`
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.sizes 
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.fasta.sizes 
 /data/genomes/broad-references/hg19/v0/`
 
+7. Download the latest gatk JAR, currently `gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar`
 
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/jar/gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar $HOME/software/gatk/`
+
+8 Compile and install the recalibration code from `recalibration` repo. Assume into `$HOME/software/recalibration`
 ### Configuration file
 * Create a file with list of chromosomes to run concordance on. For example
 ```
@@ -44,7 +51,7 @@ em_vc_number_to_sample=20000000 # Set -1 if the input file is already sampled
 em_vc_number_of_cpus=50
 em_vc_chromosomes_list=/home/ec2-user/proj/VariantCalling/work/191018/chromosomes
 em_vc_recalibration_model=/home/ec2-user/proj/VariantCalling/work/191018/recalibration.h5
-em_vc_number_of_cpus=14
+
 em_vc_ground_truth=/data/genomes/broad-references/hg19/concordance/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.broad-header.vcf.gz
 em_vc_ground_truth_highconf=/data/genomes/broad-references/hg19/concordance/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_nosomaticdel.bed
 em_vc_gaps_hmers_filter=/data/genomes/broad-references/hg19/concordance/runs.bed
@@ -57,7 +64,9 @@ Optionally, this could be a section in a general config file with header
 ```
 cd /home/ec2-user/proj/work/191018/
 conda activate genomics.py3
+export PATH=$HOME/software/recalibration:$PATH
 export PYTHONPATH=/home/ec2-user/software/VariantCalling/src/:$PYTHONPATH
+export GATK_LOCAL_JAR=$HOME/software/gatk/gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar
 python /home/ubuntu/software/VariantCalling/src/python/pipelines/vc_pipeline.py -c variant_calling.config
 ```
 
