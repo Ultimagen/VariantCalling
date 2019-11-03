@@ -5,6 +5,7 @@ import pysam
 import numpy as np 
 import tqdm 
 import python.vcftools as vcftools
+from os.path import exists
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
     Parameters
@@ -16,8 +17,8 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     output_fname: str
         Name of the output VCF
     '''
-
-    input_files = [ f'{input_prefix}.{x}.vcf' for x in range(1,n_parts+1)]
+    input_files = [ f'{input_prefix}.{x}.vcf' for x in range(1,n_parts+1)] + [ f'{input_prefix}.{x}.vcf.gz' for x in range(1,n_parts+1)]
+    input_files = [ x for x in input_files if exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
     print(" ".join(cmd))
     subprocess.check_call(cmd)
@@ -165,8 +166,12 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str) -> pd.DataFrame:
     concordance['classify'] = concordance.apply(classify, axis=1)
     concordance.index = [(x[1]['chrom'],x[1]['pos']) for x in concordance.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
-    original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR']) for x in vf])
-    original.columns = ['chrom','pos','qual','sor']
+    if 'AS_SOR' in vf.header.info : 
+        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['AS_SOR'][0], x.info['AS_SORP'][0]) for x in vf])
+        original.columns = ['chrom','pos','qual','sor', 'as_sor','as_sorp']
+    else: 
+        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR']) for x in vf])
+        original.columns = ['chrom','pos','qual','sor']      
     original.index = [(x[1]['chrom'],x[1]['pos']) for x in original.iterrows()]
     original.drop('qual',axis=1,inplace=True)
     concordance = concordance.join(original.drop(['chrom','pos'], axis=1))
