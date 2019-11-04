@@ -171,11 +171,11 @@ def index_file( input_file, output_file ):
         subprocess.check_call(cmd1, stderr=output_err_handle)
 
 
-def create_variant_calling_intervals( input_file, output_file ): 
+def create_variant_calling_intervals( input_file, output_file, n_threads ): 
     output_bed, output_err = output_file 
     with open(output_bed,'w') as output_bed_handle : 
         with open(output_err, 'w') as output_err_handle : 
-            cmd1 = [ 'bedtools', 'makewindows', '-b', input_file, '-n','10' ]
+            cmd1 = [ 'bedtools', 'makewindows', '-b', input_file, '-n',str(n_threads) ]
             subprocess.check_call(cmd1, stdout=output_bed_handle, stderr=output_err_handle)
 
 
