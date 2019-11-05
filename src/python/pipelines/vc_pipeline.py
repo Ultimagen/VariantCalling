@@ -65,7 +65,7 @@ header_file = vc_pipeline_utils.generate_header(
 
 for ci_file in comparison_interval_files : 
 
-	concordance, results = comparison_pipeline.pipeline(len(comparison_interval_files)*10, 
+	concordance, results = comparison_pipeline.pipeline(len(comparison_interval_files)*params.em_vc_number_of_cpus, 
 	    splitext(recalibrated_bam_name)[0],
 	    header_file, 
 	    truth_file=params.em_vc_ground_truth, 
