@@ -49,8 +49,6 @@ def head_file( input_file, output_file, number_to_sample, nthreads) :
         task3 = subprocess.Popen(cmd3, stdin = task2.stdout, stderr=output_err_handle)
         task2.stdout.close()
         output=task3.communicate()
-        if task1.returncode!=0 or task2.returncode!=0 or task3.returncode!=0 : 
-            raise RuntimeError("Subsampling failed")
 
 def align( input_file, output_file, genome_file, nthreads ) : 
     output_bam, output_err = output_file 

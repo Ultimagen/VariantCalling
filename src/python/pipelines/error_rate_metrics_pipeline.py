@@ -84,9 +84,16 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger)
 
         # Parsing and processing
-        idxstats_metrics_file = (idxstats_metrics._get_output_files(True, []))[0][0]
-        error_metrics_q0_file = (error_metrics_q0._get_output_files(True, []))[0][0]
-        error_metrics_q20_file = (error_metrics_q20._get_output_files(True, []))[0][0]
+        idxstats_metrics_file = (idxstats_metrics._get_output_files(True, []))[0]
+        if type(idxstats_metrics_file)==list:
+            idxstats_metrics_file = idxstats_metrics_file[0]
+        error_metrics_q0_file = (error_metrics_q0._get_output_files(True, []))[0]
+        if type(error_metrics_q0_file) == list:
+            error_metrics_q0_file = error_metrics_q0_file[0]
+
+        error_metrics_q20_file = (error_metrics_q20._get_output_files(True, []))[0]
+        if type(error_metrics_q20_file) == list:
+            error_metrics_q20_file = error_metrics_q20_file[0]
         #print(idxstats_metrics_file)
         #print(error_metrics_q20_file)
         idxstats_df = vc_pipeline_utils.collect_alnstats(idxstats_metrics_file, error_metrics_q20_file)
