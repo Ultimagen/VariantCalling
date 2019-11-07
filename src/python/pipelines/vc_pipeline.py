@@ -57,7 +57,10 @@ vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
 comparison_interval_files = vc_pipeline_utils.generate_comparison_intervals( 
 														pjoin(params.em_vc_output_dir, "filter.bed"), 
 														params.em_vc_genome, params.em_vc_output_dir)
-recalibrated_bam_name = recalibrated_bam._get_output_files(True, [])[0][0]
+
+recalibrated_bam_name = recalibrated_bam._get_output_files(True, [])[0]
+if type(recalibrated_bam_name) == list : 
+	recalibrated_bam_name = recalibrated_bam_name[0]
 
 header_file = vc_pipeline_utils.generate_header(
 	'.'.join((splitext(recalibrated_bam_name)[0], '1','vcf')),
