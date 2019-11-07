@@ -10,8 +10,6 @@ import pandas as pd
 import traceback
 
 params = vc_pipeline_utils.parse_params_file( sys.argv[1] )
-import pickle
-pickle.dump(params, open("/home/ec2-user/tmp.pkl","wb"))
 logname = basename(params.em_vc_demux_file).replace(".bam",".em.log")
 
 try:
