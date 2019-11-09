@@ -48,9 +48,8 @@ vc_intervals_split = vc_pipeline.subdivide(vc_pipeline_utils.split_intervals_int
 vc_variant_calls = vc_pipeline.product(vc_pipeline_utils.variant_calling, recalibrated_bam, ruffus.formatter(".bam"), 
 										vc_intervals_split, ruffus.formatter(), 
 										[pjoin(params.em_vc_output_dir, "{basename[0][0]}{ext[1][0]}.vcf"),
-										pjoin(params.em_vc_output_dir, "logs", "{basename[0][0]}{ext[1][0]}.vcf.log"),], 
+										 pjoin(params.em_vc_output_dir, "logs", "{basename[0][0]}{ext[1][0]}.vcf.log")], 
 										extras=[params.em_vc_genome]).follows(index_bam)
-
 
 vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
 
@@ -58,7 +57,10 @@ vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus)
 comparison_interval_files = vc_pipeline_utils.generate_comparison_intervals( 
 														pjoin(params.em_vc_output_dir, "filter.bed"), 
 														params.em_vc_genome, params.em_vc_output_dir)
-recalibrated_bam_name = recalibrated_bam._get_output_files(True, [])[0][0]
+
+recalibrated_bam_name = recalibrated_bam._get_output_files(True, [])[0]
+if type(recalibrated_bam_name) == list : 
+	recalibrated_bam_name = recalibrated_bam_name[0]
 
 header_file = vc_pipeline_utils.generate_header(
 	'.'.join((splitext(recalibrated_bam_name)[0], '1','vcf')),
@@ -66,7 +68,7 @@ header_file = vc_pipeline_utils.generate_header(
 
 for ci_file in comparison_interval_files : 
 
-	concordance, results = comparison_pipeline.pipeline(len(comparison_interval_files)*10, 
+	concordance, results = comparison_pipeline.pipeline(len(comparison_interval_files)*params.em_vc_number_of_cpus, 
 	    splitext(recalibrated_bam_name)[0],
 	    header_file, 
 	    truth_file=params.em_vc_ground_truth, 
