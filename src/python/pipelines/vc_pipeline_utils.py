@@ -10,6 +10,7 @@ dname = dirname(abspath(__file__))
 sys.path.append(pjoin(dname, ".."))
 import utils
 import pandas as pd
+import numpy as np
 # Align and merge
 def parse_params_file(params_file):
     ap = configargparse.ArgParser()
@@ -38,9 +39,9 @@ def parse_params_file(params_file):
 
 def head_file( input_file, output_file, number_to_sample, nthreads) : 
     output_bam, output_err = output_file 
-    cmd1 = ["samtools", "view", '-@%d'%int((nthreads-2)/2), '-h', input_file]
+    cmd1 = ["samtools", "view", '-@%d'%max(1,int((nthreads-2)/2)), '-h', input_file]
     cmd2 = ["head", f"-{number_to_sample+100}"]
-    cmd3 = ["samtools", "view", '-@%d'%int((nthreads-2)/2), "-b", "-o", output_bam]
+    cmd3 = ["samtools", "view", '-@%d'%max(1,int((nthreads-2)/2)), "-b", "-o", output_bam]
     with open(output_err, 'w') as output_err_handle : 
         task1 = subprocess.Popen(cmd1, stdout = subprocess.PIPE, stderr=output_err_handle)
         task2 = subprocess.Popen(cmd2, stdin = task1.stdout, stdout = subprocess.PIPE, stderr=output_err_handle)
@@ -52,8 +53,8 @@ def head_file( input_file, output_file, number_to_sample, nthreads) :
 def align( input_file, output_file, genome_file, nthreads ) : 
     output_bam, output_err = output_file 
     output_err_handle = open(output_err, "w")
-    nthreads_alignment = int(0.8*(nthreads-1))
-    nthreads_samtools= int(0.2*(nthreads-1))
+    nthreads_alignment = max(1,int(0.8*(nthreads-1)))
+    nthreads_samtools= max(1,int(0.2*(nthreads-1)))
     if type(input_file) == list:
         cmd1 = ['picard' ,'-Xms5000m','SamToFastq', 'INPUT=%s'%input_file[0], 'FASTQ=/dev/stdout']
     else : 
@@ -76,6 +77,10 @@ def align( input_file, output_file, genome_file, nthreads ) :
     task2.stdout.close()
     output = task3.communicate()
     output_err_handle.close()
+    if task3.returncode!=0: 
+        raise RuntimeError("Alignment failed")
+
+    
 
 def align_and_merge( input_file, output_file, genome_file, nthreads ): 
 
@@ -83,7 +88,7 @@ def align_and_merge( input_file, output_file, genome_file, nthreads ):
     output_bam, output_err = output_file 
     output_err_handle = open(output_err, "w")    
 
-    nthreads_alignment = int(nthreads-3)
+    nthreads_alignment = max(1,int(nthreads-3))
     
 
     cmd1 = ['picard' ,'-Xms5000m','SamToFastq', 'INPUT=%s'%input_file, 'FASTQ=/dev/stdout']
@@ -113,6 +118,8 @@ def align_and_merge( input_file, output_file, genome_file, nthreads ):
     task2.stdout.close()
     output = task3.communicate()
     output_err_handle.close()
+    if task3.returncode!=0 : 
+        raise RuntimeError("Alignment failed")
 
 # Prepare fetch intervals 
 def prepare_fetch_intervals( input_file, output_file, genome_file ) : 
@@ -127,7 +134,7 @@ def prepare_fetch_intervals( input_file, output_file, genome_file ) :
 def filter_quality( input_file, output_files, nthreads ):
     output_bam, output_err = output_files
     input_file = input_file[0]
-    cmd = [ 'samtools', 'view', '-q20', '-@%d'%(nthreads-1), '-b', '-o',output_bam, input_file]
+    cmd = [ 'samtools', 'view', '-q20', '-@%d'%max(1,(nthreads-1)), '-b', '-o',output_bam, input_file]
     with open(output_err,'w') as output_err_handle : 
         subprocess.check_call(cmd, stdout=output_err_handle, stderr=output_err_handle)
 
@@ -145,15 +152,15 @@ def fetch_intervals( input_file, output_files):
 def sort_file ( input_file, output_file, nthreads ): 
     output_bam, output_err = output_file 
     with open(output_err, "w") as output_err_handle  : 
-        cmd1 = [ 'samtools', 'sort', '-@%d'%(nthreads-1), '-T', dirname(output_bam), '-o' , output_bam, input_file[0] ]
+        cmd1 = [ 'samtools', 'sort', '-@%d'%max(1,(nthreads-1)), '-T', dirname(output_bam), '-o' , output_bam, input_file[0] ]
         subprocess.check_call(cmd1, stderr=output_err_handle)
 
 def recalibrate_file( input_file, output_files, recalibration_model,nthreads ): 
     input_file = input_file[0]
     output_bam, output_err = output_files
-    pthreads = int(0.8 * nthreads)
-    dthreads = int(0.1 * nthreads)
-    cthreads = int(0.1 * nthreads)
+    pthreads = max(1,int(0.8 * nthreads))
+    dthreads = max(1,int(0.1 * nthreads))
+    cthreads = max(1,int(0.1 * nthreads))
     with open(output_err,'w') as output_err_handle : 
         cmd1 = ["LD_LIBRARY_PATH=/usr/local/lib", 
          "recalibrate", 
@@ -244,16 +251,29 @@ def collect_alnstats( idxstats_file: str, filter_metrics: str ) -> pd.DataFrame 
     df1 = pd.read_csv(filter_metrics, sep="\t",comment="#", engine="python").T[0]
     df['hq_aligned_reads'] = df1.loc['TOTAL_READS']
     df['total_reads'] = df['aligned_reads'] + df['unaligned_reads']
-    df['pct_aligned'] = df['aligned_reads']/ (df['unaligned_reads'] + df['aligned_reads'])*100
-    df['pct_high_quality'] = df['hq_aligned_reads']/ df['aligned_reads']*100     
-    return pd.DataFrame(df)
+    #df['pct_aligned'] = df['aligned_reads']/ (df['unaligned_reads'] + df['aligned_reads'])*100
+    #df['pct_high_quality'] = df['hq_aligned_reads']/ df['aligned_reads']*100     
+
+    df = df.loc[['total_reads','aligned_reads','unaligned_reads', 'hq_aligned_reads']]
+    df = pd.DataFrame(df)
+    df.columns = ['Number']
+    df['%'] = 100
+
+    df.loc['aligned_reads','%'] = np.round(df.loc['aligned_reads','Number']/df.loc['total_reads','Number']*100,1)
+    df.loc['unaligned_reads','%'] = np.round(df.loc['unaligned_reads','Number']/df.loc['total_reads','Number']*100,1)
+    df.loc['hq_aligned_reads','%'] = np.round(df.loc['hq_aligned_reads','Number']/df.loc['total_reads','Number']*100,1)
+
+    return df
 
 def collect_metrics( input_file: str) -> pd.DataFrame : 
     df = pd.read_csv(input_file, sep="\t",comment="#").T
     df = df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE', 'PCT_CHIMERAS']]
     df.loc['PF_MISMATCH_RATE']*=100
     df.loc['PF_INDEL_RATE']*=100
+    df = pd.DataFrame(df.astype(np.float))
+    df = df.round(decimals=4)
     df.index = ['mismatch rate', 'indel rate', 'chimera rate']
+    
     return df
 
 def generate_comparison_intervals( intervals_file: str, genome_file: str, output_dir: str ) -> list: 
