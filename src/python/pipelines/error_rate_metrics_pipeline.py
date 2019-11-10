@@ -104,10 +104,10 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
         output_hdf_file = pjoin(params.em_vc_output_dir, '.'.join((params.em_vc_basename, "bwa_metrics", "h5")))
         idxstats_df.to_hdf(output_hdf_file, key="bwa_alignment_stats")
         em_df.to_hdf(output_hdf_file, key="bwa_error_rates")
-        print("Success", file=output_log, flush=True)
+        print("Error metrics run: success", file=output_log, flush=True)
 
     except Exception as err : 
         exc_info = sys.exc_info()
         print(*exc_info, file=output_log, flush=True)
-        print("Failed", file=output_log, flush=True)
+        print("Error metrics run: failed", file=output_log, flush=True)
         raise(err)
