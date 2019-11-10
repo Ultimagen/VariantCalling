@@ -10,8 +10,6 @@ import pandas as pd
 import traceback
 
 params = vc_pipeline_utils.parse_params_file( sys.argv[1] )
-import pickle
-pickle.dump(params, open("/home/ec2-user/tmp.pkl","wb"))
 logname = basename(params.em_vc_demux_file).replace(".bam",".em.log")
 
 try:
@@ -86,9 +84,16 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger)
 
         # Parsing and processing
-        idxstats_metrics_file = (idxstats_metrics._get_output_files(True, []))[0][0]
-        error_metrics_q0_file = (error_metrics_q0._get_output_files(True, []))[0][0]
-        error_metrics_q20_file = (error_metrics_q20._get_output_files(True, []))[0][0]
+        idxstats_metrics_file = (idxstats_metrics._get_output_files(True, []))[0]
+        if type(idxstats_metrics_file)==list:
+            idxstats_metrics_file = idxstats_metrics_file[0]
+        error_metrics_q0_file = (error_metrics_q0._get_output_files(True, []))[0]
+        if type(error_metrics_q0_file) == list:
+            error_metrics_q0_file = error_metrics_q0_file[0]
+
+        error_metrics_q20_file = (error_metrics_q20._get_output_files(True, []))[0]
+        if type(error_metrics_q20_file) == list:
+            error_metrics_q20_file = error_metrics_q20_file[0]
         #print(idxstats_metrics_file)
         #print(error_metrics_q20_file)
         idxstats_df = vc_pipeline_utils.collect_alnstats(idxstats_metrics_file, error_metrics_q20_file)
@@ -99,10 +104,10 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
         output_hdf_file = pjoin(params.em_vc_output_dir, '.'.join((params.em_vc_basename, "bwa_metrics", "h5")))
         idxstats_df.to_hdf(output_hdf_file, key="bwa_alignment_stats")
         em_df.to_hdf(output_hdf_file, key="bwa_error_rates")
-        print("Success", file=output_log, flush=True)
+        print("Error metrics run: success", file=output_log, flush=True)
 
     except Exception as err : 
         exc_info = sys.exc_info()
         print(*exc_info, file=output_log, flush=True)
-        print("Failed", file=output_log, flush=True)
+        print("Error metrics run: failed", file=output_log, flush=True)
         raise(err)
