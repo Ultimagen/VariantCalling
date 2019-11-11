@@ -10,7 +10,7 @@ import pandas as pd
 import traceback
 
 params = vc_pipeline_utils.parse_params_file( sys.argv[1] )
-logname = basename(params.em_vc_demux_file).replace(".bam",".em.log")
+logname = '.'.join((params.em_vc_basename, "em.log"))
 
 try:
     mkdir(params.em_vc_output_dir)
@@ -94,8 +94,6 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
         error_metrics_q20_file = (error_metrics_q20._get_output_files(True, []))[0]
         if type(error_metrics_q20_file) == list:
             error_metrics_q20_file = error_metrics_q20_file[0]
-        #print(idxstats_metrics_file)
-        #print(error_metrics_q20_file)
         idxstats_df = vc_pipeline_utils.collect_alnstats(idxstats_metrics_file, error_metrics_q20_file)
         q0_df = vc_pipeline_utils.collect_metrics(error_metrics_q0_file)
         q20_df = vc_pipeline_utils.collect_metrics(error_metrics_q20_file)
