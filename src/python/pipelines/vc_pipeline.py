@@ -40,7 +40,7 @@ index_bam = vc_pipeline.transform(vc_pipeline_utils.index_file, recalibrated_bam
 
 vc_intervals = vc_pipeline.transform(vc_pipeline_utils.create_variant_calling_intervals, fi_file, ruffus.formatter("filter.bed"), 
 	[pjoin(params.em_vc_output_dir, "{basename[0]}.vc.intervals.bed"), 
-     pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.vc.intervals.log")]. extras=[params.em_vc_number_of_cpus])
+     pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.vc.intervals.log")], extras=[params.em_vc_number_of_cpus])
 
 vc_intervals_split = vc_pipeline.subdivide(vc_pipeline_utils.split_intervals_into_files, vc_intervals, ruffus.formatter(".bed"), 
 	pjoin(params.em_vc_output_dir, "interval_files", "{basename[0]}.*"), pjoin(params.em_vc_output_dir, "interval_files", "{basename[0]}")).follows(mdtask)
