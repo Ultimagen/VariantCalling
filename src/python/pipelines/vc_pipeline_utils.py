@@ -11,10 +11,9 @@ sys.path.append(pjoin(dname, ".."))
 import utils
 import pandas as pd
 import numpy as np
-import tempfile
 import pysam
-# Align and merge
-def parse_params_file(params_file):
+
+def parse_params_file(params_file, pipeline_name):
     ap = configargparse.ArgParser()
     ap.add("-c", required=True, is_config_file=True, help='config file path')
     ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
@@ -23,13 +22,18 @@ def parse_params_file(params_file):
     group1.add('--em_vc_output_dir', help="Output dir")
     ap.add('--em_vc_genome', required=True, help="Path to genome file (bwa index, dict should exist)")
     ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
-    ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")
-    ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
     ap.add('--em_vc_number_of_cpus', required=False, help="Number of CPUs on the machine", type=int, default = 12)
-    ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
-    ap.add('--em_vc_ground_truth_highconf', required=False, help="Ground truth high confidence file", type=str)    
-    ap.add('--em_vc_gaps_hmers_filter', required=False, help="Bed file with regions to filter out", type=str)
-
+    if pipeline_name == "error_metrics":
+        ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
+    elif pipeline_name == "fastqc" : 
+        ap.add('--fqc_evaluation_intervals', required=False, help="Intervals to evaluate on (intervalList of picard file)", type=str)
+    elif pipeline_name == "variant_calling":
+        ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")    
+        ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
+        ap.add('--em_vc_ground_truth_highconf', required=False, help="Ground truth high confidence file", type=str)    
+        ap.add('--em_vc_gaps_hmers_filter', required=False, help="Bed file with regions to filter out", type=str)
+    else: 
+        raise RuntimeError(f"{pipeline_name} is not a defined pipeline")
 
     args = ap.parse_known_args()[0]
     if args.DataFileName is not None:
