@@ -15,18 +15,18 @@
 3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
-`aws s3 sync s3://broad-references/hg19/ /data/genomes/broad-references/hg19/`
+`aws s3 sync --exclude '*' --include "Homo_sapiens_assembly38*" s3://broad-references/hg38/ /data/genomes/broad-references/hg38/`
 
 5. Copy helper files for variant calling
-`aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/ /data/genomes/broad-references/hg19/concordance/`
+`aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/ /data/genomes/broad-references/hg38/concordance/`
 
 6. Copy additional files to the location of the genome: 
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.fasta.dict 
- /data/genomes/broad-references/hg19/v0/`
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.dict 
+ /data/genomes/broad-references/hg38/v0/`
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/Homo_sapiens_assembly19.fasta.sizes 
-/data/genomes/broad-references/hg19/v0/`
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.sizes 
+/data/genomes/broad-references/hg38/v0/`
 
 7. Download the latest gatk JAR, currently `gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar`
 
@@ -37,24 +37,24 @@
 * Create a file with list of chromosomes to run concordance on. For example
 ```
 cat > /home/ec2-user/proj/VariantCalling/work/191018/chromosomes
-9
-20 
+chr9
+chr20 
 ```
 * Locate re-trained recalibration model (`recalibration.h5`)
 
 * Create config file (`variant_calling.config`) of the following form: 
 ```
 em_vc_demux_file=/home/ec2-user/proj/work/191015/420159_1p.demux.bam
-em_vc_genome=/data/genomes/broad-references/hg19/v0/Homo_sapiens_assembly19.fasta
+em_vc_genome=/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta
 em_vc_output_dir=/home/ec2-user/proj/VariantCalling/work/191015/vc
 em_vc_number_to_sample=20000000 # Set -1 if the input file is already sampled
 em_vc_number_of_cpus=50
 em_vc_chromosomes_list=/home/ec2-user/proj/VariantCalling/work/191018/chromosomes
 em_vc_recalibration_model=/home/ec2-user/proj/VariantCalling/work/191018/recalibration.h5
 
-em_vc_ground_truth=/data/genomes/broad-references/hg19/concordance/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.broad-header.vcf.gz
-em_vc_ground_truth_highconf=/data/genomes/broad-references/hg19/concordance/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_nosomaticdel.bed
-em_vc_gaps_hmers_filter=/data/genomes/broad-references/hg19/concordance/runs.bed
+em_vc_ground_truth=/data/genomes/broad-references/hg38/concordance/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz
+em_vc_ground_truth_highconf=/data/genomes/broad-references/hg38/concordance/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_nosomaticdel_noCENorHET7.bed
+em_vc_gaps_hmers_filter=/data/genomes/broad-references/hg38/concordance/runs.bed
 ```
 
 Optionally, this could be a section in a general config file with header 
