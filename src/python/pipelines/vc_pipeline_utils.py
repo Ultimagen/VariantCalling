@@ -25,7 +25,7 @@ def parse_params_file(params_file, pipeline_name):
     if pipeline_name == "error_metrics":
         ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
         ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
-    elif pipeline_name == "fastqc" : 
+    elif pipeline_name == "rapidqc" : 
         ap.add('--rqc_demux_file', help="Path to the demultiplexed bam")
 
         ap.add('--rqc_evaluation_intervals', required=False, help="Intervals to evaluate on (interval_list of picard file)", type=str)
@@ -38,12 +38,8 @@ def parse_params_file(params_file, pipeline_name):
         raise RuntimeError(f"{pipeline_name} is not a defined pipeline")
 
     args = ap.parse_known_args()[0]
-    if args.DataFileName is not None:
-        args.em_vc_output_dir = dirname(args.DataFileName)
-        args.em_vc_basename = basename(args.DataFileName)
-    elif pipeline_name != 'rapidqc': 
-        args.em_vc_basename = basename(args.em_vc_demux_file)
-    else pipeline_name != 'rapidqc': 
+
+    if pipeline_name == 'rapidqc': 
         # We need both the parameters em_vc_demux_file and fqc_demux_file
         # to live in the same configuration file that runs two pipelines 
         # and point to two different files
@@ -52,6 +48,12 @@ def parse_params_file(params_file, pipeline_name):
         args.em_vc_demux_file = args.fqc_demux_file
         args.em_vc_basename = basename(args.fqc_demux_file)
 
+    if args.DataFileName is not None:
+        args.em_vc_output_dir = dirname(args.DataFileName)
+        args.em_vc_basename = basename(args.DataFileName)
+    else :
+        args.em_vc_basename = basename(args.em_vc_demux_file)
+    
     return args
 
 def head_file( input_file, output_file, number_to_sample, nthreads) : 
