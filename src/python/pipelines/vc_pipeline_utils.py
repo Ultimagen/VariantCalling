@@ -133,22 +133,23 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, c
     assert len(the_chromosome) == 1, "Chromosome file should contain a single chromosome"
     the_chromosome = the_chromosome[0]
     output_bam, output_err = output_files
-    input_file = input_file[0]
+    input_file = input_file
 
-    alntmp = pysam.AlignmentFile(input_flie, check_sq=False)
+    alntmp = pysam.AlignmentFile(input_file, check_sq=False)
     header = str(alntmp.header).split("\n")
     rg_line = [ x for x in header if x.startswith("@RG")]
     assert len(rg_line)==1, "uBAM does not contain RG or it is not single"
-    rg_line.replace("\t","\\t")
+    rg_line = rg_line[0]
+    rg_line = rg_line.replace("\t","\\t")
     alntmp.close()
 
     with open(output_err,'w') as outlog : 
 
-        minimap_threads = max(1, 0.8*nthreads)
-        samtools_in_threads = max(1, 0.2*nthreads)
+        minimap_threads = max(1, int(0.8*nthreads))
+        samtools_in_threads = max(1, int(0.2*nthreads))
         cmd1 = ['samtools', 'fastq','-@', str(samtools_in_threads), '-t', input_file]
         cmd2 = ['minimap2', '-t', str(minimap_threads), '-R', rg_line, '-x', 'sr', '-y', '-a', genome_file,'-']
-        cmd3 = ['awk', f'$6=={the_chromosome}']
+        cmd3 = ['awk', f'($3=={the_chromosome}) || ($1 ~ /^@/)']
         cmd4 = ['samtools', 'view', '-b', '-o', output_bam,'-' ]
         outlog.write('|'.join((" ".join(cmd1), " ".join(cmd2), " ".join(cmd3), " ".join(cmd4)))+"\n")
         outlog.flush()
@@ -160,6 +161,13 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, c
         task4 = subprocess.Popen(cmd4, stdout=outlog, stderr = outlog, stdin=task3.stdout)        
         task3.stdout.close()
         output = task4.communicate()
+        rcs = [ x.returncode for x in [task1, task2, task3, task4]]
+        for i in range(len(rcs)):
+            result = ""
+            if rcs[i]!=0:
+                result += f"Task{i},"
+        if len(result) > 0  :
+            raise RuntimeError(f"{result} of alignment failed")
 
 #Prepare fetch intervals 
 def prepare_fetch_intervals( input_file, output_file, genome_file ) : 
@@ -360,15 +368,13 @@ def mark_duplicates( input_file: list, output_files: list ) :
     with open(output_log,'w') as out :  
         subprocess.check_call(cmd, stdout=out, stderr=out)
 
-def coverage_stats( input_file: list, output_files: list, genome_file: str) : 
+def coverage_stats( input_file: list, output_files: list, genome_file: str, intervals: str) : 
     input_bam = input_file[0]
-    intervals = input_file[1]
-
     output_metrics, output_log = output_files
     cmd = ['picard', 'CollectWgsMetrics',f'INPUT={input_bam}', 
     f'OUTPUT={output_metrics}', f'R={genome_file}', 
     'MINIMUM_MAPPING_QUALITY=0','COUNT_UNPAIRED=true', 
-    'USE_FAST_ALGORITHM=true', 'READ_LENGTH=190', f'INTERVALS={intervals}', 
+    'USE_FAST_ALGORITHM=true', 'READ_LENGTH=500', f'INTERVALS={intervals}', 
     'VALIDATION_STRINGENCY=LENIENT']
     with open(output_log,'w') as out : 
         out.write(" ".join(cmd)+"\n")
