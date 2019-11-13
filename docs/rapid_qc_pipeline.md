@@ -20,7 +20,7 @@
 `aws s3 sync --exclude '*' --include "Homo_sapiens_assembly38*" s3://broad-references/hg38/ /data/genomes/broad-references/hg38/`
 
 5. Copy evaluation intervals
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/chr9.hg38.eval.interval_list /data/genomes/broad-references/hg38/v0/`
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38.eval.interval_list /data/genomes/broad-references/hg38/v0/`
 
 
 ### Configuration file
