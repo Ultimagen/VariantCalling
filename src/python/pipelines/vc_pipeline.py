@@ -6,7 +6,7 @@ import python.pipelines.comparison_pipeline as comparison_pipeline
 from os.path import join as pjoin
 from os.path import splitext
 
-params = vc_pipeline_utils.parse_params_file( sys.argv[1] )
+params = vc_pipeline_utils.parse_params_file( sys.argv[1], "variant_calling" )
 print(params)
 vc_pipeline = ruffus.Pipeline(name="Variant calling pipeline")
 vc_pipeline.mkdir(params.em_vc_output_dir)

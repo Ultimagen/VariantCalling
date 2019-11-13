@@ -9,8 +9,8 @@ from os import mkdir
 import pandas as pd
 import traceback
 
-params = vc_pipeline_utils.parse_params_file( sys.argv[1] )
-logname = basename(params.em_vc_demux_file).replace(".bam",".em.log")
+params = vc_pipeline_utils.parse_params_file( sys.argv[1], "fastqc" )
+logname = '.'.join((params.em_vc_basename, "fqc.log"))
 
 try:
     mkdir(params.em_vc_output_dir)
@@ -51,9 +51,14 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
 
 
         coverage_stats = vc_pipeline.transform(vc_pipeline_utils.coverage_stats, sorted_bam, ruffus.formatter("sort.bam"), 
-            [pjoin(params.em_vc_output_dir, "{basename[0]}.rmdup.bam"),
-             pjoin(params.em_vc_output_dir, "{basename[0]}.rmdup.metrics"),
-             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.index.log")], 
-             extras = [params.fqc_evaluation_intervals]).follows(index_bam)
+            [pjoin(params.em_vc_output_dir, "{basename[0]}.coverage.metrics"),
+             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.coverage.log")], 
+             extras = [params.em_vc_genome, params.fqc_evaluation_intervals]).follows(index_bam)
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger)
+
+    except Exception as err : 
+        exc_info = sys.exc_info()
+        print(*exc_info, file=output_log, flush=True)
+        print("FastQC run: failed", file=output_log, flush=True)
+        raise(err)
 
