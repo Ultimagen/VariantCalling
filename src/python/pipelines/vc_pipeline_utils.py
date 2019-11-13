@@ -16,7 +16,6 @@ import pysam
 def parse_params_file(params_file, pipeline_name):
     ap = configargparse.ArgParser()
     ap.add("-c", required=True, is_config_file=True, help='config file path')
-    ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
     group1 = ap.add_mutually_exclusive_group(required=True)
     group1.add('--DataFileName', help="Path + prefix of the output_files")
     group1.add('--em_vc_output_dir', help="Output dir")
@@ -24,9 +23,12 @@ def parse_params_file(params_file, pipeline_name):
     ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
     ap.add('--em_vc_number_of_cpus', required=False, help="Number of CPUs on the machine", type=int, default = 12)
     if pipeline_name == "error_metrics":
+        ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
         ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
     elif pipeline_name == "fastqc" : 
-        ap.add('--fqc_evaluation_intervals', required=False, help="Intervals to evaluate on (interval_list of picard file)", type=str)
+        ap.add('--rqc_demux_file', help="Path to the demultiplexed bam")
+
+        ap.add('--rqc_evaluation_intervals', required=False, help="Intervals to evaluate on (interval_list of picard file)", type=str)
     elif pipeline_name == "variant_calling":
         ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")    
         ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
@@ -39,8 +41,17 @@ def parse_params_file(params_file, pipeline_name):
     if args.DataFileName is not None:
         args.em_vc_output_dir = dirname(args.DataFileName)
         args.em_vc_basename = basename(args.DataFileName)
-    else: 
+    elif pipeline_name != 'rapidqc': 
         args.em_vc_basename = basename(args.em_vc_demux_file)
+    else pipeline_name != 'rapidqc': 
+        # We need both the parameters em_vc_demux_file and fqc_demux_file
+        # to live in the same configuration file that runs two pipelines 
+        # and point to two different files
+        # this is why I am using fqc_demux_file in the parameter list and not 
+        # em_vc_demux_file for both. 
+        args.em_vc_demux_file = args.fqc_demux_file
+        args.em_vc_basename = basename(args.fqc_demux_file)
+
     return args
 
 def head_file( input_file, output_file, number_to_sample, nthreads) : 
