@@ -26,7 +26,7 @@ def parse_params_file(params_file, pipeline_name):
     if pipeline_name == "error_metrics":
         ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
     elif pipeline_name == "fastqc" : 
-        ap.add('--fqc_evaluation_intervals', required=False, help="Intervals to evaluate on (intervalList of picard file)", type=str)
+        ap.add('--fqc_evaluation_intervals', required=False, help="Intervals to evaluate on (interval_list of picard file)", type=str)
     elif pipeline_name == "variant_calling":
         ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")    
         ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
