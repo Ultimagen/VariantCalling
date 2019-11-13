@@ -11,32 +11,47 @@ sys.path.append(pjoin(dname, ".."))
 import utils
 import pandas as pd
 import numpy as np
-import tempfile
 import pysam
-# Align and merge
-def parse_params_file(params_file):
+
+def parse_params_file(params_file, pipeline_name):
     ap = configargparse.ArgParser()
     ap.add("-c", required=True, is_config_file=True, help='config file path')
-    ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
     group1 = ap.add_mutually_exclusive_group(required=True)
     group1.add('--DataFileName', help="Path + prefix of the output_files")
     group1.add('--em_vc_output_dir', help="Output dir")
     ap.add('--em_vc_genome', required=True, help="Path to genome file (bwa index, dict should exist)")
     ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
-    ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")
-    ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
     ap.add('--em_vc_number_of_cpus', required=False, help="Number of CPUs on the machine", type=int, default = 12)
-    ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
-    ap.add('--em_vc_ground_truth_highconf', required=False, help="Ground truth high confidence file", type=str)    
-    ap.add('--em_vc_gaps_hmers_filter', required=False, help="Bed file with regions to filter out", type=str)
+    if pipeline_name == "error_metrics":
+        ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
+        ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
+    elif pipeline_name == "fastqc" : 
+        ap.add('--rqc_demux_file', help="Path to the demultiplexed bam")
 
+        ap.add('--rqc_evaluation_intervals', required=False, help="Intervals to evaluate on (interval_list of picard file)", type=str)
+    elif pipeline_name == "variant_calling":
+        ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")    
+        ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
+        ap.add('--em_vc_ground_truth_highconf', required=False, help="Ground truth high confidence file", type=str)    
+        ap.add('--em_vc_gaps_hmers_filter', required=False, help="Bed file with regions to filter out", type=str)
+    else: 
+        raise RuntimeError(f"{pipeline_name} is not a defined pipeline")
 
     args = ap.parse_known_args()[0]
     if args.DataFileName is not None:
         args.em_vc_output_dir = dirname(args.DataFileName)
         args.em_vc_basename = basename(args.DataFileName)
-    else: 
+    elif pipeline_name != 'rapidqc': 
         args.em_vc_basename = basename(args.em_vc_demux_file)
+    else pipeline_name != 'rapidqc': 
+        # We need both the parameters em_vc_demux_file and fqc_demux_file
+        # to live in the same configuration file that runs two pipelines 
+        # and point to two different files
+        # this is why I am using fqc_demux_file in the parameter list and not 
+        # em_vc_demux_file for both. 
+        args.em_vc_demux_file = args.fqc_demux_file
+        args.em_vc_basename = basename(args.fqc_demux_file)
+
     return args
 
 def head_file( input_file, output_file, number_to_sample, nthreads) : 
@@ -129,22 +144,23 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, c
     assert len(the_chromosome) == 1, "Chromosome file should contain a single chromosome"
     the_chromosome = the_chromosome[0]
     output_bam, output_err = output_files
-    input_file = input_file[0]
+    input_file = input_file
 
-    alntmp = pysam.AlignmentFile(input_flie, check_sq=False)
+    alntmp = pysam.AlignmentFile(input_file, check_sq=False)
     header = str(alntmp.header).split("\n")
     rg_line = [ x for x in header if x.startswith("@RG")]
     assert len(rg_line)==1, "uBAM does not contain RG or it is not single"
-    rg_line.replace("\t","\\t")
+    rg_line = rg_line[0]
+    rg_line = rg_line.replace("\t","\\t")
     alntmp.close()
 
     with open(output_err,'w') as outlog : 
 
-        minimap_threads = max(1, 0.8*nthreads)
-        samtools_in_threads = max(1, 0.2*nthreads)
+        minimap_threads = max(1, int(0.8*nthreads))
+        samtools_in_threads = max(1, int(0.2*nthreads))
         cmd1 = ['samtools', 'fastq','-@', str(samtools_in_threads), '-t', input_file]
         cmd2 = ['minimap2', '-t', str(minimap_threads), '-R', rg_line, '-x', 'sr', '-y', '-a', genome_file,'-']
-        cmd3 = ['awk', f'$6=={the_chromosome}']
+        cmd3 = ['awk', f'($3=={the_chromosome}) || ($1 ~ /^@/)']
         cmd4 = ['samtools', 'view', '-b', '-o', output_bam,'-' ]
         outlog.write('|'.join((" ".join(cmd1), " ".join(cmd2), " ".join(cmd3), " ".join(cmd4)))+"\n")
         outlog.flush()
@@ -156,6 +172,13 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, c
         task4 = subprocess.Popen(cmd4, stdout=outlog, stderr = outlog, stdin=task3.stdout)        
         task3.stdout.close()
         output = task4.communicate()
+        rcs = [ x.returncode for x in [task1, task2, task3, task4]]
+        for i in range(len(rcs)):
+            result = ""
+            if rcs[i]!=0:
+                result += f"Task{i},"
+        if len(result) > 0  :
+            raise RuntimeError(f"{result} of alignment failed")
 
 #Prepare fetch intervals 
 def prepare_fetch_intervals( input_file, output_file, genome_file ) : 
@@ -356,15 +379,13 @@ def mark_duplicates( input_file: list, output_files: list ) :
     with open(output_log,'w') as out :  
         subprocess.check_call(cmd, stdout=out, stderr=out)
 
-def coverage_stats( input_file: list, output_files: list, genome_file: str) : 
+def coverage_stats( input_file: list, output_files: list, genome_file: str, intervals: str) : 
     input_bam = input_file[0]
-    intervals = input_file[1]
-
     output_metrics, output_log = output_files
     cmd = ['picard', 'CollectWgsMetrics',f'INPUT={input_bam}', 
     f'OUTPUT={output_metrics}', f'R={genome_file}', 
     'MINIMUM_MAPPING_QUALITY=0','COUNT_UNPAIRED=true', 
-    'USE_FAST_ALGORITHM=true', 'READ_LENGTH=190', f'INTERVALS={intervals}', 
+    'USE_FAST_ALGORITHM=true', 'READ_LENGTH=500', f'INTERVALS={intervals}', 
     'VALIDATION_STRINGENCY=LENIENT']
     with open(output_log,'w') as out : 
         out.write(" ".join(cmd)+"\n")
