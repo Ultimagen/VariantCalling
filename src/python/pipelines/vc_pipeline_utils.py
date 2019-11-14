@@ -46,8 +46,8 @@ def parse_params_file(params_file, pipeline_name):
         # and point to two different files
         # this is why I am using fqc_demux_file in the parameter list and not 
         # em_vc_demux_file for both. 
-        args.em_vc_demux_file = args.fqc_demux_file
-        args.em_vc_basename = basename(args.fqc_demux_file)
+        args.em_vc_demux_file = args.rqc_demux_file
+        args.em_vc_basename = basename(args.rqc_demux_file)
 
     if args.DataFileName is not None:
         args.em_vc_output_dir = dirname(args.DataFileName)
