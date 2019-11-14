@@ -325,14 +325,16 @@ def collect_alnstats( idxstats_file: str, filter_metrics: str ) -> pd.DataFrame 
     #df['pct_aligned'] = df['aligned_reads']/ (df['unaligned_reads'] + df['aligned_reads'])*100
     #df['pct_high_quality'] = df['hq_aligned_reads']/ df['aligned_reads']*100     
 
-    df = df.loc[['total_reads','aligned_reads','unaligned_reads', 'hq_aligned_reads']]
+    df = df.loc[['total_reads','aligned_reads', 'hq_aligned_reads','unaligned_reads']]
+    df.index = ['total','aligned', 'hq aligned','unaligned']
     df = pd.DataFrame(df)
-    df.columns = ['Number']
+    df.columns = ['Million reads']
+    df['Million reads'] = (df['Million reads']/1e6).round(decimals=2)
     df['%'] = 100
 
-    df.loc['aligned_reads','%'] = np.round(df.loc['aligned_reads','Number']/df.loc['total_reads','Number']*100,1)
-    df.loc['unaligned_reads','%'] = np.round(df.loc['unaligned_reads','Number']/df.loc['total_reads','Number']*100,1)
-    df.loc['hq_aligned_reads','%'] = np.round(df.loc['hq_aligned_reads','Number']/df.loc['total_reads','Number']*100,1)
+    df.loc['aligned','%'] = np.round(df.loc['aligned','Million reads']/df.loc['total','Million reads']*100,2)
+    df.loc['unaligned','%'] = np.round(df.loc['unaligned','Million reads']/df.loc['total','Million reads']*100,2)
+    df.loc['hq aligned','%'] = np.round(df.loc['hq aligned','Million reads']/df.loc['total','Million reads']*100,2)
 
     return df
 
@@ -342,7 +344,7 @@ def collect_metrics( input_file: str) -> pd.DataFrame :
     df.loc['PF_MISMATCH_RATE']*=100
     df.loc['PF_INDEL_RATE']*=100
     df = pd.DataFrame(df.astype(np.float))
-    df = df.round(decimals=4)
+    df = df.round(decimals=2)
     df.index = ['mismatch rate', 'indel rate', 'chimera rate']
     
     return df
