@@ -29,12 +29,12 @@ Create a chromosome file (`rapid_qc.chromosomes`) that contains a single line `c
 Create config file (`rapid_qc.config`) of the following form: 
 
 ```
-fqc_demux_file=/home/ubuntu/proj/work/191015/420159_1p.demux.bam 
+rqc_demux_file=/home/ubuntu/proj/work/191015/420159_1p.demux.bam 
 em_vc_genome=/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta
 em_vc_output_dir=/home/ubuntu/proj/VariantCalling/work/191015/em
 em_vc_number_of_cpus=40
 em_vc_chromosomes_list=/home/ubuntu/proj/work/191015/rapid_qc.chromosomes
-fqc_evaluation_intervals=/data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list
+rqc_evaluation_intervals=/data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list
 ```
 
 Optionally, this could be a section in a general config file with header. Note that for this pipeline one needs to use the _unsampled_ BAM. 
