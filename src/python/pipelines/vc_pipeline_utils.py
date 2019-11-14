@@ -30,6 +30,7 @@ def parse_params_file(params_file, pipeline_name):
 
         ap.add('--rqc_evaluation_intervals', required=False, help="Intervals to evaluate on (interval_list of picard file)", type=str)
     elif pipeline_name == "variant_calling":
+        ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
         ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")    
         ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
         ap.add('--em_vc_ground_truth_highconf', required=False, help="Ground truth high confidence file", type=str)    
