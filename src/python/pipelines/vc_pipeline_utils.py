@@ -163,7 +163,7 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, c
         samtools_in_threads = max(1, int(0.2*nthreads))
         cmd1 = ['samtools', 'fastq','-@', str(samtools_in_threads), '-t', input_file]
         cmd2 = ['minimap2', '-t', str(minimap_threads), '-R', rg_line, '-x', 'sr', '-y', '-a', genome_file,'-']
-        cmd3 = ['awk', f'($3=={the_chromosome}) || ($1 ~ /^@/)']
+        cmd3 = ['awk', f'($3=="{the_chromosome}") || ($1 ~ /^@/)']
         cmd4 = ['samtools', 'view', '-b', '-o', output_bam,'-' ]
         outlog.write('|'.join((" ".join(cmd1), " ".join(cmd2), " ".join(cmd3), " ".join(cmd4)))+"\n")
         outlog.flush()
