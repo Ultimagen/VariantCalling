@@ -389,8 +389,8 @@ def coverage_stats( input_file: list, output_files: list, genome_file: str, inte
     output_metrics, output_log = output_files
     cmd = ['picard', 'CollectWgsMetrics',f'INPUT={input_bam}', 
     f'OUTPUT={output_metrics}', f'R={genome_file}', 
-    'MINIMUM_MAPPING_QUALITY=0','COUNT_UNPAIRED=true', 
-    'USE_FAST_ALGORITHM=true', 'READ_LENGTH=500', f'INTERVALS={intervals}', 
+    'MINIMUM_MAPPING_QUALITY=-1','COUNT_UNPAIRED=true', 
+    'USE_FAST_ALGORITHM=false', 'READ_LENGTH=500', f'INTERVALS={intervals}', 
     'VALIDATION_STRINGENCY=LENIENT']
     with open(output_log,'w') as out : 
         out.write(" ".join(cmd)+"\n")
