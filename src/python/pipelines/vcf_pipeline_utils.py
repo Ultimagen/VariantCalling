@@ -167,8 +167,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str) -> pd.DataFrame:
     concordance.index = [(x[1]['chrom'],x[1]['pos']) for x in concordance.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
     if 'AS_SOR' in vf.header.info : 
-        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['AS_SOR'][0], x.info['AS_SORP'][0], x.info['FS'], x.info['QD']) for x in vf])
-        original.columns = ['chrom','pos','qual','sor', 'as_sor','as_sorp', 'fs','qd']
+        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['AS_SOR'][0], x.info['AS_SORP'][0]) for x in vf])
+        original.columns = ['chrom','pos','qual','sor', 'as_sor','as_sorp']
     else: 
         original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['FS'], x.info['QD']) for x in vf])
         original.columns = ['chrom','pos','qual','sor','fs','qd']      
