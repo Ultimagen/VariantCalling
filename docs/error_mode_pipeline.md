@@ -15,7 +15,7 @@
 
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
-`aws s3 sync --exclude '*' --include "Homo_sapiens_assembly38*" s3://broad-references/hg38/ /data/genomes/broad-references/hg38/`
+`aws s3 sync --exclude '*' --include "Homo_sapiens_assembly38*" s3://broad-references/hg38/v0/ /data/genomes/broad-references/hg38/v0/`
 
 
 ### Configuration file
