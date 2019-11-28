@@ -60,10 +60,10 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
 
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger)
 
-        mark_duplicates_metrics_file = (mark_duplicates_bam._get_output_files(True, []))[0]
+        mark_duplicates_metrics_file = (mark_duplicates_bam._get_output_files(True, []))
         print(mark_duplicates_metrics_file)
         if type(mark_duplicates_metrics_file)==list:
-            mark_duplicates_metrics_file = mark_duplicates_metrics_file[1]
+            mark_duplicates_metrics_file = mark_duplicates_metrics_file[0]
         print(mark_duplicates_metrics_file)
         md_metric = vc_pipeline_utils.parse_md_file(mark_duplicates_metrics_file)
 
