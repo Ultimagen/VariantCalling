@@ -20,14 +20,15 @@ def parse_params_file(params_file, pipeline_name):
     group1.add('--DataFileName', help="Path + prefix of the output_files")
     group1.add('--em_vc_output_dir', help="Output dir")
     ap.add('--em_vc_genome', required=True, help="Path to genome file (bwa index, dict should exist)")
-    ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
     ap.add('--em_vc_number_of_cpus', required=False, help="Number of CPUs on the machine", type=int, default = 12)
     if pipeline_name == "error_metrics":
         ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
         ap.add('--em_vc_number_to_sample', required=False, help="Number of records to downsample", type=int)
+        ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
+
     elif pipeline_name == "rapidqc" : 
         ap.add('--rqc_demux_file', help="Path to the demultiplexed bam")
-
+        ap.add('--rqc_chromosome', help="Single chromosome to filter for", required=True, type=str)
         ap.add('--rqc_evaluation_intervals', required=False, help="file that contains a list of Intervals to evaluate on (interval_list of picard)", type=str)
     elif pipeline_name == "variant_calling":
         ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
@@ -35,6 +36,8 @@ def parse_params_file(params_file, pipeline_name):
         ap.add('--em_vc_ground_truth', required=False, help="Ground truth file to compare", type=str)
         ap.add('--em_vc_ground_truth_highconf', required=False, help="Ground truth high confidence file", type=str)    
         ap.add('--em_vc_gaps_hmers_filter', required=False, help="Bed file with regions to filter out", type=str)
+        ap.add('--em_vc_chromosomes_list', required=False, help="File with the list of chromosomes to test")
+
     else: 
         raise RuntimeError(f"{pipeline_name} is not a defined pipeline")
 
@@ -141,11 +144,8 @@ def align_and_merge( input_file, output_file, genome_file, nthreads ):
     if task3.returncode!=0 : 
         raise RuntimeError("Alignment failed")
 
-def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, chromosome_file) : 
+def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, the_chromosome) : 
 
-    the_chromosome = [x.strip() for x in open(chromosome_file) if x ]
-    assert len(the_chromosome) == 1, "Chromosome file should contain a single chromosome"
-    the_chromosome = the_chromosome[0]
     output_bam, output_err = output_files
     input_file = input_file
 
@@ -386,6 +386,7 @@ def mark_duplicates( input_file: list, output_files: list ) :
 
 def coverage_stats( input_files: list, output_files: list, genome_file: str) : 
     input_bam, name, intervals = input_files
+    print(input_bam, name, intervals)
     output_metrics, output_log = output_files
     cmd = ['picard', '-Xmx10g', 'CollectWgsMetrics',f'INPUT={input_bam}', 
     f'OUTPUT={output_metrics}', f'R={genome_file}', 
