@@ -28,7 +28,7 @@ def parse_params_file(params_file, pipeline_name):
     elif pipeline_name == "rapidqc" : 
         ap.add('--rqc_demux_file', help="Path to the demultiplexed bam")
 
-        ap.add('--rqc_evaluation_intervals', required=False, help="Intervals to evaluate on (interval_list of picard file)", type=str)
+        ap.add('--rqc_evaluation_intervals', required=False, help="file that contains a list of Intervals to evaluate on (interval_list of picard)", type=str)
     elif pipeline_name == "variant_calling":
         ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
         ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")    
@@ -384,8 +384,8 @@ def mark_duplicates( input_file: list, output_files: list ) :
     with open(output_log,'w') as out :  
         subprocess.check_call(cmd, stdout=out, stderr=out)
 
-def coverage_stats( input_file: list, output_files: list, genome_file: str, intervals: str) : 
-    input_bam = input_file[0]
+def coverage_stats( input_files: list, output_files: list, genome_file: str) : 
+    input_bam, name, intervals = input_files
     output_metrics, output_log = output_files
     cmd = ['picard', '-Xmx10g', 'CollectWgsMetrics',f'INPUT={input_bam}', 
     f'OUTPUT={output_metrics}', f'R={genome_file}', 
@@ -395,3 +395,13 @@ def coverage_stats( input_file: list, output_files: list, genome_file: str, inte
     with open(output_log,'w') as out : 
         out.write(" ".join(cmd)+"\n")
         subprocess.check_call(cmd, stdout=out, stderr=out)
+
+# def gc_bias( input_file: list, output_files: list, genome_file: str) : 
+#     input_bam = input_file[0]
+#     output_metrics, output_log = output_files 
+#     cmd = ['picard', '-Xmx10g', 'CollectGcBiasMetrics', 
+#     f'INPUT={input_bam}', f'OUTPUT={output_metrics}', 
+#     f'SUMMARY_METRICS={output_summary_metrics}', f'REFERENCE_SEQUENCE={genome_file}']
+#     with open(output_log,'w') as out : 
+#         out.write(" ".join(cmd)+"\n")
+#         subprocess.check_call(cmd, stdout=out, stderr=out)
