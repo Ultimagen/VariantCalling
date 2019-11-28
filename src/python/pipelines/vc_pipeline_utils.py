@@ -396,6 +396,48 @@ def coverage_stats( input_files: list, output_files: list, genome_file: str, int
         out.write(" ".join(cmd)+"\n")
         subprocess.check_call(cmd, stdout=out, stderr=out)
 
+def parse_md_file(md_file:str) -> pd.DataFrame:
+    '''Parses mark duplicate Picard output''' 
+    with open(md_file) as infile : 
+        out = next(infile)
+        while not out.startswith('## METRICS CLASS\tpicard.sam.DuplicationMetrics'):
+            out = next(infile)
+ 
+        res = pd.read_csv(infile, sep="\t")
+        return np.round(float(res['PERCENT_DUPLICATION'])*100,2)
+
+def parse_cvg_metrics(metric_file: str) -> tuple:
+    '''Parses Picard WGScoverage metrics file''' 
+    with open(metric_file) as infile : 
+        out = next(infile)
+        while not out.startswith('## METRICS CLASS\tpicard.analysis.WgsMetrics'):
+            out = next(infile)
+        res1 = pd.read_csv(infile, sep="\t", nrows=1)
+    with open(metric_file) as infile : 
+        out = next(infile)
+        while not out.startswith('## HISTOGRAM\tjava.lang.Integer'):
+            out = next(infile)
+        res2 = pd.read_csv(infile, sep="\t")
+
+    return res1,res2
+
+def generate_rqc_output( dup_ratio: int, metrics: pd.DataFrame, histogram: pd.DataFrame) -> tuple: 
+    parameters = metrics.T.loc[['MEAN_COVERAGE','MEDIAN_COVERAGE','PCT_20X']]
+    parameters.loc['PCT_20X',0] = parameters.loc['PCT_20X',0]*100
+    parameters.index = ['mean cvg', 'median cvg', '%>=20x']
+    parameters.loc['% duplicated'] = dup_ratio
+
+    histogram['cum_cov'] = histogram['high_quality_coverage_count'].cumsum() / \
+                            histogram['high_quality_coverage_count'].cumsum().max()
+    covs = histogram['coverage'].loc[np.searchsorted(histogram['cum_cov'], [.05,.1,.2,.5])]
+    covs = np.array(covs.max()/covs).round(2)
+    df = pd.DataFrame(data=covs[:-1], index=['F95', 'F90', 'F80'], columns=[0])
+    parameters = pd.concat((parameters, df))
+    parameters = parameters.round(2)
+    histogram = histogram.set_index('coverage')
+    histogram = pd.DataFrame((histogram['high_quality_coverage_count']/1000).round(2))
+    histogram.columns = ['loci (x1000)']
+    return parameters, histogram
 # def gc_bias( input_file: list, output_files: list, genome_file: str) : 
 #     input_bam = input_file[0]
 #     output_metrics, output_log = output_files 

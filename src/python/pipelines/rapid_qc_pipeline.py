@@ -47,7 +47,7 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
         mark_duplicates_bam = vc_pipeline.transform(vc_pipeline_utils.mark_duplicates, sorted_bam, ruffus.formatter("sort.bam"), 
             [pjoin(params.em_vc_output_dir, "{basename[0]}.rmdup.bam"),
              pjoin(params.em_vc_output_dir, "{basename[0]}.rmdup.metrics"),
-             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.index.log")]).follows(index_bam)
+             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rmdup.log")]).follows(index_bam)
 
 
         evaluation_intervals = [ x.strip().split("\t") for x in open(params.rqc_evaluation_intervals) if x ]
@@ -60,9 +60,32 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
 
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger)
 
+        mark_duplicates_metrics_file = (mark_duplicates_bam._get_output_files(True, []))[0]
+        print(mark_duplicates_metrics_file)
+        if type(mark_duplicates_metrics_file)==list:
+            mark_duplicates_metrics_file = mark_duplicates_metrics_file[1]
+        print(mark_duplicates_metrics_file)
+        md_metric = vc_pipeline_utils.parse_md_file(mark_duplicates_metrics_file)
+
+        cvg_metrics_files = [ (x._get_output_files(True, []))[0] for x in coverage_stats_tasks ]
+        if type(cvg_metrics_files[0]) == list:
+            cvg_metrics_files = [ x[0] for x in cvg_metrics_files]
+
+        cvg_metrics = [ vc_pipeline_utils.parse_cvg_metrics( x) for x in er]
+
+        outputs = [vc_pipeline_utils.generate_rqc_output(md_metric, x[0],x[1]) for x in cvg_metrics ]
+        summary_df = pd.concat(outputs,axis=1)
+        summary_df.columns = [ x[0] for x in ev_set]
+        output_hdf_file = pjoin(params.em_vc_output_dir, '.'.join((params.em_vc_basename, "cvg_metrics", "h5")))
+        summary_df.to_hdf(output_hdf_file, key="cvg_metrics")
+        for i,c in enumerate(cvg_metrics):
+            cvg_metrics[1].to_hdf(output_hdf_file, key=f'{ev_set[0]}_histogram')
+
+
+        print("RapidQC run: success", file=output_log, flush=True)
     except Exception as err : 
         exc_info = sys.exc_info()
         print(*exc_info, file=output_log, flush=True)
-        print("FastQC run: failed", file=output_log, flush=True)
+        print("RapidQC run: failed", file=output_log, flush=True)
         raise(err)
 
