@@ -50,13 +50,13 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
              pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.index.log")]).follows(index_bam)
 
 
-        evaluation_intervals = [ x.split("\t") for x in open(params.rqc_evaluation_intervals) if x ]
-
-        coverage_stats = vc_pipeline.product(vc_pipeline_utils.coverage_stats, sorted_bam, ruffus.formatter("sort.bam"),
-        evaluation_intervals, ruffus.formatter(), 
-            [pjoin(params.em_vc_output_dir, "{basename[0][0]}.{basename[1][0]}.coverage.metrics"),
-             pjoin(params.em_vc_output_dir, "logs", "{basename[0][0]}.{basename[1][0]}.coverage.log")], 
-             extras = [params.em_vc_genome]).follows(index_bam)
+        evaluation_intervals = [ x.strip().split("\t") for x in open(params.rqc_evaluation_intervals) if x ]
+        coverage_stats_tasks = [] 
+        for ev_set in evaluation_intervals : 
+            coverage_stats_tasks.append( vc_pipeline.transform(vc_pipeline_utils.coverage_stats, sorted_bam, ruffus.formatter("sort.bam"),
+                [pjoin(params.em_vc_output_dir, "{basename[0]}."+ev_set[0]+".coverage.metrics"),
+                 pjoin(params.em_vc_output_dir, "logs", "{basename[0]}." + ev_set[0]+".coverage.log")], 
+                 extras = [params.em_vc_genome, ev_set[1]], name=f"coverage.{ev_set[0]}").follows(index_bam))
 
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger)
 

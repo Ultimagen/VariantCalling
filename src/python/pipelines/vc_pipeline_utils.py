@@ -384,9 +384,8 @@ def mark_duplicates( input_file: list, output_files: list ) :
     with open(output_log,'w') as out :  
         subprocess.check_call(cmd, stdout=out, stderr=out)
 
-def coverage_stats( input_files: list, output_files: list, genome_file: str) : 
-    input_bam, name, intervals = input_files
-    print(input_bam, name, intervals)
+def coverage_stats( input_files: list, output_files: list, genome_file: str, intervals: str) : 
+    input_bam = input_files[0]
     output_metrics, output_log = output_files
     cmd = ['picard', '-Xmx10g', 'CollectWgsMetrics',f'INPUT={input_bam}', 
     f'OUTPUT={output_metrics}', f'R={genome_file}', 
