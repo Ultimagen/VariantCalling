@@ -20,21 +20,30 @@
 `aws s3 sync --exclude '*' --include "Homo_sapiens_assembly38*" s3://broad-references/hg38/v0/ /data/genomes/broad-references/hg38/v0/`
 
 5. Copy evaluation intervals
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38.eval.interval_list /data/genomes/broad-references/hg38/v0/`
+```
+aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38.eval.interval_list /data/genomes/broad-references/hg38/v0/
+aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38.exome.eval.interval_list /data/genomes/broad-references/hg38/v0/
+```
 
 
 ### Configuration file
-Create a chromosome file (`rapid_qc.chromosomes`) that contains a single line `chr9`. 
+
+Create an intervals file (`rapid_qc.intervals`) that contains tab-separated lines of name, filename of intervals. E.g.
+
+```
+wgs /data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list
+exome /data/genomes/broad-references/hg38/v0/chr9.hg38.exome.eval.interval_list
+```
 
 Create config file (`rapid_qc.config`) of the following form: 
 
 ```
-rqc_demux_file=/home/ubuntu/proj/work/191015/420159_1p.demux.bam 
+rqc_demux_file=/home/ubuntu/proj/VariantCallig/work/191015/420159_1p.demux.bam 
 em_vc_genome=/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta
 em_vc_output_dir=/home/ubuntu/proj/VariantCalling/work/191015/em
 em_vc_number_of_cpus=40
-em_vc_chromosomes_list=/home/ubuntu/proj/work/191015/rapid_qc.chromosomes
-rqc_evaluation_intervals=/data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list
+rqc_chromosome=chr9 #or other chromosome as you see fit
+rqc_evaluation_intervals=/home/ubuntu/proj/VariantCalling/work/191128/rapid_qc.intervals
 ```
 
 Optionally, this could be a section in a general config file with header. Note that for this pipeline one needs to use the _unsampled_ BAM. 
@@ -49,5 +58,5 @@ python /home/ubuntu/software/VariantCalling/src/python/pipelines/rapid_qc_pipeli
 
 ### Output
 Text output files will be named: 
- - `..rmdup.metrics` - duplication metrics
+ - `.rmdup.metrics` - duplication metrics
  - `.coverage.metrics` - coverage metrics
