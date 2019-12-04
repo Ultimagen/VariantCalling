@@ -8,12 +8,16 @@
   or:
   git clone https://github.com/Ultimagen/VariantCalling
 ```
-2. Create conda environment `conda env create -f /home/ubuntu/software/VariantCalling/setup/environment.yml`
+2. Create conda environment
+`conda env create -f /home/ubuntu/software/VariantCalling/setup/environment.yml`
 (the path should be the right path in the computer).
 
-**Note:** Update the environment if it exists `conda env update -f /home/ubuntu/software/VariantCalling/setup/environment.yml`. 
+**Note:** Update the environment if it exists 
+`conda env update -f /home/ubuntu/software/VariantCalling/setup/environment.yml`. 
 
-3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
+3. Activate environment 
+`conda activate genomics.py3` 
+(or `source activate genomics.py3`)
 
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
