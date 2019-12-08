@@ -35,7 +35,7 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
                     extras=[params.em_vc_genome, params.em_vc_number_of_cpus, 
                     params.rqc_chromosome]).follows(md2).jobs_limit(1,'parallel_task')
         count_reads = vc_pipeline.transform(vc_pipeline_utils.extract_total_n_reads,aln,
-            ruffus.formatter(".aln.log"), [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt"),
+            ruffus.formatter("aln.log"), [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt"),
             pjoin(params.em_vc_output_dir, "logs","{basename[0]}.read_count.log")])
         sorted_bam = vc_pipeline.transform(vc_pipeline_utils.sort_file, aln, ruffus.formatter("aln.bam"), 
             [pjoin(params.em_vc_output_dir, "{basename[0]}.sort.bam"), 
@@ -62,12 +62,19 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
 
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger)
 
-        mark_duplicates_metrics_file = (mark_duplicates_bam._get_output_files(True, []))[0][1]
+        mark_duplicates_metrics_file = (mark_duplicates_bam._get_output_files(True, []))[0]
+        if type (mark_duplicates_metrics_file) == list: 
+            mark_duplicates_metrics_file = mark_duplicates_metrics_file[1]
         md_metric = vc_pipeline_utils.parse_md_file(mark_duplicates_metrics_file)
 
-        total_reads_file = extract_total_n_reads._get_output_files(True,[])[0][0]
+        total_reads_file = count_reads._get_output_files(True,[])[0]
+        if type(total_reads_file) == list : 
+            total_reads_file = total_reads_file[0]
+
         total_n_reads = [ int(x) for x in open(total_reads_file) if x.strip()][0]
-        cvg_metrics_files = [ (x._get_output_files(True, []))[0][0] for x in coverage_stats_tasks ]
+        cvg_metrics_files = [ (x._get_output_files(True, []))[0] for x in coverage_stats_tasks ]
+        if type(cvg_metrics_files[0]) == list : 
+            cvg_metrics_files = [x[0] for x in cvg_metrics_files]
         cvg_metrics = [ vc_pipeline_utils.parse_cvg_metrics( x) for x in cvg_metrics_files ]
 
         outputs = [vc_pipeline_utils.generate_rqc_output(md_metric, x[0],x[1], total_n_reads) for x in cvg_metrics ]
