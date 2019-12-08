@@ -52,13 +52,6 @@ rqc_chromosome=chr9 #or other chromosome as you see fit
 # The following parameters accept lists of intervals of arbitrary length
 rqc_evaluation_intervals_names=genome,exome
 rqc_evaluation_intervals=/data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list,/data/genomes/broad-references/hg38/v0/chr9.hg38.exome.eval.interval_list
-
-[rapid_intervals]
-names = [genome,exome]
-paths = 
-genome = /data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list
-exome = /data/genomes/broad-references/hg38/v0/chr9.hg38.exome.eval.interval_list
-
 ```
 
 Optionally, this could be a section in a general config file with header. Note that for this pipeline one needs to use the _unsampled_ BAM. 
@@ -73,5 +66,6 @@ python /home/ubuntu/software/VariantCalling/src/python/pipelines/rapid_qc_pipeli
 
 ### Output
 Text output files will be named: 
- - `.rmdup.metrics` - duplication metrics
- - `.coverage.metrics` - coverage metrics
+ - `.rmdup.metrics` - duplication metrics,
+ - `.coverage.metrics` - coverage metrics,
+ - `.cvg_metrics.h5` - contains summary dataframe (F80, etc, duplication rate etc) under key `cvg_metrics` and the coverage histograms for each set of evaluation intervals under `*_histogram`.
