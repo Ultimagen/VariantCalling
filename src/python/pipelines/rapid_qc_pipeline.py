@@ -35,7 +35,7 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
                     extras=[params.em_vc_genome, params.em_vc_number_of_cpus, 
                     params.rqc_chromosome]).follows(md2).jobs_limit(1,'parallel_task')
         count_reads = vc_pipeline.transform(vc_pipeline_utils.extract_total_n_reads,aln,
-            ruffus.formatter(".*aln.log"), [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt"),
+            ruffus.formatter("aln.bam"), [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt"),
             pjoin(params.em_vc_output_dir, "logs","{basename[0]}.read_count.log")])
 
         sorted_bam = vc_pipeline.transform(vc_pipeline_utils.sort_file, aln, ruffus.formatter("aln.bam"), 
