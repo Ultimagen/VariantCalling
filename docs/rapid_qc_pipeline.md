@@ -48,7 +48,10 @@ em_vc_genome=/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fast
 em_vc_output_dir=/home/ubuntu/proj/VariantCalling/work/191015/em
 em_vc_number_of_cpus=40
 rqc_chromosome=chr9 #or other chromosome as you see fit
-rqc_evaluation_intervals=/home/ubuntu/proj/VariantCalling/work/191128/rapid_qc.intervals
+
+# The following parameters accept lists of intervals of arbitrary length
+rqc_evaluation_intervals_names=genome,exome
+rqc_evaluation_intervals=/data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list,/data/genomes/broad-references/hg38/v0/chr9.hg38.exome.eval.interval_list
 
 [rapid_intervals]
 names = [genome,exome]
