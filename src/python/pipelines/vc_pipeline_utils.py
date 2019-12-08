@@ -54,7 +54,7 @@ def parse_params_file(params_file, pipeline_name):
         args.em_vc_basename = basename(args.rqc_demux_file)
         args.rqc_evaluation_intervals_names = [ x.strip() for x in args.rqc_evaluation_intervals_names.split(",")]
         args.rqc_evaluation_intervals = [ x.strip() for x in args.rqc_evaluation_intervals.split(",")]        
-        assert (len(args.rqc_evaluation_intervals)==len(args.rqc_evaluation_intervals_names)), 
+        assert (len(args.rqc_evaluation_intervals)==len(args.rqc_evaluation_intervals_names)), \
                             "Different length of names and evaluation intervals given"
     if args.DataFileName is not None:
         args.em_vc_output_dir = dirname(args.DataFileName)
@@ -425,11 +425,12 @@ def parse_cvg_metrics(metric_file: str) -> tuple:
 
     return res1,res2
 
-def generate_rqc_output( dup_ratio: int, metrics: pd.DataFrame, histogram: pd.DataFrame) -> tuple: 
+def generate_rqc_output( dup_ratio: float, metrics: pd.DataFrame, histogram: pd.DataFrame, total_reads: int) -> tuple: 
     parameters = metrics.T.loc[['MEAN_COVERAGE','MEDIAN_COVERAGE','PCT_20X']]
     parameters.loc['PCT_20X',0] = parameters.loc['PCT_20X',0]*100
     parameters.index = ['mean cvg', 'median cvg', '%>=20x']
     parameters.loc['% duplicated'] = dup_ratio
+    parameters.loc['total reads'] = total_reads
 
     histogram['cum_cov'] = histogram['high_quality_coverage_count'].cumsum() / \
                             histogram['high_quality_coverage_count'].cumsum().max()
@@ -442,12 +443,17 @@ def generate_rqc_output( dup_ratio: int, metrics: pd.DataFrame, histogram: pd.Da
     histogram = pd.DataFrame((histogram['high_quality_coverage_count']/1000).round(2))
     histogram.columns = ['loci (x1000)']
     return parameters, histogram
-# def gc_bias( input_file: list, output_files: list, genome_file: str) : 
-#     input_bam = input_file[0]
-#     output_metrics, output_log = output_files 
-#     cmd = ['picard', '-Xmx10g', 'CollectGcBiasMetrics', 
-#     f'INPUT={input_bam}', f'OUTPUT={output_metrics}', 
-#     f'SUMMARY_METRICS={output_summary_metrics}', f'REFERENCE_SEQUENCE={genome_file}']
-#     with open(output_log,'w') as out : 
-#         out.write(" ".join(cmd)+"\n")
-#         subprocess.check_call(cmd, stdout=out, stderr=out)
+
+def extract_total_n_reads( input_files: list, output_files: list ) -> None: 
+    input_file = input_files[0]
+    output_file = output_files 
+    with open(output_file, 'w') as outfile : 
+        with open(input_file) as infile : 
+            for line in input_file: 
+                if not line.startswith("[M::bam2fq_mainloop]"):
+                    continue
+                else: 
+                    matches =re.search(r'[M::bam2fq_mainloop] processed ([0-9]*) reads').groups()
+                    if matches is not None: 
+                        outfile.write(f'{matches[0]}\n')
+                        break
