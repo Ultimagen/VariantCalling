@@ -5,6 +5,7 @@ import configargparse
 from os.path import join as pjoin
 from os.path import basename, dirname, abspath, splitext
 import os
+import re
 import sys
 dname = dirname(abspath(__file__))
 sys.path.append(pjoin(dname, ".."))
@@ -445,15 +446,15 @@ def generate_rqc_output( dup_ratio: float, metrics: pd.DataFrame, histogram: pd.
     return parameters, histogram
 
 def extract_total_n_reads( input_files: list, output_files: list ) -> None: 
-    input_file = input_files[0]
-    output_file = output_files 
+    input_file = input_files[1]
+    output_file = output_files[0]
     with open(output_file, 'w') as outfile : 
         with open(input_file) as infile : 
-            for line in input_file: 
+            for line in infile: 
                 if not line.startswith("[M::bam2fq_mainloop]"):
                     continue
                 else: 
-                    matches =re.search(r'[M::bam2fq_mainloop] processed ([0-9]*) reads').groups()
+                    matches =re.search(r'\[M::bam2fq_mainloop\] processed ([0-9]*) reads', line)
                     if matches is not None: 
-                        outfile.write(f'{matches[0]}\n')
+                        outfile.write(f'{matches.groups()[0]}\n')
                         break
