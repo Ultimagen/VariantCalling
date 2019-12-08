@@ -29,7 +29,8 @@ def parse_params_file(params_file, pipeline_name):
     elif pipeline_name == "rapidqc" : 
         ap.add('--rqc_demux_file', help="Path to the demultiplexed bam")
         ap.add('--rqc_chromosome', help="Single chromosome to filter for", required=True, type=str)
-        ap.add('--rqc_evaluation_intervals', required=False, help="file that contains a list of Intervals to evaluate on (interval_list of picard)", type=str)
+        ap.add('--rqc_evaluation_intervals_names', required=False, help="Comma separated list of evaluation interval names", type=str)
+        ap.add('--rqc_evaluation_intervals', required=False, help="Comma separated list of evaluation interval file names", type=str)
     elif pipeline_name == "variant_calling":
         ap.add('--em_vc_demux_file', help="Path to the demultiplexed bam")
         ap.add('--em_vc_recalibration_model', required=False, help="recalibration model (h5)")    
@@ -51,7 +52,10 @@ def parse_params_file(params_file, pipeline_name):
         # em_vc_demux_file for both. 
         args.em_vc_demux_file = args.rqc_demux_file
         args.em_vc_basename = basename(args.rqc_demux_file)
-
+        args.rqc_evaluation_intervals_names = [ x.strip() for x in args.rqc_evaluation_intervals_names.split(",")]
+        args.rqc_evaluation_intervals = [ x.strip() for x in args.rqc_evaluation_intervals.split(",")]        
+        assert (len(args.rqc_evaluation_intervals)==len(args.rqc_evaluation_intervals_names)), 
+                            "Different length of names and evaluation intervals given"
     if args.DataFileName is not None:
         args.em_vc_output_dir = dirname(args.DataFileName)
         args.em_vc_basename = basename(args.DataFileName)

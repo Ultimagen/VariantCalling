@@ -50,7 +50,7 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
              pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rmdup.log")]).follows(index_bam)
 
 
-        evaluation_intervals = [ x.strip().split("\t") for x in open(params.rqc_evaluation_intervals) if x ]
+        evaluation_intervals = [ x for x in zip(params.rqc_evaluation_intervals_names, params.rqc_evaluation_intervals) ]
         coverage_stats_tasks = [] 
         for ev_set in evaluation_intervals : 
             coverage_stats_tasks.append( vc_pipeline.transform(vc_pipeline_utils.coverage_stats, sorted_bam, ruffus.formatter("sort.bam"),
