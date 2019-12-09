@@ -10,10 +10,14 @@
 ```
 2. Create conda environment
 `conda env create -f /home/ubuntu/software/VariantCalling/setup/environment.yml`
+Or
+conda env create -f /home/ubuntu/VariantCalling/setup/environment.yml
 (the path should be the right path in the computer).
 
 **Note:** Update the environment if it exists 
 `conda env update -f /home/ubuntu/software/VariantCalling/setup/environment.yml`. 
+or 
+`conda env update -f /home/ubuntu/VariantCalling/setup/environment.yml`
 
 3. Activate environment 
 `conda activate genomics.py3` 
