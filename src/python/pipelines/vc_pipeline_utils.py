@@ -431,7 +431,7 @@ def generate_rqc_output( dup_ratio: float, metrics: pd.DataFrame, histogram: pd.
     parameters.loc['PCT_20X',0] = parameters.loc['PCT_20X',0]*100
     parameters.index = ['mean cvg', 'median cvg', '%>=20x']
     parameters.loc['% duplicated'] = dup_ratio
-    parameters.loc['total reads'] = total_reads
+    parameters.loc['input reads'] = total_reads
 
     histogram['cum_cov'] = histogram['high_quality_coverage_count'].cumsum() / \
                             histogram['high_quality_coverage_count'].cumsum().max()
@@ -458,3 +458,15 @@ def extract_total_n_reads( input_files: list, output_files: list ) -> None:
                     if matches is not None: 
                         outfile.write(f'{matches.groups()[0]}\n')
                         break
+
+def flatten (lst: list) -> list : 
+    result = [] 
+    for v in lst : 
+        if not v : 
+            continue
+        if type(v)==str: 
+            result.append(v)
+        else: 
+            result = result + flatten(v)
+
+    return result
