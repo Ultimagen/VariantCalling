@@ -5,7 +5,9 @@ import pysam
 import numpy as np 
 import tqdm 
 import python.vcftools as vcftools
+import python.utils as utils
 from os.path import exists
+
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
     Parameters
@@ -135,7 +137,7 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
     subprocess.check_call(cmd)
 
 
-def vcf2concordance(raw_calls_file: str, concordance_file: str) -> pd.DataFrame: 
+def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC') -> pd.DataFrame: 
     '''Generates concordance dataframe
 
     Parameters
@@ -144,6 +146,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str) -> pd.DataFrame:
         File with GATK calls
     concordance_file: str
         GenotypeConcordance file
+    format: str
+        Either 'GC' or 'VCFEVAL' - format for the concordance_file
 
     Returns
     -------
@@ -151,33 +155,61 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str) -> pd.DataFrame:
     '''
 
     vf = pysam.VariantFile(concordance_file)
-    concordance = [ ( x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[0]['GT'], x.samples[1]['GT']) for x in vf]
+    if format == 'GC':
+        concordance = [ ( x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[0]['GT'], x.samples[1]['GT']) for x in vf]
+    elif format == 'VCFEVAL': 
+        concordance = [ ( x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() 
+                                                                                                                            or x.info['CALL']!='OUT']
 
     concordance = pd.DataFrame(concordance)
     concordance.columns = ['chrom','pos','qual','ref','alleles', 'gt_ultima', 'gt_ground_truth']
     concordance['indel'] = concordance['alleles'].apply(lambda x: len(set(([len(y) for y in x])))>1)
     def classify(x):
-        if x['gt_ultima']==(None, None):
+        if x['gt_ultima']==(None, None) or x['gt_ultima'] == (None,):
             return 'fn'
-        elif x['gt_ground_truth']==(None, None):
+        elif x['gt_ground_truth']==(None, None) or x['gt_ground_truth'] == (None,):
             return 'fp'
         else:
             return 'tp'
     concordance['classify'] = concordance.apply(classify, axis=1)
+    def classify(x):
+        if x['gt_ultima']==(None, None) or x['gt_ultima'] == (None,):
+            return 'fn'
+        elif x['gt_ground_truth']==(None, None) or x['gt_ground_truth'] == (None,):
+            return 'fp'
+        elif (x['gt_ultima'] == (0,1) or x['gt_ultima'] == (1,0)) and x['gt_ground_truth'] == (1,1): 
+            return 'fn'
+        elif (x['gt_ground_truth'] == (0,1) or x['gt_ground_truth'] == (1,0)) and x['gt_ultima'] == (1,1): 
+            return 'fp'
+        else:
+            return 'tp'
+    concordance['classify_gt'] = concordance.apply(classify, axis=1)
+
     concordance.index = [(x[1]['chrom'],x[1]['pos']) for x in concordance.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
     if 'AS_SOR' in vf.header.info : 
         original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['AS_SOR'][0], x.info['AS_SORP'][0]) for x in vf])
         original.columns = ['chrom','pos','qual','sor', 'as_sor','as_sorp']
+    if 'VQSLOD' in vf.header.info : 
+        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['FS'], x.info['VQSLOD'] ) for x in vf ] )
+        original.columns = ['chrom','pos','qual','sor','fs','vqsr_val']      
     else: 
-        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['FS'], x.info['QD']) for x in vf])
-        original.columns = ['chrom','pos','qual','sor','fs','qd']      
+        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['FS']) for x in vf])
+        original.columns = ['chrom','pos','qual','sor','fs']      
+        vf.close()
+        vf = pysam.VariantFile(raw_calls_file)
+        qds = [ x.info['QD'] if 'QD' in x.info.keys() else 0 for x in vf ]
+        original['qd'] = qds
+
     original.index = [(x[1]['chrom'],x[1]['pos']) for x in original.iterrows()]
-    original.drop('qual',axis=1,inplace=True)
+    if format != 'VCFEVAL': 
+        original.drop('qual',axis=1,inplace=True)
+    else: 
+        concordance.drop('qual', axis=1, inplace=True)
     concordance = concordance.join(original.drop(['chrom','pos'], axis=1))
     return concordance    
 
-def find_thresholds( concordance: pd.DataFrame ) -> pd.DataFrame : 
+def find_thresholds( concordance: pd.DataFrame, classify_column: str = 'classify') -> pd.DataFrame : 
     quals = np.linspace(0,2000,30)
     sors = np.linspace(0,10,40)
     results = []
@@ -186,12 +218,12 @@ def find_thresholds( concordance: pd.DataFrame ) -> pd.DataFrame :
         for s in sors : 
             pairs.append((q,s))
             tmp = (concordance[((concordance['qual']>q)&(concordance['sor']<s)) |\
-                               (concordance['classify']=='fn')][['classify', 'indel']]).copy()
+                               (concordance[classify_column]=='fn')][[classify_column, 'indel']]).copy()
             tmp1 = (concordance[((concordance['qual']<q)|(concordance['sor']>s)) &\
-                               (concordance['classify']=='tp')][['classify', 'indel']]).copy()
-            tmp1['classify']='fn'
+                               (concordance[classify_column]=='tp')][[classify_column, 'indel']]).copy()
+            tmp1[classify_column]='fn'
             tmp2=pd.concat((tmp, tmp1))
-            results.append(tmp2.groupby(['classify','indel']).size())
+            results.append(tmp2.groupby([classify_column,'indel']).size())
     results = pd.concat(results,axis=1)
     results = results.T
     results.columns = results.columns.to_flat_index()
@@ -221,3 +253,29 @@ def annotate_concordance(df: pd.DataFrame, fasta: str, alnfile: str) -> pd.DataF
     df = vcftools.get_motif_around(df, 5, fasta)
     df = vcftools.get_coverage( df, alnfile, 10 )
     return df
+
+
+
+def get_r_s_i( results, var_type ) -> tuple:
+    '''Returns data for plotting ROC curve
+
+    Parameters
+    ----------
+    results: pd.DataFrame
+        Output of vcf_pipeline_utils.find_threshold
+    var_type: str 
+        'snp' or 'indel'
+
+    Returns
+    -------
+    tuple: (pd.Series, pd.Series, np.array, pd.DataFrame)
+        recall of the variable, specificity of the variable, indices of rows 
+        to calculate ROC curve on (output of `max_merits`) and dataframe to plot
+        ROC curve
+    '''
+
+    recall = results[('recall', var_type)]
+    specificity = results[('specificity', var_type)]
+    idx = utils.max_merits(np.array(recall), np.array(specificity))
+    results_plot = results.iloc[idx]
+    return recall, specificity, idx, results_plot

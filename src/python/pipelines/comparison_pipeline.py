@@ -35,6 +35,9 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
     filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
     filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index,names=['qual','sor'])
 
-    return concordance, filtering_results
+    filtering_results_gt = vcf_pipeline_utils.find_thresholds(concordance, classify_column='classify_gt')
+    filtering_results_gt.index = pd.MultiIndex.from_tuples(filtering_results_gt.index,names=['qual','sor'])
+
+    return concordance, filtering_results, filtering_results_gt
 
 

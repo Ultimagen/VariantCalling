@@ -195,3 +195,17 @@ def get_chr_sizes( sizes_file: str) -> dict :
     '''
 
     return dict([ x.strip().split() for x in open(sizes_file)])
+
+def max_merits(specificity,recall):
+    '''Finds ROC envelope from multiple sets of specificity and recall
+    '''
+    N = specificity.shape[0]
+    ind_max = np.ones(N,np.bool)
+    for j in range(N):
+        for i in range(N):
+            if ((specificity[i]>specificity[j]) & (recall[i]>recall[j])):
+                ind_max[j] = False
+                continue
+    ind = np.where(ind_max)[0]
+    a = np.argsort(recall[ind])
+    return ind[a]
