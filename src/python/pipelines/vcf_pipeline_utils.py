@@ -211,7 +211,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
 def find_thresholds( concordance: pd.DataFrame, classify_column: str = 'classify') -> pd.DataFrame : 
     quals = np.linspace(0,2000,30)
-    sors = np.linspace(0,10,40)
+    sors = np.linspace(0,20,80)
     results = []
     pairs = []
     for q in tqdm.tqdm_notebook(quals) : 
