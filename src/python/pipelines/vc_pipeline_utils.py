@@ -68,15 +68,46 @@ def parse_params_file(params_file, pipeline_name):
 def head_file( input_file, output_file, number_to_sample, nthreads) : 
     output_bam, output_err = output_file 
     cmd1 = ["samtools", "view", '-@%d'%max(1,int((nthreads-2)/2)), '-h', input_file]
+
     cmd2 = ["head", f"-{number_to_sample+100}"]
-    cmd3 = ["samtools", "view", '-@%d'%max(1,int((nthreads-2)/2)), "-b", "-o", output_bam]
+
+    cmd3 = ["samtools", "view", '-@%d'%max(1,int((nthreads-2)/2)), "-b", "-o", output_bam, "-"]
     with open(output_err, 'w') as output_err_handle : 
+        output_err_handle.write(" ".join(cmd1))
+        output_err_handle.flush()
+        output_err_handle.write(" | ")
+        output_err_handle.write(" ".join(cmd2))
+        output_err_handle.flush()
+        output_err_handle.write(" | ")
+        output_err_handle.write(" ".join(cmd3))
+        output_err_handle.write("\n")
+        output_err_handle.flush()    
+        
         task1 = subprocess.Popen(cmd1, stdout = subprocess.PIPE, stderr=output_err_handle)
         task2 = subprocess.Popen(cmd2, stdin = task1.stdout, stdout = subprocess.PIPE, stderr=output_err_handle)
         task1.stdout.close()
         task3 = subprocess.Popen(cmd3, stdin = task2.stdout, stderr=output_err_handle)
         task2.stdout.close()
         output=task3.communicate()
+
+    exception_string = ''
+    flag = False
+    task1.poll()
+    task2.poll()
+
+    #termination of head crashes the process on SIGPIPE, we ignore it
+    if task1.returncode != 0 and task1.returncode!=-13: 
+        exception_string += f"bam->sam failed: rc={task1.returncode} "
+        flag = True
+    if task2.returncode != 0 : 
+        exception_string += f"head -{number_to_sample} failed: rc={task2.returncode} "
+        flag = True
+    if task3.returncode != 0 : 
+        flag = True
+        exception_string += f'sam->bam failed: rc={task3.returncode}'
+    if flag: 
+        raise RuntimeError(exception_string)
+
 
 def align( input_file, output_file, genome_file, nthreads ) : 
     output_bam, output_err = output_file 
@@ -99,14 +130,29 @@ def align( input_file, output_file, genome_file, nthreads ) :
     task1.stdout.close()
     cmd3 = ["samtools", 'view', '-@%d'%nthreads_samtools, '-b', '-o', output_bam, '-']
     output_err_handle.write(" | ")
-    output_err_handle.write(" ".join(cmd2))
+    output_err_handle.write(" ".join(cmd3))
+    output_err_handle.write("\n")
     output_err_handle.flush()    
     task3 = subprocess.Popen(cmd3, stdin=task2.stdout, stdout=output_err_handle, stderr=output_err_handle)
     task2.stdout.close()
     output = task3.communicate()
     output_err_handle.close()
-    if task3.returncode!=0: 
-        raise RuntimeError("Alignment failed")
+
+    exception_string = ''
+    flag = False
+    task1.poll()
+    task2.poll()
+    if task1.returncode != 0: 
+        exception_string += f"SamToFastq failed: rc={task1.returncode} "
+        flag = True
+    if task2.returncode != 0 : 
+        exception_string += f"Alignment failed: rc={task2.returncode} "
+        flag = True
+    if task3.returncode != 0 : 
+        flag = True
+        exception_string += f'sam->bam failed: rc={task3.returncode}'
+    if flag: 
+        raise RuntimeError(exception_string)
 
     
 
@@ -139,15 +185,30 @@ def align_and_merge( input_file, output_file, genome_file, nthreads ):
         "MAX_RECORDS_IN_RAM=2000000", "MAX_INSERTIONS_OR_DELETIONS=-1", "PRIMARY_ALIGNMENT_STRATEGY=MostDistant",
         "UNMAP_CONTAMINANT_READS=true", "ADD_PG_TAG_TO_READS=false"]
     output_err_handle.write(" | ")
-    output_err_handle.write(" ".join(cmd2))
+    output_err_handle.write(" ".join(cmd3))
+    output_err_handle.write("\n")
     output_err_handle.flush()
     
     task3 = subprocess.Popen(cmd3, stdin=task2.stdout, stdout=output_err_handle, stderr=output_err_handle)
     task2.stdout.close()
     output = task3.communicate()
     output_err_handle.close()
-    if task3.returncode!=0 : 
-        raise RuntimeError("Alignment failed")
+
+    exception_string = ''
+    flag = False
+    task1.poll()
+    task2.poll()
+    if task1.returncode != 0: 
+        exception_string += f"SamToFastq failed: rc={task1.returncode} "
+        flag = True
+    if task2.returncode != 0 : 
+        exception_string += f"Alignment failed: rc={task2.returncode} "
+        flag = True
+    if task3.returncode != 0 : 
+        flag = True
+        exception_string += f'MBA failed: rc={task3.returncode}'
+    if flag: 
+        raise RuntimeError(exception_string)
 
 def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, the_chromosome) : 
 
@@ -180,13 +241,17 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, t
         task4 = subprocess.Popen(cmd4, stdout=outlog, stderr = outlog, stdin=task3.stdout)        
         task3.stdout.close()
         output = task4.communicate()
-        rcs = [ x.returncode for x in [task1, task2, task3, task4]]
-        for i in range(len(rcs)):
-            result = ""
-            if rcs[i]!=0:
-                result += f"Task{i},"
-        if len(result) > 0  :
-            raise RuntimeError(f"{result} of alignment failed")
+
+    taskNames = ["SamToFastq", "minimap2", "filter", "sam->bam"]
+    for x in [task1,task2, task3] : 
+        x.poll()
+    rcs = [ x.returncode for x in [task1, task2, task3, task4]]
+    for i in range(len(rcs)):
+        result = ""
+        if rcs[i]!=0:
+            result += f"Task{i}: {taskNames[i]} = {rcs[i]} "
+    if len(result) > 0  :
+        raise RuntimeError(f"{result} of alignment failed")
 
 #Prepare fetch intervals 
 def prepare_fetch_intervals( input_file, output_file, genome_file ) : 
