@@ -264,7 +264,7 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, t
         task3.stdout.close()
         output = task4.communicate()
 
-    taskNames = ["SamToFastq", "minimap2", "filter", "sam->bam"]
+    taskNames = ["SamToFastq", "minimap2", "filter", "addTags"]
     time.sleep(30)
 
     for x in [task1,task2, task3] : 
@@ -273,7 +273,7 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, t
     for i in range(len(rcs)):
         result = ""
         if rcs[i]!=0:
-            result += f"Task{i}: {taskNames[i]} = {rcs[i]} "
+            result += f"Task{i+1}: {taskNames[i]} = {rcs[i]} "
     if len(result) > 0  :
         raise RuntimeError(f"{result} of alignment failed")
 
