@@ -130,7 +130,16 @@ def align( input_file, output_file, genome_file, nthreads ) :
     output_err_handle.flush()
     task2 = subprocess.Popen(cmd2, stdin = task1.stdout, stdout = subprocess.PIPE, stderr = output_err_handle)
     task1.stdout.close()
-    cmd3 = ["samtools", 'view', '-@%d'%nthreads_samtools, '-b', '-o', output_bam, '-']
+
+
+    cmd3 = ["picard", "-Xms3000m", "MergeBamAlignment", "VALIDATION_STRINGENCY=SILENT",
+        "ATTRIBUTES_TO_RETAIN=X0", "ATTRIBUTES_TO_REMOVE=NM", "ATTRIBUTES_TO_REMOVE=MD",
+        "ALIGNED_BAM=/dev/stdin", "UNMAPPED_BAM=%s"%input_file, "OUTPUT=%s"%output_bam, 
+        "REFERENCE_SEQUENCE=%s"%genome_file, "PAIRED_RUN=false", 'SORT_ORDER="unsorted"', 
+        "IS_BISULFITE_SEQUENCE=false", "ALIGNED_READS_ONLY=true", "CLIP_ADAPTERS=false", 
+        "MAX_RECORDS_IN_RAM=2000000", "MAX_INSERTIONS_OR_DELETIONS=-1", "PRIMARY_ALIGNMENT_STRATEGY=MostDistant",
+        "UNMAP_CONTAMINANT_READS=true", "ADD_PG_TAG_TO_READS=false"]
+
     output_err_handle.write(" | ")
     output_err_handle.write(" ".join(cmd3))
     output_err_handle.write("\n")
@@ -188,6 +197,7 @@ def align_and_merge( input_file, output_file, genome_file, nthreads ):
         "IS_BISULFITE_SEQUENCE=false", "ALIGNED_READS_ONLY=true", "CLIP_ADAPTERS=false", 
         "MAX_RECORDS_IN_RAM=2000000", "MAX_INSERTIONS_OR_DELETIONS=-1", "PRIMARY_ALIGNMENT_STRATEGY=MostDistant",
         "UNMAP_CONTAMINANT_READS=true", "ADD_PG_TAG_TO_READS=false"]
+
     output_err_handle.write(" | ")
     output_err_handle.write(" ".join(cmd3))
     output_err_handle.write("\n")
@@ -235,7 +245,14 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, t
         cmd1 = ['samtools', 'fastq','-@', str(samtools_in_threads), '-t', input_file]
         cmd2 = ['minimap2', '-t', str(minimap_threads), '-R', rg_line, '-x', 'sr', '-y', '-a', genome_file,'-']
         cmd3 = ['awk', f'($3=="{the_chromosome}") || ($1 ~ /^@/)']
-        cmd4 = ['samtools', 'view', '-b', '-o', output_bam,'-' ]
+        cmd4 = ["picard", "-Xms3000m", "MergeBamAlignment", "VALIDATION_STRINGENCY=SILENT",
+            "ATTRIBUTES_TO_RETAIN=X0", "ATTRIBUTES_TO_REMOVE=NM", "ATTRIBUTES_TO_REMOVE=MD",
+            "ALIGNED_BAM=/dev/stdin", "UNMAPPED_BAM=%s"%input_file, "OUTPUT=%s"%output_bam, 
+            "REFERENCE_SEQUENCE=%s"%genome_file, "PAIRED_RUN=false", 'SORT_ORDER="unsorted"', 
+            "IS_BISULFITE_SEQUENCE=false", "ALIGNED_READS_ONLY=true", "CLIP_ADAPTERS=false", 
+            "MAX_RECORDS_IN_RAM=2000000", "MAX_INSERTIONS_OR_DELETIONS=-1", "PRIMARY_ALIGNMENT_STRATEGY=MostDistant",
+            "UNMAP_CONTAMINANT_READS=true", "ADD_PG_TAG_TO_READS=false"]
+
         outlog.write('|'.join((" ".join(cmd1), " ".join(cmd2), " ".join(cmd3), " ".join(cmd4)))+"\n")
         outlog.flush()
         task1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, stderr = outlog)
