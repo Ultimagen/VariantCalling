@@ -1,7 +1,7 @@
 # Functions that for variant calling pipeline
 import subprocess
 import configargparse
-
+import time
 from os.path import join as pjoin
 from os.path import basename, dirname, abspath, splitext
 import os
@@ -89,9 +89,11 @@ def head_file( input_file, output_file, number_to_sample, nthreads) :
         task3 = subprocess.Popen(cmd3, stdin = task2.stdout, stderr=output_err_handle)
         task2.stdout.close()
         output=task3.communicate()
+    time.sleep(30)
 
     exception_string = ''
     flag = False
+    time.sleep(30)
     task1.poll()
     task2.poll()
 
@@ -140,6 +142,8 @@ def align( input_file, output_file, genome_file, nthreads ) :
 
     exception_string = ''
     flag = False
+    time.sleep(30)
+
     task1.poll()
     task2.poll()
     if task1.returncode != 0: 
@@ -193,6 +197,7 @@ def align_and_merge( input_file, output_file, genome_file, nthreads ):
     task2.stdout.close()
     output = task3.communicate()
     output_err_handle.close()
+    time.sleep(30)
 
     exception_string = ''
     flag = False
@@ -243,6 +248,8 @@ def align_minimap_and_filter( input_file, output_files, genome_file, nthreads, t
         output = task4.communicate()
 
     taskNames = ["SamToFastq", "minimap2", "filter", "sam->bam"]
+    time.sleep(30)
+
     for x in [task1,task2, task3] : 
         x.poll()
     rcs = [ x.returncode for x in [task1, task2, task3, task4]]
