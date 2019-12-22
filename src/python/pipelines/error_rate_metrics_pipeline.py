@@ -94,13 +94,14 @@ with open(pjoin(params.em_vc_output_dir, logname),'w') as output_log :
         error_metrics_q20_file = [ x for x in error_metrics_q20_file if x.endswith("metrics")][0]
 
         idxstats_df = vc_pipeline_utils.collect_alnstats(idxstats_metrics_file, error_metrics_q20_file)
-        q0_df = vc_pipeline_utils.collect_metrics(error_metrics_q0_file)
-        q20_df = vc_pipeline_utils.collect_metrics(error_metrics_q20_file)
+        q0_df, complete_df = vc_pipeline_utils.collect_metrics(error_metrics_q0_file)
+        q20_df, complete_df = vc_pipeline_utils.collect_metrics(error_metrics_q20_file)
         em_df = pd.concat((q0_df, q20_df),axis=1)
         em_df.columns = (['Unfiltered', 'Q20 filtered'])
         output_hdf_file = pjoin(params.em_vc_output_dir, '.'.join((params.em_vc_basename, "bwa_metrics", "h5")))
         idxstats_df.to_hdf(output_hdf_file, key="bwa_alignment_stats")
         em_df.to_hdf(output_hdf_file, key="bwa_error_rates")
+        complete_df.to_hdf(output_hdf_file, key="bwa_all_metrics")
         print("Error metrics run: success", file=output_log, flush=True)
 
     except Exception as err : 
