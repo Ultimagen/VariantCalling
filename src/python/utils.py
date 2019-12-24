@@ -1,6 +1,6 @@
 import numpy as np
 import itertools
-
+import pandas as pd
 def revcomp(seq: str) -> str:
     '''Reverse complements DNA given as string
 
@@ -209,3 +209,10 @@ def max_merits(specificity,recall):
     ind = np.where(ind_max)[0]
     a = np.argsort(recall[ind])
     return ind[a]
+
+def parse_runs_file( runsfile, threshold ) : 
+    '''Parses bed file'''
+    df = pd.read_csv(runsfile, names=['chromosome','start','end'], index_col=None,sep="\t")
+    df = df[df['end']-df['start'] > threshold ]
+    df.sort_values(['chromosome','start'],inplace=True)
+    return df
