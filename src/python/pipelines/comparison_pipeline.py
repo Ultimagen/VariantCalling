@@ -1,4 +1,4 @@
-from . import vcf_pipeline_utils
+from python.pipelines import vcf_pipeline_utils
 import pandas as pd
 TRUTH_FILE= "/home/ubuntu/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
 CMP_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/interval.list"
@@ -14,15 +14,20 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
     ref_genome: str = REFERENCE, 
     call_sample: str = CALL_SAMPLE, 
     truth_sample: str = TRUTH_SAMPLE, 
-    find_thresholds: bool = True) -> tuple:
+    find_thresholds: bool = True, 
+    output_suffix: str = '') -> tuple:
     '''Run comparison between the two sets of dataframes
     '''
-
-    output_fn = input_prefix + ".vcf.gz"
+    if not output_suffix :
+        output_fn = input_prefix + ".vcf.gz"
+    else: 
+        output_fn = input_prefix + f".{output_suffix}.vcf.gz"
     if n_parts > 0 :
         vcf_pipeline_utils.combine_vcf( n_parts, input_prefix, output_fn)
-
-    reheader_fn = input_prefix + ".rhdr.vcf.gz"
+    if not output_suffix : 
+        reheader_fn = input_prefix + ".rhdr.vcf.gz"
+    else : 
+        reheader_fn = input_prefix + f".{output_suffix}.rhdr.vcf.gz"
     vcf_pipeline_utils.reheader_vcf( output_fn, header, reheader_fn)
     output_prefix = reheader_fn[:reheader_fn.index(".rhdr.vcf.gz")]
     vcf_pipeline_utils.run_genotype_concordance( reheader_fn, truth_file, output_prefix, \
