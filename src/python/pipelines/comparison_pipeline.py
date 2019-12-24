@@ -24,6 +24,8 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
         output_fn = input_prefix + f".{output_suffix}.vcf.gz"
     if n_parts > 0 :
         vcf_pipeline_utils.combine_vcf( n_parts, input_prefix, output_fn)
+    else: 
+        output_fn = input_prefix + ".vcf.gz"
     if not output_suffix : 
         reheader_fn = input_prefix + ".rhdr.vcf.gz"
     else : 
