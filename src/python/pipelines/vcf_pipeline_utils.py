@@ -7,6 +7,12 @@ import tqdm
 import python.vcftools as vcftools
 import python.utils as utils
 from os.path import exists
+from collections import defaultdict
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn import preprocessing, model_selection
+from sklearn import metrics
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
@@ -110,7 +116,7 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         Calls file
     highconf_regions: str
         High confidence regions bed
-    runs_regions: str
+    runs_regions: str or None 
         Runs
     '''
 
@@ -120,21 +126,25 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         cmd = ['bedtools', 'intersect', '-a', input_file_calls, '-b', highconf_regions,'-nonamecheck',
             '-wa', '-header']
         subprocess.check_call(cmd, stdout=highconf_file)
-    with open(runs_file_name, "wb") as runs_file : 
-        cmd = ['bedtools', 'subtract', '-a', highconf_file_name, '-b', runs_regions,'-nonamecheck',
-            '-A', '-header']
-        subprocess.check_call(cmd, stdout=runs_file)
+
 
     cmd = ['bgzip','-f', highconf_file_name]
     subprocess.check_call(cmd)
     highconf_file_name += '.gz'
     cmd = ['bcftools','index','-tf', highconf_file_name]
     subprocess.check_call(cmd)
-    cmd = ['bgzip','-f', runs_file_name]
-    subprocess.check_call(cmd)
-    runs_file_name += '.gz'
-    cmd = ['bcftools','index','-tf', runs_file_name]
-    subprocess.check_call(cmd)
+
+    if runs_regions is not None : 
+        with open(runs_file_name, "wb") as runs_file : 
+            cmd = ['bedtools', 'subtract', '-a', highconf_file_name, '-b', runs_regions,'-nonamecheck',
+                '-A', '-header']
+            subprocess.check_call(cmd, stdout=runs_file)
+
+        cmd = ['bgzip','-f', runs_file_name]
+        subprocess.check_call(cmd)
+        runs_file_name += '.gz'
+        cmd = ['bcftools','index','-tf', runs_file_name]
+        subprocess.check_call(cmd)
 
 
 def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC') -> pd.DataFrame: 
@@ -187,20 +197,10 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     concordance.index = [(x[1]['chrom'],x[1]['pos']) for x in concordance.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
-    if 'AS_SOR' in vf.header.info : 
-        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['AS_SOR'][0], x.info['AS_SORP'][0]) for x in vf])
-        original.columns = ['chrom','pos','qual','sor', 'as_sor','as_sorp']
-    if 'VQSLOD' in vf.header.info : 
-        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['FS'], x.info['VQSLOD'] ) for x in vf ] )
-        original.columns = ['chrom','pos','qual','sor','fs','vqsr_val']      
-    else: 
-        original =pd.DataFrame( [ ( x.chrom, x.pos, x.qual, x.info['SOR'], x.info['FS']) for x in vf])
-        original.columns = ['chrom','pos','qual','sor','fs']      
-        vf.close()
-        vf = pysam.VariantFile(raw_calls_file)
-        qds = [ x.info['QD'] if 'QD' in x.info.keys() else 0 for x in vf ]
-        original['qd'] = qds
-
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() + x.samples[0].items() + [('QUAL',x.qual), ('CHROM', x.chrom), ('POS',x.pos)]), vf)
+    columns = ['chrom','pos','qual','sor', 'as_sor','as_sorp', 'fs','vqsr_val', 'qd', 'dp']
+    original = pd.DataFrame([ [ x[y.upper()] for y in columns ] for x in vfi])
+    original.columns = columns
     original.index = [(x[1]['chrom'],x[1]['pos']) for x in original.iterrows()]
     if format != 'VCFEVAL': 
         original.drop('qual',axis=1,inplace=True)
@@ -279,3 +279,151 @@ def get_r_s_i( results, var_type ) -> tuple:
     idx = utils.max_merits(np.array(recall), np.array(specificity))
     results_plot = results.iloc[idx]
     return recall, specificity, idx, results_plot
+
+
+FEATURES=['sor','qd','dp','qual','coverage', 'hmer_indel_nuc']
+def feature_prepare( df: pd.DataFrame ) :
+    '''Prepare dataframe for analysis (encode features, normalize etc.)
+
+    Parameters
+    ----------
+    df: pd.DataFrame 
+        Input dataframe, only features
+    feature:vec: list
+        List of features 
+    '''
+
+    encode = preprocessing.LabelEncoder()
+    if 'hmer_indel_nuc' in df.columns : 
+        df['hmer_indel_nuc'] = encode.fit_transform(feature_matrix['hmer_indel_nuc'])
+    return df 
+
+
+def precision_recall_of_set( input_set: pd.DataFrame, gtr_column: str, model: RandomForestClassifier ): 
+    '''Precision recall calculation on a subset of data 
+
+    Parameters
+    ----------
+    input_set: pd.DataFram        
+    gtr_column: str
+        Name of the column to calculate precision-recall on 
+    model: RandomForestClassifier
+        Trained model
+    '''        
+
+    features = feature_prepare( input_set[FEATURES])
+    gtr_values = input_set[gtr_column]
+    fns = np.array(gtr_values=='fn')
+    predictions = model.predict(features[~fns])
+    predictions = np.concatenate((predictions, ['fp']*fns.sum()))
+    gtr_values = np.concatenate((gtr_values[~fns], ['tp']*fns.sum()))
+    recall = metrics.recall_score(gtr_values, predictions, pos_label='tp')
+    precision = metrics.precision_score(gtr_values, predictions, pos_label='tp')
+    return (recall, precision)
+
+def calculate_precision_recall(concordance: pd.DataFrame, model: RandomForestClassifier, 
+    test_train_split: pd.Series, selection: pd.Series, gtr_column: str) -> pd.Series : 
+    '''Calculates precision and recall on a model trained on a subset of data
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    model: RandomForestClassifier
+        Trained classifier
+    test_train_split: pd.Series
+        Split between the training and the testing set (boolean, 1 is train)
+    selection: pd.Series
+        Boolean series that mark specific selected rows in the concordance datafraeme
+    gtr_column: str
+        Name of the column 
+
+    Returns
+    -------
+    pd.Series:
+        The following fields are defined: 
+        ```
+        Three parameters for unfiltered data
+        basic_recall
+        basic_precision
+        basic_counts 
+        Four parameters for the filtered data
+        train_precision
+        train_recall
+        test_precision
+        test_recall
+        ```
+    '''
+
+    tmp = concordance[selection][gtr_column].value_counts()
+    basic_recall = tmp['tp']/(tmp['tp'] + tmp['fn'])
+    basic_precision = tmp['tp']/(tmp['tp'] + tmp['fp'])
+    basic_counts  = tmp['tp'] + tmp['fn']
+
+    test_set = concordance[ selection & (~test_train_split) ]
+    test_set_precision_recall = precision_recall_of_set( test_set, gtr_column, model)
+
+    train_set = concordance[ selection & test_train_split ]
+    train_set_precision_recall = precision_recall_of_set( train_set, gtr_column, model)
+
+    return pd.Series((basic_recall, basic_precision, basic_counts) 
+        + train_set_precision_recall + test_set_precision_recall, 
+        names=['basic_recall','basic_precision', 'basic_counts',
+        'train_precision','train_recall','test_precision', 'test_recall'])
+
+def train_model( concordance: pd.DataFrame, test_train_split: np.ndarray, 
+    selection: pd.Series, gtr_column: str) -> RandomForestClassifier:
+    '''Trains model on a subset of dataframe that is already dividied into a testing and training set
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    test_train_split: pd.Series or np.ndarray
+        Boolean array, 1 is train
+    selection: pd.Series
+        Boolean series that points to data selected for the model
+    gtr_column: str
+        Column with labeling
+
+    Returns
+    -------
+    RandomForestClassifier
+        Trained classifier model
+    '''
+    fns = np.array(concordance[gtr_column]=='fn')
+    train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+    labels = concordance[test_train_split & selection & (~fns)][gtr_column]
+    train_data = feature_prepare(train_data)
+    model = RandomForestClassifier(max_depth=5)
+    model.fit(train_data, labels)
+    return model
+
+def train_models( concordance: pd.DataFrame, gtr_column: str, 
+    selection_functions = [ lambda x: np.ones(x.shape[0], dtype=np.bool)] ) -> tuple:
+    test_train_split = np.random.uniform(0,1,size=concordance.shape[0])>0.5
+    selections = [] 
+    models = [] 
+    for sf in selection_functions : 
+        selection = sf(concordance)
+        selections.append(selection.copy())
+        model = train_model(concordance, test_train_split, selection, gtr_column)
+
+        models.append(model.copy())
+
+    return test_train_split, selections, models
+
+def get_training_selection_functions() : 
+    sfs = [ ]
+    sfs.append(lambda x: ~x.indel)
+    sfs.append(lambda x : x.indel & (x.hmer_indel_length == 0 ))
+    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 0 ))
+
+def get_testing_selection_functions() : 
+    sfs = [ ]
+    sfs.append(lambda x: ~x.indel)
+    sfs.append(lambda x : x.indel & (x.hmer_indel_length == 0 ))
+    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 0 ) & (x.hmer_indel_length < 5))
+    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 5 ) & (x.hmer_indel_length < 12))
+    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 5 ) & (x.hmer_indel_length < 12))
+    
