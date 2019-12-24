@@ -29,8 +29,12 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
 
     vcf_pipeline_utils.filter_bad_areas( reheader_fn, highconf_intervals, runs_intervals)
     vcf_pipeline_utils.filter_bad_areas( output_prefix + ".genotype_concordance.vcf.gz", highconf_intervals, runs_intervals)
-    concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "runs.vcf.gz"), 
+    if runs_intervals is not None : 
+        concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "runs.vcf.gz"), 
                                                             output_prefix + ".genotype_concordance.runs.vcf.gz")
+    else : 
+        concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "highconf.vcf.gz"), 
+                                                            output_prefix + ".genotype_concordance.highconf.vcf.gz")
 
     filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
     filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index,names=['qual','sor'])
