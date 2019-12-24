@@ -13,7 +13,8 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
     runs_intervals: str = RUNS_INTERVALS, 
     ref_genome: str = REFERENCE, 
     call_sample: str = CALL_SAMPLE, 
-    truth_sample: str = TRUTH_SAMPLE) -> tuple:
+    truth_sample: str = TRUTH_SAMPLE, 
+    find_thresholds: bool = True) -> tuple:
     '''Run comparison between the two sets of dataframes
     '''
 
@@ -36,12 +37,15 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
         concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "highconf.vcf.gz"), 
                                                             output_prefix + ".genotype_concordance.highconf.vcf.gz")
 
-    filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
-    filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index,names=['qual','sor'])
+    if find_thresholds : 
+        filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
+        filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index,names=['qual','sor'])
 
-    filtering_results_gt = vcf_pipeline_utils.find_thresholds(concordance, classify_column='classify_gt')
-    filtering_results_gt.index = pd.MultiIndex.from_tuples(filtering_results_gt.index,names=['qual','sor'])
+        filtering_results_gt = vcf_pipeline_utils.find_thresholds(concordance, classify_column='classify_gt')
+        filtering_results_gt.index = pd.MultiIndex.from_tuples(filtering_results_gt.index,names=['qual','sor'])
 
-    return concordance, filtering_results, filtering_results_gt
+        return concordance, filtering_results, filtering_results_gt
+    else: 
+        return concordance
 
 

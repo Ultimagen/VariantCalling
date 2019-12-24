@@ -8,7 +8,7 @@ import python.vcftools as vcftools
 import python.utils as utils
 from os.path import exists
 from collections import defaultdict
-
+from typing import Callable
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn import preprocessing, model_selection
@@ -180,7 +180,15 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         elif x['gt_ground_truth']==(None, None) or x['gt_ground_truth'] == (None,):
             return 'fp'
         else:
-            return 'tp'
+            set_gtr = set(x['gt_ground_truth'])-set([0])
+            set_ultima = set(x['gt_ultima'])-set([0])
+            if set_gtr == set_ultima :             
+                return 'tp'
+            elif set_ultima - set_gtr : 
+                return 'fp'
+            else: 
+                return 'fn'
+
     concordance['classify'] = concordance.apply(classify, axis=1)
     def classify(x):
         if x['gt_ultima']==(None, None) or x['gt_ultima'] == (None,):
@@ -252,8 +260,35 @@ def annotate_concordance(df: pd.DataFrame, fasta: str, alnfile: str) -> pd.DataF
     df = vcftools.is_hmer_indel(df, fasta)
     df = vcftools.get_motif_around(df, 5, fasta)
     df = vcftools.get_coverage( df, alnfile, 10 )
+    df = vcftools.close_to_hmer_run( df, runfile, min_hmer_run_length=10, max_distance=10)
     return df
 
+def close_to_hmer_run( df: pd.DataFrame, runfile: str, min_hmer_run_length: int=10, max_distance: int=10) -> pd.DataFrame:
+    '''Adds column is_close_to_hmer_run and inside_hmer_run that is T/F'''
+    df['close_to_hmer'] = False
+    df['inside_hmer_run'] = False
+    run_df = utils.parse_runs_file(runfile, min_hmer_run_length)
+    gdf = df.groupby('chrom')
+    grun_df = run_df.groupby('chromosome')
+    for chrom in gdf.groups.keys() : 
+        gdf_ix = gdf.groups[chrom]
+        grun_ix = grun_df.groups[chrom]
+        pos1 = np.array(df.loc[gdf_ix,'pos'])
+        pos2 = np.array(run_df.loc[grun_ix,'start'])
+        pos1_closest_pos2_start = np.searchsorted(pos2, pos1)-1
+        close_dist = (pos1-pos2[np.clip(pos1_closest_pos2_start,0,None)]) < max_distance
+        close_dist |= (pos2[np.clip(pos1_closest_pos2_start+1,None, len(pos2)-1)]-pos1) < max_distance
+        pos2 = np.array(run_df.loc[grun_ix,'end'])
+        pos1_closest_pos2_end = np.searchsorted(pos2, pos1)
+        close_dist |= (pos1-pos2[np.clip(pos1_closest_pos2_end-1,0,None)]) < max_distance
+        close_dist |= (pos2[np.clip(pos1_closest_pos2_end,None, len(pos2)-1)]-pos1) < max_distance
+        
+        is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
+        df.loc[gdf_ix, "inside_hmer_run"] = is_inside
+        df.loc[gdf_ix, "close_to_hmer_run"] = (close_dist & (~is_inside))
+    return df
+
+        
 
 
 def get_r_s_i( results, var_type ) -> tuple:
@@ -295,7 +330,10 @@ def feature_prepare( df: pd.DataFrame ) :
 
     encode = preprocessing.LabelEncoder()
     if 'hmer_indel_nuc' in df.columns : 
-        df['hmer_indel_nuc'] = encode.fit_transform(feature_matrix['hmer_indel_nuc'])
+        df.loc[(df['hmer_indel_nuc']).isnull(),'hmer_indel_nuc']='N'
+        df.loc[:, 'hmer_indel_nuc'] = encode.fit_transform(df['hmer_indel_nuc'])
+    if 'qd' in df.columns : 
+        df.loc[df['qd'].isnull(), 'qd'] = 0  
     return df 
 
 
@@ -314,15 +352,18 @@ def precision_recall_of_set( input_set: pd.DataFrame, gtr_column: str, model: Ra
     features = feature_prepare( input_set[FEATURES])
     gtr_values = input_set[gtr_column]
     fns = np.array(gtr_values=='fn')
-    predictions = model.predict(features[~fns])
+    if features[~fns].shape[0] > 0 :
+        predictions = model.predict(features[~fns])
+    else: 
+        predictions = np.array([])
     predictions = np.concatenate((predictions, ['fp']*fns.sum()))
     gtr_values = np.concatenate((gtr_values[~fns], ['tp']*fns.sum()))
     recall = metrics.recall_score(gtr_values, predictions, pos_label='tp')
     precision = metrics.precision_score(gtr_values, predictions, pos_label='tp')
-    return (recall, precision)
+    return (precision, recall)
 
 def calculate_precision_recall(concordance: pd.DataFrame, model: RandomForestClassifier, 
-    test_train_split: pd.Series, selection: pd.Series, gtr_column: str) -> pd.Series : 
+    test_train_split: pd.Series, selection: Callable, gtr_column: str) -> pd.Series : 
     '''Calculates precision and recall on a model trained on a subset of data
 
     Parameters
@@ -355,20 +396,20 @@ def calculate_precision_recall(concordance: pd.DataFrame, model: RandomForestCla
         ```
     '''
 
-    tmp = concordance[selection][gtr_column].value_counts()
-    basic_recall = tmp['tp']/(tmp['tp'] + tmp['fn'])
-    basic_precision = tmp['tp']/(tmp['tp'] + tmp['fp'])
-    basic_counts  = tmp['tp'] + tmp['fn']
+    tmp = concordance[selection(concordance)][gtr_column].value_counts()
+    basic_recall = tmp.get('tp',0)/(tmp.get('tp',0) + tmp.get('fn',0)+1)
+    basic_precision = tmp.get('tp',0)/(tmp.get('tp',0) + tmp.get('fp',0)+1)
+    basic_counts  = tmp.get('tp',0) + tmp.get('fn',0)
 
-    test_set = concordance[ selection & (~test_train_split) ]
+    test_set = concordance[ selection(concordance) & (~test_train_split) ]
     test_set_precision_recall = precision_recall_of_set( test_set, gtr_column, model)
 
-    train_set = concordance[ selection & test_train_split ]
+    train_set = concordance[ selection(concordance) & test_train_split ]
     train_set_precision_recall = precision_recall_of_set( train_set, gtr_column, model)
 
     return pd.Series((basic_recall, basic_precision, basic_counts) 
         + train_set_precision_recall + test_set_precision_recall, 
-        names=['basic_recall','basic_precision', 'basic_counts',
+        index=['basic_recall','basic_precision', 'basic_counts',
         'train_precision','train_recall','test_precision', 'test_recall'])
 
 def train_model( concordance: pd.DataFrame, test_train_split: np.ndarray, 
@@ -395,7 +436,7 @@ def train_model( concordance: pd.DataFrame, test_train_split: np.ndarray,
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = feature_prepare(train_data)
-    model = RandomForestClassifier(max_depth=5)
+    model = RandomForestClassifier(max_depth=5, class_weight={'tp':1.1, 'fp':1})
     model.fit(train_data, labels)
     return model
 
@@ -406,24 +447,25 @@ def train_models( concordance: pd.DataFrame, gtr_column: str,
     models = [] 
     for sf in selection_functions : 
         selection = sf(concordance)
-        selections.append(selection.copy())
         model = train_model(concordance, test_train_split, selection, gtr_column)
 
-        models.append(model.copy())
+        models.append(model)
 
-    return test_train_split, selections, models
+    return test_train_split, models
 
 def get_training_selection_functions() : 
     sfs = [ ]
     sfs.append(lambda x: ~x.indel)
     sfs.append(lambda x : x.indel & (x.hmer_indel_length == 0 ))
     sfs.append(lambda x: x.indel & (x.hmer_indel_length > 0 ))
+    return sfs
 
 def get_testing_selection_functions() : 
     sfs = [ ]
-    sfs.append(lambda x: ~x.indel)
-    sfs.append(lambda x : x.indel & (x.hmer_indel_length == 0 ))
-    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 0 ) & (x.hmer_indel_length < 5))
-    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 5 ) & (x.hmer_indel_length < 12))
-    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 5 ) & (x.hmer_indel_length < 12))
-    
+    sfs.append((lambda x: ~x.indel, 'SNP'))
+    sfs.append((lambda x: x.indel, "INDEL"))
+    sfs.append((lambda x : x.indel & (x.hmer_indel_length == 0 ), "Non-hmer INDEL"))
+    sfs.append((lambda x: x.indel & (x.hmer_indel_length > 0 ) & (x.hmer_indel_length < 5), "HMER indel < 4"))
+    sfs.append((lambda x: x.indel & (x.hmer_indel_length >= 5 ) & (x.hmer_indel_length < 12), "HMER indel > 4, < 12"))
+    sfs.append((lambda x: x.indel & (x.hmer_indel_length >= 12), "HMER indel > 12"))
+    return sfs
