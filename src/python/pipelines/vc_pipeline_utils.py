@@ -136,7 +136,7 @@ def align( input_file, output_file, genome_file, nthreads ) :
         "ATTRIBUTES_TO_RETAIN=X0", "ATTRIBUTES_TO_REMOVE=NM", "ATTRIBUTES_TO_REMOVE=MD",
         "ALIGNED_BAM=/dev/stdin", "UNMAPPED_BAM=%s"%input_file, "OUTPUT=%s"%output_bam, 
         "REFERENCE_SEQUENCE=%s"%genome_file, "PAIRED_RUN=false", 'SORT_ORDER="unsorted"', 
-        "IS_BISULFITE_SEQUENCE=false", "ALIGNED_READS_ONLY=true", "CLIP_ADAPTERS=false", 
+        "IS_BISULFITE_SEQUENCE=false", "ALIGNED_READS_ONLY=false", "CLIP_ADAPTERS=false", 
         "MAX_RECORDS_IN_RAM=2000000", "MAX_INSERTIONS_OR_DELETIONS=-1", "PRIMARY_ALIGNMENT_STRATEGY=MostDistant",
         "UNMAP_CONTAMINANT_READS=true", "ADD_PG_TAG_TO_READS=false"]
 
