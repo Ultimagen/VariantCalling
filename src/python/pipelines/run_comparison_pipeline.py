@@ -18,19 +18,27 @@ ap.add_argument("--aligned_bam", help='Aligned bam', required=True, type=str)
 ap.add_argument("--call_sample_name", help='Name of the call sample', required=True, default='sm1')
 ap.add_argument("--truth_sample_name", help='Name of the truth sample', required=True)
 ap.add_argument("--find_thresholds", help='Should precision recall thresholds be found', default=False, action='store_true')
+ap.add_argument("--filter_runs", help='Should variants on hmer runs be filtered out', default=False, action='store_true')
 ap.add_argument("--output_suffix", help='Add suffix to the output file', required=False, default='', type=str)
+
 args = ap.parse_args()
-results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix, 
-    args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals, 
-    args.runs_intervals, args.reference, args.call_sample_name, 
-    args.truth_sample_name, args.find_thresholds, args.output_suffix)
+if args.filter_runs :
+    results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix, 
+        args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals, 
+        args.runs_intervals, args.reference, args.call_sample_name, 
+        args.truth_sample_name, args.find_thresholds, args.output_suffix)
+else: 
+    results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix, 
+        args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals, 
+        None, args.reference, args.call_sample_name, 
+        args.truth_sample_name, args.find_thresholds, args.output_suffix)
 
 if args.find_thresholds : 
     concordance = results[0]
 else:
     concordance = results 
 
-annotated_concordance = vcf_pipeline_utils.annotate_concordance(concordance, args.reference, args.aligned_bam)
+annotated_concordance = vcf_pipeline_utils.annotate_concordance(concordance, args.reference, args.aligned_bam, args.runs_intervals)
 
 annotated_concordance.to_hdf(args.output_file, key="concordance")
 if args.find_thresholds:
