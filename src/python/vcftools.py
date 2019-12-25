@@ -3,7 +3,7 @@ import pandas as pd
 import pyfaidx
 import tqdm
 from python import utils
-
+import numpy as np
 
 def get_concordance(genotype_concordance_vcf: str,
                     input_vcf: str,
@@ -276,7 +276,7 @@ def get_coverage( df: pd.DataFrame, alnfile: str, min_quality: int) :
 
 def close_to_hmer_run( df: pd.DataFrame, runfile: str, min_hmer_run_length: int=10, max_distance: int=10) -> pd.DataFrame:
     '''Adds column is_close_to_hmer_run and inside_hmer_run that is T/F'''
-    df['close_to_hmer'] = False
+    df['close_to_hmer_run'] = False
     df['inside_hmer_run'] = False
     run_df = utils.parse_runs_file(runfile, min_hmer_run_length)
     gdf = df.groupby('chrom')
