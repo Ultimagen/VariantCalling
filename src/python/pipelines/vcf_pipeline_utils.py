@@ -243,7 +243,7 @@ def find_thresholds( concordance: pd.DataFrame, classify_column: str = 'classify
     results.index=pairs
     return results
 
-def annotate_concordance(df: pd.DataFrame, fasta: str, alnfile: str) -> pd.DataFrame: 
+def annotate_concordance(df: pd.DataFrame, fasta: str, alnfile: str, runfile: str) -> pd.DataFrame: 
     '''Annotates concordance data with information about SNP/INDELs and motifs
 
     Parameters
