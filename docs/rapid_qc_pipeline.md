@@ -36,13 +36,6 @@ aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38
 
 ### Configuration file
 
-Create an intervals file (`rapid_qc.intervals`) that contains tab-separated lines of name, filename of intervals. E.g.
-
-```
-genome	/data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list
-exome	/data/genomes/broad-references/hg38/v0/chr9.hg38.exome.eval.interval_list
-```
-
 Create config file (`rapid_qc.config`) of the following form: 
 
 ```
