@@ -236,10 +236,10 @@ def find_thresholds( concordance: pd.DataFrame, classify_column: str = 'classify
     results = results.T
     results.columns = results.columns.to_flat_index()
 
-    results[('recall', 'indel')] = results[('tp',True)]/(results[('tp',True)]+results[('fn',True)])
-    results[('specificity', 'indel')] = results[('tp',True)]/(results[('tp',True)]+results[('fp',True)])
-    results[('recall', 'snp')] = results[('tp',False)]/(results[('tp',False)]+results[('fn',False)])
-    results[('specificity', 'snp')] = results[('tp',False)]/(results[('tp',False)]+results[('fp',False)])
+    results[('recall', 'indel')] = results.get(('tp',True),0)/(results.get(('tp',True),0)+results.get(('fn',True),0)+1)
+    results[('specificity', 'indel')] = results.get(('tp',True),0)/(results.get(('tp',True),0)+results.get(('fp',True),0)+1)
+    results[('recall', 'snp')] = results.get(('tp',False),0)/(results.get(('tp',False),0)+results.get(('fn',False),0)+1)
+    results[('specificity', 'snp')] = results.get(('tp',False),0)/(results.get(('tp',False),0)+results.get(('fp',False),0)+1)
     results.index=pairs
     return results
 
@@ -291,7 +291,8 @@ def get_r_s_i( results, var_type ) -> tuple:
     return recall, specificity, idx, results_plot
 
 
-FEATURES=['sor','qd','dp','qual','coverage', 'hmer_indel_nuc']
+FEATURES=['sor','dp','qual', 'hmer_indel_nuc', 'inside_hmer_run', 
+        'close_to_hmer_run']
 def feature_prepare( df: pd.DataFrame ) :
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
@@ -306,9 +307,13 @@ def feature_prepare( df: pd.DataFrame ) :
     encode = preprocessing.LabelEncoder()
     if 'hmer_indel_nuc' in df.columns : 
         df.loc[(df['hmer_indel_nuc']).isnull(),'hmer_indel_nuc']='N'
-        df.loc[:, 'hmer_indel_nuc'] = encode.fit_transform(df['hmer_indel_nuc'])
+        df.loc[:,'hmer_indel_nuc'] = encode.fit_transform(np.array(df.loc[:,'hmer_indel_nuc']))
     if 'qd' in df.columns : 
         df.loc[df['qd'].isnull(), 'qd'] = 0  
+    if 'sor' in df.columns : 
+        df.loc[df['sor'].isnull(),'sor'] = 0 
+    if 'dp' in df.columns : 
+        df.loc[df['dp'].isnull(),'dp'] = 0 
     return df 
 
 
@@ -333,6 +338,7 @@ def precision_recall_of_set( input_set: pd.DataFrame, gtr_column: str, model: Ra
         predictions = np.array([])
     predictions = np.concatenate((predictions, ['fp']*fns.sum()))
     gtr_values = np.concatenate((gtr_values[~fns], ['tp']*fns.sum()))
+
     recall = metrics.recall_score(gtr_values, predictions, pos_label='tp')
     precision = metrics.precision_score(gtr_values, predictions, pos_label='tp')
     return (precision, recall)
@@ -411,13 +417,13 @@ def train_model( concordance: pd.DataFrame, test_train_split: np.ndarray,
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = feature_prepare(train_data)
-    model = RandomForestClassifier(max_depth=5, class_weight={'tp':1.1, 'fp':1})
+    model = DecisionTreeClassifier(max_depth=7)
     model.fit(train_data, labels)
     return model
 
 def train_models( concordance: pd.DataFrame, gtr_column: str, 
     selection_functions = [ lambda x: np.ones(x.shape[0], dtype=np.bool)] ) -> tuple:
-    test_train_split = np.random.uniform(0,1,size=concordance.shape[0])>0.5
+    test_train_split = np.random.uniform(0,1,size=concordance.shape[0])>0.8
     selections = [] 
     models = [] 
     for sf in selection_functions : 
