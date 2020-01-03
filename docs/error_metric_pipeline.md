@@ -15,7 +15,7 @@
 
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
-`gsutil -m rsync -x "$(gsutil ls gs://genomics-public-data/references/hg38/v0/ | awk -F '/' '{print $7 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://genomics-public-data/references/hg38/v0/ .`
+`gsutil -m rsync -x "$(gsutil ls gs://genomics-public-data/references/hg38/v0/ | awk -F '/' '{print $7 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://genomics-public-data/references/hg38/v0/ /data/genomes/`
 
 ### Configuration file
 Create config file (`error_metrics.config`) of the following form: 
