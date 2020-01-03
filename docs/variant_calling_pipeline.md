@@ -15,7 +15,7 @@
 3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
-`aws s3 sync --exclude '*' --include "Homo_sapiens_assembly38*" s3://broad-references/hg38/v0/ /data/genomes/broad-references/hg38/v0/`
+`gsutil -m rsync -x "$(gsutil ls gs://genomics-public-data/references/hg38/v0/ | awk -F '/' '{print $7 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://genomics-public-data/references/hg38/v0/ .`
 
 5. Copy helper files for variant calling
 `aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/ /data/genomes/broad-references/hg38/concordance/`
