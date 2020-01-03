@@ -9,10 +9,14 @@
   or:
   git clone https://github.com/Ultimagen/VariantCalling
 ```
-1.1 Clone recalibration repository and buid
+
+1 Clone recalibration repository and buid
+
 2. Create conda environment `conda env create -f /home/ec2-user/software/VariantCalling/setup/environment.yml`
 (the path should be the right path in the computer).
+
 3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
+
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
 `gsutil -m rsync -x "$(gsutil ls gs://genomics-public-data/references/hg38/v0/ | awk -F '/' '{print $7 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://genomics-public-data/references/hg38/v0/ /data/genomes/`
