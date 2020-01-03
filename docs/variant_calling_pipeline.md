@@ -3,12 +3,12 @@
 ## Installation
 
 1. Clone my git repository (e.g. to `/home/ec2-user/software/VariantCalling/`)
-```
-  cd /home/ec2-user/software/
-  git clone git@github.com:Ultimagen/VariantCalling.git
-  or:
-  git clone https://github.com/Ultimagen/VariantCalling
-```
+    ```
+    cd /home/ec2-user/software/
+    git clone git@github.com:Ultimagen/VariantCalling.git
+    or:
+    git clone https://github.com/Ultimagen/VariantCalling
+    ```
 
 1 Clone recalibration repository and buid
 
