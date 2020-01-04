@@ -3,24 +3,28 @@
 ## Installation
 
 1. Clone my git repository (e.g. to `/home/ec2-user/software/VariantCalling/`)
-```
-  cd /home/ec2-user/software/
-  git clone git@github.com:Ultimagen/VariantCalling.git
-  or:
-  git clone https://github.com/Ultimagen/VariantCalling
-```
-1.1 Clone recalibration repository and buid
-2. Create conda environment `conda env create -f /home/ec2-user/software/VariantCalling/setup/environment.yml`
+    ```
+    cd /home/ec2-user/software/
+    git clone git@github.com:Ultimagen/VariantCalling.git
+    or:
+    git clone https://github.com/Ultimagen/VariantCalling
+    ```
+
+2. Clone recalibration repository and buid
+
+3. Create conda environment `conda env create -f /home/ec2-user/software/VariantCalling/setup/environment.yml`
 (the path should be the right path in the computer).
-3. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
-4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
-`aws s3 sync --exclude '*' --include "Homo_sapiens_assembly38*" s3://broad-references/hg38/v0/ /data/genomes/broad-references/hg38/v0/`
+4. Activate environment `conda activate genomics.py3` (or `source activate genomics.py3`)
 
-5. Copy helper files for variant calling
+5. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
+
+`gsutil -m rsync -x "$(gsutil ls gs://genomics-public-data/references/hg38/v0/ | awk -F '/' '{print $7 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://genomics-public-data/references/hg38/v0/ /data/genomes/`
+
+6. Copy helper files for variant calling
 `aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/ /data/genomes/broad-references/hg38/concordance/`
 
-6. Copy additional files to the location of the genome: 
+7. Copy additional files to the location of the genome: 
 
 `aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.dict 
  /data/genomes/broad-references/hg38/v0/`
@@ -28,11 +32,11 @@
 `aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.sizes 
 /data/genomes/broad-references/hg38/v0/`
 
-7. Download the latest gatk JAR, currently `gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar`
+8. Download the latest gatk JAR, currently `gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar`
 
 `aws s3 cp s3://ultimagen-ilya-new/VariantCalling/jar/gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar $HOME/software/gatk/`
 
-8 Compile and install the recalibration code from `recalibration` repo. Assume into `$HOME/software/recalibration`
+9. Compile and install the recalibration code from `recalibration` repo. Assume into `$HOME/software/recalibration`
 ### Configuration file
 * Create a file with list of chromosomes to run concordance on. For example
 ```
