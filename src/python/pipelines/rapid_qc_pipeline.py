@@ -65,30 +65,30 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
                                       extras=[params.em_vc_genome, ev_set[1]], name=f"coverage.{ev_set[0]}").follows(index_bam))
 
         coverage_intervals_table = pd.read_csv(
-            params.coverage_intervals_table, sep="\t", index=None)
+            params.rqc_coverage_intervals_table, sep="\t", index_col=None)
         coverage_intervals_files = list(coverage_intervals_table['file'])
         coverage_intervals_category_name = list(
             coverage_intervals_table['category'])
-        coverage_categories = vc_pipeline.product(vc_pipeline.coverage_stats,
+        coverage_categories = vc_pipeline.product(vc_pipeline_utils.coverage_stats,
                                                   sorted_bam, ruffus.formatter(
                                                       "sort.bam"),
                                                   coverage_intervals_files, ruffus.formatter(
                                                       "interval_list"),
                                                   [pjoin(params.em_vc_output_dir,
-                                                         "{basename[0]}.{basename[1]}.metrics"),
+                                                         "{basename[0][0]}.{basename[1][0]}.metrics"),
                                                       pjoin(params.em_vc_output_dir,
-                                                            "logs", "{basename[0]}.{basename[1]}.coverage.log")],
+                                                            "logs", "{basename[0][0]}.{basename[1][0]}.coverage.log")],
                                                   extras=[
-                                                      params.em_vc_genome, ''],
+                                                      params.em_vc_genome, None],
                                                   name="multiple_stats")
 
-        # combine_coverage_categories = vc_pipeline.merge(
-        #     vc_pipeline_utils.combine_metrics,
-        #     coverage_categories,
-        #     ruffus.suffix("metrics"),
-        #     pjoin(params.em_vc_output_dir,
-        #           basename(params.em_vc_demux_file) + "cov.metrics.h5"),
-        #     extras=[coverage_intervals_table])
+        combine_coverage_categories = vc_pipeline.merge(
+            vc_pipeline_utils.combine_metrics,
+            coverage_categories,
+            ruffus.suffix("metrics"),
+            pjoin(params.em_vc_output_dir,
+                  basename(params.em_vc_demux_file) + "cov.metrics.h5"),
+            extras=[coverage_intervals_table])
 
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus,
                         logger=logger, verbose=6)
@@ -104,9 +104,11 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
             mark_duplicates_metrics_file)
 
         total_reads_file = count_reads._get_output_files(True, [])
+        print(total_reads_file)
         total_reads_file = vc_pipeline_utils.flatten(total_reads_file)
-        total_reads_file = [x for x in total_reads_file if x.endswith("read_count.txt")][
-            0]
+        total_reads_file = [x for x in total_reads_file if x.endswith("read_count.txt")][0]
+        print(total_reads_file)
+        
         total_n_reads = [int(x)
                          for x in open(total_reads_file) if x.strip()][0]
 
