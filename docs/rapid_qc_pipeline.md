@@ -33,6 +33,11 @@ aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38
 aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38.exome.eval.interval_list /data/genomes/broad-references/hg38/v0/
 ```
 
+6. Copy intervals of different categories
+
+```
+aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/ /data/genomes/broad-references/hg38/v0/
+```
 
 ### Configuration file
 
@@ -49,9 +54,21 @@ rqc_chromosome=chr9 #or other chromosome as you see fit
 # The following parameters accept lists of intervals of arbitrary length
 rqc_evaluation_intervals_names=genome,exome
 rqc_evaluation_intervals=/data/genomes/broad-references/hg38/v0/chr9.hg38.eval.interval_list,/data/genomes/broad-references/hg38/v0/chr9.hg38.exome.eval.interval_list
+
+rqc_coverage_intervals_table=/data/genomes/broad-references/hg38/v0/coverage_intervals/coverage_chr9_rapidQC_intervals.tsv
+rqc_coverage_intervals_location=/data/genomes/broad-references/hg38/v0/coverage_intervals/ # will be prepended to file paths in rqc_coverage_intervals_table
 ```
 
 Optionally, this could be a section in a general config file with header. Note that for this pipeline one needs to use the _unsampled_ BAM. 
+
+### Coverage intervals definition
+
+Coverage intervals are defined in the file `rqc_coverage_intervals_table`. This is a tab separated file with the following columns: 
+
+* category (name of the category), 
+* file (path to the interval file **relative to `rqc_coverage_intervals_table),`**
+* order (order of the box on the graph), 
+* color_group (coloring of the box). 
 
 
 ### Run
