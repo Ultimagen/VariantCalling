@@ -68,9 +68,9 @@ def parse_params_file(params_file, pipeline_name):
             x.strip() for x in args.rqc_evaluation_intervals.split(',')]
         assert len(args.rqc_evaluation_intervals) == len(
             args.rqc_evaluation_intervals_names), 'Different length of names and evaluation intervals given'
-        if args.DataFileName is not None:
-            args.em_vc_output_dir = dirname(args.DataFileName)
-            args.em_vc_basename = basename(args.DataFileName)
+    if args.DataFileName is not None:
+        args.em_vc_output_dir = dirname(args.DataFileName)
+        args.em_vc_basename = basename(args.DataFileName)
     else:
         args.em_vc_basename = basename(args.em_vc_demux_file)
     return args
