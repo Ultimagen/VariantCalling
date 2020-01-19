@@ -36,7 +36,7 @@ aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/chr9.hg38
 6. Copy intervals of different categories
 
 ```
-aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/ /data/genomes/broad-references/hg38/v0/
+aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/ /data/genomes/broad-references/hg38/v0/coverage_intervals/
 ```
 
 ### Configuration file
