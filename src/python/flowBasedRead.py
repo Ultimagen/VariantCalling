@@ -17,7 +17,6 @@ import pandas as pd
 
 
 DEFAULT_ERROR_MODEL_FN = "/home/ilya/proj/VariantCalling/work/190628/error_model.r2d.hd5"
-#DEFAULT_ERROR_MODEL = pd.read_hdf(DEFAULT_ERROR_MODEL_FN, "error_model")
 
 
 def get_bam_header(rgid: Optional[str] = None):
@@ -35,8 +34,8 @@ def get_bam_header(rgid: Optional[str] = None):
 class FlowBasedRead:
     '''Class that helps working with flow based reads
 
-    This is the class that allows for comparison between 
-    reads in flow base, applying error model, outputting uBAM etc.  
+    This is the class that allows for comparison between
+    reads in flow base, applying error model, outputting uBAM etc.
 
     Attributes
     ----------
@@ -56,7 +55,7 @@ class FlowBasedRead:
         Regressed signal array **binned relative to the error model**
     Methods
     -------
-    apply_cigar: 
+    apply_cigar:
         Returns a new read with cigar applied (takes care of hard clipping and soft clipping)
     '''
 
@@ -84,8 +83,8 @@ class FlowBasedRead:
     def from_tuple(cls, read_name: str, read: str, error_model: error_model.ErrorModel = None,
                    flow_order: str=simulator.DEFAULT_FLOW_ORDER,
                    motif_size: int=5, max_hmer_size: int=9, ):
-        '''Constructor from FASTA record and error model. Sets `seq`, `r_seq`, `key`, 
-        `rkey`, `flow_order`, `r_flow_order` attributes. 
+        '''Constructor from FASTA record and error model. Sets `seq`, `r_seq`, `key`,
+        `rkey`, `flow_order`, `r_flow_order` attributes.
 
         Parameters
         ----------
@@ -96,7 +95,7 @@ class FlowBasedRead:
         flow_order: np.ndarray
             Array of chars - base for each flow
         error_model: pd.DataFrame
-            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif. 
+            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif.
             Error model could be None, in this case it will be assumed that there are no errors
         motif_size: int
             Size of the motif
@@ -118,8 +117,8 @@ class FlowBasedRead:
     def from_sam_record(cls, sam_record: pysam.AlignedSegment,
                         error_model: Optional[error_model.ErrorModel] = None,
                         flow_order: str=simulator.DEFAULT_FLOW_ORDER,
-                        motif_size: int=5, max_hmer_size: int=9, format: str='ilya'):
-        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`, 
+                        motif_size: int=5, max_hmer_size: int=9, filler=0.0001, format: str='ilya'):
+        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`,
         `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
 
         Parameters
@@ -141,7 +140,7 @@ class FlowBasedRead:
             Can be 'matt' or 'ilya'
         Returns
         -------
-        Object 
+        Object
         '''
         dct = {}
         dct['record'] = sam_record
@@ -185,7 +184,7 @@ class FlowBasedRead:
             col = np.concatenate((col, np.arange(len(dct['key'])).astype(col.dtype)))
             vals = np.concatenate((vals, np.zeros(len(dct['key']), dtype=np.float)))
             shape = (max_hmer_size + 1, len(dct['key']))
-            flow_matrix = cls._matrix_from_sparse(row, col, vals, shape)
+            flow_matrix = cls._matrix_from_sparse(row, col, vals, shape, filler)
             dct['_flow_matrix'] = flow_matrix
 
         dct['cigar'] = sam_record.cigartuples
@@ -199,7 +198,7 @@ class FlowBasedRead:
                              error_model: Optional[error_model.ErrorModel] = None,
                              flow_order: str=simulator.DEFAULT_FLOW_ORDER,
                              motif_size: int=5, max_hmer_size: int=9):
-        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`, 
+        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`,
         `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
 
         Parameters
@@ -222,7 +221,7 @@ class FlowBasedRead:
 
         Returns
         -------
-        Object 
+        Object
         '''
         dct = vars(cls.from_sam_record(sam_record, error_model, flow_order, motif_size, max_hmer_size))
 
@@ -233,7 +232,7 @@ class FlowBasedRead:
     def from_sam_record_flow_matrix(cls, sam_record: pysam.AlignedSegment, flow_matrix=np.ndarray,
                                     flow_order: str=simulator.DEFAULT_FLOW_ORDER,
                                     motif_size: int=5, max_hmer_size: int=9):
-        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`, 
+        '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`,
         `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
 
         Parameters
@@ -256,7 +255,7 @@ class FlowBasedRead:
 
         Returns
         -------
-        Object 
+        Object
         '''
         dct = vars(cls.from_sam_record(sam_record, None, flow_order, motif_size, max_hmer_size))
 
@@ -281,16 +280,16 @@ class FlowBasedRead:
         return self._validate
 
     def read2FlowMatrix(self, regressed_signal_only: bool=False) -> tuple:
-        '''Gets the hmerxflow probability matrix 
+        '''Gets the hmerxflow probability matrix
         matrix[i,j] = P(read_hmer==read_hmer[j] | data_hmer[j]==i)
 
         Paramters
         ---------
-        regressed_signal_only: bool 
+        regressed_signal_only: bool
             Use only regressed_signal without motifs
-        Returns 
+        Returns
         -------
-        np.ndarray 
+        np.ndarray
             Flow matrix of (max_hmer_size+1) x n_flow
 
         '''
@@ -381,7 +380,6 @@ class FlowBasedRead:
         a1 = np.concatenate(diffs).astype(np.int)
         p1 = np.tile(pos, tmp.shape[1])
         v1 = tmp.T.ravel()
-        #print(a1[:10], p1[:10], v1[:10])
         take = (a1 >= 0) & (a1 <= self._max_hmer)
 
         flow_matrix[a1[take], p1[take]] = v1[take]
@@ -389,10 +387,10 @@ class FlowBasedRead:
         return flow_matrix
 
     def _fix_nan(self, flow_matrix: np.ndarray) -> np.ndarray:
-        ''' Fixes cases when there is nan in the flow matrix. 
-        This is an ugly hack - we assume that nan come from cases when 
-        there is not enough data - currently we will them by 0.9 for P(R=i|H=i) and 
-        by 0.1 P(r=i+-1|H=i). The only exception is P(R=i|H=0) these missing data tend to 
+        ''' Fixes cases when there is nan in the flow matrix.
+        This is an ugly hack - we assume that nan come from cases when
+        there is not enough data - currently we will them by 0.9 for P(R=i|H=i) and
+        by 0.1 P(r=i+-1|H=i). The only exception is P(R=i|H=0) these missing data tend to
         come from the fact that such an insertion would require cycle skip that we do not allow
 
         Parameters
@@ -402,7 +400,7 @@ class FlowBasedRead:
 
         Returns
         -------
-        np.ndarray 
+        np.ndarray
             Corrected matrix
         '''
         gtr = self.key
@@ -489,8 +487,8 @@ class FlowBasedRead:
         return row[~suppress], column[~suppress], normalized_values[~suppress]
 
     @classmethod
-    def _matrix_from_sparse(self, row, column, values, shape):
-        flow_matrix = np.zeros(shape)
+    def _matrix_from_sparse(self, row, column, values, shape, filler):
+        flow_matrix = np.ones(shape) * filler
         kd = np.array(values, dtype=np.float)
         kd = -kd
         kd = kd / 10
@@ -498,7 +496,8 @@ class FlowBasedRead:
         flow_matrix[row, column] = kd
         return flow_matrix
 
-    def to_record(self, hdr: Optional[pysam.AlignmentHeader]=None, probability_threshold: float=0) -> pysam.AlignedSegment:
+    def to_record(self, hdr: Optional[pysam.AlignmentHeader]=None, probability_threshold: float=0) \
+            -> pysam.AlignedSegment:
         '''Converts flowBasedRead into BAM record
 
         Parameters
@@ -506,7 +505,7 @@ class FlowBasedRead:
         hdr: pysam.AlignmentHeader
             Optional header
         probability_threshold : float
-            Optional - do not report variants with probability ratio to the best variant 
+            Optional - do not report variants with probability ratio to the best variant
             less than probability_threshold (default: 0)
         Returns
         -------
@@ -639,7 +638,8 @@ class FlowBasedRead:
                 clip_right += 1
 
         other.key = other.key[clip_left:original_length - clip_right]
-        other._regressed_signal = other._regressed_signal[clip_left:original_length - clip_right]
+        if hasattr(other, "_regressed_signal"):
+            other._regressed_signal = other._regressed_signal[clip_left:original_length - clip_right]
         other.flow2base = other.flow2base[clip_left:original_length - clip_right]
         other.flow_order = other.flow_order[
             clip_left:original_length - clip_right]
@@ -825,7 +825,7 @@ def _parse_sample(sample_block: str, haplotypes: pd.Series) -> pd.DataFrame:
     pd.DataFrame
     '''
     reads_start = sample_block.index(">>> Reads")
-    reads_end = sample_block.index(">>> Matrix")
+    reads_end = sample_block.index(">>> Normalized Matrix")
     reads = [x for x in sample_block[reads_start:reads_end].split("\n") if x and not x.startswith('>')]
     read_names = [x.strip().split()[1] for x in reads]
     matrix = [x for x in sample_block[reads_end:].split("\n") if x and not x.startswith(">")]
