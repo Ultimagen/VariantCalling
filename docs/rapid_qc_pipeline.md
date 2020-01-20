@@ -25,7 +25,7 @@ or
 
 4. Copy Broad references bucket locally (e.g. to `/data/genomes/`)
 
-`gsutil -m rsync -x "$(gsutil ls gs://gcp-public-data--broad-references/hg38/v0/ | awk -F '/' '{print $7 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://gcp-public-data--broad-references/hg38/v0/ /data/genomes/broad-references/hg38/v0/`
+`gsutil -m rsync -x "$(gsutil ls gs://gcp-public-data--broad-references/hg38/v0/ | awk -F '/' '{print $6 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://gcp-public-data--broad-references/hg38/v0/ /data/genomes/broad-references/hg38/v0/`
 
 5. Copy evaluation intervals
 ```
