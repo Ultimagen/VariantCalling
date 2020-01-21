@@ -25,6 +25,7 @@ def parse_params_file(params_file, pipeline_name):
     ap.add('--em_vc_number_of_cpus', required=False, help='Number of CPUs on the machine',
            type=int,
            default=12)
+    ap.add('--em_vc_rerun_all', default=False, action='store_true')
     if pipeline_name == 'error_metrics':
         ap.add('--em_vc_demux_file', help='Path to the demultiplexed bam')
         ap.add('--em_vc_number_to_sample', required=False, help='Number of records to downsample',
