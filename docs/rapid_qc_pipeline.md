@@ -84,3 +84,6 @@ Text output files will be named:
  - `.rmdup.metrics` - duplication metrics,
  - `.coverage.metrics` - coverage metrics,
  - `.cvg_metrics.h5` - contains summary dataframe (F80, etc, duplication rate etc) under key `cvg_metrics` and the coverage histograms for each set of evaluation intervals under `*_histogram`.
+
+### Testing 
+On the machine `ec2-3-208-150-254.compute-1.amazonaws.com` run ` python /home/ec2-user/proj/VariantCalling/src/python/pipelines/rapid_qc_pipeline.py -c rqc.config` in `/home/ec2-user/proj/VariantCalling/work/200112/`
