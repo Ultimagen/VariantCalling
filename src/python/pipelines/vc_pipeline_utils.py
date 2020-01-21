@@ -470,14 +470,13 @@ def collect_alnstats(idxstats_file, filter_metrics):
 def collect_metrics(input_file: str) -> pd.DataFrame:
     df = pd.read_csv(input_file, sep='\t', comment='#').T
     complete_df = df.copy()
-    df = df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE', 'PCT_CHIMERAS']]
+    df = df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE', 'PCT_CHIMERAS', 'MEAN_READ_LENGTH']]
     df.loc['PF_MISMATCH_RATE'] *= 100
     df.loc['PF_INDEL_RATE'] *= 100
     df = pd.DataFrame(df.astype(np.float))
     df = df.round(decimals=2)
-    df.index = ['mismatch rate', 'indel rate', 'chimera rate']
-    return (
-        df, complete_df)
+    df.index = ['mismatch rate', 'indel rate', 'chimera rate', 'mean read length']
+    return df, complete_df
 
 
 def generate_comparison_intervals(intervals_file: str, genome_file: str, output_dir: str) -> list:
