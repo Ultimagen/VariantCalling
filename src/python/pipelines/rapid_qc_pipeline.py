@@ -80,7 +80,7 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
             coverage_intervals_files = list(coverage_intervals_table['file'])
 
             memory = virtual_memory()
-            max_jobs = memory.total // 10
+            max_jobs = memory.total // 10e9
             coverage_categories = vc_pipeline.product(vc_pipeline_utils.coverage_stats,
                                                       sorted_bam, ruffus.formatter(
                                                           "sort.bam"),
