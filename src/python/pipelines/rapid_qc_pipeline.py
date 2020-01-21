@@ -97,7 +97,7 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
         if params.em_vc_rerun_all:
             ftrt += [md1, md2, aln]
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus,
-                        logger=logger, verbose=2, forced_to_run_tasks=ftrt)
+                        logger=logger, verbose=2, forcedtorun_tasks=ftrt)
 
         mark_duplicates_metrics_file = (
             mark_duplicates_bam._get_output_files(True, []))
