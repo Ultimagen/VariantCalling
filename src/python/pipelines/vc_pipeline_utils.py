@@ -6,13 +6,15 @@ from os.path import basename, dirname, abspath, splitext
 import os
 import re
 import sys
-dname = dirname(abspath(__file__))
-sys.path.append(pjoin(dname, '..'))
-import utils
 import pandas as pd
 import numpy as np
 import pysam
 
+dname = dirname(abspath(__file__))
+sys.path.append(pjoin(dname, '..'))
+
+import utils
+from psutil import virtual_memory
 
 def parse_params_file(params_file, pipeline_name):
     ap = configargparse.ArgParser()
