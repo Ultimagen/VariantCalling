@@ -6,6 +6,7 @@ import vc_pipeline_utils
 from os.path import join as pjoin
 from os import mkdir
 import pandas as pd
+from psutil import virtual_memory
 
 params = vc_pipeline_utils.parse_params_file(sys.argv[1], "rapidqc")
 logname = '.'.join((params.em_vc_basename, "rqc.log"))
@@ -63,9 +64,9 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
             coverage_stats_tasks.append(
                 vc_pipeline.transform(vc_pipeline_utils.coverage_stats,
                                       sorted_bam, ruffus.formatter("sort.bam"),
-                                    [pjoin(params.em_vc_output_dir, "{basename[0]}." + ev_set[0] + ".coverage.metrics"),
-                           pjoin(params.em_vc_output_dir, "logs", "{basename[0]}." + ev_set[0] + ".coverage.log")],
-                          extras=[params.em_vc_genome, ev_set[1]], name=f"coverage.{ev_set[0]}").follows(index_bam))
+                                      [pjoin(params.em_vc_output_dir, "{basename[0]}." + ev_set[0] + ".coverage.metrics"),
+                                       pjoin(params.em_vc_output_dir, "logs", "{basename[0]}." + ev_set[0] + ".coverage.log")],
+                                      extras=[params.em_vc_genome, ev_set[1]], name=f"coverage.{ev_set[0]}").follows(index_bam))
 
         output_hdf_file = pjoin(params.em_vc_output_dir, '.'.join(
             (params.em_vc_basename, "cvg_metrics", "h5")))
@@ -77,6 +78,9 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
                 coverage_intervals_table['file'].apply(
                     lambda x: pjoin(params.rqc_coverage_intervals_location, x))
             coverage_intervals_files = list(coverage_intervals_table['file'])
+
+            memory = virtual_memory()
+            max_jobs = memory.total // 10
             coverage_categories = vc_pipeline.product(vc_pipeline_utils.coverage_stats,
                                                       sorted_bam, ruffus.formatter(
                                                           "sort.bam"),
@@ -88,7 +92,8 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
                                                              "logs", "{basename[0][0]}.{basename[1][0]}.coverage.log")],
                                                       extras=[
                                                           params.em_vc_genome, None],
-                                                      name="multiple_stats").follows(index_bam)
+                                                      name="multiple_stats")\
+                .follows(index_bam).jobs_limit(max_jobs, "coverages")
 
             combine_coverage_categories = vc_pipeline.merge(vc_pipeline_utils.combine_coverage_metrics,
                                                             coverage_categories, output_hdf_file,
