@@ -49,6 +49,7 @@ rqc_demux_file=/home/ubuntu/proj/VariantCallig/work/191015/420159_1p.demux.bam
 em_vc_genome=/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta
 em_vc_output_dir=/home/ubuntu/proj/VariantCalling/work/191015/em
 em_vc_number_of_cpus=40
+em_vc_rerun_all # This flag forces the pipeline to re-run all steps, if failed in the middle. 
 rqc_chromosome=chr9 #or other chromosome as you see fit
 
 # The following parameters accept lists of intervals of arbitrary length
