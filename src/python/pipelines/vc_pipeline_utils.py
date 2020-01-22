@@ -14,7 +14,6 @@ dname = dirname(abspath(__file__))
 sys.path.append(pjoin(dname, '..'))
 
 import utils
-from psutil import virtual_memory
 
 def parse_params_file(params_file, pipeline_name):
     ap = configargparse.ArgParser()
@@ -546,7 +545,6 @@ def combine_coverage_metrics( input_files: list, output_file: str, coverage_inte
     all_stats, all_histogram = parse_cvg_metrics( total_file )
     all_stats = all_stats.T.loc[['MEAN_COVERAGE', 'MEDIAN_COVERAGE', 'PCT_20X']]
     all_median_coverage = float(all_stats.loc['MEDIAN_COVERAGE',0])
-    print(all_median_coverage)
     class_counts = [] 
     genome_dfs = []
     for fn in input_files: 
