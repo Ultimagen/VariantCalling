@@ -15,6 +15,7 @@ sys.path.append(pjoin(dname, '..'))
 
 import utils
 
+
 def parse_params_file(params_file, pipeline_name):
     ap = configargparse.ArgParser()
     ap.add('-c', required=True, is_config_file=True, help='config file path')
@@ -37,13 +38,17 @@ def parse_params_file(params_file, pipeline_name):
         ap.add('--rqc_demux_file', help='Path to the demultiplexed bam')
         ap.add('--rqc_chromosome', help='Single chromosome to filter for', required=True,
                type=str)
-        ap.add('--rqc_evaluation_intervals_names', required=False, help='Comma separated list of evaluation interval names',
+        ap.add('--rqc_evaluation_intervals_names', required=False,
+               help='Comma separated list of evaluation interval names',
                type=str)
-        ap.add('--rqc_evaluation_intervals', required=False, help='Comma separated list of evaluation interval file names',
+        ap.add('--rqc_evaluation_intervals', required=False,
+               help='Comma separated list of evaluation interval file names',
                type=str)
-        ap.add('--rqc_coverage_intervals_table', required=False, help='File with TSV coverage evaluation intervals',
+        ap.add('--rqc_coverage_intervals_table', required=False,
+               help='File with TSV coverage evaluation intervals',
                type=str)
-        ap.add('--rqc_coverage_intervals_location', required=True, help='Path to coverage interval locations (prepended to interval_names in intervals_table',
+        ap.add('--rqc_coverage_intervals_location', required=True,
+               help='Path to coverage interval locations (prepended to interval_names in intervals_table',
                type=str, default='./')
 
     elif pipeline_name == 'variant_calling':
@@ -105,7 +110,7 @@ def head_file(input_file, output_file, number_to_sample, nthreads):
         task3 = subprocess.Popen(cmd3,
                                  stdin=(task2.stdout), stderr=output_err_handle)
         task2.stdout.close()
-        output = task3.communicate()
+        _ = task3.communicate()
     time.sleep(30)
     exception_string = ''
     flag = False
@@ -165,7 +170,7 @@ def align(input_file, output_file, genome_file, nthreads):
     task3 = subprocess.Popen(cmd3, stdin=(task2.stdout), stdout=output_err_handle,
                              stderr=output_err_handle)
     task2.stdout.close()
-    output = task3.communicate()
+    _ = task3.communicate()
     output_err_handle.close()
     exception_string = ''
     flag = False
@@ -535,28 +540,30 @@ def coverage_stats(input_files: list, output_files: list, genome_file: str, inte
         out.write(' '.join(cmd) + '\n')
         subprocess.check_call(cmd, stdout=out, stderr=out)
 
-def combine_coverage_metrics( input_files: list, output_file: str, coverage_interval_df: pd.DataFrame ) -> None:
-    input_files = [ x[0] for x in input_files ]
+
+def combine_coverage_metrics(input_files: list, output_file: str, coverage_interval_df: pd.DataFrame) -> None:
+    input_files = [x[0] for x in input_files]
     intervals = list(coverage_interval_df['file'])
     classes = list(coverage_interval_df.index)
     convert_dictionary = dict(zip(intervals, classes))
 
-    total_file = [ x for x in input_files if splitext(basename(intervals[0]))[0] in x][0]
-    all_stats, all_histogram = parse_cvg_metrics( total_file )
+    total_file = [x for x in input_files if splitext(basename(intervals[0]))[0] in x][0]
+    all_stats, all_histogram = parse_cvg_metrics(total_file)
     all_stats = all_stats.T.loc[['MEAN_COVERAGE', 'MEDIAN_COVERAGE', 'PCT_20X']]
-    all_median_coverage = float(all_stats.loc['MEDIAN_COVERAGE',0])
-    class_counts = [] 
+    all_median_coverage = float(all_stats.loc['MEDIAN_COVERAGE', 0])
+    class_counts = []
     genome_dfs = []
-    for fn in input_files: 
-        idx = [ x for x in intervals if splitext(basename(x))[0] in fn ]
-        assert len(idx)<=1, "Non-unique possible source"
+    for fn in input_files:
+        idx = [x for x in intervals if splitext(basename(x))[0] in fn]
+        assert len(idx) <= 1, "Non-unique possible source"
         idx = idx[0]
 
         stats, histogram = parse_cvg_metrics(fn)
-        class_counts.append( (convert_dictionary[idx], histogram['high_quality_coverage_count'].sum() ))
+        class_counts.append((convert_dictionary[idx], histogram['high_quality_coverage_count'].sum()))
 
-        ps = np.array(histogram['high_quality_coverage_count'].astype(np.float)/histogram['high_quality_coverage_count'].sum())
-        distro = np.random.choice(np.array(histogram['coverage'])/all_median_coverage, p=ps, size=(1,1000000))    
+        ps = np.array(histogram['high_quality_coverage_count'].astype(
+            np.float) / histogram['high_quality_coverage_count'].sum())
+        distro = np.random.choice(np.array(histogram['coverage']) / all_median_coverage, p=ps, size=(1, 1000000))
         s = pd.Series(distro[0], name='cvg')
         df = pd.DataFrame(s)
         df['class'] = convert_dictionary[idx]
@@ -564,11 +571,12 @@ def combine_coverage_metrics( input_files: list, output_file: str, coverage_inte
     genome_df = pd.concat(genome_dfs)
     class_count = pd.Series(dict(class_counts), name="counts")
     class_count = pd.DataFrame(class_count).reset_index()
-    class_count.columns = ['category','counts']
-    class_count.set_index('category',inplace=True)
-    class_count = pd.concat((coverage_interval_df, class_count),axis=1)
+    class_count.columns = ['category', 'counts']
+    class_count.set_index('category', inplace=True)
+    class_count = pd.concat((coverage_interval_df, class_count), axis=1)
     genome_df.to_hdf(output_file, key="coverage_histograms")
     class_count.to_hdf(output_file, key="counts")
+
 
 def parse_md_file(md_file):
     """Parses mark duplicate Picard output"""
@@ -596,6 +604,7 @@ def parse_cvg_metrics(metric_file):
 
         res2 = pd.read_csv(infile, sep='\t')
     return res1, res2
+
 
 def generate_rqc_output(dup_ratio: float, metrics: pd.DataFrame, histogram: pd.DataFrame, total_reads: int) -> tuple:
     parameters = metrics.T.loc[['MEAN_COVERAGE', 'MEDIAN_COVERAGE', 'PCT_20X']]
