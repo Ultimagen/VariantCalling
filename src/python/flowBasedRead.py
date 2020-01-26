@@ -825,7 +825,7 @@ def _parse_sample(sample_block: str, haplotypes: pd.Series) -> pd.DataFrame:
     pd.DataFrame
     '''
     reads_start = sample_block.index(">>> Reads")
-    reads_end = sample_block.index(">>> Normalized Matrix")
+    reads_end = sample_block.index(">>> Matrix")
     reads = [x for x in sample_block[reads_start:reads_end].split("\n") if x and not x.startswith('>')]
     read_names = [x.strip().split()[1] for x in reads]
     matrix = [x for x in sample_block[reads_end:].split("\n") if x and not x.startswith(">")]
