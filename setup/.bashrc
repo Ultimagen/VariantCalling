@@ -887,7 +887,7 @@ OLDPATH=$PATH
 export PATH=$PATH:$OLDPATH
 source $HOME/software/smart-change-directory/shellrcfiles/bashrc_scd
 export MFA_DEVICE=arn:aws:iam::525048827230:mfa/ilya
-
+export AWS_PROFILE_NAME=ilya
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/home/ubuntu/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
