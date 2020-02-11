@@ -1,16 +1,19 @@
-from sklearn.ensemble import RandomForestClassifier  # type: ignore
-from sklearn.tree import DecisionTreeClassifier  # type: ignore
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor  # type: ignore
 from sklearn import preprocessing  # type: ignore
 from sklearn import metrics
+from sklearn import impute
+import sklearn_pandas
 import pandas as pd
 import numpy as np
 import tqdm
 from typing import Callable, Optional
 import python.utils as utils
 
+FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
+            'inside_hmer_run', 'close_to_hmer_run']
+
 
 class SingleModel:
-
     def __init__(self, threshold_dict, is_greater_then):
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
@@ -24,12 +27,15 @@ class SingleModel:
 
 
 class MaskedHierarchicalModel:
-    def __init__(self, _name: str, _group_column: str, _models_dict: dict):
+    def __init__(self, _name: str, _group_column: str, _models_dict: dict,
+                 transformer: Optional[sklearn_pandas.DataFrameMapper]=None):
         self.name = _name
         self.group_column = _group_column
         self.models = _models_dict
+        self.transformer = transformer
 
-    def predict(self, df: pd.DataFrame, mask_column: Optional[str]=None) -> pd.Series:
+    def predict(self, df: pd.DataFrame,
+                mask_column: Optional[str]=None) -> pd.Series:
         '''Makes prediction on the dataframe, optionally ignoring false-negative calls
 
         Parameters
@@ -54,8 +60,12 @@ class MaskedHierarchicalModel:
         gvecs = [df[self.group_column] == g for g in groups]
         result = pd.Series(['fn'] * df.shape[0], index=df.index)
         for i, g in enumerate(groups):
-            result[(~mask) & (gvecs[i])] = self.models[g].predict(
-                apply_df[apply_df[self.group_column] == g])
+            if self.transformer is not None:
+                result[(~mask) & (gvecs[i])] = self.models[g].predict(
+                    self.transformer.fit_transform(apply_df[apply_df[self.group_column] == g]))
+            else:
+                result[(~mask) & (gvecs[i])] = self.models[g].predict(
+                    apply_df[apply_df[self.group_column] == g])
 
         return result
 
@@ -65,7 +75,7 @@ def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify'
     sors = np.linspace(0, 20, 80)
     results = []
     pairs = []
-    selection_functions = get_training_selection_functions
+    selection_functions = get_training_selection_functions()
     concordance = add_grouping_column(concordance, selection_functions, "group")
     for q in tqdm.tqdm_notebook(quals):
         for s in sors:
@@ -155,36 +165,26 @@ def calculate_threshold_model(results):
     return result, recalls_precisions
 
 
-FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run']
-
-
-def feature_prepare(df: pd.DataFrame):
+def feature_prepare() -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
     Parameters
     ----------
-    df: pd.DataFrame
-        Input dataframe, only features
-    feature:vec: list
-        List of features
+    None
+
     '''
-
-    encode = preprocessing.LabelEncoder()
-    if 'hmer_indel_nuc' in df.columns:
-        df.loc[(df['hmer_indel_nuc']).isnull(), 'hmer_indel_nuc'] = 'N'
-        df.loc[:, 'hmer_indel_nuc'] = encode.fit_transform(
-            np.array(df.loc[:, 'hmer_indel_nuc']))
-    if 'qd' in df.columns:
-        df.loc[df['qd'].isnull(), 'qd'] = 0
-    if 'sor' in df.columns:
-        df.loc[df['sor'].isnull(), 'sor'] = 0
-    if 'dp' in df.columns:
-        df.loc[df['dp'].isnull(), 'dp'] = 0
-    return df
+    default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
+    transform_list = [(['sor'], default_filler),
+                      (['dp'], default_filler),
+                      ('qual', None),
+                      ('inside_hmer_run', None),
+                      ('close_to_hmer_run', None),
+                      ('hmer_indel_nuc', preprocessing.LabelEncoder())]
+    transformer = sklearn_pandas.DataFrameMapper(transform_list)
+    return transformer
 
 
-def precision_recall_of_set(input_set: pd.DataFrame, gtr_column: str, model: RandomForestClassifier) -> tuple:
+def precision_recall_of_set(input_set: pd.DataFrame, gtr_column: str, model: DecisionTreeClassifier) -> tuple:
     '''Precision recall calculation on a subset of data
 
     Parameters
@@ -192,15 +192,15 @@ def precision_recall_of_set(input_set: pd.DataFrame, gtr_column: str, model: Ran
     input_set: pd.DataFrame
     gtr_column: str
         Name of the column to calculate precision-recall on
-    model: RandomForestClassifier
+    model: DecisionTreeClassifier
         Trained model
     '''
 
-    features = feature_prepare(input_set[FEATURES])
+    features = feature_prepare().fit_transform(input_set)
     gtr_values = input_set[gtr_column]
     fns = np.array(gtr_values == 'fn')
-    if features[~fns].shape[0] > 0:
-        predictions = model.predict(features[~fns])
+    if features[~fns, :].shape[0] > 0:
+        predictions = model.predict(features[~fns, :])
     else:
         predictions = np.array([])
     predictions = np.concatenate((predictions, ['fp'] * fns.sum()))
@@ -212,7 +212,7 @@ def precision_recall_of_set(input_set: pd.DataFrame, gtr_column: str, model: Ran
     return (precision, recall, predictions, gtr_values)
 
 
-def calculate_predictions_gtr(concordance: pd.DataFrame, model: RandomForestClassifier,
+def calculate_predictions_gtr(concordance: pd.DataFrame, model: DecisionTreeClassifier,
                               test_train_split: pd.Series, selection: Callable, gtr_column: str) -> tuple:
     '''Returns predictions for a model
 
@@ -220,19 +220,19 @@ def calculate_predictions_gtr(concordance: pd.DataFrame, model: RandomForestClas
     ----------
     concordance: pd.DataFrame
         Concordance dataframe
-    model: RandomForestClassifier
+    model: DecisionTreeClassifier
         Trained classifier
     test_train_split: pd.Series
         Split between the training and the testing set (boolean, 1 is train)
     selection: pd.Series
         Boolean series that mark specific selected rows in the concordance datafraeme
     gtr_column: str
-        Name of the column 
+        Name of the column
 
     Returns
     -------
     tuple
-        train predictions, train gtr, test predictions, test gtr    
+        train predictions, train gtr, test predictions, test gtr
     '''
 
     test_set = concordance[selection(concordance) & (~test_train_split)]
@@ -245,7 +245,7 @@ def calculate_predictions_gtr(concordance: pd.DataFrame, model: RandomForestClas
     return test_set_predictions_gtr + train_set_predictions_gtr
 
 
-def calculate_precision_recall(concordance: pd.DataFrame, model: RandomForestClassifier,
+def calculate_precision_recall(concordance: pd.DataFrame, model: DecisionTreeClassifier,
                                test_train_split: pd.Series, selection: Callable, gtr_column: str) -> pd.Series:
     '''Calculates precision and recall on a model trained on a subset of data
 
@@ -253,7 +253,7 @@ def calculate_precision_recall(concordance: pd.DataFrame, model: RandomForestCla
     ----------
     concordance: pd.DataFrame
         Concordance dataframe
-    model: RandomForestClassifier
+    model: DecisionTreeClassifier
         Trained classifier
     test_train_split: pd.Series
         Split between the training and the testing set (boolean, 1 is train)
@@ -301,7 +301,8 @@ def calculate_precision_recall(concordance: pd.DataFrame, model: RandomForestCla
 
 
 def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
-                selection: pd.Series, gtr_column: str) -> RandomForestClassifier:
+                selection: pd.Series, gtr_column: str,
+                transformer: sklearn_pandas.DataFrameMapper) -> RandomForestClassifier:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -314,7 +315,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         Boolean series that points to data selected for the model
     gtr_column: str
         Column with labeling
-
+    transformer: sklearn_pandas.DataFrameMapper
+        transformer from df -> matrix
     Returns
     -------
     RandomForestClassifier
@@ -323,23 +325,13 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     fns = np.array(concordance[gtr_column] == 'fn')
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
-    train_data = feature_prepare(train_data)
+    train_data = transformer.transform(train_data)
+
     model = DecisionTreeClassifier(max_depth=7)
     model.fit(train_data, labels)
+
+    model1 = DecisionTreeRegressor
     return model
-
-
-def train_models(concordance: pd.DataFrame, gtr_column: str,
-                 selection_functions=[lambda x: np.ones(x.shape[0], dtype=np.bool)]) -> tuple:
-    test_train_split = np.random.uniform(0, 1, size=concordance.shape[0]) > 0.8
-    models = []
-    for sf in selection_functions:
-        selection = sf(concordance)
-        model = train_model(concordance, test_train_split,
-                            selection, gtr_column)
-        models.append(model)
-
-    return test_train_split, models
 
 
 def get_training_selection_functions():
@@ -347,15 +339,16 @@ def get_training_selection_functions():
     '''
     sfs = []
     names = []
-    sfs.append(lambda x: ~x.indel)
+    sfs.append(lambda x: (~x.indel))
     names.append("snp")
-    sfs.append(lambda x: x.indel & (x.hmer_indel_length == 0))
+    sfs.append(lambda x: (x.indel & (x.hmer_indel_length == 0)))
     names.append("non-h-indel")
-    sfs.append(lambda x: x.indel & (x.hmer_indel_length > 0))
-    names.apped("h-indel")
+    sfs.append(lambda x: (x.indel & (x.hmer_indel_length > 0)))
+    names.append("h-indel")
     return dict(zip(names, sfs))
 
-def add_grouping_column(df, pd.DataFrame, selection_functions: dict, column_name: str) -> pd.DataFrame:
+
+def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name: str) -> pd.DataFrame:
     '''Add a column for grouping according to the values of selection functions
 
     Parameters
@@ -375,34 +368,205 @@ def add_grouping_column(df, pd.DataFrame, selection_functions: dict, column_name
     '''
     df[column_name] = None
     for k in selection_functions:
-        df[selection_functions[k](df)] = k
+        df.loc[selection_functions[k](df), column_name] = k
     return df
 
 
-def get_testing_selection_functions():
+def get_testing_selection_functions() -> dict:
     sfs = []
-    sfs.append((lambda x: ~x.indel, 'SNP'))
-    sfs.append((lambda x: x.indel, "INDEL"))
-    sfs.append((lambda x: x.indel & (x.hmer_indel_length == 0), "Non-hmer INDEL"))
-    sfs.append((lambda x: x.indel & (x.hmer_indel_length > 0) &
-                (x.hmer_indel_length < 5), "HMER indel < 4"))
-    sfs.append((lambda x: x.indel & (x.hmer_indel_length >= 5) &
-                (x.hmer_indel_length < 12), "HMER indel > 4, < 12"))
-    sfs.append((lambda x: x.indel & (
-        x.hmer_indel_length >= 12), "HMER indel > 12"))
-    return sfs
+    sfs.append(('SNP', lambda x: ~x.indel))
+    sfs.append(("INDEL", lambda x: x.indel))
+    sfs.append(("Non-hmer INDEL", lambda x: x.indel & (x.hmer_indel_length == 0)))
+    sfs.append(("HMER indel < 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
+                                                       (x.hmer_indel_length < 5))))
+    sfs.append(("HMER indel > 4, < 12", lambda x: x.indel & (x.hmer_indel_length >= 5) &
+                (x.hmer_indel_length < 12)))
+    sfs.append(("HMER indel > 12", lambda x: x.indel & (x.hmer_indel_length >= 12)))
+    return dict(sfs)
 
-def calculate_decision_tree_model(concordance: pd.DataFrame) -> MaskedHierarchicalModel:
+
+def add_testing_train_split_column(concordance: pd.DataFrame,
+                                   training_groups_column: str, test_train_split_column: str,
+                                   gtr_column: str,
+                                   min_test_set: int = 2000, max_train_set: int = 200000,
+                                   test_set_fraction: float = .2) -> pd.DataFrame:
+    '''Adds a column that divides each training group into a train/test set. Supports
+    requirements for the minimal testing set size, maximal training test size and the fraction of test
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Input data frame
+    testing_groups_column: str
+        Name of the grouping column
+    test_train_split_column: str
+        Name of the splitting column
+    gtr_column: str
+        Name of the column that contains ground truth (will exclude fns)
+    min_test_set: int
+        Default - 2000
+    max_train_set: int
+        Default - 200000
+    test_set_fraction: float
+        Default - 0.2
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with 0/1 in test_train_split_column, with 1 for train
+    '''
+    groups = set(concordance[training_groups_column])
+
+    test_train_split_vector = np.zeros(concordance.shape[0], dtype=np.bool)
+    for g in groups:
+        group_vector = (concordance[training_groups_column] == g) & (concordance[gtr_column] != 'fn')
+        locations = group_vector.to_numpy().nonzero()[0]
+        assert(group_vector.sum() > min_test_set), "Group size too small for training"
+        train_set_size = int(min(group_vector.sum() - min_test_set,
+                                 max_train_set,
+                                 group_vector.sum() * (1 - test_set_fraction)))
+        test_set_size = group_vector.sum() - train_set_size
+        assert(test_set_size > min_test_set), \
+            f"Test set size too small -> test:{test_set_size}, train:{train_set_size}"
+        assert(train_set_size < max_train_set), \
+            f"Train set size too big -> test:{test_set_size}, train:{train_set_size}"
+        assert(train_set_size / (group_vector.sum()) > test_set_fraction), \
+            f"Train set fraction too small -> test:{test_set_size}, train:{train_set_size}"
+        train_set = locations[np.random.choice(np.arange(group_vector.sum(), dtype=np.int),
+                                               train_set_size, replace=False)]
+        test_train_split_vector[train_set] = True
+
+    concordance[test_train_split_column] = test_train_split_vector
+    return concordance
+
+
+def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
     '''Train a decision tree model on the dataframe
 
     Parameters
     ----------
     concordance: pd.DataFrame
         Dataframe
+    classify_column: str
+        Ground truth labels
+    Returns
+    -------
+    (MaskedHierarchicalModel, pd.DataFrame
+        Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
+
+    '''
+
+    train_selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
+    transformer = feature_prepare()
+    transformer.fit(concordance)
+    groups = set(concordance["group"])
+    models = {}
+    for g in groups:
+        models[g] = train_model(concordance, concordance['test_train_split'],
+                                concordance['group'], classify_column, transformer)
+
+    return MaskedHierarchicalModel("Decision tree model", "group", models, transformer=transformer), concordance
+
+
+def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str) -> dict:
+    '''Calculate precision/recall for the decision tree classifier
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Input dataframe
+    model: MaskedHierarchicalModel
+        Model
+    classify_column: str
+        Ground truth labels
 
     Returns
     -------
-    MaskedHierarchicalModel
+    dict:
+        Tuple dictionary - recall/precision for each category
     '''
-    train_selection_functions = 
+    concordance = add_grouping_column(concordance, get_testing_selection_functions(), "group_testing")
+    predictions = model.predict(concordance, classify_column)
+    groups = set(concordance['group_testing'])
+    recalls_precisions = {}
+
+    for g in groups:
+        select = (concordance["group_testing"] == g) & \
+                 (concordance[classify_column] != 'fn') & \
+                 (~concordance["test_train_split"])
+        group_ground_truth = concordance.loc[select, classify_column]
+        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
+        group_predictions = predictions[select]
+        recall = metrics.recall_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        precision = metrics.precision_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        recalls_precisions[g] = (recall, precision)
+
+    return recalls_precisions
+
+def train_decision_tree_regressor(concordance: pd.DataFrame, classify_column: str) -> tuple:
+    '''Train a decision tree model on the dataframe
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Dataframe
+    classify_column: str
+        Ground truth labels
+    Returns
+    -------
+    (MaskedHierarchicalModel, pd.DataFrame
+        Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
+
+    '''
+
+    train_selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
+    transformer = feature_prepare()
+    transformer.fit(concordance)
+    groups = set(concordance["group"])
+    models = {}
+    for g in groups:
+        models[g] = train_regression_model(concordance, concordance['test_train_split'],
+                                concordance['group'], classify_column, transformer)
+
+    return MaskedHierarchicalModel("Decision tree model", "group", models, transformer=transformer), concordance
+
+
+def test_decision_tree_regressor(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str) -> dict:
+    '''Calculate precision/recall for the decision tree classifier
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Input dataframe
+    model: MaskedHierarchicalModel
+        Model
+    classify_column: str
+        Ground truth labels
+
+    Returns
+    -------
+    dict:
+        Tuple dictionary - recall/precision for each category
+    '''
+    concordance = add_grouping_column(concordance, get_testing_selection_functions(), "group_testing")
+    predictions = model.predict(concordance, classify_column)
+    groups = set(concordance['group_testing'])
+    recalls_precisions = {}
+
+    for g in groups:
+        select = (concordance["group_testing"] == g) & \
+                 (concordance[classify_column] != 'fn') & \
+                 (~concordance["test_train_split"])
+        group_ground_truth = concordance.loc[select, classify_column]
+        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
+        group_predictions = predictions[select]
+        recall = metrics.recall_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        precision = metrics.precision_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        recalls_precisions[g] = (recall, precision)
+
+    return recalls_precisions
 
