@@ -56,7 +56,6 @@ results_dict['threshold_model_include_gt_excl_hpol_runs'] = model_gt
 results_dict['threshold_model_recall_precision_include_gt_excl_hpol_runs'] = recall_precision
 results_dict['threshold_model_precision_recall_curve_include_gt_excl_hpol_runs'] = rsis
 
-
 models_dt_no_gt, models_reg_dt_no_gt, concordance = \
     variant_filtering_utils.train_decision_tree_model(concordance,
                                                       classify_column='classify')
