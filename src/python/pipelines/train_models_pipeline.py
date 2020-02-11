@@ -1,0 +1,55 @@
+import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
+import python.variant_filtering_utils as variant_filtering_utils
+import argparse
+import pandas as pd
+import pickle
+
+ap = argparse.ArgumentParser("Compare VCF to ground truth")
+grp = ap.add_mutually_exclusive_group(required=True)
+grp.add_argument("--input_file", help="Name of the input h5 file", type=str)
+grp.add_argument(
+    "--input_fofn", help="Input file containing list of the h5 file names to concatenate", type=str)
+ap.add_argument("--output_file", help="Output pkl file",
+                type=str, required=True)
+
+
+args = ap.parse_args()
+if 'input_file' in args:
+    concordance = pd.read_hdf(args.input_file, "concordance")
+else:
+    concordance = pd.concat([pd.read_hdf(x.strip(), "concordance")
+                             for x in open(args.input_fofn)])
+
+
+# do not exclude homopolymer runs
+results_no_gt = variant_filtering_utils.find_thresholds(concordance, classify_column='classify')
+results_gt = variant_filtering_utils.find_thresholds(concordance, classify_column='classify_gt')
+model_no_gt, recall_precision_no_gt = variant_filtering_utils.calculate_threshold_model(results_no_gt)
+rsis_no_gt = variant_filtering_utils.get_all_rsis(results_no_gt)
+model_gt, recall_precision = variant_filtering_utils.calculate_threshold_model(results_gt)
+rsis = variant_filtering_utils.get_all_rsis(results_gt)
+
+results_dict = {}
+results_dict['threshold_model_ignore_gt_incl_hpol_runs'] = model_no_gt
+results_dict['recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
+results_dict['threshold_model_precision_recall_curve_ignore_gt_incl_hpol_runs'] = rsis_no_gt
+results_dict['threshold_model_include_gt_incl_hpol_runs'] = model_gt
+results_dict['recall_precision_include_gt_incl_hpol_runs'] = recall_precision
+results_dict['threshold_model_precision_recall_curve_include_gt_incl_hpol_runs'] = rsis
+
+concordance_clean = concordance[(~concordance.close_to_hmer_run) & (~concordance.inside_hmer_run)]
+results_no_gt = variant_filtering_utils.find_thresholds(concordance_clean, classify_column='classify')
+results_gt = variant_filtering_utils.find_thresholds(concordance_clean, classify_column='classify_gt')
+model_no_gt, recall_precision_no_gt = variant_filtering_utils.calculate_threshold_model(results_no_gt)
+rsis_no_gt = variant_filtering_utils.get_all_precision_recalls(results_no_gt)
+model_gt, recall_precision = variant_filtering_utils.calculate_threshold_model(results_gt)
+rsis = variant_filtering_utils.get_all_precision_recalls(results_gt)
+
+results_dict['threshold_model_ignore_gt_excl_hpol_runs'] = model_no_gt
+results_dict['recall_precision_ignore_gt_excl_hpol_runs'] = recall_precision_no_gt
+results_dict['threshold_model_precision_recall_curve_ignore_gt_excl_hpol_runs'] = rsis_no_gt
+results_dict['threshold_model_include_gt_excl_hpol_runs'] = model_gt
+results_dict['recall_precision_include_gt_excl_hpol_runs'] = recall_precision
+results_dict['threshold_model_precision_recall_curve_include_gt_excl_hpol_runs'] = rsis
+
+pickle.dump(open(args.output_file, "wb"), results_dict)
