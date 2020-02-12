@@ -1,12 +1,12 @@
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor  # type: ignore
-from sklearn import preprocessing  # type: ignore
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn import preprocessing
 from sklearn import metrics
 from sklearn import impute
 import sklearn_pandas
 import pandas as pd
 import numpy as np
 import tqdm
-from typing import Callable, Optional
+from typing import Optional, Tuple
 import python.utils as utils
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
@@ -184,125 +184,9 @@ def feature_prepare() -> sklearn_pandas.DataFrameMapper:
     return transformer
 
 
-def precision_recall_of_set(input_set: pd.DataFrame, gtr_column: str, model: DecisionTreeClassifier) -> tuple:
-    '''Precision recall calculation on a subset of data
-
-    Parameters
-    ----------
-    input_set: pd.DataFrame
-    gtr_column: str
-        Name of the column to calculate precision-recall on
-    model: DecisionTreeClassifier
-        Trained model
-    '''
-
-    features = feature_prepare().fit_transform(input_set)
-    gtr_values = input_set[gtr_column]
-    fns = np.array(gtr_values == 'fn')
-    if features[~fns, :].shape[0] > 0:
-        predictions = model.predict(features[~fns, :])
-    else:
-        predictions = np.array([])
-    predictions = np.concatenate((predictions, ['fp'] * fns.sum()))
-    gtr_values = np.concatenate((gtr_values[~fns], ['tp'] * fns.sum()))
-
-    recall = metrics.recall_score(gtr_values, predictions, pos_label='tp')
-    precision = metrics.precision_score(
-        gtr_values, predictions, pos_label='tp')
-    return (precision, recall, predictions, gtr_values)
-
-
-def calculate_predictions_gtr(concordance: pd.DataFrame, model: DecisionTreeClassifier,
-                              test_train_split: pd.Series, selection: Callable, gtr_column: str) -> tuple:
-    '''Returns predictions for a model
-
-    Parameters
-    ----------
-    concordance: pd.DataFrame
-        Concordance dataframe
-    model: DecisionTreeClassifier
-        Trained classifier
-    test_train_split: pd.Series
-        Split between the training and the testing set (boolean, 1 is train)
-    selection: pd.Series
-        Boolean series that mark specific selected rows in the concordance datafraeme
-    gtr_column: str
-        Name of the column
-
-    Returns
-    -------
-    tuple
-        train predictions, train gtr, test predictions, test gtr
-    '''
-
-    test_set = concordance[selection(concordance) & (~test_train_split)]
-    test_set_predictions_gtr = precision_recall_of_set(
-        test_set, gtr_column, model)[2:]
-
-    train_set = concordance[selection(concordance) & test_train_split]
-    train_set_predictions_gtr = precision_recall_of_set(
-        train_set, gtr_column, model)[2:]
-    return test_set_predictions_gtr + train_set_predictions_gtr
-
-
-def calculate_precision_recall(concordance: pd.DataFrame, model: DecisionTreeClassifier,
-                               test_train_split: pd.Series, selection: Callable, gtr_column: str) -> pd.Series:
-    '''Calculates precision and recall on a model trained on a subset of data
-
-    Parameters
-    ----------
-    concordance: pd.DataFrame
-        Concordance dataframe
-    model: DecisionTreeClassifier
-        Trained classifier
-    test_train_split: pd.Series
-        Split between the training and the testing set (boolean, 1 is train)
-    selection: pd.Series
-        Boolean series that mark specific selected rows in the concordance datafraeme
-    gtr_column: str
-        Name of the column
-
-    Returns
-    -------
-    pd.Series:
-        The following fields are defined:
-        ```
-        Three parameters for unfiltered data
-        basic_recall
-        basic_precision
-        basic_counts
-        Four parameters for the filtered data
-        train_precision
-        train_recall
-        test_precision
-        test_recall
-        ```
-    '''
-
-    tmp = concordance[selection(concordance)][gtr_column].value_counts()
-    basic_recall = tmp.get('tp', 0) / (tmp.get('tp', 0) + tmp.get('fn', 0) + 1)
-    basic_precision = tmp.get(
-        'tp', 0) / (tmp.get('tp', 0) + tmp.get('fp', 0) + 1)
-    basic_counts = tmp.get('tp', 0) + tmp.get('fn', 0)
-
-    test_set = concordance[selection(concordance) & (~test_train_split)]
-    test_set_precision_recall = precision_recall_of_set(
-        test_set, gtr_column, model)
-
-    train_set = concordance[selection(concordance) & test_train_split]
-    train_set_precision_recall = precision_recall_of_set(
-        train_set, gtr_column, model)
-
-    return pd.Series((basic_recall, basic_precision, basic_counts) +
-                     train_set_precision_recall[:2] +
-                     test_set_precision_recall[:2],
-                     index=['basic_recall', 'basic_precision', 'basic_counts',
-                            'train_precision', 'train_recall', 'test_precision', 'test_recall'])
-
-
 def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 selection: pd.Series, gtr_column: str,
-                transformer: sklearn_pandas.DataFrameMapper) -> RandomForestClassifier:
+                transformer: sklearn_pandas.DataFrameMapper) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor]:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -319,8 +203,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         transformer from df -> matrix
     Returns
     -------
-    RandomForestClassifier
-        Trained classifier model
+    tuple:
+        Trained classifier model, trained regressor model
     '''
     fns = np.array(concordance[gtr_column] == 'fn')
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
@@ -330,8 +214,9 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     model = DecisionTreeClassifier(max_depth=7)
     model.fit(train_data, labels)
 
-    model1 = DecisionTreeRegressor
-    return model
+    model1 = DecisionTreeRegressor(max_depth=7)
+    model1.fit(train_data, labels)
+    return model, model1
 
 
 def get_training_selection_functions():
@@ -462,12 +347,16 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -
     transformer = feature_prepare()
     transformer.fit(concordance)
     groups = set(concordance["group"])
-    models = {}
+    classifier_models = {}
+    regressor_models = {}
     for g in groups:
-        models[g] = train_model(concordance, concordance['test_train_split'],
-                                concordance['group'], classify_column, transformer)
+        classifier_models[g], regressor_models[g] = \
+            train_model(concordance, concordance['test_train_split'],
+                        concordance['group'], classify_column, transformer)
 
-    return MaskedHierarchicalModel("Decision tree model", "group", models, transformer=transformer), concordance
+    return MaskedHierarchicalModel("Decision tree classifier", "group", classifier_models, transformer=transformer), \
+        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer), \
+        concordance
 
 
 def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str) -> dict:
@@ -505,38 +394,10 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
 
     return recalls_precisions
 
-def train_decision_tree_regressor(concordance: pd.DataFrame, classify_column: str) -> tuple:
-    '''Train a decision tree model on the dataframe
 
-    Parameters
-    ----------
-    concordance: pd.DataFrame
-        Dataframe
-    classify_column: str
-        Ground truth labels
-    Returns
-    -------
-    (MaskedHierarchicalModel, pd.DataFrame
-        Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
-
-    '''
-
-    train_selection_functions = get_training_selection_functions()
-    concordance = add_grouping_column(concordance, train_selection_functions, "group")
-    concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
-    transformer = feature_prepare()
-    transformer.fit(concordance)
-    groups = set(concordance["group"])
-    models = {}
-    for g in groups:
-        models[g] = train_regression_model(concordance, concordance['test_train_split'],
-                                concordance['group'], classify_column, transformer)
-
-    return MaskedHierarchicalModel("Decision tree model", "group", models, transformer=transformer), concordance
-
-
-def test_decision_tree_regressor(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str) -> dict:
-    '''Calculate precision/recall for the decision tree classifier
+def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: MaskedHierarchicalModel,
+                                             classify_column: str) -> dict:
+    '''Calculate precision/recall curve for the decision tree regressor
 
     Parameters
     ----------
@@ -564,9 +425,7 @@ def test_decision_tree_regressor(concordance: pd.DataFrame, model: MaskedHierarc
         group_ground_truth = concordance.loc[select, classify_column]
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
         group_predictions = predictions[select]
-        recall = metrics.recall_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        precision = metrics.precision_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        recalls_precisions[g] = (recall, precision)
+        curve = metrics.precision_recall_curve(group_ground_truth, group_predictions, labels="tp")
+        recalls_precisions[g] = curve
 
     return recalls_precisions
-
