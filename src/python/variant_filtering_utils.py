@@ -145,7 +145,8 @@ def get_all_precision_recalls(results: pd.DataFrame) -> dict:
     groups = set([x[1] for x in results.columns])
     result = {}
     for g in groups:
-        result[g] = get_r_s_i(results, g)[-1]
+        tmp = get_r_s_i(results, g)[-1]
+        result[g] = np.array(np.vstack((tmp[('recall', g)], tmp[('specificity', g)]))).T
     return result
 
 
@@ -215,7 +216,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     model.fit(train_data, labels)
 
     model1 = DecisionTreeRegressor(max_depth=7)
-    model1.fit(train_data, labels)
+    enclabels = preprocessing.LabelEncoder().fit_transform(labels)
+    model1.fit(train_data, enclabels)
     return model, model1
 
 
@@ -304,7 +306,7 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
 
     test_train_split_vector = np.zeros(concordance.shape[0], dtype=np.bool)
     for g in groups:
-        group_vector = (concordance[training_groups_column] == g) & (concordance[gtr_column] != 'fn')
+        group_vector = (concordance[training_groups_column] == g)
         locations = group_vector.to_numpy().nonzero()[0]
         assert(group_vector.sum() > min_test_set), "Group size too small for training"
         train_set_size = int(min(group_vector.sum() - min_test_set,
@@ -383,11 +385,13 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
 
     for g in groups:
         select = (concordance["group_testing"] == g) & \
-                 (concordance[classify_column] != 'fn') & \
                  (~concordance["test_train_split"])
         group_ground_truth = concordance.loc[select, classify_column]
-        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
         group_predictions = predictions[select]
+        print(g, group_ground_truth.shape, (group_ground_truth == 'fn').sum())
+        group_predictions[group_ground_truth == 'fn'] = 'fp'
+        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
+
         recall = metrics.recall_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
         precision = metrics.precision_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
         recalls_precisions[g] = (recall, precision)
@@ -420,12 +424,13 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
 
     for g in groups:
         select = (concordance["group_testing"] == g) & \
-                 (concordance[classify_column] != 'fn') & \
                  (~concordance["test_train_split"])
         group_ground_truth = concordance.loc[select, classify_column]
-        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
         group_predictions = predictions[select]
-        curve = metrics.precision_recall_curve(group_ground_truth, group_predictions, labels="tp")
-        recalls_precisions[g] = curve
+        group_predictions[group_ground_truth == 'fn'] = 0
+        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
+
+        curve = metrics.precision_recall_curve(group_ground_truth, group_predictions, pos_label="tp")
+        recalls_precisions[g] = np.vstack((curve[1], curve[0])).T
 
     return recalls_precisions

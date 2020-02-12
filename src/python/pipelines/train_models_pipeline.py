@@ -57,32 +57,52 @@ results_dict['threshold_model_include_gt_excl_hpol_runs'] = model_gt
 results_dict['threshold_model_recall_precision_include_gt_excl_hpol_runs'] = recall_precision
 results_dict['threshold_model_precision_recall_curve_include_gt_excl_hpol_runs'] = rsis
 
-models_dt_no_gt, concordance = variant_filtering_utils.train_decision_tree_model(concordance,
-                                                                                 classify_column='classify')
-recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(concordance, models_dt_no_gt, "classify")
-results_dict['dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt
+
+models_dt_no_gt, models_reg_dt_no_gt, concordance = \
+    variant_filtering_utils.train_decision_tree_model(concordance,
+                                                      classify_column='classify')
+recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
+    concordance, models_dt_no_gt, "classify")
+recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    concordance, models_reg_dt_no_gt, "classify")
+
+results_dict['dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
 results_dict['dt_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
+results_dict['dt_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
 
-models_dt_gt, concordance = variant_filtering_utils.train_decision_tree_model(concordance,
-                                                                              classify_column='classify_gt')
+models_dt_gt, models_reg_dt_gt, concordance = \
+    variant_filtering_utils.train_decision_tree_model(concordance,
+                                                      classify_column='classify_gt')
 recall_precision_gt = variant_filtering_utils.test_decision_tree_model(concordance, models_dt_gt, "classify_gt")
-results_dict['dt_model_include_gt_incl_hpol_runs'] = models_dt_gt
+recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    concordance, models_reg_dt_gt, "classify_gt")
+
+results_dict['dt_model_include_gt_incl_hpol_runs'] = models_dt_gt, models_reg_dt_gt
 results_dict['dt_model_recall_precision_include_gt_incl_hpol_runs'] = recall_precision_gt
+results_dict['dt_model_recall_precision_curve_include_gt_incl_hpol_runs'] = recall_precision_curve_gt
 
 
-models_dt_no_gt, concordance_clean = variant_filtering_utils.train_decision_tree_model(concordance_clean,
-                                                                                       classify_column='classify')
+models_dt_no_gt, models_reg_dt_no_gt, concordance_clean = \
+    variant_filtering_utils.train_decision_tree_model(concordance_clean,
+                                                      classify_column='classify')
 recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
     concordance_clean, models_dt_no_gt, "classify")
-results_dict['dt_model_ignore_gt_excl_hpol_runs'] = models_dt_no_gt
+recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    concordance_clean, models_reg_dt_no_gt, "classify")
+
+results_dict['dt_model_ignore_gt_excl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
 results_dict['dt_model_recall_precision_ignore_gt_excl_hpol_runs'] = recall_precision_no_gt
+results_dict['dt_model_recall_precision_curve_ignore_gt_excl_hpol_runs'] = recall_precision_curve_no_gt
 
 
-models_dt_gt, concordance_clean = variant_filtering_utils.train_decision_tree_model(concordance_clean,
-                                                                                    classify_column='classify_gt')
+models_dt_gt, models_reg_dt_gt, concordance_clean = \
+    variant_filtering_utils.train_decision_tree_model(concordance_clean,
+                                                      classify_column='classify_gt')
 recall_precision_gt = variant_filtering_utils.test_decision_tree_model(concordance_clean, models_dt_gt, "classify_gt")
-results_dict['dt_model_include_gt_excl_hpol_runs'] = models_dt_gt
+recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    concordance_clean, models_reg_dt_gt, "classify_gt")
+results_dict['dt_model_include_gt_excl_hpol_runs'] = models_dt_gt, models_reg_dt_gt
 results_dict['dt_model_recall_precision_include_gt_excl_hpol_runs'] = recall_precision_gt
-
+results_dict['dt_model_recall_precision_curve_include_gt_excl_hpol_runs'] = recall_precision_curve_gt
 pickle.dump(results_dict, open(args.output_file, "wb"))
