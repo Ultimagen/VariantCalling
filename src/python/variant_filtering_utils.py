@@ -388,8 +388,6 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
                  (~concordance["test_train_split"])
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
-        print(g, group_ground_truth.shape, (group_ground_truth == 'fn').sum())
-        group_predictions[group_ground_truth == 'fn'] = 'fp'
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
 
         recall = metrics.recall_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
@@ -427,8 +425,8 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
                  (~concordance["test_train_split"])
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
-        group_predictions[group_ground_truth == 'fn'] = 0
-        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
+        group_predictions[group_predictions == 'fn'] = 0
+        group_ground_truth[group_ground_truth == 'fn'] = 'tp'  # this is a change to calculate recall correctly
 
         curve = metrics.precision_recall_curve(group_ground_truth, group_predictions, pos_label="tp")
         recalls_precisions[g] = np.vstack((curve[1], curve[0])).T
