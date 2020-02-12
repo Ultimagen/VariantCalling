@@ -293,4 +293,20 @@ def close_to_hmer_run(df: pd.DataFrame, runfile: str,
     run_df = utils.parse_runs_file(runfile, min_hmer_run_length)
     gdf = df.groupby('chrom')
     grun_df = run_df.groupby('chromosome')
-    for ch
+    for chrom in gdf.groups.keys():
+        gdf_ix = gdf.groups[chrom]
+        grun_ix = grun_df.groups[chrom]
+        pos1 = np.array(df.loc[gdf_ix, 'pos'])
+        pos2 = np.array(run_df.loc[grun_ix, 'start'])
+        pos1_closest_pos2_start = np.searchsorted(pos2, pos1) - 1
+        close_dist = (pos1 - pos2[np.clip(pos1_closest_pos2_start, 0, None)]) < max_distance
+        close_dist |= (pos2[np.clip(pos1_closest_pos2_start + 1, None, len(pos2) - 1)] - pos1) < max_distance
+        pos2 = np.array(run_df.loc[grun_ix, 'end'])
+        pos1_closest_pos2_end = np.searchsorted(pos2, pos1)
+        close_dist |= (pos1 - pos2[np.clip(pos1_closest_pos2_end - 1, 0, None)]) < max_distance
+        close_dist |= (pos2[np.clip(pos1_closest_pos2_end, None, len(pos2) - 1)] - pos1) < max_distance
+
+        is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
+        df.loc[gdf_ix, "inside_hmer_run"] = is_inside
+        df.loc[gdf_ix, "close_to_hmer_run"] = (close_dist & (~is_inside))
+    return df
