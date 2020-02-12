@@ -1,10 +1,9 @@
-import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.variant_filtering_utils as variant_filtering_utils
 import argparse
 import pandas as pd
 import pickle
 
-ap = argparse.ArgumentParser("Compare VCF to ground truth")
+ap = argparse.ArgumentParser("Train filtering models on the concordance file")
 grp = ap.add_mutually_exclusive_group(required=True)
 grp.add_argument("--input_file", help="Name of the input h5 file", type=str)
 grp.add_argument(

@@ -264,8 +264,8 @@ def get_testing_selection_functions() -> dict:
     sfs.append(('SNP', lambda x: ~x.indel))
     sfs.append(("INDEL", lambda x: x.indel))
     sfs.append(("Non-hmer INDEL", lambda x: x.indel & (x.hmer_indel_length == 0)))
-    sfs.append(("HMER indel < 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
-                                                       (x.hmer_indel_length < 5))))
+    sfs.append(("HMER indel <= 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
+                                                        (x.hmer_indel_length < 5))))
     sfs.append(("HMER indel > 4, < 12", lambda x: x.indel & (x.hmer_indel_length >= 5) &
                 (x.hmer_indel_length < 12)))
     sfs.append(("HMER indel > 12", lambda x: x.indel & (x.hmer_indel_length >= 12)))
