@@ -6,7 +6,6 @@ ap = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Com
 ap.add_argument("--n_parts", help='Number of parts that the VCF is split into', required=True, type=int)
 ap.add_argument("--input_prefix", help="Prefix of the input file", required=True, type=str)
 ap.add_argument("--output_file", help='Output h5 file', required=True, type=str)
-ap.add_argument("--header_file", help="Desired VCF header of the file", required=True, type=str)
 ap.add_argument("--gtr_vcf", help='Ground truth VCF file', required=True, type=str)
 ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison', required=True, type=str)
 ap.add_argument("--highconf_intervals", help='High confidence intervals', required=True, type=str)
