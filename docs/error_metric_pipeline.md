@@ -46,3 +46,5 @@ Text output files will be named:
 
 All outputs will be concatenated into HDF5 file `metrics.h5` with keys `bwa_alignment_stats` and `bwa_error_rates`
 
+### Testing
+On the machine ec2-3-208-150-254.compute-1.amazonaws.com run python /home/ec2-user/proj/VariantCalling/src/python/pipelines/error_metric_pipeline.py -c em.config in /home/ec2-user/proj/VariantCalling/work/200112/
