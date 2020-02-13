@@ -47,7 +47,10 @@
 ## Step descriptions
 
 **Note:** Before running the scripts do
-`export PYTHONPATH=<REPLACE WITH PATH TO VARIANTCALLING REPO>/src/:$PYTHONPATH`
+
+```
+export PYTHONPATH=<REPLACE WITH PATH TO VARIANTCALLING REPO>/src/:$PYTHONPATH
+```
 
 ### `run_comparison_pipeline.py`
 
