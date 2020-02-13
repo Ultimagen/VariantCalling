@@ -2,7 +2,7 @@ from python.pipelines import comparison_pipeline
 from python.pipelines import vcf_pipeline_utils
 import argparse
 
-ap = argparse.ArgumentParser("Compare VCF to ground truth")
+ap = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
 ap.add_argument("--n_parts", help='Number of parts that the VCF is split into', required=True, type=int)
 ap.add_argument("--input_prefix", help="Prefix of the input file", required=True, type=str)
 ap.add_argument("--output_file", help='Output h5 file', required=True, type=str)
@@ -12,7 +12,7 @@ ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison',
 ap.add_argument("--highconf_intervals", help='High confidence intervals', required=True, type=str)
 ap.add_argument("--runs_intervals", help='Runs intervals', required=False, type=str, default=None)
 ap.add_argument("--reference", help='Reference genome', required=True, type=str)
-ap.add_argument("--aligned_bam", help='Aligned bam', required=True, type=str)
+ap.add_argument("--aligned_bam", help='Aligned bam', required=False, default=None, type=str)
 ap.add_argument("--call_sample_name", help='Name of the call sample', required=True, default='sm1')
 ap.add_argument("--truth_sample_name", help='Name of the truth sample', required=True)
 ap.add_argument("--find_thresholds", help='Should precision recall thresholds be found',

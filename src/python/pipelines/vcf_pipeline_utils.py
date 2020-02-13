@@ -1,14 +1,9 @@
 import subprocess
 import pandas as pd
 import pysam
-import numpy as np
-import tqdm
-import python.vcftools as vcftools
-import python.utils as utils
 from os.path import exists
 from collections import defaultdict
-from typing import Callable
-
+import python.vcftools as vcftools
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
@@ -39,7 +34,7 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
     input_file: str
         Input file name
     new_header: str
-        Name of the new header 
+        Name of the new header
     output_file: str
         Name of the output file
 
@@ -116,7 +111,7 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         Calls file
     highconf_regions: str
         High confidence regions bed
-    runs_regions: str or None 
+    runs_regions: str or None
         Runs
     '''
 
@@ -168,13 +163,14 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
                         0]['GT'], x.samples[1]['GT']) for x in vf]
     elif format == 'VCFEVAL':
-        concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys()
-                       or x.info['CALL'] != 'OUT']
+        concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
+                        x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
+                       x.info['CALL'] != 'OUT']
 
-    concordance = pd.DataFrame(concordance)
-    concordance.columns = ['chrom', 'pos', 'qual',
-                           'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
-    concordance['indel'] = concordance['alleles'].apply(
+    concordance_df: pd.DataFrame = pd.DataFrame(concordance)
+    concordance_df.columns = ['chrom', 'pos', 'qual',
+                              'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
+    concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
     def classify(x):
@@ -192,9 +188,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             else:
                 return 'fn'
 
-    concordance['classify'] = concordance.apply(classify, axis=1)
+    concordance_df['classify'] = concordance_df.apply(classify, axis=1)
 
-    def classify(x):
+    def classify_gt(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
             return 'fn'
         elif x['gt_ground_truth'] == (None, None) or x['gt_ground_truth'] == (None,):
@@ -205,10 +201,10 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'fp'
         else:
             return 'tp'
-    concordance['classify_gt'] = concordance.apply(classify, axis=1)
+    concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1)
 
-    concordance.index = [(x[1]['chrom'], x[1]['pos'])
-                         for x in concordance.iterrows()]
+    concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
+                            for x in concordance_df.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items(
     ) + x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
@@ -221,10 +217,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
-        concordance.drop('qual', axis=1, inplace=True)
-    concordance = concordance.join(original.drop(['chrom', 'pos'], axis=1))
+        concordance_df.drop('qual', axis=1, inplace=True)
+    concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
     return concordance
-
 
 
 def annotate_concordance(df: pd.DataFrame, fasta: str, alnfile: str, runfile: str) -> pd.DataFrame:
@@ -243,9 +238,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str, alnfile: str, runfile: st
     df = vcftools.classify_indel(df)
     df = vcftools.is_hmer_indel(df, fasta)
     df = vcftools.get_motif_around(df, 5, fasta)
-    df = vcftools.get_coverage(df, alnfile, 10)
+    if alnfile is not None:
+        df = vcftools.get_coverage(df, alnfile, 10)
     df = vcftools.close_to_hmer_run(
         df, runfile, min_hmer_run_length=10, max_distance=10)
     return df
-
-
