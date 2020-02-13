@@ -82,11 +82,11 @@ def get_vcf_df( variant_calls : str) -> pd.DataFrame:
     '''
     vf = pysam.VariantFile(variant_calls)
 
-    concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[0]['GT']) for x in tqdm.tqdm_notebook(vf)]
+    concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[0]['GT'], x.samples[0]['PL']) for x in tqdm.tqdm_notebook(vf)]
 
     concordance = pd.DataFrame(concordance)
     concordance.columns = ['chrom', 'pos', 'qual',
-                           'ref', 'alleles', 'gt']
+                           'ref', 'alleles', 'gt', 'pl']
 
     concordance['indel'] = concordance['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)

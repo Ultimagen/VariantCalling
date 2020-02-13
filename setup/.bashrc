@@ -882,8 +882,24 @@ complete -F _killall killall killps
 # sh-shell:bash
 # End:
 OLDPATH=$PATH
-. /home/ilya/anaconda3/etc/profile.d/conda.sh
-conda activate
+#. /home/ilya/anaconda3/etc/profile.d/conda.sh
+#conda activate
 export PATH=$PATH:$OLDPATH
 source $HOME/software/smart-change-directory/shellrcfiles/bashrc_scd
 export MFA_DEVICE=arn:aws:iam::525048827230:mfa/ilya
+export AWS_PROFILE_NAME=ilya
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/ubuntu/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/ubuntu/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/ubuntu/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/ubuntu/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
