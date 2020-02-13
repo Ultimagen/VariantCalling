@@ -46,6 +46,9 @@
 
 ## Step descriptions
 
+**Note:** Before running the scripts do
+`export PYTHONPATH=<REPLACE WITH PATH TO VARIANTCALLING REPO>/src/:$PYTHONPATH`
+
 ### `run_comparison_pipeline.py`
 
 Generates genotype concordance dataframe between the the variant call set and the ground truth set. The dataframe is saved in HDF5 file
