@@ -3,7 +3,7 @@ import argparse
 import pandas as pd
 import pickle
 
-ap = argparse.ArgumentParser("Train filtering models on the concordance file")
+ap = argparse.ArgumentParser(prog="train_models_pipeline.py", description="Train filtering models on the concordance file")
 grp = ap.add_mutually_exclusive_group(required=True)
 grp.add_argument("--input_file", help="Name of the input h5 file", type=str)
 grp.add_argument(

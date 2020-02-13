@@ -1,12 +1,11 @@
 import python.variant_filtering_utils as variant_filtering_utils
 import python.vcftools as vcftools
 import argparse
-import pandas as pd
 import pickle
 import pysam
 import numpy as np
 
-ap = argparse.ArgumentParser("Filter VCF")
+ap = argparse.ArgumentParser(prog="filter_variants_pipeline.py", description="Filter VCF")
 ap.add_argument("--input_file", help="Name of the input VCF file", type=str, required=True)
 ap.add_argument("--model_file", help="Pickle model file", type=str, required=True)
 ap.add_argument("--model_name", help="Model file", type=str, required=True)
