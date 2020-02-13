@@ -221,4 +221,3 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
     return concordance
 
-
