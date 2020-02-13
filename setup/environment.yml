@@ -13,6 +13,7 @@ dependencies:
   - awscli=1.16.171=py37_0
   - babel=2.7.0=py_0
   - backcall=0.1.0=py_0
+  - bamtools=2.5.1=he860b03_5
   - bcftools=1.9=ha228f0b_4
   - bcrypt=3.1.7=py37h7b6447c_0
   - bedtools=2.28.0=hdf88d34_0
@@ -25,11 +26,10 @@ dependencies:
   - bowtie2=2.3.4.3=py37he860b03_1
   - bwa=0.7.17=hed695b0_6
   - bzip2=1.0.6=h14c3975_1002
-  - ca-certificates=2019.10.16=0
+  - ca-certificates=2019.11.28=hecc5488_0
   - cachetools=2.1.0=py_0
-  - certifi=2019.9.11=py37_0
+  - certifi=2019.11.28=py37_0
   - cffi=1.12.3=py37h8022711_0
-  - cgatcore=0.5.15=py_0
   - chardet=3.0.4=py37_1003
   - colorama=0.3.9=py_1
   - configargparse=0.14.0=py37_0
@@ -56,7 +56,6 @@ dependencies:
   - google-api-core=1.14.3=py37_0
   - google-auth=1.6.3=py_0
   - google-cloud-core=1.0.3=py_0
-  - google-cloud-sdk=266.0.0=py37_0
   - google-cloud-storage=1.20.0=py_0
   - google-resumable-media=0.4.1=py_0
   - googleapis-common-protos=1.6.0=py37_0
@@ -81,6 +80,7 @@ dependencies:
   - jmespath=0.9.4=py_0
   - joblib=0.13.2=py_0
   - jpeg=9b=h470a237_3
+  - jq=1.6=h14c3975_1000
   - jsonschema=3.0.1=py37_0
   - jupyter=1.0.0=py_2
   - jupyter_client=5.2.4=py_3
@@ -140,9 +140,10 @@ dependencies:
   - numpy=1.16.4=py37h99e49ec_0
   - numpy-base=1.16.4=py37h2f8d375_0
   - olefile=0.46=py_0
+  - oniguruma=6.9.3=h516909a_0
   - openblas=0.3.6=h6e990d7_6
   - openjdk=8.0.152=h46b5887_1
-  - openssl=1.1.1=h7b6447c_0
+  - openssl=1.1.1d=h516909a_0
   - packaging=19.0=py_0
   - pandas=0.24.2=py37hb3f55d8_0
   - pandoc=2.2.3.2=0
@@ -235,5 +236,4 @@ dependencies:
   - zeromq=4.3.1=hf484d3e_1000
   - zlib=1.2.11=h516909a_1005
   - zstd=1.3.7=h0a35d5f_1001
-prefix: /home/ec2-user/miniconda3/envs/genomics.py3
-
+prefix: /home/ubuntu/miniconda3/envs/genomics.py3
