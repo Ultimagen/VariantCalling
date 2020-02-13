@@ -49,5 +49,6 @@ All outputs will be concatenated into HDF5 file `metrics.h5` with keys `bwa_alig
 ### Testing
 On the machine `ec2-3-208-150-254.compute-1.amazonaws.com` run 
 ```
-python /home/ec2-user/proj/VariantCalling/src/python/pipelines/error_metric_pipeline.py -c em.config in /home/ec2-user/proj/VariantCalling/work/200112/
+python /home/ec2-user/proj/VariantCalling/src/python/pipelines/error_metric_pipeline.py -c em.config 
 ```
+in `/home/ec2-user/proj/VariantCalling/work/200112/`
