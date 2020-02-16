@@ -452,10 +452,11 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
 
     selection_functions = get_training_selection_functions()
     concordance = add_grouping_column(concordance, selection_functions, "group")
-    all_groups = set([x[1] for x in concordance['group']])
+    all_groups = set(concordance['group'])
     models = {}
     for g in all_groups:
         models[g] = SingleModel({}, {})
     result = MaskedHierarchicalModel("unfiltered", 'group', models)
+    concordance['test_train_split'] = np.zeros(concordance.shape[0], dtype=np.bool)
     recalls_precisions = test_decision_tree_model(concordance, result, classify_column)
     return result, recalls_precisions
