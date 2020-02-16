@@ -1,5 +1,5 @@
-from python.pipelines import comparison_pipeline
-from python.pipelines import vcf_pipeline_utils
+import python.pipelines.comparison_pipeline as comparison_pipeline
+import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import argparse
 
 ap = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
@@ -23,12 +23,12 @@ ap.add_argument("--output_suffix", help='Add suffix to the output file', require
 args = ap.parse_args()
 if args.filter_runs:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                           args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                           args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
                                            args.runs_intervals, args.reference, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix)
 else:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                           args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                           args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
                                            None, args.reference, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix)
 

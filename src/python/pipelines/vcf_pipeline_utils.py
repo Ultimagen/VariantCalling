@@ -5,6 +5,7 @@ from os.path import exists
 from collections import defaultdict
 import python.vcftools as vcftools
 
+
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
     Parameters
@@ -84,21 +85,20 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
     cmd = ['gunzip', '-f', f'{output_prefix}.genotype_concordance.vcf.gz']
     print(' '.join(cmd))
     subprocess.check_call(cmd)
-    with open(f'{output_prefix}.genotype_concordance.vcf') as input_file:
-        with open(f'{output_prefix}.genotype_concordance.tmp', 'w') as output_file:
-            for line in input_file:
+    with open(f'{output_prefix}.genotype_concordance.vcf') as input_file_handle:
+        with open(f'{output_prefix}.genotype_concordance.tmp', 'w') as output_file_handle:
+            for line in input_file_handle:
                 if line.startswith("##FORMAT=<ID=PS"):
-                    print("Replacing")
-                    output_file.write(line.replace(
+                    output_file_handle.write(line.replace(
                         "Type=Integer", "Type=String"))
                 else:
-                    output_file.write(line)
-    cmd = ['mv', output_file.name, input_file.name]
+                    output_file_handle.write(line)
+    cmd = ['mv', output_file_handle.name, input_file_handle.name]
     print(' '.join(cmd))
     subprocess.check_call(cmd)
-    cmd = ['bgzip', input_file.name]
+    cmd = ['bgzip', input_file_handle.name]
     subprocess.check_call(cmd)
-    cmd = ['bcftools', 'index', '-tf', f'{input_file.name}.gz']
+    cmd = ['bcftools', 'index', '-tf', f'{input_file_handle.name}.gz']
     subprocess.check_call(cmd)
 
 
@@ -189,6 +189,23 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                 return 'fn'
 
     concordance_df['classify'] = concordance_df.apply(classify, axis=1)
+
+    def classify_lenient(x):
+        if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
+            return 'fn'
+        elif x['gt_ground_truth'] == (None, None) or x['gt_ground_truth'] == (None,):
+            return 'fp'
+        else:
+            set_gtr = set(x['gt_ground_truth']) - set([0])
+            set_ultima = set(x['gt_ultima']) - set([0])
+            if len(set_gtr & set_ultima) > 0:
+                return 'tp'
+            elif len(set_ultima - set_gtr) > 0:
+                return 'fp'
+            else:
+                return 'fn'
+
+    concordance_df['classify_lenient'] = concordance_df.apply(classify_lenient, axis=1)
 
     def classify_gt(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
