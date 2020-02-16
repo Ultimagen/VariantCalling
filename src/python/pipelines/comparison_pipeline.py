@@ -16,6 +16,7 @@ def pipeline(n_parts: int, input_prefix: str,
              truth_file: str= TRUTH_FILE, cmp_intervals: str = CMP_INTERVALS,
              highconf_intervals: str = HIGHCONF_INTERVALS,
              runs_intervals: Optional[str] = RUNS_INTERVALS,
+             header: Optional[str] = None,
              ref_genome: str = REFERENCE,
              call_sample: str = CALL_SAMPLE,
              truth_sample: str = TRUTH_SAMPLE,
@@ -36,7 +37,11 @@ def pipeline(n_parts: int, input_prefix: str,
         reheader_fn = input_prefix + ".rhdr.vcf.gz"
     else:
         reheader_fn = input_prefix + f".{output_suffix}.rhdr.vcf.gz"
-    shutil.copy(output_fn, reheader_fn)
+    if header is not None:
+        vcf_pipeline_utils.reheader_vcf( output_fn, header, reheader_fn)
+    else: 
+        shutil.copy(output_fn, reheader_fn)
+        shutil.copy(".".join((output_fn, "tbi")), ".".join((reheader_fn, "tbi")))
     output_prefix = reheader_fn[:reheader_fn.index(".rhdr.vcf.gz")]
     vcf_pipeline_utils.run_genotype_concordance(reheader_fn, truth_file, output_prefix,
                                                 cmp_intervals, call_sample, truth_sample)

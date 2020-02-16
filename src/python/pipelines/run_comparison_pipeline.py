@@ -14,6 +14,7 @@ ap.add_argument("--reference", help='Reference genome', required=True, type=str)
 ap.add_argument("--aligned_bam", help='Aligned bam', required=False, default=None, type=str)
 ap.add_argument("--call_sample_name", help='Name of the call sample', required=True, default='sm1')
 ap.add_argument("--truth_sample_name", help='Name of the truth sample', required=True)
+ap.add_argument("--header_file", help="Desired header", required=False, default=None)
 ap.add_argument("--find_thresholds", help='Should precision recall thresholds be found',
                 default=False, action='store_true')
 ap.add_argument("--filter_runs", help='Should variants on hmer runs be filtered out',
@@ -24,12 +25,12 @@ args = ap.parse_args()
 if args.filter_runs:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
                                            args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
-                                           args.runs_intervals, args.reference, args.call_sample_name,
+                                           args.runs_intervals, args.header_file, args.reference, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix)
 else:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
                                            args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
-                                           None, args.reference, args.call_sample_name,
+                                           None, args.header_file, args.reference, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix)
 
 if args.find_thresholds:

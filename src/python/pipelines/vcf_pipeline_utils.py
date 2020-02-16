@@ -181,23 +181,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         else:
             set_gtr = set(x['gt_ground_truth']) - set([0])
             set_ultima = set(x['gt_ultima']) - set([0])
-            if set_gtr == set_ultima:
-                return 'tp'
-            elif set_ultima - set_gtr:
-                return 'fp'
-            else:
-                return 'fn'
-
-    concordance_df['classify'] = concordance_df.apply(classify, axis=1)
-
-    def classify_lenient(x):
-        if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
-            return 'fn'
-        elif x['gt_ground_truth'] == (None, None) or x['gt_ground_truth'] == (None,):
-            return 'fp'
-        else:
-            set_gtr = set(x['gt_ground_truth']) - set([0])
-            set_ultima = set(x['gt_ultima']) - set([0])
             if len(set_gtr & set_ultima) > 0:
                 return 'tp'
             elif len(set_ultima - set_gtr) > 0:
@@ -205,7 +188,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             else:
                 return 'fn'
 
-    concordance_df['classify_lenient'] = concordance_df.apply(classify_lenient, axis=1)
+    concordance_df['classify'] = concordance_df.apply(classify, axis=1)
 
     def classify_gt(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
