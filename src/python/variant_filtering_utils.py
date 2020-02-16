@@ -432,3 +432,30 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
         recalls_precisions[g] = np.vstack((curve[1], curve[0])).T
 
     return recalls_precisions
+
+
+def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
+    '''Calculates precision and recall on the unfiltered data
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Comparison dataframe
+    classify_column: str
+        Classification column
+
+    Returns
+    -------
+    tuple:
+        MaskedHierarchyclaModel, dict, model and dictionary of recalls_precisions
+    '''
+
+    selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(concordance, selection_functions, "group")
+    all_groups = set([x[1] for x in concordance['group']])
+    models = {}
+    for g in all_groups:
+        models[g] = SingleModel({}, {})
+    result = MaskedHierarchicalModel("unfiltered", 'group', models)
+    recalls_precisions = test_decision_tree_model(concordance, result, classify_column)
+    return result, recalls_precisions
