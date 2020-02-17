@@ -52,6 +52,9 @@
 export PYTHONPATH=<REPLACE WITH PATH TO VARIANTCALLING REPO>/src/:$PYTHONPATH
 ```
 
+**Note:** VCF files to be compared need to have the same header. If they are different, use 'picard UpdateVcfSequenceDictionary' to convert
+
+
 ### `run_comparison_pipeline.py`
 
 Generates genotype concordance dataframe between the the variant call set and the ground truth set. The dataframe is saved in HDF5 file
@@ -89,9 +92,9 @@ Arguments:
   --aligned_bam ALIGNED_BAM
                         Aligned bam (optional, do not use on whole genome VCF)
   --call_sample_name CALL_SAMPLE_NAME
-                        Name of the call sample
+                        Name of the call sample (as specified in the input VCF)
   --truth_sample_name TRUTH_SAMPLE_NAME
-                        Name of the truth sample
+                        Name of the truth sample (as specified in GTR_VCF)
   --find_thresholds     Should precision recall thresholds be found
   --filter_runs         Should variants on hmer runs be filtered out in the output
 
