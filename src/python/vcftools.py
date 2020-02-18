@@ -5,10 +5,11 @@ import tqdm
 from python import utils
 import numpy as np
 
+
 def get_concordance(genotype_concordance_vcf: str,
                     input_vcf: str,
                     reference_genome: str) -> pd.DataFrame:
-    '''Generate concordance dataframe 
+    '''Generate concordance dataframe
 
     Parameters
     ----------
@@ -17,14 +18,14 @@ def get_concordance(genotype_concordance_vcf: str,
     input_vcf: str
         Call input VCF (Calls VCF into GenotypeConcordance)
     reference_genome: str
-        Reference genome FASTA (FAIDX-d) 
+        Reference genome FASTA (FAIDX-d)
     Returns
     -------
-    pd.DataFrame: 
+    pd.DataFrame:
         Concordance dataframe. The following columns will be added to the dataframe:
         * chrom - chromosome
         * pos - position
-        * qual - QUAL field 
+        * qual - QUAL field
         * ref
         * alleles
         * gt_calls - call file genotype
@@ -62,13 +63,14 @@ def get_concordance(genotype_concordance_vcf: str,
     vf = pysam.VariantFile(input_vcf)
     original = pd.DataFrame(
         [(x.chrom, x.pos, x.info['SOR']) for x in vf])
-    original.columns = ['chrom', 'pos','sor']
+    original.columns = ['chrom', 'pos', 'sor']
     original.index = [(x[1]['chrom'], x[1]['pos'])
                       for x in original.iterrows()]
     concordance = concordance.join(original.drop(['chrom', 'pos'], axis=1))
     return concordance
 
-def get_vcf_df( variant_calls : str) -> pd.DataFrame:
+
+def get_vcf_df(variant_calls: str) -> pd.DataFrame:
     '''Reads VCF file into dataframe
 
     Parameters
@@ -82,11 +84,14 @@ def get_vcf_df( variant_calls : str) -> pd.DataFrame:
     '''
     vf = pysam.VariantFile(variant_calls)
 
-    concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[0]['GT'], x.samples[0]['PL']) for x in tqdm.tqdm_notebook(vf)]
+    concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
+                    x.samples[0]['GT'], x.samples[0].get('PL', (0,)), x.samples[0].get('DP', 0),
+                    x.samples[0].get('AD', (0,))) for x in tqdm.tqdm_notebook(vf)]
 
     concordance = pd.DataFrame(concordance)
     concordance.columns = ['chrom', 'pos', 'qual',
-                           'ref', 'alleles', 'gt', 'pl']
+                           'ref', 'alleles', 'gt', 'pl',
+                           'dp', 'ad']
 
     concordance['indel'] = concordance['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
@@ -147,7 +152,7 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
 
     Returns
     -------
-    pd.DataFrame: 
+    pd.DataFrame:
         Modifies dataframe by adding columns "indel_classify" and "indel_length"
     '''
 
@@ -158,20 +163,21 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
             return 'ins'
         return 'del'
     concordance['indel_classify'] = concordance.apply(classify, axis=1)
-    concordance['indel_length'] = concordance.apply(lambda x: abs( len(x['ref']) - max([len(y) for y in x['alleles'] if y != x['ref']])), axis=1)
+    concordance['indel_length'] = concordance.apply(lambda x: abs(
+        len(x['ref']) - max([len(y) for y in x['alleles'] if y != x['ref']])), axis=1)
     return concordance
 
 
 def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
     '''Checks if the indel is hmer indel and outputs its length
-    Note: The length of the shorter allele is output. 
+    Note: The length of the shorter allele is output.
 
     Parameters
     ----------
     concordance: pd.DataFrame
         Dataframe of concordance or of VariantCalls. Should contain a collumn "indel_classify"
     fasta_file: str
-        FAI indexed fasta file 
+        FAI indexed fasta file
 
     Returns
     -------
@@ -190,7 +196,7 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
             if len(set(alt)) != 1:
                 return (0, None)
             elif fasta_idx[rec['chrom']][rec['pos']].seq.upper() != alt[0]:
-                
+
                 return (0, None)
             else:
                 return (utils.hmer_length(fasta_idx[rec['chrom']], rec['pos']), alt[0])
@@ -199,19 +205,21 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
             del_seq = rec['ref'][1:]
             if len(set(del_seq)) != 1:
                 return (0, None)
-            elif fasta_idx[rec['chrom']][rec['pos'] + len(rec['ref'])-1].seq.upper() != del_seq[0]:
+            elif fasta_idx[rec['chrom']][rec['pos'] + len(rec['ref']) - 1].seq.upper() != del_seq[0]:
                 return (0, None)
             else:
-                return (len(del_seq) + utils.hmer_length(fasta_idx[rec['chrom']], rec['pos'] + len(rec['ref'])-1), del_seq[0])
+                return (len(del_seq) + utils.hmer_length(fasta_idx[rec['chrom']],
+                                                         rec['pos'] + len(rec['ref']) - 1), del_seq[0])
 
     results = concordance.apply(lambda x: _is_hmer(x, fasta_idx), axis=1)
     concordance['hmer_indel_length'] = [x[0] for x in results]
-    concordance['hmer_indel_nuc'] = [ x[1] for x in results ]
+    concordance['hmer_indel_nuc'] = [x[1] for x in results]
     return concordance
 
-def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> pd.DataFrame: 
+
+def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> pd.DataFrame:
     '''Extract sequence around the indel
-    
+
     Parameters
     ----------
     concordance: pd.DataFrame
@@ -227,75 +235,78 @@ def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> 
         DataFrame. Adds "left_motif" and right_motif
     '''
 
-    def _get_motif_around_snp( rec, size, faidx )  :
+    def _get_motif_around_snp(rec, size, faidx):
         chrom = faidx[rec['chrom']]
         pos = rec['pos']
-        return chrom[pos-size-1:pos-1].seq.upper(), chrom[pos:pos+size].seq.upper()
+        return chrom[pos - size - 1:pos - 1].seq.upper(), chrom[pos:pos + size].seq.upper()
 
-    def _get_motif_around_non_hmer_indel( rec, size, faidx) : 
+    def _get_motif_around_non_hmer_indel(rec, size, faidx):
         chrom = faidx[rec['chrom']]
         pos = rec['pos']
-        return chrom[pos-size:pos].seq.upper(), chrom[pos+len(rec['ref'])-1:pos+len(rec['ref'])-1+size].seq.upper()
+        return chrom[pos - size:pos].seq.upper(),\
+            chrom[pos + len(rec['ref']) - 1:pos + len(rec['ref']) - 1 + size].seq.upper()
 
-    def _get_motif_around_hmer_indel( rec, size, faidx ): 
+    def _get_motif_around_hmer_indel(rec, size, faidx):
         chrom = faidx[rec['chrom']]
         pos = rec['pos']
         hmer_length = rec['hmer_indel_length']
-        return chrom[pos-size:pos].seq.upper(), chrom[pos+hmer_length:pos+hmer_length+size].seq.upper()        
+        return chrom[pos - size:pos].seq.upper(), chrom[pos + hmer_length:pos + hmer_length + size].seq.upper()
 
-    def _get_motif( rec, size, faidx ): 
-        if rec['indel'] and rec['hmer_indel_length']>0 : 
-            return _get_motif_around_hmer_indel(rec,size, faidx)
-        elif rec['indel'] and rec['hmer_indel_length']==0 : 
-            return _get_motif_around_non_hmer_indel(rec,size, faidx)
-        else :
-            return _get_motif_around_snp( rec, size, faidx)
+    def _get_motif(rec, size, faidx):
+        if rec['indel'] and rec['hmer_indel_length'] > 0:
+            return _get_motif_around_hmer_indel(rec, size, faidx)
+        elif rec['indel'] and rec['hmer_indel_length'] == 0:
+            return _get_motif_around_non_hmer_indel(rec, size, faidx)
+        else:
+            return _get_motif_around_snp(rec, size, faidx)
     faidx = pyfaidx.Fasta(fasta)
     tmp = concordance.apply(lambda x: _get_motif(x, motif_size, faidx), axis=1)
-    concordance['left_motif'] = [ x[0] for x in list(tmp)]
-    concordance['right_motif'] = [ x[1] for x in list(tmp)]    
+    concordance['left_motif'] = [x[0] for x in list(tmp)]
+    concordance['right_motif'] = [x[1] for x in list(tmp)]
     return concordance
 
-def get_coverage( df: pd.DataFrame, alnfile: str, min_quality: int) : 
-    results=[]
+
+def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int):
+    results = []
     with pysam.AlignmentFile(alnfile) as alns:
         for r in tqdm.tqdm(df.iterrows()):
-            reads = alns.fetch(r[1].chrom, r[1].pos-1, r[1].pos+1)
+            reads = alns.fetch(r[1].chrom, r[1].pos - 1, r[1].pos + 1)
             count_total = 0
-            count_well = 0 
-            for read in reads :
-                if read.mapping_quality > min_quality : 
-                    count_well+=1
-                count_total+=1
+            count_well = 0
+            for read in reads:
+                if read.mapping_quality > min_quality:
+                    count_well += 1
+                count_total += 1
             results.append((count_total, count_well))
 
-    df['coverage'] = [ x[0] for x in results ]
-    df['well_mapped_coverage'] = [ x[1] for x in results ]
-    df['repetitive_read_coverage'] = [ x[0]-x[1] for x in results]
+    df['coverage'] = [x[0] for x in results]
+    df['well_mapped_coverage'] = [x[1] for x in results]
+    df['repetitive_read_coverage'] = [x[0] - x[1] for x in results]
     return df
 
-def close_to_hmer_run( df: pd.DataFrame, runfile: str, min_hmer_run_length: int=10, max_distance: int=10) -> pd.DataFrame:
+
+def close_to_hmer_run(df: pd.DataFrame, runfile: str,
+                      min_hmer_run_length: int=10, max_distance: int=10) -> pd.DataFrame:
     '''Adds column is_close_to_hmer_run and inside_hmer_run that is T/F'''
     df['close_to_hmer_run'] = False
     df['inside_hmer_run'] = False
     run_df = utils.parse_runs_file(runfile, min_hmer_run_length)
     gdf = df.groupby('chrom')
     grun_df = run_df.groupby('chromosome')
-    for chrom in gdf.groups.keys() : 
+    for chrom in gdf.groups.keys():
         gdf_ix = gdf.groups[chrom]
         grun_ix = grun_df.groups[chrom]
-        pos1 = np.array(df.loc[gdf_ix,'pos'])
-        pos2 = np.array(run_df.loc[grun_ix,'start'])
-        pos1_closest_pos2_start = np.searchsorted(pos2, pos1)-1
-        close_dist = (pos1-pos2[np.clip(pos1_closest_pos2_start,0,None)]) < max_distance
-        close_dist |= (pos2[np.clip(pos1_closest_pos2_start+1,None, len(pos2)-1)]-pos1) < max_distance
-        pos2 = np.array(run_df.loc[grun_ix,'end'])
+        pos1 = np.array(df.loc[gdf_ix, 'pos'])
+        pos2 = np.array(run_df.loc[grun_ix, 'start'])
+        pos1_closest_pos2_start = np.searchsorted(pos2, pos1) - 1
+        close_dist = (pos1 - pos2[np.clip(pos1_closest_pos2_start, 0, None)]) < max_distance
+        close_dist |= (pos2[np.clip(pos1_closest_pos2_start + 1, None, len(pos2) - 1)] - pos1) < max_distance
+        pos2 = np.array(run_df.loc[grun_ix, 'end'])
         pos1_closest_pos2_end = np.searchsorted(pos2, pos1)
-        close_dist |= (pos1-pos2[np.clip(pos1_closest_pos2_end-1,0,None)]) < max_distance
-        close_dist |= (pos2[np.clip(pos1_closest_pos2_end,None, len(pos2)-1)]-pos1) < max_distance
-        
+        close_dist |= (pos1 - pos2[np.clip(pos1_closest_pos2_end - 1, 0, None)]) < max_distance
+        close_dist |= (pos2[np.clip(pos1_closest_pos2_end, None, len(pos2) - 1)] - pos1) < max_distance
+
         is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
         df.loc[gdf_ix, "inside_hmer_run"] = is_inside
         df.loc[gdf_ix, "close_to_hmer_run"] = (close_dist & (~is_inside))
     return df
-
