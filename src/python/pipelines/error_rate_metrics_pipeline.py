@@ -1,13 +1,15 @@
 import ruffus
 import ruffus.task
 import sys
-from .. import vc_pipeline_utils
 from os.path import join as pjoin
 from os import mkdir
 import pandas as pd
+import pathmagic # noqa
+import vc_pipeline_utils
 
 params = vc_pipeline_utils.parse_params_file("error_metrics")
 logname = '.'.join((params.em_vc_basename, "em.log"))
+
 
 try:
     mkdir(params.em_vc_output_dir)

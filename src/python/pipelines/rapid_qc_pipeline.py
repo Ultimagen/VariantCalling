@@ -1,13 +1,13 @@
 import ruffus
 import ruffus.task
 import sys
-import vc_pipeline_utils
 
+import pathmagic # noqa
 from os.path import join as pjoin
 from os import mkdir
 import pandas as pd
 from psutil import virtual_memory
-
+import vc_pipeline_utils
 params = vc_pipeline_utils.parse_params_file("rapidqc")
 logname = '.'.join((params.em_vc_basename, "rqc.log"))
 
