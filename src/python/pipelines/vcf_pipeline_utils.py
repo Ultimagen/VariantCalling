@@ -1,5 +1,4 @@
 import subprocess
-import gzip
 import pandas as pd
 import pysam
 import numpy as np
@@ -11,7 +10,7 @@ from collections import defaultdict
 from typing import Callable
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn import preprocessing, model_selection
+from sklearn import preprocessing
 from sklearn import metrics
 
 
@@ -26,7 +25,8 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     output_fname: str
         Name of the output VCF
     '''
-    input_files = [f'{input_prefix}.{x}.vcf' for x in range(1, n_parts + 1)] + [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
+    input_files = [f'{input_prefix}.{x}.vcf' for x in range(1, n_parts + 1)] +\
+        [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
     input_files = [x for x in input_files if exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
     print(" ".join(cmd))
@@ -217,7 +217,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items(
     ) + x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
     columns = ['chrom', 'pos', 'qual', 'sor', 'as_sor',
-               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp']
+               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad']
     original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     original.columns = columns
     original.index = [(x[1]['chrom'], x[1]['pos'])
