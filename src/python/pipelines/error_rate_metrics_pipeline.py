@@ -9,7 +9,7 @@ from os import mkdir
 import pandas as pd
 import traceback
 
-params = vc_pipeline_utils.parse_params_file( sys.argv[1], "error_metrics" )
+params = vc_pipeline_utils.parse_params_file( "error_metrics" )
 logname = '.'.join((params.em_vc_basename, "em.log"))
 
 try:

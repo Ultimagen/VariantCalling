@@ -8,7 +8,7 @@ from os import mkdir
 import pandas as pd
 from psutil import virtual_memory
 
-params = vc_pipeline_utils.parse_params_file(sys.argv[1], "rapidqc")
+params = vc_pipeline_utils.parse_params_file("rapidqc")
 logname = '.'.join((params.em_vc_basename, "rqc.log"))
 
 try:

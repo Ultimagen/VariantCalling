@@ -2,21 +2,16 @@ import subprocess
 import configargparse
 import time
 from os.path import join as pjoin
-from os.path import basename, dirname, abspath, splitext
+from os.path import basename, dirname, splitext
+import python.utils as utils
 import os
 import re
-import sys
 import pandas as pd
 import numpy as np
 import pysam
 
-dname = dirname(abspath(__file__))
-sys.path.append(pjoin(dname, '..'))
 
-import utils
-
-
-def parse_params_file(params_file, pipeline_name):
+def parse_params_file(pipeline_name):
     ap = configargparse.ArgParser()
     ap.add('-c', required=True, is_config_file=True, help='config file path')
     group1 = ap.add_mutually_exclusive_group(required=True)
@@ -135,7 +130,7 @@ def align(input_file, output_file, genome_file, nthreads):
     output_bam, output_err = output_file
     output_err_handle = open(output_err, 'w')
     nthreads_alignment = max(1, (nthreads - 2))
-    if type(input_file) == list:
+    if type(input_file) == list or type(input_file) == tuple:
         cmd1 = [
             'picard', '-Xms5000m', 'SamToFastq',
             'INPUT=%s' % input_file[0], 'FASTQ=/dev/stdout']
@@ -276,7 +271,8 @@ def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, th
                 'ALIGNED_BAM=/dev/stdin', 'UNMAPPED_BAM=%s' % input_file, 'OUTPUT=%s' % output_bam,
                 'REFERENCE_SEQUENCE=%s' % genome_file, 'PAIRED_RUN=false', 'SORT_ORDER="unsorted"',
                 'IS_BISULFITE_SEQUENCE=false', 'ALIGNED_READS_ONLY=true', 'CLIP_ADAPTERS=false',
-                'MAX_RECORDS_IN_RAM=2000000', 'MAX_INSERTIONS_OR_DELETIONS=-1', 'PRIMARY_ALIGNMENT_STRATEGY=MostDistant',
+                'MAX_RECORDS_IN_RAM=2000000', 'MAX_INSERTIONS_OR_DELETIONS=-1',
+                'PRIMARY_ALIGNMENT_STRATEGY=MostDistant',
                 'UNMAP_CONTAMINANT_READS=true', 'ADD_PG_TAG_TO_READS=false']
         outlog.write('|'.join((' '.join(cmd1), ' '.join(cmd2),
                                ' '.join(cmd3), ' '.join(cmd4))) + '\n')
