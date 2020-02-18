@@ -35,7 +35,8 @@ Optionally, this could be a section in a general config file with header
 ```
 cd /home/ubuntu/proj/work/191015/
 conda activate genomics.py3
-python /home/ubuntu/software/VariantCalling/src/python/pipelines/error_rate_metrics_pipeline.py -c error_metrics.config
+export PYTHONPATH=$HOME/software/VariantCalling/src/
+python $HOME/software/VariantCalling/src/python/pipelines/error_rate_metrics_pipeline.py -c error_metrics.config
 ```
 
 ### Output
@@ -49,6 +50,6 @@ All outputs will be concatenated into HDF5 file `metrics.h5` with keys `bwa_alig
 ### Testing
 On the machine `ec2-3-208-150-254.compute-1.amazonaws.com` run 
 ```
-python /home/ec2-user/proj/VariantCalling/src/python/pipelines/error_metric_pipeline.py -c em.config 
+python $HOME/proj/VariantCalling/src/python/pipelines/error_metric_pipeline.py -c em.config 
 ```
 in `/home/ec2-user/proj/VariantCalling/work/200112/`
