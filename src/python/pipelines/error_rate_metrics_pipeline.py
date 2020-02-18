@@ -1,7 +1,7 @@
 import ruffus
 import ruffus.task
 import sys
-import vc_pipeline_utils
+from .. import vc_pipeline_utils
 from os.path import join as pjoin
 from os import mkdir
 import pandas as pd
@@ -89,7 +89,9 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w') as output_log:
                                                         "logs", "{basename[0]}.idxstats.log")]).follows(index_bam)
 
         ftrt: list = []
-        if params.em_vc_rerun_all:
+        if params.em_vc_rerun_all and params.em_vc_number_to_sample >= 0:
+            ftrt += [md1, md2, head_file]
+        elif params.em_vc_rerun_all:
             ftrt += [md1, md2, aln]
 
         vc_pipeline.run(multiprocess=params.em_vc_number_of_cpus, logger=logger, forcedtorun_tasks=ftrt)
