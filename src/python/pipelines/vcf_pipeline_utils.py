@@ -4,7 +4,7 @@ import pysam
 from os.path import exists
 from collections import defaultdict
 import python.vcftools as vcftools
-
+from typing import Optional
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
@@ -225,3 +225,25 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
     return concordance
 
+def annotate_concordance(df: pd.DataFrame, fasta: str, 
+    alnfile: Optional[str] = None, runfile: Optional[str] = None) -> pd.DataFrame: 
+    '''Annotates concordance data with information about SNP/INDELs and motifs
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Concordance dataframe
+    fasta: str
+        Indexed FASTA of the reference genome
+    alnfile: str
+        Alignment file (Optional)
+    '''
+
+    df = vcftools.classify_indel(df)
+    df = vcftools.is_hmer_indel(df, fasta)
+    df = vcftools.get_motif_around(df, 5, fasta)
+    if alnfile is not None : 
+        df = vcftools.get_coverage( df, alnfile, 10 )
+    if runfile is not None : 
+        df = vcftools.close_to_hmer_run(
+            df, runfile, min_hmer_run_length=10, max_distance=10)
+    return df
