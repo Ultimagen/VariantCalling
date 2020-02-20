@@ -210,10 +210,10 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
-    vfi = map(lambda x: defaultdict(lambda: None, x.info.items(
-    ) + x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +\
+    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
     columns = ['chrom', 'pos', 'qual', 'sor', 'as_sor',
-               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad']
+               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score']
     original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     original.columns = columns
     original.index = [(x[1]['chrom'], x[1]['pos'])

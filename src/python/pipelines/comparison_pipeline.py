@@ -1,4 +1,5 @@
 from python.pipelines import vcf_pipeline_utils
+from python import variant_filtering_utils
 import pandas as pd
 import shutil
 from typing import Optional
@@ -14,7 +15,7 @@ TRUTH_SAMPLE = "HG001"
 def pipeline( n_parts: int, input_prefix: str, header: str,
     truth_file: str= TRUTH_FILE, cmp_intervals: str = CMP_INTERVALS, 
     highconf_intervals: str = HIGHCONF_INTERVALS, 
-    runs_intervals: str = RUNS_INTERVALS, 
+    runs_intervals: Optional[str] = RUNS_INTERVALS, 
     ref_genome: str = REFERENCE, 
     call_sample: str = CALL_SAMPLE, 
     truth_sample: str = TRUTH_SAMPLE, 
@@ -56,10 +57,10 @@ def pipeline( n_parts: int, input_prefix: str, header: str,
                                                             output_prefix + ".genotype_concordance.highconf.vcf.gz")
 
     if find_thresholds : 
-        filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
+        filtering_results = variant_filtering_utils.find_thresholds(concordance)
         filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index, names=['qual', 'sor'])
 
-        filtering_results_gt = vcf_pipeline_utils.find_thresholds(concordance)
+        filtering_results_gt = variant_filtering_utils.find_thresholds(concordance)
         filtering_results_gt.index = pd.MultiIndex.from_tuples(filtering_results_gt.index, names=['qual', 'sor'])
 
         return concordance, filtering_results, filtering_results_gt
