@@ -11,17 +11,16 @@ REFERENCE = "/home/ubuntu/proj/VariantCalling/data/genomes/hg19.fa"
 CALL_SAMPLE = "NA12878"
 TRUTH_SAMPLE = "HG001"
 
-
-def pipeline(n_parts: int, input_prefix: str,
-             truth_file: str= TRUTH_FILE, cmp_intervals: str = CMP_INTERVALS,
-             highconf_intervals: str = HIGHCONF_INTERVALS,
-             runs_intervals: Optional[str] = RUNS_INTERVALS,
-             header: Optional[str] = None,
-             ref_genome: str = REFERENCE,
-             call_sample: str = CALL_SAMPLE,
-             truth_sample: str = TRUTH_SAMPLE,
-             find_thresholds: bool = True,
-             output_suffix: str = '') -> tuple:
+def pipeline( n_parts: int, input_prefix: str, header: str,
+    truth_file: str= TRUTH_FILE, cmp_intervals: str = CMP_INTERVALS, 
+    highconf_intervals: str = HIGHCONF_INTERVALS, 
+    runs_intervals: str = RUNS_INTERVALS, 
+    ref_genome: str = REFERENCE, 
+    call_sample: str = CALL_SAMPLE, 
+    truth_sample: str = TRUTH_SAMPLE, 
+    find_thresholds: bool = True, 
+    output_suffix: str = '', 
+    ignore_filter: bool = False) -> tuple:
     '''Run comparison between the two sets of dataframes
     '''
     if not output_suffix:
@@ -43,20 +42,20 @@ def pipeline(n_parts: int, input_prefix: str,
         shutil.copy(output_fn, reheader_fn)
         shutil.copy(".".join((output_fn, "tbi")), ".".join((reheader_fn, "tbi")))
     output_prefix = reheader_fn[:reheader_fn.index(".rhdr.vcf.gz")]
-    vcf_pipeline_utils.run_genotype_concordance(reheader_fn, truth_file, output_prefix,
-                                                cmp_intervals, call_sample, truth_sample)
 
-    vcf_pipeline_utils.filter_bad_areas(reheader_fn, highconf_intervals, runs_intervals)
-    vcf_pipeline_utils.filter_bad_areas(output_prefix + ".genotype_concordance.vcf.gz",
-                                        highconf_intervals, runs_intervals)
-    if runs_intervals is not None:
-        concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "runs.vcf.gz"),
-                                                         output_prefix + ".genotype_concordance.runs.vcf.gz")
-    else:
-        concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "highconf.vcf.gz"),
-                                                         output_prefix + ".genotype_concordance.highconf.vcf.gz")
+    vcf_pipeline_utils.run_genotype_concordance( reheader_fn, truth_file, output_prefix, \
+                            cmp_intervals,call_sample, truth_sample, ignore_filter)
 
-    if find_thresholds:
+    vcf_pipeline_utils.filter_bad_areas( reheader_fn, highconf_intervals, runs_intervals)
+    vcf_pipeline_utils.filter_bad_areas( output_prefix + ".genotype_concordance.vcf.gz", highconf_intervals, runs_intervals)
+    if runs_intervals is not None : 
+        concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "runs.vcf.gz"), 
+                                                            output_prefix + ".genotype_concordance.runs.vcf.gz")
+    else : 
+        concordance = vcf_pipeline_utils.vcf2concordance(reheader_fn.replace("vcf.gz", "highconf.vcf.gz"), 
+                                                            output_prefix + ".genotype_concordance.highconf.vcf.gz")
+
+    if find_thresholds : 
         filtering_results = vcf_pipeline_utils.find_thresholds(concordance)
         filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index, names=['qual', 'sor'])
 

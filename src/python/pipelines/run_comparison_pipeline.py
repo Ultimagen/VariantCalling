@@ -19,19 +19,22 @@ ap.add_argument("--find_thresholds", help='Should precision recall thresholds be
                 default=False, action='store_true')
 ap.add_argument("--filter_runs", help='Should variants on hmer runs be filtered out',
                 default=False, action='store_true')
+ap.add_argument("--ignore_filter_status", help="Ignore variant filter status", default=False, action='store_true')
 ap.add_argument("--output_suffix", help='Add suffix to the output file', required=False, default='', type=str)
 
 args = ap.parse_args()
 if args.filter_runs:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                           args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
-                                           args.runs_intervals, args.header_file, args.reference, args.call_sample_name,
-                                           args.truth_sample_name, args.find_thresholds, args.output_suffix)
+                                           args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                           args.runs_intervals, args.reference, args.call_sample_name,
+                                           args.truth_sample_name, args.find_thresholds, args.output_suffix,
+                                           args.ignore_filter_status)
 else:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                           args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
-                                           None, args.header_file, args.reference, args.call_sample_name,
-                                           args.truth_sample_name, args.find_thresholds, args.output_suffix)
+                                           args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                           None, args.reference, args.call_sample_name,
+                                           args.truth_sample_name, args.find_thresholds, args.output_suffix,
+                                           args.ignore_filter_status)
 
 if args.find_thresholds:
     concordance = results[0]
