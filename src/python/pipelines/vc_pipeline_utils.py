@@ -569,7 +569,7 @@ def combine_coverage_metrics(input_files: list, output_file: str, coverage_inter
 
         ps = np.array(histogram['high_quality_coverage_count'].astype(
             np.float) / histogram['high_quality_coverage_count'].sum())
-        distro = np.random.choice(np.array(histogram['coverage']) / all_median_coverage, p=ps, size=(1, 1000000))
+        distro = np.random.choice(np.array(histogram['coverage']) / all_median_coverage, p=ps, size=(1, 20000))
         s = pd.Series(distro[0], name='cvg')
         df = pd.DataFrame(s)
         df['class'] = convert_dictionary[idx]
