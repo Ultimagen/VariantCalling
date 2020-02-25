@@ -81,7 +81,7 @@ dependencies:
   - jinja2=2.10.1=py_0
   - jmespath=0.9.4=py_0
   - joblib=0.13.2=py_0
-  - jpeg=9b=h470a237_3
+#  - jpeg=9b=h470a237_3
   - jq=1.6=h14c3975_1000
   - jsonschema=3.0.1=py37_0
   - jupyter=1.0.0=py_2
