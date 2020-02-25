@@ -86,12 +86,13 @@ def get_vcf_df(variant_calls: str) -> pd.DataFrame:
 
     concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                     x.samples[0]['GT'], x.samples[0].get('PL', (0,)), x.samples[0].get('DP', 0),
-                    x.samples[0].get('AD', (0,)), x.info.get("MQ", 0)) for x in tqdm.tqdm_notebook(vf)]
+                    x.samples[0].get('AD', (0,)), x.info.get("MQ", 0), 
+                    x.info.get("SOR", 0)) for x in tqdm.tqdm_notebook(vf)]
 
     concordance_df = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt', 'pl',
-                              'dp', 'ad', 'mq']
+                              'dp', 'ad', 'mq', 'sor']
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
