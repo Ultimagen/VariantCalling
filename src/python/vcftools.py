@@ -42,11 +42,11 @@ def get_concordance(genotype_concordance_vcf: str,
     concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
                     0]['GT'], x.samples[1]['GT']) for x in vf]
 
-    concordance = pd.DataFrame(concordance)
-    concordance.columns = ['chrom', 'pos', 'qual',
-                           'ref', 'alleles', 'gt_calls', 'gt_ground_truth']
+    concordance_df = pd.DataFrame(concordance)
+    concordance_df.columns = ['chrom', 'pos', 'qual',
+                              'ref', 'alleles', 'gt_calls', 'gt_ground_truth']
 
-    concordance['indel'] = concordance['alleles'].apply(
+    concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
     def classify(x):
@@ -57,17 +57,17 @@ def get_concordance(genotype_concordance_vcf: str,
         else:
             return 'tp'
 
-    concordance['classify'] = concordance.apply(classify, axis=1)
-    concordance.index = [(x[1]['chrom'], x[1]['pos'])
-                         for x in concordance.iterrows()]
+    concordance_df['classify'] = concordance_df.apply(classify, axis=1)
+    concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
+                            for x in concordance_df.iterrows()]
     vf = pysam.VariantFile(input_vcf)
     original = pd.DataFrame(
         [(x.chrom, x.pos, x.info['SOR']) for x in vf])
     original.columns = ['chrom', 'pos', 'sor']
     original.index = [(x[1]['chrom'], x[1]['pos'])
                       for x in original.iterrows()]
-    concordance = concordance.join(original.drop(['chrom', 'pos'], axis=1))
-    return concordance
+    concordance_df = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
+    return concordance_df
 
 
 def get_vcf_df(variant_calls: str) -> pd.DataFrame:
@@ -86,12 +86,13 @@ def get_vcf_df(variant_calls: str) -> pd.DataFrame:
 
     concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                     x.samples[0]['GT'], x.samples[0].get('PL', (0,)), x.samples[0].get('DP', 0),
-                    x.samples[0].get('AD', (0,)), x.info.get("MQ",0)) for x in tqdm.tqdm_notebook(vf)]
+                    x.samples[0].get('AD', (0,)), x.info.get("MQ", 0), 
+                    x.info.get("SOR", 0)) for x in tqdm.tqdm_notebook(vf)]
 
-    concordance = pd.DataFrame(concordance)
-    concordance.columns = ['chrom', 'pos', 'qual',
-                           'ref', 'alleles', 'gt', 'pl',
-                           'dp', 'ad', 'mq']
+    concordance_df = pd.DataFrame(concordance)
+    concordance_df.columns = ['chrom', 'pos', 'qual',
+                              'ref', 'alleles', 'gt', 'pl',
+                              'dp', 'ad', 'mq', 'sor']
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
