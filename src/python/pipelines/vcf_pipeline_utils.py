@@ -6,6 +6,7 @@ from collections import defaultdict
 import python.vcftools as vcftools
 from typing import Optional
 
+
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
     Parameters
@@ -52,8 +53,8 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
 
 
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
-                             comparison_intervals: str, 
-                             input_sample: str='NA12878', truth_sample='HG001', 
+                             comparison_intervals: str,
+                             input_sample: str='NA12878', truth_sample='HG001',
                              ignore_filter: bool=False):
     '''Run GenotypeConcordance, correct the bug and reindex
 
@@ -82,7 +83,7 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
            'CALL_SAMPLE={}'.format(input_sample), 'O={}'.format(output_prefix),
            'TRUTH_VCF={}'.format(truth_file), 'INTERVALS={}'.format(
                comparison_intervals),
-           'TRUTH_SAMPLE={}'.format(truth_sample), 'OUTPUT_VCF=true', 
+           'TRUTH_SAMPLE={}'.format(truth_sample), 'OUTPUT_VCF=true',
            'IGNORE_FILTER_STATUS={}'.format(ignore_filter)]
     subprocess.check_call(cmd)
 
@@ -210,8 +211,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
-    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +\
-    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
+                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
     columns = ['chrom', 'pos', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score']
     original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
@@ -225,8 +226,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
     return concordance
 
-def annotate_concordance(df: pd.DataFrame, fasta: str, 
-    alnfile: Optional[str] = None, runfile: Optional[str] = None) -> pd.DataFrame: 
+
+def annotate_concordance(df: pd.DataFrame, fasta: str,
+                         alnfile: Optional[str] = None, runfile: Optional[str] = None) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
     Parameters
     ----------
@@ -241,9 +243,9 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = vcftools.classify_indel(df)
     df = vcftools.is_hmer_indel(df, fasta)
     df = vcftools.get_motif_around(df, 5, fasta)
-    if alnfile is not None : 
-        df = vcftools.get_coverage( df, alnfile, 10 )
-    if runfile is not None : 
+    if alnfile is not None:
+        df = vcftools.get_coverage(df, alnfile, 10)
+    if runfile is not None:
         df = vcftools.close_to_hmer_run(
             df, runfile, min_hmer_run_length=10, max_distance=10)
     return df
