@@ -52,6 +52,27 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
     subprocess.check_call(cmd)
 
 
+def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:
+    '''Intersects VCF with intervalList
+
+    Parameters
+    ----------
+    input_fn: str
+        Input file
+            intervals_fn: str
+        Interval_list filename
+    output_fn: str
+        Output file
+
+    Return
+    ------
+    None
+        Writes output_fn file
+    '''
+    cmd = ['gatk', 'SelectVariants', '-I', input_fn, '-L', intervals_fn, '-O', output_fn]
+    subprocess.check_call(cmd)
+
+
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
                              comparison_intervals: str,
                              input_sample: str='NA12878', truth_sample='HG001',
@@ -230,6 +251,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 def annotate_concordance(df: pd.DataFrame, fasta: str,
                          alnfile: Optional[str] = None, runfile: Optional[str] = None) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
+
     Parameters
     ----------
     df: pd.DataFrame
@@ -238,6 +260,10 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         Indexed FASTA of the reference genome
     alnfile: str
         Alignment file (Optional)
+
+    Returns
+    pd.DataFrame
+        Annotated dataframe
     '''
 
     df = vcftools.classify_indel(df)
