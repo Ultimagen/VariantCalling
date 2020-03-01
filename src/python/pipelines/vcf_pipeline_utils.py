@@ -69,7 +69,7 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     None
         Writes output_fn file
     '''
-    cmd = ['gatk', 'SelectVariants', '-V', input_fn, '-L', intervals_fn, '-O', output_fn]
+    cmd = ['gatk', 'SelectVariants', '-I', input_fn, '-L', intervals_fn, '-O', output_fn]
     subprocess.check_call(cmd)
 
 
