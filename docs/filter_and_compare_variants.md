@@ -71,7 +71,7 @@ usage: run_comparison_pipeline.py [-h] --n_parts N_PARTS --input_prefix
                                    --call_sample_name
                                    CALL_SAMPLE_NAME --truth_sample_name
                                    TRUTH_SAMPLE_NAME [--find_thresholds]
-                                   [--filter_runs]
+                                   [--filter_runs] [--ignore_filter]
 
 Arguments:
   -h, --help            show this help message and exit
@@ -97,7 +97,7 @@ Arguments:
                         Name of the truth sample (as specified in GTR_VCF)
   --find_thresholds     Should precision recall thresholds be found
   --filter_runs         Should variants on hmer runs be filtered out in the output
-
+  --ignore_filter       Ignore filtered out variants in calculating concordance
 ```
 
 ### Example file locations
