@@ -1,6 +1,25 @@
 import numpy as np
 import itertools
 import pandas as pd
+
+
+def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
+    '''Returns values from a distribution
+
+    Parameters
+    ----------
+    vals: np.ndarray
+        Values
+    probs: np.ndarray
+        Probabilities
+
+    Returns
+    -------
+    np.ndarray
+    '''
+    return np.random.choice(vals, 10000, p=probs)
+
+
 def revcomp(seq: str) -> str:
     '''Reverse complements DNA given as string
 
@@ -17,11 +36,11 @@ def revcomp(seq: str) -> str:
                   'a': 't', 'c': 'g', 'g': 'c', 't': 'a'}
     if type(seq) == str:
         reverse_complement = "".join(complement.get(base, base)
-                                 for base in reversed(seq))
-    elif type(seq) == list : 
-        reverse_complement =  [ complement.get(base, base) for base in reversed(seq)]
-    elif type(seq) == np.ndarray : 
-        reverse_complement =  np.array([ complement.get(base, base) for base in reversed(seq)])
+                                     for base in reversed(seq))
+    elif type(seq) == list:
+        reverse_complement = [complement.get(base, base) for base in reversed(seq)]
+    elif type(seq) == np.ndarray:
+        reverse_complement = np.array([complement.get(base, base) for base in reversed(seq)])
 
     return reverse_complement
 
@@ -106,35 +125,38 @@ def read_genomecov_vector(bg_file, chrom, start, end):
                 result[st:en] = int(lsp[3])
     return result
 
-def searchsorted2d(a: np.ndarray ,b: np.ndarray) -> np.ndarray:
-	'''
-	Inserts ith element of b into sorted ith row of a
 
-	Parameters
-	----------
-	a: np.ndarray
-		rxc matrix, each rows is sorted
-	b: np.ndarray
-		rx1 vector 
+def searchsorted2d(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    '''
+    Inserts ith element of b into sorted ith row of a
 
-	Returns
-	-------
-	np.ndarray
-		rx1 vector of locations 
-	'''
-	m,n = a.shape
-	b = b.ravel()
-	assert b.shape[0] == a.shape[0], "Number of values of b equal number of rows of a"
-	max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
-	r = max_num*np.arange(a.shape[0])
-	p = np.searchsorted( ((a.T+r).T).ravel(), b+r )
-	return p - n*np.arange(m)
+    Parameters
+    ----------
+    a: np.ndarray
+            rxc matrix, each rows is sorted
+    b: np.ndarray
+            rx1 vector
+
+    Returns
+    -------
+    np.ndarray
+            rx1 vector of locations
+    '''
+    m, n = a.shape
+    b = b.ravel()
+    assert b.shape[0] == a.shape[0], "Number of values of b equal number of rows of a"
+    max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
+    r = max_num * np.arange(a.shape[0])
+    p = np.searchsorted(((a.T + r).T).ravel(), b + r)
+    return p - n * np.arange(m)
+
 
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     return itertools.zip_longest(fillvalue=fillvalue, *args)
+
 
 def shiftarray(arr: np.ndarray, num: int, fill_value: np.float=np.nan) -> np.ndarray:
     '''Shifts array by num to the right
@@ -159,11 +181,12 @@ def shiftarray(arr: np.ndarray, num: int, fill_value: np.float=np.nan) -> np.nda
         result[:] = arr
     return result
 
+
 def hmer_length(seq: str, start_point: int) -> int:
     '''Return length of hmer starting at point start_point
-    
+
     Parameters
-    ---------- 
+    ----------
     seq: str
         Sequence
     start_point: int
@@ -175,12 +198,13 @@ def hmer_length(seq: str, start_point: int) -> int:
         Length of hmer (at least 1)
     '''
 
-    idx = start_point 
-    while seq[idx].seq.upper()==seq[start_point].seq.upper():
-        idx+=1
+    idx = start_point
+    while seq[idx].seq.upper() == seq[start_point].seq.upper():
+        idx += 1
     return idx - start_point
 
-def get_chr_sizes( sizes_file: str) -> dict : 
+
+def get_chr_sizes(sizes_file: str) -> dict:
     '''Returns dictionary from chromosome name to size
 
     Parameters
@@ -194,25 +218,27 @@ def get_chr_sizes( sizes_file: str) -> dict :
         Dictionary from name to size
     '''
 
-    return dict([ x.strip().split() for x in open(sizes_file)])
+    return dict([x.strip().split() for x in open(sizes_file)])
 
-def max_merits(specificity,recall):
+
+def max_merits(specificity, recall):
     '''Finds ROC envelope from multiple sets of specificity and recall
     '''
     N = specificity.shape[0]
-    ind_max = np.ones(N,np.bool)
+    ind_max = np.ones(N, np.bool)
     for j in range(N):
         for i in range(N):
-            if ((specificity[i]>specificity[j]) & (recall[i]>recall[j])):
+            if ((specificity[i] > specificity[j]) & (recall[i] > recall[j])):
                 ind_max[j] = False
                 continue
     ind = np.where(ind_max)[0]
     a = np.argsort(recall[ind])
     return ind[a]
 
-def parse_runs_file( runsfile, threshold ) : 
+
+def parse_runs_file(runsfile, threshold):
     '''Parses bed file'''
-    df = pd.read_csv(runsfile, names=['chromosome','start','end'], index_col=None,sep="\t")
-    df = df[df['end']-df['start'] > threshold ]
-    df.sort_values(['chromosome','start'],inplace=True)
+    df = pd.read_csv(runsfile, names=['chromosome', 'start', 'end'], index_col=None, sep="\t")
+    df = df[df['end'] - df['start'] > threshold]
+    df.sort_values(['chromosome', 'start'], inplace=True)
     return df
