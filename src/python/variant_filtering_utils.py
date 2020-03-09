@@ -14,7 +14,7 @@ FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
 
 
 class SingleModel:
-    def __init__(self, threshold_dict, is_greater_then):
+    def __init__(self, threshold_dict: dict, is_greater_then: dict):
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
 
@@ -24,6 +24,24 @@ class SingleModel:
             result_vec = result_vec & (
                 (df[v] > self.threshold_dict[v]) == self.is_greater_then[v])
         return np.where(np.array(result_vec), "tp", 'fp')
+
+
+class SingleRegressionModel:
+    def __init__(self, threshold_dict: dict, is_greater_then: dict, score_translation: list):
+        self.threshold_dict = threshold_dict
+        self.is_greater_then = is_greater_then
+        self.score = score_translation
+
+    def predict(self, df: pd.DataFrame) -> pd.Series:
+        result_vec = np.ones(df.shape[0], dtype=np.bool)
+        results = []
+        for v in self.threshold_dict:
+            result_v = (np.array(df[v])[:, np.newaxis] > self.threshold_dict[v]
+                        [np.newaxis, :]) == self.is_greater_then[v]
+            results.append(result_v)
+        result_vec = np.all(results, axis=0)
+        scores = self.score[np.argmax(result_vec == 0, axis=1)]
+        return scores
 
 
 class MaskedHierarchicalModel:
@@ -70,6 +88,101 @@ class MaskedHierarchicalModel:
         return result
 
 
+def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
+        -> Tuple[MaskedHierarchicalModel, MaskedHierarchicalModel, pd.DataFrame]:
+    '''Trains threshold classifier and regressor
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    classify_column: str
+        Classification column
+
+    Returns
+    -------
+    tuple
+        Tuple of classifier/regressor models
+    '''
+
+    train_selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
+    transformer = feature_prepare(output_df=True)
+    transformer.fit(concordance)
+    groups = set(concordance["group"])
+    classifier_models = {}
+    regressor_models = {}
+
+    for g in groups:
+        classifier_models[g], regressor_models[g] = \
+            train_threshold_model(concordance, concordance['test_train_split'],
+                                  concordance['group'] == g, classify_column, transformer)
+
+    return MaskedHierarchicalModel("Threshold classifier", "group", classifier_models, transformer=transformer), \
+        MaskedHierarchicalModel("Threshold regressor", "group", regressor_models, transformer=transformer), \
+        concordance
+
+
+def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series,
+                          selection: pd.Series, gtr_column: str,
+                          transformer: sklearn_pandas.DataFrameMapper) -> tuple:
+    '''Trains threshold regressor and classifier models
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    test_train_split: np.ndarray
+        Test train split column
+    selection : pd.Series
+        Boolean - rows of concordance that belong to the group being trained
+    gtr_column: str
+        Ground truth column
+    transformer: sklearn_pandas.DataFrameMapper
+        Feature mapper
+    '''
+
+    quals = np.linspace(0, 2000, 30)
+    sors = np.linspace(0, 20, 80)
+
+    pairs_qual_sor_threshold = [(quals[i], sors[j]) for i in range(len(quals)) for j in range(len(sors))]
+
+    fns = np.array(concordance[gtr_column] == 'fn')
+    train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+
+    train_data = transformer.transform(train_data)
+    labels = concordance[test_train_split & selection & (~fns)][gtr_column]
+    enclabels = np.array(labels == 'tp')
+    train_qual = train_data['qual']
+    train_sor = train_data['sor']
+
+    qq = (train_qual[:, np.newaxis] > quals[np.newaxis, :])
+    ss = (train_sor[:, np.newaxis] < sors[np.newaxis, :])
+    predictions_tp = (qq[..., np.newaxis] & ss[:, np.newaxis, :])
+    tps = (predictions_tp & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
+    fns = ((~predictions_tp) & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
+    fps = (predictions_tp & (~enclabels[:, np.newaxis, np.newaxis])).sum(axis=0)
+
+    recalls = tps / (tps + fns)
+    precisions = (tps + 1) / (tps + fps + 1)
+    results_df = pd.DataFrame(data=np.vstack((recalls.flat, precisions.flat)).T,
+                              index=pairs_qual_sor_threshold, columns=[('recall', 'var'), ('precision', 'var')])
+
+    dist = (results_df[('recall', 'var')] - 1)**2 + (results_df[('precision', 'var')] - 1)**2
+    results_df['dist'] = dist
+    best = results_df['dist'].idxmin()
+    classifier = SingleModel(dict(zip(['qual', 'sor'], best)), {'sor': False, 'qual': True})
+    rsi = get_r_s_i(results_df, 'var')[-1].copy()
+    rsi.sort_values(('precision', 'var'), inplace=True)
+    rsi['score'] = np.linspace(0, 1, rsi.shape[0])
+    regression_model = SingleRegressionModel({'qual': np.array([x[0] for x in rsi.index]),
+                                              'sor': np.array([x[1] for x in rsi.index])},
+                                             {'sor': False, 'qual': True},
+                                             np.array(rsi['score']))
+    return classifier, regression_model
+
+
 def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify') -> pd.DataFrame:
     quals = np.linspace(0, 2000, 30)
     sors = np.linspace(0, 20, 80)
@@ -87,19 +200,17 @@ def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify'
             tmp1[classify_column] = 'fn'
             tmp2 = pd.concat((tmp, tmp1))
             results.append(tmp2.groupby([classify_column, 'group']).size())
-    results = pd.concat(results, axis=1)
-    results = results.T
-    results.columns = results.columns.to_flat_index()
+    results_df = pd.concat(results, axis=1)
+    results_df = results_df.T
+    results_df.columns = results_df.columns.to_flat_index()
 
     for group in ['snp', 'h-indel', 'non-h-indel']:
-        results[('recall', group)] = results.get(('tp', group), 0) / \
-            (results.get(('tp', group), 0) + results.get(('fn', group), 0) + 1)
-        results[('specificity', group)] = results.get(('tp', group), 0) / \
-            (results.get(('tp', group), 0) + results.get(('fp', group), 0) + 1)
-        results.index = pairs
-    return results
-
-# def calculate_threshold_model
+        results_df[('recall', group)] = results_df.get(('tp', group), 0) / \
+            (results_df.get(('tp', group), 0) + results_df.get(('fn', group), 0) + 1)
+        results_df[('precision', group)] = results_df.get(('tp', group), 0) / \
+            (results_df.get(('tp', group), 0) + results_df.get(('fp', group), 0) + 1)
+        results_df.index = pairs
+    return results_df
 
 
 def get_r_s_i(results: pd.DataFrame, var_type: pd.DataFrame) -> tuple:
@@ -115,16 +226,16 @@ def get_r_s_i(results: pd.DataFrame, var_type: pd.DataFrame) -> tuple:
     Returns
     -------
     tuple: (pd.Series, pd.Series, np.array, pd.DataFrame)
-        recall of the variable, specificity of the variable, indices of rows
+        recall of the variable, precision of the variable, indices of rows
         to calculate ROC curve on (output of `max_merits`) and dataframe to plot
         ROC curve
     '''
 
     recall = results[('recall', var_type)]
-    specificity = results[('specificity', var_type)]
-    idx = utils.max_merits(np.array(recall), np.array(specificity))
+    precision = results[('precision', var_type)]
+    idx = utils.max_merits(np.array(recall), np.array(precision))
     results_plot = results.iloc[idx]
-    return recall, specificity, idx, results_plot
+    return recall, precision, idx, results_plot
 
 
 def get_all_precision_recalls(results: pd.DataFrame) -> dict:
@@ -140,13 +251,13 @@ def get_all_precision_recalls(results: pd.DataFrame) -> dict:
     dict:
         Dictionary with keys - groups for which different thresholds were calculated
         Values - dataframes for plotting precision recall curve, that for group g should
-        be plotted as `df.plot(('recall',g), ('specificity',g))
+        be plotted as `df.plot(('recall',g), ('precision',g))
     '''
     groups = set([x[1] for x in results.columns])
     result = {}
     for g in groups:
         tmp = get_r_s_i(results, g)[-1]
-        result[g] = np.array(np.vstack((tmp[('recall', g)], tmp[('specificity', g)]))).T
+        result[g] = np.array(np.vstack((tmp[('recall', g)], tmp[('precision', g)]))).T
     return result
 
 
@@ -156,7 +267,7 @@ def calculate_threshold_model(results):
     recalls_precisions = {}
     for g in all_groups:
         recall_series = results[('recall', g)]
-        precision_series = results[('specificity', g)]
+        precision_series = results[('precision', g)]
         qual, sor = ((recall_series - 1)**2 +
                      (precision_series - 1)**2).idxmin()
         recalls_precisions[g] = recall_series[(qual, sor)], precision_series[(qual, sor)]
@@ -166,13 +277,18 @@ def calculate_threshold_model(results):
     return result, recalls_precisions
 
 
-def feature_prepare() -> sklearn_pandas.DataFrameMapper:
+def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
     Parameters
     ----------
-    None
+    output_df: bool
+        Should the transformer output dataframe (for threshold models) or numpy array (for trees)
 
+    Returns
+    -------
+    tuple
+        Mapper, list of features
     '''
     default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
     transform_list = [(['sor'], default_filler),
@@ -181,7 +297,7 @@ def feature_prepare() -> sklearn_pandas.DataFrameMapper:
                       ('inside_hmer_run', None),
                       ('close_to_hmer_run', None),
                       ('hmer_indel_nuc', preprocessing.LabelEncoder())]
-    transformer = sklearn_pandas.DataFrameMapper(transform_list)
+    transformer = sklearn_pandas.DataFrameMapper(transform_list, df_out=output_df)
     return transformer
 
 
@@ -354,7 +470,7 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -
     for g in groups:
         classifier_models[g], regressor_models[g] = \
             train_model(concordance, concordance['test_train_split'],
-                        concordance['group'], classify_column, transformer)
+                        concordance['group'] == g, classify_column, transformer)
 
     return MaskedHierarchicalModel("Decision tree classifier", "group", classifier_models, transformer=transformer), \
         MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer), \
