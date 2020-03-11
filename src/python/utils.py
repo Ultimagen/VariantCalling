@@ -1,6 +1,7 @@
 import numpy as np
 import itertools
 import pandas as pd
+from typing import Optional, Union
 
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
@@ -210,7 +211,8 @@ def get_chr_sizes(sizes_file: str) -> dict:
     Parameters
     ----------
     sizes_file: str
-        .sizes file (use e.g.  cut -f1,2 Homo_sapiens_assembly19.fasta.fai > Homo_sapiens_assembly19.fasta.sizes to generate)
+        .sizes file (use e.g.  cut -f1,2 Homo_sapiens_assembly19.fasta.fai > Homo_sapiens_
+        assembly19.fasta.sizes to generate)
 
     Returns
     -------
@@ -219,6 +221,41 @@ def get_chr_sizes(sizes_file: str) -> dict:
     '''
 
     return dict([x.strip().split() for x in open(sizes_file)])
+
+
+def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
+                           pos_label: Optional[Union[str, int]]=1,
+                           fn_score: float = -1) -> tuple:
+    '''Calculates precision/recall curve from double prediction scores and gtr
+
+    Parameters
+    ----------
+    gtr: np.ndarray
+        String array of ground truth
+    predictions: np.ndarray
+        Array of prediction scores
+    pos_label: str or 0
+        Label of true call, otherwise 1s will be considered
+    fn_score: float
+        Score of false negative. Should be such that they are the lowest scoring variants
+    Returns
+    -------
+    tuple
+        precisions, recalls
+    '''
+    asidx = np.argsort(predictions)
+    predictions = predictions[asidx]
+    gtr = gtr[asidx]
+    gtr = gtr == pos_label
+
+    tp_counts = np.cumsum(gtr[::-1])[::-1]
+    fn_counts = np.cumsum(gtr)
+    fp_counts = np.cumsum((gtr == 0)[::-1])[::-1]
+
+    precisions = tp_counts / (tp_counts + fp_counts)
+    recalls = tp_counts / (tp_counts + fn_counts)
+    trim_idx = np.argmax(predictions > fn_score)
+    return precisions[trim_idx:], recalls[trim_idx:]
 
 
 def max_merits(specificity, recall):
