@@ -544,11 +544,11 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
         group_predictions[group_predictions == 'fn'] = -1
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'  # this is a change to calculate recall correctly
 
-        curve = metrics.precision_recall_curve(group_ground_truth, np.array(
-            group_predictions), pos_label="tp")
-        recall, precision, thresholds = curve
-        trimidx = np.argmax(thresholds > -1)
-        recalls_precisions[g] = np.vstack((curve[1][trimidx:], curve[0][trimidx:])).T
+        curve = utils.precision_recall_curve(np.array(group_ground_truth), np.array(
+            group_predictions), pos_label="tp", fn_score=-1)
+        precision, recall = curve
+
+        recalls_precisions[g] = np.vstack((recall, precision)).T
 
     return recalls_precisions
 
