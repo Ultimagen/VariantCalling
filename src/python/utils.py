@@ -251,7 +251,7 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     tp_counts = np.cumsum(gtr[::-1])[::-1]
     fn_counts = np.cumsum(gtr)
     fp_counts = np.cumsum((gtr == 0)[::-1])[::-1]
-    mask = (tp_counts + fp_counts < 50) | (tp_counts + fn_counts < 50)
+    mask = (tp_counts + fp_counts < 20) | (tp_counts + fn_counts < 20)
     precisions = tp_counts / (tp_counts + fp_counts)
     recalls = tp_counts / (tp_counts + fn_counts)
     trim_idx = np.argmax(predictions > fn_score)

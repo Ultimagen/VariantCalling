@@ -113,7 +113,7 @@ def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'cl
     groups = set(concordance["group"])
     classifier_models = {}
     regressor_models = {}
-
+    #rsis = {}
     for g in groups:
         classifier_models[g], regressor_models[g] = \
             train_threshold_model(concordance, concordance['test_train_split'],
@@ -378,13 +378,15 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
 def get_testing_selection_functions() -> dict:
     sfs = []
     sfs.append(('SNP', lambda x: ~x.indel))
-    sfs.append(("INDEL", lambda x: x.indel))
+    #sfs.append(("INDEL", lambda x: x.indel))
     sfs.append(("Non-hmer INDEL", lambda x: x.indel & (x.hmer_indel_length == 0)))
     sfs.append(("HMER indel <= 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
                                                         (x.hmer_indel_length < 5))))
     sfs.append(("HMER indel > 4, < 12", lambda x: x.indel & (x.hmer_indel_length >= 5) &
                 (x.hmer_indel_length < 12)))
     sfs.append(("HMER indel > 12", lambda x: x.indel & (x.hmer_indel_length >= 12)))
+    #sfs.append(("HMER indel", lambda x: x.indel & (x.hmer_indel_length > 0)))
+    
     return dict(sfs)
 
 
@@ -496,9 +498,9 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
     '''
     concordance = add_grouping_column(concordance, get_testing_selection_functions(), "group_testing")
     predictions = model.predict(concordance, classify_column)
+
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
-
     for g in groups:
         select = (concordance["group_testing"] == g) & \
                  (~concordance["test_train_split"])
@@ -541,11 +543,14 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
                  (~concordance["test_train_split"])
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
-        group_predictions[group_predictions == 'fn'] = -1
+        group_predictions[group_ground_truth == 'fn'] = -1
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'  # this is a change to calculate recall correctly
 
         curve = utils.precision_recall_curve(np.array(group_ground_truth), np.array(
             group_predictions), pos_label="tp", fn_score=-1)
+        #curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
+        #    group_predictions), pos_label="tp")
+
         precision, recall = curve
 
         recalls_precisions[g] = np.vstack((recall, precision)).T
