@@ -431,12 +431,12 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
                                  max_train_set,
                                  group_vector.sum() * (1 - test_set_fraction)))
         test_set_size = group_vector.sum() - train_set_size
-        assert(test_set_size > min_test_set), \
-            f"Test set size too small -> test:{test_set_size}, train:{train_set_size}"
-        assert(train_set_size < max_train_set), \
-            f"Train set size too big -> test:{test_set_size}, train:{train_set_size}"
-        assert(train_set_size / (group_vector.sum()) > test_set_fraction), \
-            f"Train set fraction too small -> test:{test_set_size}, train:{train_set_size}"
+        assert(test_set_size >= min_test_set), \
+            f"{g}: Test set size too small -> test:{test_set_size}, train:{train_set_size}"
+        assert(train_set_size <= max_train_set), \
+            f"{g}: Train set size too big -> test:{test_set_size}, train:{train_set_size}"
+        assert(train_set_size / (group_vector.sum()) >= test_set_fraction), \
+            f"{g}: Train set fraction too small -> test:{test_set_size}, train:{train_set_size}"
         train_set = locations[np.random.choice(np.arange(group_vector.sum(), dtype=np.int),
                                                train_set_size, replace=False)]
         test_train_split_vector[train_set] = True
