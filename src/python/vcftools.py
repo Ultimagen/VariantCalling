@@ -265,6 +265,35 @@ def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> 
     return concordance
 
 
+def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> pd.DataFrame:
+    '''Extract sequence around the indel
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    window_size: int
+        Size of window for GC calculation (around start pos of variant)
+    fasta: str
+        Indexed fasta
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame. Adds "left_motif" and right_motif
+    '''
+    def _get_gc(rec, size, faidx):
+        chrom = faidx[rec['chrom']]
+        beg = rec['pos']-int(size/2)
+        end = beg+size
+        seq = chrom[beg:end].seq.upper()
+        seqGC = seq.replace('A', '').replace('T', '')
+        return float(len(seqGC))/len(seq)
+    faidx = pyfaidx.Fasta(fasta)
+    tmp = concordance.apply(lambda x: _get_gc(x, window_size, faidx), axis=1)
+    concordance['gc_content'] = [x for x in list(tmp)]
+    return concordance
+
 def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int):
     results = []
     with pysam.AlignmentFile(alnfile) as alns:
@@ -289,7 +318,7 @@ def close_to_hmer_run(df: pd.DataFrame, runfile: str,
     '''Adds column is_close_to_hmer_run and inside_hmer_run that is T/F'''
     df['close_to_hmer_run'] = False
     df['inside_hmer_run'] = False
-    run_df = utils.parse_runs_file(runfile, min_hmer_run_length)
+    run_df = utils.parse_intervals_file(runfile, min_hmer_run_length)
     gdf = df.groupby('chrom')
     grun_df = run_df.groupby('chromosome')
     for chrom in gdf.groups.keys():
@@ -308,4 +337,28 @@ def close_to_hmer_run(df: pd.DataFrame, runfile: str,
         is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
         df.loc[gdf_ix, "inside_hmer_run"] = is_inside
         df.loc[gdf_ix, "close_to_hmer_run"] = (close_dist & (~is_inside))
+    return df
+
+def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
+    '''Adds column based on interval annotation file (T/F)'''
+    annot=annotfile.split('/')[-1]
+    if annot[-4:]=='.bed':
+        annot=annot[:-4]
+    print('Annotating '+annot)       
+
+    df[annot] = False
+    annot_df = utils.parse_intervals_file(annotfile)
+    gdf = df.groupby('chrom')
+    gannot_df = annot_df.groupby('chromosome')
+    for chrom in gdf.groups.keys():
+        gdf_ix = gdf.groups[chrom]
+        gannot_ix = gannot_df.groups[chrom]
+        pos1 = np.array(df.loc[gdf_ix, 'pos'])
+        pos2 = np.array(annot_df.loc[gannot_ix, 'start'])
+        pos1_closest_pos2_start = np.searchsorted(pos2, pos1) - 1
+        pos2 = np.array(annot_df.loc[gannot_ix, 'end'])
+        pos1_closest_pos2_end = np.searchsorted(pos2, pos1)
+        
+        is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
+        df.loc[gdf_ix, annot] = is_inside
     return df

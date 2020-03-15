@@ -10,6 +10,7 @@ ap.add_argument("--gtr_vcf", help='Ground truth VCF file', required=True, type=s
 ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison', required=True, type=str)
 ap.add_argument("--highconf_intervals", help='High confidence intervals', required=True, type=str)
 ap.add_argument("--runs_intervals", help='Runs intervals', required=False, type=str, default=None)
+ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False, type=str, default=None, action='append')
 ap.add_argument("--reference", help='Reference genome', required=True, type=str)
 ap.add_argument("--aligned_bam", help='Aligned bam', required=False, default=None, type=str)
 ap.add_argument("--call_sample_name", help='Name of the call sample', required=True, default='sm1')
@@ -42,7 +43,7 @@ else:
     concordance = results
 
 annotated_concordance = vcf_pipeline_utils.annotate_concordance(
-    concordance, args.reference, args.aligned_bam, args.runs_intervals)
+    concordance, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals)
 
 annotated_concordance.to_hdf(args.output_file, key="concordance")
 if args.find_thresholds:

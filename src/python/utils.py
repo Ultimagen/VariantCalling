@@ -274,9 +274,10 @@ def max_merits(specificity, recall):
     return ind[a]
 
 
-def parse_runs_file(runsfile, threshold):
+def parse_intervals_file(intervalfile, threshold=0):
     '''Parses bed file'''
-    df = pd.read_csv(runsfile, names=['chromosome', 'start', 'end'], index_col=None, sep="\t")
-    df = df[df['end'] - df['start'] > threshold]
+    df = pd.read_csv(intervalfile, names=['chromosome', 'start', 'end'], usecols=[0,1,2], index_col=None, sep="\t")
+    if threshold>0:
+        df = df[df['end'] - df['start'] > threshold]
     df.sort_values(['chromosome', 'start'], inplace=True)
     return df
