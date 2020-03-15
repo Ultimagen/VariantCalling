@@ -233,8 +233,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                             for x in concordance_df.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
-                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('FILTER', ';'.join(x.filter.values()))]), vf)
-    columns = ['chrom', 'pos', 'qual', 'filter','sor', 'as_sor',
+                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
+    columns = ['chrom', 'pos', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score']
     original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     original.columns = columns
@@ -277,6 +277,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     if runfile is not None:
         df = vcftools.close_to_hmer_run(
             df, runfile, min_hmer_run_length=10, max_distance=10)
-    for annotation_file in annotate_intervals:
-        df = vcftools.annotate_intervals(df, annotation_file)
+    if annotate_intervals is not None:
+        for annotation_file in annotate_intervals:
+            df = vcftools.annotate_intervals(df, annotation_file)
     return df
