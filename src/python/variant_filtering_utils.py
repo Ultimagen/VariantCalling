@@ -394,7 +394,7 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
                                    training_groups_column: str, test_train_split_column: str,
                                    gtr_column: str,
                                    min_test_set: int = 2000, max_train_set: int = 200000,
-                                   test_set_fraction: float = .2) -> pd.DataFrame:
+                                   test_set_fraction: float = .5) -> pd.DataFrame:
     '''Adds a column that divides each training group into a train/test set. Supports
     requirements for the minimal testing set size, maximal training test size and the fraction of test
 
@@ -413,7 +413,7 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     max_train_set: int
         Default - 200000
     test_set_fraction: float
-        Default - 0.2
+        Default - 0.5
 
     Returns
     -------
@@ -435,8 +435,6 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
             f"Test set size too small -> test:{test_set_size}, train:{train_set_size}"
         assert(train_set_size < max_train_set), \
             f"Train set size too big -> test:{test_set_size}, train:{train_set_size}"
-        assert(train_set_size / (group_vector.sum()) > test_set_fraction), \
-            f"Train set fraction too small -> test:{test_set_size}, train:{train_set_size}"
         train_set = locations[np.random.choice(np.arange(group_vector.sum(), dtype=np.int),
                                                train_set_size, replace=False)]
         test_train_split_vector[train_set] = True
