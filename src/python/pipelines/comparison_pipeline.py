@@ -2,7 +2,7 @@ from python.pipelines import vcf_pipeline_utils
 from python import variant_filtering_utils
 import pandas as pd
 import shutil
-from typing import Optional
+from typing import Optional, List
 
 TRUTH_FILE = "/home/ubuntu/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
 CMP_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/interval.list"
@@ -14,7 +14,8 @@ TRUTH_SAMPLE = "HG001"
 
 
 def pipeline(n_parts: int, input_prefix: str, header: str,
-             truth_file: str= TRUTH_FILE, cmp_intervals: str = CMP_INTERVALS,
+             truth_file: str= TRUTH_FILE, 
+             cmp_intervals: str = CMP_INTERVALS,
              highconf_intervals: str = HIGHCONF_INTERVALS,
              runs_intervals: Optional[str] = RUNS_INTERVALS,
              ref_genome: str = REFERENCE,
