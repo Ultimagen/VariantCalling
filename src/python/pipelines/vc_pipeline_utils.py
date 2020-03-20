@@ -45,6 +45,8 @@ def parse_params_file(pipeline_name):
         ap.add('--rqc_coverage_intervals_location', required=True,
                help='Path to coverage interval locations (prepended to interval_names in intervals_table',
                type=str, default='./')
+        ap.add('--rqc_cram_reference_file', required=False, 
+            help='Reference fasta used for CRAM compression (if demux_file is CRAM)', default=None)
 
     elif pipeline_name == 'variant_calling':
         ap.add('--em_vc_demux_file', help='Path to the demultiplexed bam')
@@ -153,7 +155,8 @@ def align(input_file, output_file, genome_file, nthreads):
         cmd3 = [
             'picard', '-Xms3000m', 'MergeBamAlignment', 'VALIDATION_STRINGENCY=SILENT',
             'ATTRIBUTES_TO_RETAIN=X0', 'ATTRIBUTES_TO_REMOVE=NM', 'ATTRIBUTES_TO_REMOVE=MD',
-            'ALIGNED_BAM=/dev/stdin', 'UNMAPPED_BAM=%s' % input_file[0], 'OUTPUT=%s' % output_bam,
+            'ALIGNED_BAM=/dev/stdin', 'UNMAPPED_BAM=%s' % input_file[
+                0], 'OUTPUT=%s' % output_bam,
             'REFERENCE_SEQUENCE=%s' % genome_file, 'PAIRED_RUN=false', 'SORT_ORDER="unsorted"',
             'IS_BISULFITE_SEQUENCE=false', 'ALIGNED_READS_ONLY=false', 'CLIP_ADAPTERS=false',
             'MAX_RECORDS_IN_RAM=2000000', 'MAX_INSERTIONS_OR_DELETIONS=-1', 'PRIMARY_ALIGNMENT_STRATEGY=MostDistant',
@@ -248,35 +251,70 @@ def align_and_merge(input_file, output_file, genome_file, nthreads):
         raise RuntimeError(exception_string)
 
 
-def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, the_chromosome):
+def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, the_chromosome, cram_reference_fname=None):
     output_bam, output_err = output_files
     input_file = input_file
-    alntmp = pysam.AlignmentFile(input_file, check_sq=False)
+
+    if input_file.endswith('cram') and cram_reference_fname is not None:
+        alntmp = pysam.AlignmentFile(
+            input_file, "rc", check_sq=False, reference_filename=cram_reference_fname)
+        crammode = True
+    elif input_file.endswith('cram') and cram_reference_fname is None:
+        raise RuntimeError("Reference should be supplied for CRAM file")
+    else:
+        alntmp = pysam.AlignmentFile(input_file, check_sq=False)
+        crammode = False
+
     header = str(alntmp.header).split('\n')
     rg_line = [x for x in header if x.startswith('@RG')]
     assert len(rg_line) == 1, 'uBAM does not contain RG or it is not single'
     rg_line = rg_line[0]
     rg_line = rg_line.replace('\t', '\\t')
     alntmp.close()
+
     with open(output_err, 'w') as outlog:
+        if crammode:
+            fifoname = f'{output_bam}.fifo.bam'
+            if not os.path.exists(fifoname):
+                os.mkfifo(fifoname)
+
         minimap_threads = max(1, int(0.8 * nthreads))
         samtools_in_threads = max(1, int(0.2 * nthreads))
-        cmd1 = ['samtools', 'fastq', '-@',
-                str(samtools_in_threads), '-t', input_file]
+        if not crammode:
+            cmd1 = ['samtools', 'fastq', '-@',
+                    str(samtools_in_threads), input_file]
+        else:
+            cmd1 = ['samtools', 'fastq', '-@',
+                    str(samtools_in_threads), '--reference',
+                    cram_reference_fname, input_file]
+
         cmd2 = ['minimap2', '-t', str(minimap_threads), '-R',
                 rg_line, '-x', 'sr', '-y', '-a', genome_file, '-']
         cmd3 = ['awk', f'($3=="{the_chromosome}") || ($1 ~ /^@/)']
-        cmd4 = ['picard', '-Xms3000m', 'MergeBamAlignment', 'VALIDATION_STRINGENCY=SILENT',
-                'ATTRIBUTES_TO_RETAIN=X0', 'ATTRIBUTES_TO_REMOVE=NM', 'ATTRIBUTES_TO_REMOVE=MD',
-                'ALIGNED_BAM=/dev/stdin', 'UNMAPPED_BAM=%s' % input_file, 'OUTPUT=%s' % output_bam,
-                'REFERENCE_SEQUENCE=%s' % genome_file, 'PAIRED_RUN=false', 'SORT_ORDER="unsorted"',
-                'IS_BISULFITE_SEQUENCE=false', 'ALIGNED_READS_ONLY=true', 'CLIP_ADAPTERS=false',
-                'MAX_RECORDS_IN_RAM=2000000', 'MAX_INSERTIONS_OR_DELETIONS=-1',
-                'PRIMARY_ALIGNMENT_STRATEGY=MostDistant',
-                'UNMAP_CONTAMINANT_READS=true', 'ADD_PG_TAG_TO_READS=false']
-        outlog.write('|'.join((' '.join(cmd1), ' '.join(cmd2),
-                               ' '.join(cmd3), ' '.join(cmd4))) + '\n')
+
+        if crammode:
+            cmd4 = ['picard', '-Xms3000m', 'MergeBamAlignment', 'VALIDATION_STRINGENCY=SILENT',
+                    'ATTRIBUTES_TO_RETAIN=X0', 'ATTRIBUTES_TO_REMOVE=NM', 'ATTRIBUTES_TO_REMOVE=MD',
+                    'ALIGNED_BAM=/dev/stdin', f'UNMAPPED_BAM={fifoname}', 'OUTPUT=%s' % output_bam,
+                    'REFERENCE_SEQUENCE=%s' % genome_file, 'PAIRED_RUN=false', 'SORT_ORDER="unsorted"',
+                    'IS_BISULFITE_SEQUENCE=false', 'ALIGNED_READS_ONLY=true', 'CLIP_ADAPTERS=false',
+                    'MAX_RECORDS_IN_RAM=2000000', 'MAX_INSERTIONS_OR_DELETIONS=-1',
+                    'PRIMARY_ALIGNMENT_STRATEGY=MostDistant',
+                    'UNMAP_CONTAMINANT_READS=true', 'ADD_PG_TAG_TO_READS=false']
+        else:
+            cmd4 = ['picard', '-Xms3000m', 'MergeBamAlignment', 'VALIDATION_STRINGENCY=SILENT',
+                    'ATTRIBUTES_TO_RETAIN=X0', 'ATTRIBUTES_TO_REMOVE=NM', 'ATTRIBUTES_TO_REMOVE=MD',
+                    'ALIGNED_BAM=/dev/stdin', 'UNMAPPED_BAM=%s' % input_file, 'OUTPUT=%s' % output_bam,
+                    'REFERENCE_SEQUENCE=%s' % genome_file, 'PAIRED_RUN=false', 'SORT_ORDER="unsorted"',
+                    'IS_BISULFITE_SEQUENCE=false', 'ALIGNED_READS_ONLY=true', 'CLIP_ADAPTERS=false',
+                    'MAX_RECORDS_IN_RAM=2000000', 'MAX_INSERTIONS_OR_DELETIONS=-1',
+                    'PRIMARY_ALIGNMENT_STRATEGY=MostDistant',
+                    'UNMAP_CONTAMINANT_READS=true', 'ADD_PG_TAG_TO_READS=false']
+
+        outlog.write(' | '.join((' '.join(cmd1), ' '.join(cmd2),
+                                 ' '.join(cmd3), ' '.join(cmd4))) + '\n')
         outlog.flush()
+
         task1 = subprocess.Popen(cmd1, stdout=(subprocess.PIPE), stderr=outlog)
         task2 = subprocess.Popen(cmd2,
                                  stdout=(subprocess.PIPE), stderr=outlog, stdin=(task1.stdout))
@@ -287,13 +325,42 @@ def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, th
         task4 = subprocess.Popen(cmd4,
                                  stdout=outlog, stderr=outlog, stdin=(task3.stdout))
         task3.stdout.close()
+
+        if crammode:
+            cmd_cram1 = ['samtools', 'view', '-h', '-b',
+                         '-T', cram_reference_fname, input_file]
+            fifoout = open(fifoname, 'w')
+            cmd_cram2 = ['picard', 'RevertSam', 'I=/dev/stdin',
+                         f'O={fifoname}', 'MAX_DISCARD_FRACTION=0.005', 'ATTRIBUTE_TO_CLEAR=XT',
+                         'ATTRIBUTE_TO_CLEAR=XN', 'ATTRIBUTE_TO_CLEAR=AS', 'ATTRIBUTE_TO_CLEAR=OC',
+                         'ATTRIBUTE_TO_CLEAR=OP', 'REMOVE_DUPLICATE_INFORMATION=true', 'REMOVE_ALIGNMENT_INFORMATION=true',
+                         'VALIDATION_STRINGENCY=LENIENT', 'SO=unsorted']
+            outlog.write(' | '.join((' '.join(cmd_cram1), ' '.join(cmd_cram2))) + f">{fifoname}" + '\n')
+            outlog.flush()
+            task_cram1 = subprocess.Popen(
+                cmd_cram1, stdout=(subprocess.PIPE), stderr=outlog)
+            task_cram2 = subprocess.Popen(
+                cmd_cram2, stdin=task_cram1.stdout, stdout=fifoout, stderr=outlog)
+            task_cram1.stdout.close()
+
+        task_cram2.wait()
         _ = task4.communicate()
+
+    # Collect results and RCs
     taskNames = ['SamToFastq', 'minimap2', 'filter', 'addTags']
     time.sleep(30)
     for x in [task1, task2, task3]:
         x.poll()
 
     rcs = [x.returncode for x in [task1, task2, task3, task4]]
+
+    if crammode:
+        for x in [task_cram1, task_cram2]:
+            x.poll()
+
+        rcs += [x.returncode for x in [task_cram1, task_cram2]]
+        taskNames += ['CramToBam', 'RevertSam']
+
     for i in range(len(rcs)):
         result = ''
         if rcs[i] != 0:
@@ -301,6 +368,8 @@ def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, th
 
     if len(result) > 0:
         raise RuntimeError(f"{result} of alignment failed")
+    fifoout.close()
+    os.unlink(fifoout.name)
 
 
 def prepare_fetch_intervals(input_file, output_file, genome_file):
@@ -482,12 +551,14 @@ def collect_alnstats(idxstats_file, filter_metrics):
 def collect_metrics(input_file: str) -> pd.DataFrame:
     df = pd.read_csv(input_file, sep='\t', comment='#').T
     complete_df = df.copy()
-    df = df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE', 'PCT_CHIMERAS', 'MEAN_READ_LENGTH']]
+    df = df.loc[['PF_MISMATCH_RATE', 'PF_INDEL_RATE',
+                 'PCT_CHIMERAS', 'MEAN_READ_LENGTH']]
     df.loc['PF_MISMATCH_RATE'] *= 100
     df.loc['PF_INDEL_RATE'] *= 100
     df = pd.DataFrame(df.astype(np.float))
     df = df.round(decimals=2)
-    df.index = ['mismatch rate', 'indel rate', 'chimera rate', 'mean read length']
+    df.index = ['mismatch rate', 'indel rate',
+                'chimera rate', 'mean read length']
     return df, complete_df
 
 
@@ -553,9 +624,11 @@ def combine_coverage_metrics(input_files: list, output_file: str, coverage_inter
     classes = list(coverage_interval_df.index)
     convert_dictionary = dict(zip(intervals, classes))
 
-    total_file = [x for x in input_files if splitext(basename(intervals[0]))[0] in x][0]
+    total_file = [x for x in input_files if splitext(
+        basename(intervals[0]))[0] in x][0]
     all_stats, all_histogram = parse_cvg_metrics(total_file)
-    all_stats = all_stats.T.loc[['MEAN_COVERAGE', 'MEDIAN_COVERAGE', 'PCT_20X']]
+    all_stats = all_stats.T.loc[
+        ['MEAN_COVERAGE', 'MEDIAN_COVERAGE', 'PCT_20X']]
     all_median_coverage = float(all_stats.loc['MEDIAN_COVERAGE', 0])
     class_counts = []
     genome_dfs = []
@@ -565,11 +638,13 @@ def combine_coverage_metrics(input_files: list, output_file: str, coverage_inter
         idx = idx[0]
 
         stats, histogram = parse_cvg_metrics(fn)
-        class_counts.append((convert_dictionary[idx], histogram['high_quality_coverage_count'].sum()))
+        class_counts.append((convert_dictionary[idx], histogram[
+                            'high_quality_coverage_count'].sum()))
 
         ps = np.array(histogram['high_quality_coverage_count'].astype(
             np.float) / histogram['high_quality_coverage_count'].sum())
-        distro = np.random.choice(np.array(histogram['coverage']) / all_median_coverage, p=ps, size=(1, 20000))
+        distro = np.random.choice(
+            np.array(histogram['coverage']) / all_median_coverage, p=ps, size=(1, 20000))
         s = pd.Series(distro[0], name='cvg')
         df = pd.DataFrame(s)
         df['class'] = convert_dictionary[idx]
