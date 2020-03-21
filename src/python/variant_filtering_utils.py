@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 import python.utils as utils
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run']
+            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
 
 
 class SingleModel:
@@ -113,7 +113,6 @@ def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'cl
     groups = set(concordance["group"])
     classifier_models = {}
     regressor_models = {}
-    #rsis = {}
     for g in groups:
         classifier_models[g], regressor_models[g] = \
             train_threshold_model(concordance, concordance['test_train_split'],
@@ -296,7 +295,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('qual', None),
                       ('inside_hmer_run', None),
                       ('close_to_hmer_run', None),
-                      ('hmer_indel_nuc', preprocessing.LabelEncoder())]
+                      ('hmer_indel_nuc', preprocessing.LabelEncoder()),
+                      (['hmer_indel_length'], default_filler)]
     transformer = sklearn_pandas.DataFrameMapper(transform_list, df_out=output_df)
     return transformer
 
