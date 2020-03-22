@@ -233,8 +233,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                             for x in concordance_df.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
-                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos)]), vf)
-    columns = ['chrom', 'pos', 'qual', 'sor', 'as_sor',
+                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
+                                                            ('FILTER', ';'.join(x.filter.keys()))]), vf)
+    columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score']
     original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     original.columns = columns
@@ -249,7 +250,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
 
 def annotate_concordance(df: pd.DataFrame, fasta: str,
-                         alnfile: Optional[str] = None, 
+                         alnfile: Optional[str] = None,
                          annotate_intervals: List[str] = [],
                          runfile: Optional[str] = None) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs

@@ -44,6 +44,23 @@ class SingleRegressionModel:
         return scores
 
 
+class SingleTrivialClassifierModel:
+    def __init__(self):
+        pass
+
+    def predict(self, df: pd.DataFrame) -> pd.Series:
+        pf = df.filter.apply(lambda x: 'PASS' in x)
+        return np.where(np.array(pf), "tp", "fp")
+
+
+class SingleTrivialRegressorModel:
+    def __init__(self):
+        pass
+
+    def predict(self, df: pd.DataFrame) -> pd.Series:
+        return df.tree_score
+
+
 class MaskedHierarchicalModel:
     def __init__(self, _name: str, _group_column: str, _models_dict: dict,
                  transformer: Optional[sklearn_pandas.DataFrameMapper]=None):
@@ -386,7 +403,7 @@ def get_testing_selection_functions() -> dict:
                 (x.hmer_indel_length < 12)))
     sfs.append(("HMER indel > 12", lambda x: x.indel & (x.hmer_indel_length >= 12)))
     #sfs.append(("HMER indel", lambda x: x.indel & (x.hmer_indel_length > 0)))
-    
+
     return dict(sfs)
 
 
@@ -546,7 +563,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
 
         curve = utils.precision_recall_curve(np.array(group_ground_truth), np.array(
             group_predictions), pos_label="tp", fn_score=-1)
-        #curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
+        # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
         precision, recall = curve
