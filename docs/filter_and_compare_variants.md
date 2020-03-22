@@ -98,7 +98,7 @@ Arguments:
   --find_thresholds     Should precision recall thresholds be found
   --filter_runs         Should variants on hmer runs be filtered out in the output
   --ignore_filter_status Use also filtered out variants in calculating concordance
-  --anotate_intervals   (might be specified multiple times), bed files specifying regions 
+  --annotate_intervals   (might be specified multiple times), bed files specifying regions 
                         of special_interest that will be added as boolean annotations to 
                         variants
 ```
