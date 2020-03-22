@@ -204,3 +204,22 @@ optional arguments:
                         Output pkl file
 ```
 
+### `evaluate_concordance.py`
+
+Evaluates concordance dataframe based both on filters and score. Outputs H5 file with two keys: `optimal_recall_precision`- best point for variant category and model and `recall_precision_curve` that contains curves for each model
+
+```
+usage: evaluate_concordance.py [-h] [--input_file INPUT_FILE] --output_file
+                               OUTPUT_FILE
+
+Calculate precision and recall for compared HDF5
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --input_file INPUT_FILE
+                        Name of the input h5 file
+  --output_file OUTPUT_FILE
+                        Output h5 file
+```
+
+
