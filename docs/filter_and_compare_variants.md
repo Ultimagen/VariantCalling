@@ -71,7 +71,7 @@ usage: run_comparison_pipeline.py [-h] --n_parts N_PARTS --input_prefix
                                    --call_sample_name
                                    CALL_SAMPLE_NAME --truth_sample_name
                                    TRUTH_SAMPLE_NAME [--find_thresholds]
-                                   [--filter_runs] [--ignore_filter]
+                                   [--filter_runs] [--ignore_filter_status]
 
 Arguments:
   -h, --help            show this help message and exit
@@ -97,7 +97,10 @@ Arguments:
                         Name of the truth sample (as specified in GTR_VCF)
   --find_thresholds     Should precision recall thresholds be found
   --filter_runs         Should variants on hmer runs be filtered out in the output
-  --ignore_filter       Ignore filtered out variants in calculating concordance
+  --ignore_filter_status Use also filtered out variants in calculating concordance
+  --anotate_intervals   (might be specified multiple times), bed files specifying regions 
+                        of special_interest that will be added as boolean annotations to 
+                        variants
 ```
 
 ### Example file locations
@@ -110,6 +113,7 @@ CMP_INTERVALS=/data/genomes/broad-references/hg38/v0/concordance/chr20.hg38.comp
 REFERENCE=/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta
 CALL_SAMPLE_NAME=sm1 # default sample name in our data, change as appropriate
 TRUTH_SAMPLE=INTEGRATION # sample name in GIAB dataset
+ANNOTATION_INTERVALS=/data/genomes/broad-references/hg38/concordance/LCR-hs38.bed
 ```
 
 ### `filter_variants_pipeline.py`
