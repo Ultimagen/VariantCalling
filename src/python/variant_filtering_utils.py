@@ -40,7 +40,8 @@ class SingleRegressionModel:
                         [np.newaxis, :]) == self.is_greater_then[v]
             results.append(result_v)
         result_vec = np.all(results, axis=0)
-        scores = self.score[np.argmax(result_vec == 0, axis=1)]
+#        scores = self.score[np.argmax(result_vec == 0, axis=1)]
+        scores = result_vec.mean(axis=1)
         return scores
 
 
