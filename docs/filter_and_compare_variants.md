@@ -38,11 +38,11 @@
 
 ### Train filtering model
 
-`GATK VCF, ground truth VCF -> run_comparison_pipeline.py -> output.h5 -> train_models_pipeline.py -> models.pkl`
+`GATK VCF, ground truth VCF -> run_comparison_pipeline.py -> output.h5 -> train_models_pipeline.py -> models.pkl, results.h5`
 
 ### Filter variant calling set and compare to ground truth
 
-`GATK VCF, models.pkl -> filter_variants_pipeline.py -> output.vcf, ground truth VCF -> run_comparison_pipeline.py -> output.h5 -> train_models_pipeline.py -> models.pkl`
+`GATK VCF, models.pkl -> filter_variants_pipeline.py -> output.vcf, ground truth VCF -> run_comparison_pipeline.py -> output.h5 -> evaluate_concordance.py -> results.h5`
 
 ## Step descriptions
 
