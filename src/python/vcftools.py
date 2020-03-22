@@ -87,7 +87,7 @@ def get_vcf_df(variant_calls: str) -> pd.DataFrame:
     concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                     x.samples[0]['GT'], x.samples[0].get('PL', (0,)), x.samples[0].get('DP', 0),
                     x.samples[0].get('AD', (0,)), x.info.get("MQ", 0), 
-                    x.info.get("SOR", 0)) for x in tqdm.tqdm_notebook(vf)]
+                    x.info.get("SOR", 0)) for x in tqdm.tqdm(vf)]
 
     concordance_df = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
@@ -361,4 +361,16 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
         
         is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
         df.loc[gdf_ix, annot] = is_inside
+    return df
+
+def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame : 
+    '''Fills filter status column with HPOL_RUN/PASS for false negatives
+    '''
+    if 'filter' not in df.columns:
+        df['filter'] = np.nan; 
+    fill_column_locs = pd.isnull(df['filter']) 
+    is_hpol = df.close_to_hmer_run | df.inside_hmer_run
+    result = np.array(['HPOL_RUN']*fill_column_locs.sum())
+    result[~is_hpol[fill_column_locs]] = 'PASS'
+    df.loc[fill_column_locs,'filter'] = result
     return df

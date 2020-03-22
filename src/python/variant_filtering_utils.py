@@ -50,7 +50,7 @@ class SingleTrivialClassifierModel:
         pass
 
     def predict(self, df: pd.DataFrame) -> pd.Series:
-        pf = df.filter.apply(lambda x: 'PASS' in x)
+        pf = df['filter'].apply(lambda x: 'PASS' in x)
         return np.where(np.array(pf), "tp", "fp")
 
 

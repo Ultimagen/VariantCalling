@@ -281,4 +281,5 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:
             df = vcftools.annotate_intervals(df, annotation_file)
+    df = vcftools.fill_filter_column(df)
     return df
