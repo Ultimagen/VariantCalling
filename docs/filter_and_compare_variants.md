@@ -189,7 +189,7 @@ Trains models on HDF5 dataframe. The output models are saved in pickle file. The
 ```
 usage: train_models_pipeline.py [-h]
                                 (--input_file INPUT_FILE | --input_fofn INPUT_FOFN)
-                                --output_file OUTPUT_FILE
+                                --output_file_prefix OUTPUT_FILE
 
 Train filtering models on the concordance file
 
@@ -200,8 +200,8 @@ optional arguments:
   --input_fofn INPUT_FOFN
                         Input file containing list of the h5 file names to
                         concatenate
-  --output_file OUTPUT_FILE
-                        Output pkl file
+  --output_file_prefix OUTPUT_FILE
+                        Output .pkl file with the trained models and .h5 with the results
 ```
 
 ### `evaluate_concordance.py`
