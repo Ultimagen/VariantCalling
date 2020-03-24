@@ -1,6 +1,7 @@
 import python.variant_filtering_utils as variant_filtering_utils
 import argparse
 import pandas as pd
+import numpy as np
 import pickle
 
 
@@ -140,14 +141,14 @@ results_dict['dt_model_recall_precision_include_gt_excl_hpol_runs'] = recall_pre
 results_dict['dt_model_recall_precision_curve_include_gt_excl_hpol_runs'] = recall_precision_curve_gt
 
 
-pickle.dump(results_dict, open(args.output_file+".pkl", "wb"))
+pickle.dump(results_dict, open(args.output_file_prefix+".pkl", "wb"))
 
 optdict = {}
 prcdict = {}
 for model in ['threshold','dt']: 
     for gt in ['ignore','include']:
-        for hpol in ['incl',' excl']:
-            name_optimum = f'{model}_model_{gt}_gt_{hpol}_hpol_runs'
+        for hpol in ['incl','excl']:
+            name_optimum = f'{model}_model_recall_precision_{gt}_gt_{hpol}_hpol_runs'
             optdict[name_optimum] = results_dict[name_optimum]
             prcdict[name_optimum] = results_dict[name_optimum.replace("recall_precision", "recall_precision_curve")]
 
@@ -162,9 +163,9 @@ results_vals.to_hdf(args.output_file_prefix+'.h5', key="optimal_recall_precision
 
 results_vals = (pd.DataFrame(prcdict)).unstack().reset_index()
 results_vals.columns = ['model', 'category','tmp']
-results_vals.loc[pd.isnull(results_vals['tmp']),'tmp'] = [[[],[]]]
-results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[0])
-results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[1])
+results_vals.loc[pd.isnull(results_vals['tmp']),'tmp'] = [np.zeros((0,2))]
+results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[:,0])
+results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[:,1])
 results_vals.drop('tmp',axis=1,inplace=True)
 
 results_vals.to_hdf(args.output_file_prefix+".h5", key="recall_precision_curve")
