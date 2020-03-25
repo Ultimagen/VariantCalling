@@ -60,7 +60,7 @@ rqc_coverage_intervals_table=/data/genomes/broad-references/hg38/v0/coverage_int
 rqc_coverage_intervals_location=/data/genomes/broad-references/hg38/v0/coverage_intervals/ # will be prepended to file paths in rqc_coverage_intervals_table
 
 # If the demux file is CRAM, reference should be supplied in 
-rqc_cram_reference_fie=<path_to fasta file>
+rqc_cram_reference_file=<path_to fasta file>
 ```
 
 Optionally, this could be a section in a general config file with header. Note that for this pipeline one needs to use the _unsampled_ BAM. 
