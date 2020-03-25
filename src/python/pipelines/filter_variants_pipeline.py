@@ -17,18 +17,18 @@ ap.add_argument("--output_file", help="Output VCF file",
                 type=str, required=True)
 args = ap.parse_args()
 try:
-    print("Reading VCF", flush=True)
+    print("Reading VCF", flush=True, file=sys.stderr)
     df = vcftools.get_vcf_df(args.input_file)
-    print("Adding hpol run info", flush=True)
+    print("Adding hpol run info", flush=True, file=sys.stderr)
     df = vcftools.close_to_hmer_run(df, args.runs_file, min_hmer_run_length=10, max_distance=10)
-    print("Classifying indel/SNP", flush=True)
+    print("Classifying indel/SNP", flush=True, file=sys.stderr)
     df = vcftools.classify_indel(df)
-    print("Classifying hmer/non-hmer indel", flush=True)
+    print("Classifying hmer/non-hmer indel", flush=True, file=sys.stderr)
     df = vcftools.is_hmer_indel(df, args.reference_file)
-    print("Reading motif info", flush=True)
+    print("Reading motif info", flush=True, file=sys.stderr)
     df = vcftools.get_motif_around(df, 5, args.reference_file)
 
-
+    df.to_hdf(f'{args.output_file}.tmp.h5',key='df')
     models_dict = pickle.load(open(args.model_file, "rb"))
     model_name = args.model_name
     models = models_dict[model_name]
@@ -42,12 +42,12 @@ try:
         is_decision_tree = False
 
 
-    print("Applying classifier", flush=True)
+    print("Applying classifier", flush=True, file=sys.stderr)
     predictions = model_clsf.predict(
         variant_filtering_utils.add_grouping_column(df,
                                                     variant_filtering_utils.get_training_selection_functions(),
                                                     "group"))
-    print("Applying regressor", flush=True)
+    print("Applying regressor", flush=True, file=sys.stderr)
 
     predictions_score = model_scor.predict(
         variant_filtering_utils.add_grouping_column(df,
