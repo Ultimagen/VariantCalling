@@ -96,15 +96,17 @@ class MaskedHierarchicalModel:
         gvecs = [df[self.group_column] == g for g in groups]
         result = pd.Series(['fn'] * df.shape[0], index=df.index)
         for i, g in enumerate(groups):
-            if self.transformer is not None:
-                result[(~mask) & (gvecs[i])] = self.models[g].predict(
-                    self.transformer.fit_transform(apply_df[apply_df[self.group_column] == g]))
-            else:
-                result[(~mask) & (gvecs[i])] = self.models[g].predict(
-                    apply_df[apply_df[self.group_column] == g])
-
+            result[(~mask) & (gvecs[i])] = self._predict_by_blocks(self.models[g], apply_df[apply_df[self.group_column] == g])
         return result
 
+    def _predict_by_blocks(self, model, df): 
+        predictions = []
+        for i in range(0,df.shape[0], 1000000):
+            if self.transformer is not None : 
+                predictions.append(model.predict(self.transformer.fit_transform(df.iloc[i:i+1000000,:])))
+            else:
+                predictions = model.predict(df.iloc[i:i+1000000,:])
+        return np.hstack(predictions)
 
 def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
         -> Tuple[MaskedHierarchicalModel, MaskedHierarchicalModel, pd.DataFrame]:
