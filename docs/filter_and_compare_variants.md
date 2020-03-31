@@ -68,6 +68,7 @@ usage: run_comparison_pipeline.py [-h] --n_parts N_PARTS --input_prefix
                                    [--runs_intervals RUNS_INTERVALS]
                                    --reference REFERENCE 
                                    [--aligned_bam ALIGNED_BAM]
+                                   [--annotate_intervals ANNOTATE_INTERVALS]
                                    --call_sample_name
                                    CALL_SAMPLE_NAME --truth_sample_name
                                    TRUTH_SAMPLE_NAME [--find_thresholds]
@@ -184,13 +185,15 @@ dt_model_recall_precision_curve_include_gt_excl_hpol_runs
 
 ### `train_models_pipeline.py`
 
-Trains models on HDF5 dataframe. The output models are saved in pickle file. The usage is self-explanatory.
+Trains models on HDF5 dataframe. The output models are saved in pickle file. The results of the training are saved in h5 file (including, optionally, a concordance dataframe after the application of a model)
+The usage is self-explanatory. Fields in the H5 file are: `optimal_recall_precision`, `recall_precision_curve`, `scored_concordance`
 
 ```
 usage: train_models_pipeline.py [-h]
                                 (--input_file INPUT_FILE | --input_fofn INPUT_FOFN)
                                 --output_file_prefix OUTPUT_FILE
-
+                                [--evaluate_concordance]
+                                [--apply_model APPLY_MODEL]
 Train filtering models on the concordance file
 
 optional arguments:
@@ -202,6 +205,12 @@ optional arguments:
                         concatenate
   --output_file_prefix OUTPUT_FILE
                         Output .pkl file with the trained models and .h5 with the results
+  --evaluate_concordance
+                        Should the results of the model be applied to the
+                        concordance dataframe
+  --apply_model APPLY_MODEL
+                        If evaluate_concordance - which model should be
+                        applied
 ```
 
 ### `evaluate_concordance.py`
