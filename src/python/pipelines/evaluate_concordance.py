@@ -63,7 +63,7 @@ results_vals.to_hdf(args.output_file, key="optimal_recall_precision")
 
 results_vals = (pd.DataFrame(recall_precision_curve_dict)).unstack().reset_index()
 results_vals.columns = ['model', 'category','tmp']
-results_vals.loc[pd.isnull(results_vals['tmp']),'tmp'] = [[[],[]]]
+results_vals.loc[pd.isnull(results_vals['tmp']),'tmp'] = [np.zeros((0,2))]
 results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[:,0])
 results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[:,1])
 
