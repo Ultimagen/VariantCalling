@@ -7,6 +7,8 @@ import numpy as np
 import sys
 import tqdm 
 import subprocess
+import pandas as pd 
+
 ap = argparse.ArgumentParser(prog="filter_variants_pipeline.py", description="Filter VCF")
 ap.add_argument("--input_file", help="Name of the input VCF file", type=str, required=True)
 ap.add_argument("--model_file", help="Pickle model file", type=str, required=True)
