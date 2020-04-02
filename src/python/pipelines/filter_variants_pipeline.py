@@ -29,7 +29,7 @@ try:
     df = vcftools.is_hmer_indel(df, args.reference_file)
     print("Reading motif info", flush=True, file=sys.stderr)
     df = vcftools.get_motif_around(df, 5, args.reference_file)
-    df.loc[pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+    df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
     models_dict = pickle.load(open(args.model_file, "rb"))
     model_name = args.model_name
