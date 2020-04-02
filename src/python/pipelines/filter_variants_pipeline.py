@@ -7,6 +7,8 @@ import numpy as np
 import sys
 import tqdm 
 import subprocess
+import pandas as pd 
+
 ap = argparse.ArgumentParser(prog="filter_variants_pipeline.py", description="Filter VCF")
 ap.add_argument("--input_file", help="Name of the input VCF file", type=str, required=True)
 ap.add_argument("--model_file", help="Pickle model file", type=str, required=True)
@@ -27,7 +29,7 @@ try:
     df = vcftools.is_hmer_indel(df, args.reference_file)
     print("Reading motif info", flush=True, file=sys.stderr)
     df = vcftools.get_motif_around(df, 5, args.reference_file)
-    df.loc[pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+    df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
     models_dict = pickle.load(open(args.model_file, "rb"))
     model_name = args.model_name
