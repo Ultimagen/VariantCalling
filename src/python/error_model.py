@@ -4,8 +4,162 @@ from typing import Optional, Union
 from collections import Counter
 import itertools
 import re
+import sys
+
 ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
 
+def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray : 
+    return testmatrices[idx, :,0,:].T
+
+def get_kr(key_matrix: np.ndarray, idx: int, sf: int =100) -> np.ndarray : 
+    return (key_matrix[idx,:]+sf/2)/sf
+
+def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray, 
+                     probability_threshold: float=0) -> tuple:
+    max_hmer = matrix.shape[0]-1
+    probability_threshold = -10*np.log10(probability_threshold)
+   
+    tmp_matrix = matrix.copy()
+    kr_clip = np.clip(kr, 0, max_hmer)
+    kr_val = tmp_matrix[kr_clip, np.arange(len(kr))]
+    tmp_matrix[kr_clip, np.arange(len(kr))] = 0
+
+    row, column = np.nonzero(tmp_matrix)
+    values = (tmp_matrix[row, column])
+
+    values = np.log10(values)
+    norm_value = np.log10(kr_val[column])
+    normalized_values = -10 * (values - norm_value)
+    normalized_values = np.clip(normalized_values, -60, 60).astype(np.int8)
+    suppress = normalized_values > probability_threshold
+    return row[~suppress], column[~suppress], normalized_values[~suppress]
+
+array_repr = lambda x: ",".join([str(y) for y in x])
+
+def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, n_flows: int=280, n_classes: int=13 ) -> None : 
+    '''Writes probability tensor into the text file
+
+    Parameters
+    ----------
+    tensor_name: str
+        Name of the tensor file
+    key_name: str
+        Regressed key file name 
+    output_file: str
+        Name of the output file 
+    n_flows: int
+        Number of flows (default: 280)
+    n_classes: int
+        Number of classes called (default: 13)
+    ''' 
+
+    key = np.memmap(key_name, dtype=np.int16).reshape(-1,n_flows)
+
+    testmatrices = np.memmap(tensor_name,dtype=np.float32)
+    testmatrices = testmatrices.reshape(-1,n_flows,1,13)
+    print(f'Read {testmatrices.shape[0]} predictions', flush=True, file=sys.stderr)
+    with open(output_file ,'w') as out : 
+        for idx in tqdm.tqdm(range(testmatrices.shape[0])):
+            matrix = (get_matrix(testmatrices,idx))               
+    #         kr = np.round(key[idx,:]).astype(np.int)
+            kr = np.round(key[idx,:]/100).astype(np.uint16)
+
+            kh, kf, kd = matrix_to_sparse(matrix, kr, 0.003)
+            if len(kh)==0 or len(kf)==0 or len(kd)==0 : 
+                out.write("\n")
+                continue
+            kr_str = array_repr(kr)
+            kr_str = 'kr:B:C,'+kr_str
+            kh_str = array_repr(kh)
+            kh_str = 'kh:B:C,' + kh_str
+            kf_str = array_repr(kf)
+            kf_str = 'kf:B:S,'+kf_str
+            kd_str = array_repr(kd)
+            kd_str = 'kd:B:c,' + kd_str
+            out.write('\t'.join((kr_str, kd_str, kh_str, kf_str)))
+            out.write("\n")
+
+def extract_header( input_bam: str, output_sam: str) -> None : 
+    '''Get SAM header
+
+    Parameters
+    ----------
+    input_bam: str
+        Input BAM file
+    output_sam: str
+        Output SAM file
+
+    Returns
+    -------
+    None
+    '''
+    with open(output_sam,'w') as outfile:
+        subprocess.check_call(['samtools', 'view', '-H', input_bam], stdout=outfile)
+
+def add_matrix_to_bam( input_bam: str, input_matrix: str, output_bam: str) -> None : 
+
+    re, we = os.pipe()
+    extract_header(input_bam, output_bam+".hdr")
+    p1 = subprocess.Popen(['cat','hdr.sam'], stdout=we)
+    p4 = subprocess.Popen(['samtools','view','-b','-o',output_bam, '-'], stdin=re)
+    p1.wait()
+    p2 = subprocess.Popen(['samtools','view',input_bam], stdout=subprocess.PIPE)
+    p3 = subprocess.Popen(['paste','-',input_matrix], stdin=p2.stdout, stdout=we)
+    p2.stdout.close()
+    we.close()
+    p4.wait()
+
+
+def read_range_bytes( obj, start, end ): 
+    range_header = "bytes=%d-%d" % (start, end-1)
+    tmp = obj.get(Range=range_header)['Body'].read()
+    return np.frombuffer(tmp, dtype=np.int16)
+
+def read_key_range( obj, start_idx, end_idx, read_size=280 ) : 
+    start = start_idx * 2*read_size
+    end = end_idx *2*read_size
+    tmp = read_range_bytes( obj, start, end )
+    return tmp.reshape(-1,read_size)
+
+def idx_to_block(idx, block_size_in_reads) : 
+    return idx//block_size_in_reads
+
+def read_in_block( idx, block_size_in_reads) :
+    return idx % block_size_in_reads
+def block_idx_to_block_start_end(block_idx, block_size_in_reads, total_number_of_reads=1150319344) : 
+    return(block_idx * block_size_in_reads, min(total_number_of_reads, (block_idx+1)*block_size_in_reads))
+
+
+def fetch_indices(s3_url: str, n_flows: int, read_indices:np.ndarray): 
+    '''Fetch keys that correspond to bead indices 
+
+    Parameters
+    ----------
+    s3_url : str
+        Regressed key url `s3://
+    n_flows: int
+        Number of flows read
+    read_indices: np.ndarray
+        Array of indices to fetch
+    '''
+    s3 = boto3.resource("s3")
+    bucket_name = re.split(r"/+", s3_url)[1]
+    key = "/".join(re.split(r"/+", s3_url)[2:])
+    obj = s3.Object(bucket_name=bucket_name,key=key)
+    total_number_of_reads = obj.content_length/n_flows/2
+    print(total_number_of_reads)
+    reads_regressed_signals = np.zeros((len(read_indices), n_flows))
+    cur_block_idx = -1
+    block_size_in_reads = 1000000
+    for i,read_id in enumerate(tqdm.tqdm(read_indices)):
+        read_block = idx_to_block(read_id, block_size_in_reads)
+        if read_block != cur_block_idx : 
+            start, end = block_idx_to_block_start_end(read_block, block_size_in_reads, total_number_of_reads)
+            cur_block_idx = read_block
+            block = read_key_range(obj, start, end, n_flows)
+        pos_in_block = read_in_block(read_id, block_size_in_reads)
+        reads_regressed_signals[i,:] = block[pos_in_block,:]
+    return reads_regressed_signals
 
 def read_error_probs(error_probs_csv: str = ERROR_PROBS, binned_by_quality: bool = False,
                      left_motif_size: int= 5, right_motif_size: int=5, n_regression_bins: int=0) -> Union[pd.DataFrame, list]:
@@ -16,7 +170,7 @@ def read_error_probs(error_probs_csv: str = ERROR_PROBS, binned_by_quality: bool
     error_probs_csv: str
         CSV file with error probabilities. Example %s
     binned_by_quality: bool
-        Optional - True if the probabilities are binned by the regressed signal of the base
+        Optional - True if the probabilities are binned by the regressed signal aof the base
     left_motif_size: int
         Length of the left motif. 
     right_motif_size: int
