@@ -5,6 +5,8 @@ from collections import Counter
 import itertools
 import re
 import sys
+import boto3
+import tqdm
 
 ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
 
@@ -147,7 +149,6 @@ def fetch_indices(s3_url: str, n_flows: int, read_indices:np.ndarray):
     key = "/".join(re.split(r"/+", s3_url)[2:])
     obj = s3.Object(bucket_name=bucket_name,key=key)
     total_number_of_reads = obj.content_length/n_flows/2
-    print(total_number_of_reads)
     reads_regressed_signals = np.zeros((len(read_indices), n_flows))
     cur_block_idx = -1
     block_size_in_reads = 1000000
