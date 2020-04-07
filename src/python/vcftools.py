@@ -4,7 +4,7 @@ import pyfaidx
 import tqdm
 from python import utils
 import numpy as np
-
+from collections import defaultdict
 
 def get_concordance(genotype_concordance_vcf: str,
                     input_vcf: str,
@@ -83,18 +83,17 @@ def get_vcf_df(variant_calls: str) -> pd.DataFrame:
     pd.DataFrame
     '''
     vf = pysam.VariantFile(variant_calls)
-
-    concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
-                    x.samples[0]['GT'], x.samples[0].get('PL', (0,)), x.samples[0].get('DP', 0),
-                    x.samples[0].get('AD', (0,)), x.info.get("MQ", 0), 
-                    x.info.get("SOR", 0)) for x in tqdm.tqdm(vf)]
-
-    concordance_df = pd.DataFrame(concordance)
-    concordance_df.columns = ['chrom', 'pos', 'qual',
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
+                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
+                                                            ('FILTER', ';'.join(x.filter.keys()))]), vf)
+    
+    columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt', 'pl',
-                              'dp', 'ad', 'mq', 'sor']
-    concordance_df['indel'] = concordance_df['alleles'].apply(
-        lambda x: len(set(([len(y) for y in x]))) > 1)
+                              'dp', 'ad', 'mq', 'sor', 'af']
+    concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
+
+#    concordance_df['indel'] = concordance_df['alleles'].apply(
+#        lambda x: len(set(([len(y) for y in x]))) > 1)
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
