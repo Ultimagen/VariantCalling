@@ -6,7 +6,7 @@ import sklearn_pandas
 import pandas as pd
 import numpy as np
 import tqdm
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Callable
 import python.utils as utils
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
@@ -202,35 +202,6 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     return classifier, regression_model
 
 
-def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify') -> pd.DataFrame:
-    quals = np.linspace(0, 2000, 30)
-    sors = np.linspace(0, 20, 80)
-    results = []
-    pairs = []
-    selection_functions = get_training_selection_functions()
-    concordance = add_grouping_column(concordance, selection_functions, "group")
-    for q in tqdm.tqdm_notebook(quals):
-        for s in sors:
-            pairs.append((q, s))
-            tmp = (concordance[((concordance['qual'] > q) & (concordance['sor'] < s)) |
-                               (concordance[classify_column] == 'fn')][[classify_column, 'group']]).copy()
-            tmp1 = (concordance[((concordance['qual'] < q) | (concordance['sor'] > s)) &
-                                (concordance[classify_column] == 'tp')][[classify_column, 'group']]).copy()
-            tmp1[classify_column] = 'fn'
-            tmp2 = pd.concat((tmp, tmp1))
-            results.append(tmp2.groupby([classify_column, 'group']).size())
-    results_df = pd.concat(results, axis=1)
-    results_df = results_df.T
-    results_df.columns = results_df.columns.to_flat_index()
-
-    for group in ['snp', 'h-indel', 'non-h-indel']:
-        results_df[('recall', group)] = results_df.get(('tp', group), 0) / \
-            (results_df.get(('tp', group), 0) + results_df.get(('fn', group), 0) + 1)
-        results_df[('precision', group)] = results_df.get(('tp', group), 0) / \
-            (results_df.get(('tp', group), 0) + results_df.get(('fp', group), 0) + 1)
-        results_df.index = pairs
-    return results_df
-
 
 def get_r_s_i(results: pd.DataFrame, var_type: pd.DataFrame) -> tuple:
     '''Returns data for plotting ROC curve
@@ -357,6 +328,18 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     return model, model1
 
 
+def get_basic_selection_functions() : 
+    'Selection between SNPs and INDELs'
+    sfs = []
+    names = []
+    sfs.append(lambda x: (~x.indel))
+    names.append("snp")
+    sfs.append(lambda x: (x.indel))
+    names.append("indel")
+
+    return dict(zip(names, sfs))
+
+
 def get_training_selection_functions():
     '''
     '''
@@ -369,6 +352,35 @@ def get_training_selection_functions():
     sfs.append(lambda x: (x.indel & (x.hmer_indel_length > 0)))
     names.append("h-indel")
     return dict(zip(names, sfs))
+
+def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify', sf_generator: Callable = get_training_selection_functions) -> pd.DataFrame:
+    quals = np.linspace(0, 2000, 30)
+    sors = np.linspace(0, 20, 80)
+    results = []
+    pairs = []
+    selection_functions = sf_generator()
+    concordance = add_grouping_column(concordance, selection_functions, "group")
+    for q in tqdm.tqdm_notebook(quals):
+        for s in sors:
+            pairs.append((q, s))
+            tmp = (concordance[((concordance['qual'] > q) & (concordance['sor'] < s)) |
+                               (concordance[classify_column] == 'fn')][[classify_column, 'group']]).copy()
+            tmp1 = (concordance[((concordance['qual'] < q) | (concordance['sor'] > s)) &
+                                (concordance[classify_column] == 'tp')][[classify_column, 'group']]).copy()
+            tmp1[classify_column] = 'fn'
+            tmp2 = pd.concat((tmp, tmp1))
+            results.append(tmp2.groupby([classify_column, 'group']).size())
+    results_df = pd.concat(results, axis=1)
+    results_df = results_df.T
+    results_df.columns = results_df.columns.to_flat_index()
+
+    for group in set(concordance['group']):
+        results_df[('recall', group)] = results_df.get(('tp', group), 0) / \
+            (results_df.get(('tp', group), 0) + results_df.get(('fn', group), 0) + 1)
+        results_df[('precision', group)] = results_df.get(('tp', group), 0) / \
+            (results_df.get(('tp', group), 0) + results_df.get(('fp', group), 0) + 1)
+        results_df.index = pairs
+    return results_df
 
 
 def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name: str) -> pd.DataFrame:
