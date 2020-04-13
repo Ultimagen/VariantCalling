@@ -7,14 +7,16 @@ import re
 import sys
 import boto3
 import tqdm
+import subprocess
+import os 
 
 ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
 
 def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray : 
-    return testmatrices[idx, :,0,:].T
+    return testmatrices[idx, 0,:,:].T
 
 def get_kr(key_matrix: np.ndarray, idx: int, sf: int =100) -> np.ndarray : 
-    return (key_matrix[idx,:]+sf/2)/sf
+    return (key_matrix[idx,:]+sf//2)//sf
 
 def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray, 
                      probability_threshold: float=0) -> tuple:
@@ -55,10 +57,10 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, n_flows
         Number of classes called (default: 13)
     ''' 
 
-    key = np.memmap(key_name, dtype=np.int16).reshape(-1,n_flows)
+    key = np.memmap(key_name, dtype=np.int16).reshape((-1,n_flows))
 
     testmatrices = np.memmap(tensor_name,dtype=np.float32)
-    testmatrices = testmatrices.reshape(-1,n_flows,1,13)
+    testmatrices = testmatrices.reshape(-1,1,n_flows,n_classes)
     print(f'Read {testmatrices.shape[0]} predictions', flush=True, file=sys.stderr)
     with open(output_file ,'w') as out : 
         for idx in tqdm.tqdm(range(testmatrices.shape[0])):
@@ -102,15 +104,16 @@ def add_matrix_to_bam( input_bam: str, input_matrix: str, output_bam: str) -> No
 
     re, we = os.pipe()
     extract_header(input_bam, output_bam+".hdr")
-    p1 = subprocess.Popen(['cat','hdr.sam'], stdout=we)
+    p1 = subprocess.Popen(['cat',output_bam+'.hdr'], stdout=we)
     p4 = subprocess.Popen(['samtools','view','-b','-o',output_bam, '-'], stdin=re)
     p1.wait()
+
     p2 = subprocess.Popen(['samtools','view',input_bam], stdout=subprocess.PIPE)
     p3 = subprocess.Popen(['paste','-',input_matrix], stdin=p2.stdout, stdout=we)
     p2.stdout.close()
-    we.close()
+    os.close(we)
     p4.wait()
-
+    
 
 def read_range_bytes( obj, start, end ): 
     range_header = "bytes=%d-%d" % (start, end-1)
@@ -149,7 +152,7 @@ def fetch_indices(s3_url: str, n_flows: int, read_indices:np.ndarray):
     key = "/".join(re.split(r"/+", s3_url)[2:])
     obj = s3.Object(bucket_name=bucket_name,key=key)
     total_number_of_reads = obj.content_length/n_flows/2
-    reads_regressed_signals = np.zeros((len(read_indices), n_flows))
+    reads_regressed_signals = np.zeros((len(read_indices), n_flows), np.int16)
     cur_block_idx = -1
     block_size_in_reads = 1000000
     for i,read_id in enumerate(tqdm.tqdm(read_indices)):
