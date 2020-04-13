@@ -9,7 +9,7 @@ ap.add_argument("--input_ubam", help='Input uBAM file', required=True, type=str)
 ap.add_argument("--output_ubam", help='Output uBAM file', required=True, type=str)
 ap.add_argument("--n_flows", help='Number of flows (required if probability tensor or regressed key are bin)', required=False, default=None)
 ap.add_argument("--n_classes", help='Number of probability classes (required if probability tensor or regressed key are bin)', required=False, default=None)
-
+ap.add_argument("--probability_threshold", help="Minimal probability to report", required=False, default=0.003, type=float)
 
 args = ap.parse_args()
 
@@ -21,7 +21,8 @@ error_model.write_matrix_tags(tensor_name=args.probability_tensor,
                              key_name=args.regressed_key, 
                              output_file=matrix_file_name,
                              n_flows=args.n_flows, 
-                             n_classes=args.n_classes)
+                             n_classes=args.n_classes, 
+                             probability_threshold=args.probability_threshold)
 
 error_model.add_matrix_to_bam(args.input_ubam, matrix_file_name, args.output_ubam)
 os.unlink(matrix_file_name)
