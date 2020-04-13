@@ -44,7 +44,8 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
 array_repr = lambda x: ",".join([str(y) for y in x])
 
 
-def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, n_flows: int=280, n_classes: int=13, sf: int=100) -> None:
+def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, 
+    n_flows: int=280, n_classes: int=13, probability_threshold: float=0.003) -> None:
     '''Writes probability tensor into the text file
 
     Parameters
@@ -75,7 +76,7 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, n_flows
             matrix = get_matrix(testmatrices, idx)
             kr = key[idx, :]
 
-            kh, kf, kd = matrix_to_sparse(matrix, kr, 0.003)
+            kh, kf, kd = matrix_to_sparse(matrix, kr, probability_threshold)
             if len(kh) == 0 or len(kf) == 0 or len(kd) == 0:
                 out.write("\n")
                 continue
