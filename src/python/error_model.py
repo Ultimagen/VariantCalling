@@ -44,14 +44,14 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
 array_repr = lambda x: ",".join([str(y) for y in x])
 
 
-def write_matrix_tags(tensor_names: list, key_name: str, output_file: str, 
+def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, 
     n_flows: int=280, n_classes: int=13, probability_threshold: float=0.003) -> None:
     '''Writes probability tensor into the text file
 
     Parameters
     ----------
-    tensor_name: list
-        Name of the tensor files
+    tensor_name: str
+        Name of the tensor file
     key_name: str
         Regressed key file name 
     output_file: str
@@ -61,40 +61,38 @@ def write_matrix_tags(tensor_names: list, key_name: str, output_file: str,
     n_classes: int
         Number of classes called (default: 13)
     '''
-    if n_flows is not None:
+
+    if not key_name.endswith("npy"):
         key = np.memmap(key_name, dtype=np.int16).reshape((-1, n_flows))
     else:
         key = np.load(key_name, mmap_mode='r')
-    count = 0
+        
+    if not tensor_name.endswith("npy"):
+        testmatrices = np.memmap(tensor_name, dtype=np.float32)
+        testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
+    else:
+        testmatrices = np.load(tensor_name, mmap_mode='r')
+
+    print(f'Read {testmatrices.shape[0]} predictions', flush=True, file=sys.stderr)
     with open(output_file, 'w') as out:
-        for tensor_name in tensor_names:
-            for idx in tqdm.tqdm(range(testmatrices.shape[0])):
-                if n_flows is not None:
-                    testmatrices = np.memmap(tensor_name, dtype=np.float32)
-                    testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
-                else:
-                    testmatrices = np.load(tensor_name, mmap_mode='r')
-            
-                print(f'Read {testmatrices.shape[0]} predictions', flush=True, file=sys.stderr)
+        for idx in tqdm.tqdm(range(testmatrices.shape[0])):
+            matrix = get_matrix(testmatrices, idx)
+            kr = key[idx, :]
 
-                matrix = get_matrix(testmatrices, idx)
-
-                kr = key[count, :]
-                count +=1
-                kh, kf, kd = matrix_to_sparse(matrix, kr, probability_threshold)
-                if len(kh) == 0 or len(kf) == 0 or len(kd) == 0:
-                    out.write("\n")
-                    continue
-                kr_str = array_repr(kr)
-                kr_str = 'kr:B:C,' + kr_str
-                kh_str = array_repr(kh)
-                kh_str = 'kh:B:C,' + kh_str
-                kf_str = array_repr(kf)
-                kf_str = 'kf:B:S,' + kf_str
-                kd_str = array_repr(kd)
-                kd_str = 'kd:B:c,' + kd_str
-                out.write('\t'.join((kr_str, kd_str, kh_str, kf_str)))
+            kh, kf, kd = matrix_to_sparse(matrix, kr, probability_threshold)
+            if len(kh) == 0 or len(kf) == 0 or len(kd) == 0:
                 out.write("\n")
+                continue
+            kr_str = array_repr(kr)
+            kr_str = 'kr:B:C,' + kr_str
+            kh_str = array_repr(kh)
+            kh_str = 'kh:B:C,' + kh_str
+            kf_str = array_repr(kf)
+            kf_str = 'kf:B:S,' + kf_str
+            kd_str = array_repr(kd)
+            kd_str = 'kd:B:c,' + kd_str
+            out.write('\t'.join((kr_str, kd_str, kh_str, kf_str)))
+            out.write("\n")
 
 
 def extract_header(input_bam: str, output_sam: str) -> None:
