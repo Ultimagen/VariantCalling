@@ -15,7 +15,7 @@ ap.add_argument("--probability_threshold", help="Minimal probability to report",
 args = ap.parse_args()
 
 
-assert (probability_tensor.endswith("npy") and args.regressed_key.endswith("npy")) or \
+assert (args.probability_tensor.endswith("npy") and args.regressed_key.endswith("npy")) or \
 	(args.n_flows is not None and args.n_classes is not None), "If binary matrices are given as input - number of flows and classes should be given"
 
 matrix_file_name = ".".join((args.probability_tensor, "output.matrix.txt"))
