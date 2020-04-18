@@ -118,14 +118,14 @@ def add_matrix_to_bam(input_bam: str, input_matrix: str, output_bam: str) -> Non
 
     re, we = os.pipe()
     extract_header(input_bam, output_bam + ".hdr")
-    p1 = subprocess.Popen(['cat', output_bam + '.hdr'], stdout=we, stderr=sys.stderr)
+    p1 = subprocess.Popen(['cat', output_bam + '.hdr'], stdout=we)
     p4 = subprocess.Popen(
-        ['samtools', 'view', '-b', '-o', output_bam, '-'], stdin=re, stderr=sys.stderr)
+        ['samtools', 'view', '-b', '-o', output_bam, '-'], stdin=re)
     p1.wait()
     p2 = subprocess.Popen(['samtools', 'view', input_bam],
-                          stdout=subprocess.PIPE, stderr=sys.stderr)
+                          stdout=subprocess.PIPE)
     p3 = subprocess.Popen(['paste', '-', input_matrix],
-                          stdin=p2.stdout, stdout=we, stderr = sys.stderr)
+                          stdin=p2.stdout, stdout=we)
     p2.stdout.close()
     os.close(we)
     p4.wait()
