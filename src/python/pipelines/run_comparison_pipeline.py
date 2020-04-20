@@ -1,3 +1,4 @@
+import pathmagic
 import python.pipelines.comparison_pipeline as comparison_pipeline
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import argparse

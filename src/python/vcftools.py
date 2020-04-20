@@ -85,15 +85,16 @@ def get_vcf_df(variant_calls: str) -> pd.DataFrame:
     vf = pysam.VariantFile(variant_calls)
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
                                     x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
-                                                            ('FILTER', ';'.join(x.filter.keys()))]), vf)
+                                    ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
     
     columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt', 'pl',
-                              'dp', 'ad', 'mq', 'sor', 'af']
+                              'dp', 'ad', 'mq', 'sor', 'af', 'filter']
     concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
+    concordance_df.columns = columns
 
-#    concordance_df['indel'] = concordance_df['alleles'].apply(
-#        lambda x: len(set(([len(y) for y in x]))) > 1)
+    concordance_df['indel'] = concordance_df['alleles'].apply(
+        lambda x: len(set(([len(y) for y in x]))) > 1)
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
