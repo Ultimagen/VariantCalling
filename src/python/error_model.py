@@ -1,3 +1,12 @@
+"""Summary
+
+Attributes
+----------
+array_repr : TYPE
+    Description
+ERROR_PROBS : str
+    Description
+"""
 import pandas as pd
 import numpy as np
 from typing import Optional, Union
@@ -14,15 +23,128 @@ ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
 
 
 def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray:
+    """Summary
+    
+    Parameters
+    ----------
+    testmatrices : np.ndarray
+        Description
+    idx : int
+        Description
+    
+    Returns
+    -------
+    np.ndarray
+        Description
+    """
     return testmatrices[idx, 0, :, :].T
 
 
 def get_kr(key_matrix: np.ndarray, idx: int, sf: int =100) -> np.ndarray:
+    """Summary
+    
+    Parameters
+    ----------
+    key_matrix : np.ndarray
+        Description
+    idx : int
+        Description
+    sf : int, optional
+        Description
+    
+    Returns
+    -------
+    np.ndarray
+        Description
+    """
     return (key_matrix[idx, :] + sf // 2) // sf
 
 
+def key2base(key: np.ndarray, flow_order:str) -> str : 
+    '''Convert key to base sequence
+    
+    Parameters
+    ----------
+    key : np.ndarray
+        Flow key
+    flow_order : str
+        Flow order
+    
+    Returns
+    -------
+    str
+        Sequence
+    '''
+    return ''.join([k*n for k,n in zip(flow_order,key )])
+
+def generate_quality( seq: str ) -> str: 
+    """Summary
+    
+    Parameters
+    ----------
+    seq : str
+        Sequence
+    
+    Returns
+    -------
+    str
+        I of the length of the sequence
+    """
+    return 'I'*len(seq)
+
+def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classes: int, flow_order: str) -> None:
+    '''Write convert the prob. tensor to sequences and write them to the file
+    
+    Parameters
+    ----------
+    tensor_name : str
+        Name of the probability tensor
+    seq_file_name : str
+        Name of the file to write the sequences
+    n_flows : int
+        Number of flows
+    n_classes : int
+        Number of classes
+    flow_order: str
+        Flow cycle
+
+    Returns
+    ------------------
+    None
+    '''
+    if not tensor_name.endswith("npy"):
+        testmatrices = np.memmap(tensor_name, dtype=np.float32)
+        testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
+    else:
+        testmatrices = np.load(tensor_name, mmap_mode='r')
+
+    flow_order = (flow_order * n_flows)[:n_flows]
+    with open(seq_file_name,'w') as out: 
+        for i in range(testmatrices.shape[0]): 
+            matrix = get_matrix(testmatrices,i)
+            kr = np.argmax(matrix, axis=0)
+            seq = key2base(kr, flow_order)
+            qual = generate_quality(seq)
+            out.write(f"{seq}\t{qual}\n")
+
 def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
                      probability_threshold: float=0) -> tuple:
+    """Summary
+    
+    Parameters
+    ----------
+    matrix : np.ndarray
+        Input matrix
+    kr : np.ndarray
+        regressed key
+    probability_threshold : float, optional
+        threshold **ratio** to report
+    
+    Returns
+    -------
+    tuple
+        Row, column, probability ratio normalized to the kr
+    """
     max_hmer = matrix.shape[0] - 1
     probability_threshold = -10 * np.log10(probability_threshold)
 
@@ -30,7 +152,7 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
     kr_clip = np.clip(kr, 0, max_hmer)
     kr_val = tmp_matrix[kr_clip, np.arange(len(kr))]
     tmp_matrix[kr_clip, np.arange(len(kr))] = 0
-
+ 
     row, column = np.nonzero(tmp_matrix)
     values = (tmp_matrix[row, column])
 
@@ -44,29 +166,38 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
 array_repr = lambda x: ",".join([str(y) for y in x])
 
 
-def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, 
+def write_matrix_tags(tensor_name: str, key_name: Union[str, NoneType], output_file: str, 
     n_flows: int=280, n_classes: int=13, probability_threshold: float=0.003) -> None:
     '''Writes probability tensor into the text file
-
+    
     Parameters
     ----------
-    tensor_name: str
+    tensor_name : str
         Name of the tensor file
-    key_name: str
+    key_name : Union[str, NoneType]
         Regressed key file name 
-    output_file: str
+    output_file : str
         Name of the output file 
-    n_flows: int
+    n_flows : int, optional
         Number of flows (default: 280)
-    n_classes: int
+    n_classes : int, optional
         Number of classes called (default: 13)
+    probability_threshold : float, optional
+        Description
+
+    Returns
+    -------
+    None
     '''
 
-    if not key_name.endswith("npy")
-        key = np.memmap(key_name, dtype=np.int16).reshape((-1, n_flows))
-    else:
-        key = np.load(key_name, mmap_mode='r')
-    if not tensor_name.endswith("npy")
+    if key_name is not None : 
+        if not key_name.endswith("npy"):
+            key = np.memmap(key_name, dtype=np.int16).reshape((-1, n_flows))
+        else:
+            key = np.load(key_name, mmap_mode='r')
+    else: 
+        key = None        
+    if not tensor_name.endswith("npy"):
         testmatrices = np.memmap(tensor_name, dtype=np.float32)
         testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
     else:
@@ -76,7 +207,10 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
     with open(output_file, 'w') as out:
         for idx in tqdm.tqdm(range(testmatrices.shape[0])):
             matrix = get_matrix(testmatrices, idx)
-            kr = key[idx, :]
+            if key is not None :            
+                kr = key[idx, :]
+            else: 
+                kr = np.argmax(matrix, axis=0)
 
             kh, kf, kd = matrix_to_sparse(matrix, kr, probability_threshold)
             if len(kh) == 0 or len(kf) == 0 or len(kd) == 0:
@@ -96,16 +230,16 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
 
 def extract_header(input_bam: str, output_sam: str) -> None:
     '''Get SAM header
-
+    
     Parameters
     ----------
-    input_bam: str
+    input_bam : str
         Input BAM file
-    output_sam: str
+    output_sam : str
         Output SAM file
-
-    Returns
-    -------
+    
+    No Longer Returned
+    ------------------
     None
     '''
     with open(output_sam, 'w') as outfile:
@@ -113,31 +247,97 @@ def extract_header(input_bam: str, output_sam: str) -> None:
             ['samtools', 'view', '-H', input_bam], stdout=outfile)
 
 
-def add_matrix_to_bam(input_bam: str, input_matrix: str, output_bam: str) -> None:
+def add_matrix_to_bam(input_bam: str, input_matrix: str, output_bam: str, replace_sequence_file: str=None) -> None:
+    """Summary
+    
+    Parameters
+    ----------
+    input_bam : str
+        Description
+    input_matrix : str
+        Description
+    output_bam : str
+        Description
+    replace_sequence_file : str, optional
+        Description
+    """
+    if replace_sequence_file is not None :
+        rgbi_fname = output_bam + "rgbi.txt"
+        extract_tags(input_bam, rgbi_fname, ['RG','bi','rq'])
 
     re, we = os.pipe()
     extract_header(input_bam, output_bam + ".hdr")
-    p1 = subprocess.Popen(['cat', output_bam + '.hdr'], stdout=we, stderr=sys.stderr)
+    p1 = subprocess.Popen(['cat', output_bam + '.hdr'], stdout=we)
+
     p4 = subprocess.Popen(
-        ['samtools', 'view', '-b', '-o', output_bam, '-'], stdin=re, stderr=sys.stderr)
+        ['samtools', 'view', '-b', '-o', output_bam, '-'], stdin=re)
     p1.wait()
-    p2 = subprocess.Popen(['samtools', 'view', input_bam],
-                          stdout=subprocess.PIPE, stderr=sys.stderr)
-    p3 = subprocess.Popen(['paste', '-', input_matrix],
-                          stdin=p2.stdout, stdout=we, stderr = sys.stderr)
+
+    if replace_sequence_file is None : 
+        p2 = subprocess.Popen(['samtools', 'view', input_bam],
+                          stdout=subprocess.PIPE)
+    else: 
+        p2a = subprocess.Popen(['samtools', 'view', input_bam],
+                          stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(['cut', '-f1-9'], stdin=p2a.stdout, stdout=subprocess.PIPE)
+        p2a.stdout.close()
+
+    if replace_sequence_file is None : 
+        p3 = subprocess.Popen(['paste', '-', input_matrix],
+                          stdin=p2.stdout, stdout=we)
+    else: 
+        p3 = subprocess.Popen(['paste', '-', input_matrix] + [replace_sequence_file, rgbi_fname],
+                          stdin=p2.stdout, stdout=we)
+
     p2.stdout.close()
     os.close(we)
     p4.wait()
     os.unlink(output_bam + ".hdr")
+    if replace_sequence_file is not None : 
+        os.unlink(rgbi_fname)
 
 
 def read_range_bytes(obj, start, end):
+    """Summary
+    
+    Parameters
+    ----------
+    obj : TYPE
+        Description
+    start : TYPE
+        Description
+    end : TYPE
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    """
     range_header = "bytes=%d-%d" % (start, end - 1)
     tmp = obj.get(Range=range_header)['Body'].read()
     return np.frombuffer(tmp, dtype=np.int16)
 
 
 def read_key_range(obj, start_idx, end_idx, read_size=280):
+    """Summary
+    
+    Parameters
+    ----------
+    obj : TYPE
+        Description
+    start_idx : TYPE
+        Description
+    end_idx : TYPE
+        Description
+    read_size : int, optional
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    """
     start = start_idx * 2 * read_size
     end = end_idx * 2 * read_size
     tmp = read_range_bytes(obj, start, end)
@@ -145,28 +345,77 @@ def read_key_range(obj, start_idx, end_idx, read_size=280):
 
 
 def idx_to_block(idx, block_size_in_reads):
+    """Summary
+    
+    Parameters
+    ----------
+    idx : TYPE
+        Description
+    block_size_in_reads : TYPE
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    """
     return idx // block_size_in_reads
 
 
 def read_in_block(idx, block_size_in_reads):
+    """Summary
+    
+    Parameters
+    ----------
+    idx : TYPE
+        Description
+    block_size_in_reads : TYPE
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    """
     return idx % block_size_in_reads
 
 
 def block_idx_to_block_start_end(block_idx, block_size_in_reads, total_number_of_reads=1150319344):
+    """Summary
+    
+    Parameters
+    ----------
+    block_idx : TYPE
+        Description
+    block_size_in_reads : TYPE
+        Description
+    total_number_of_reads : int, optional
+        Description
+    
+    Returns
+    -------
+    TYPE
+        Description
+    """
     return(block_idx * block_size_in_reads, min(total_number_of_reads, (block_idx + 1) * block_size_in_reads))
 
 
 def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray):
     '''Fetch keys that correspond to bead indices 
-
+    
     Parameters
     ----------
     s3_url : str
         Regressed key url `s3://
-    n_flows: int
+    n_flows : int
         Number of flows read
-    read_indices: np.ndarray
+    read_indices : np.ndarray
         Array of indices to fetch
+    
+    Returns
+    -------
+    TYPE
+        Description
     '''
     s3 = boto3.resource("s3")
     bucket_name = re.split(r"/+", s3_url)[1]
@@ -191,26 +440,24 @@ def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray):
 def read_error_probs(error_probs_csv: str = ERROR_PROBS, binned_by_quality: bool = False,
                      left_motif_size: int= 5, right_motif_size: int=5, n_regression_bins: int=0) -> Union[pd.DataFrame, list]:
     '''Read error probs CSV and produces data frame
-
+    
     Parameters
     ----------
-    error_probs_csv: str
+    error_probs_csv : str, optional
         CSV file with error probabilities. Example %s
-    binned_by_quality: bool
+    binned_by_quality : bool, optional
         Optional - True if the probabilities are binned by the regressed signal aof the base
-    left_motif_size: int
+    left_motif_size : int, optional
         Length of the left motif. 
-    right_motif_size: int
+    right_motif_size : int, optional
         Length of the right motif
-    n_regression_bins: int
+    n_regression_bins : int, optional
         Default - 0 - number of regression bins
-
+    
     Returns
     -------
-    pd.DataFrame or list of pd.DataFrame
-            DataFrame with multiindex: left context, hmer nuc, hmer length, right context
-            and columns:
-    ''' % ERROR_PROBS
+    Union[pd.DataFrame, list]
+    '''
 
     source_dataframe = pd.read_csv(error_probs_csv)
     source_dataframe['left'] = source_dataframe[
@@ -248,16 +495,16 @@ def read_error_probs(error_probs_csv: str = ERROR_PROBS, binned_by_quality: bool
 
 def _convert_to_probs(source_dataframe: pd.DataFrame):
     '''Converts counts to probabilities
-
+    
     Parameters
     ----------
-    source_dataframe: pd.DataFrame
+    source_dataframe : pd.DataFrame
             DataFrame of counts
-
+    
     Returns
     -------
     adds columns P(-1), P(0), P(+1) to convert counts (n(-1), n(0),n(+1)) to probabilities
-
+    
     '''
     count_columns = [
         x for x in source_dataframe.columns if not x.startswith('P')]
@@ -276,15 +523,20 @@ def marginalize_error_probs(source_dataframe: pd.DataFrame, left_drop: int = 0, 
     '''Marginalize error probabilities by combining motifs sharing common suffix (left) or prefix (right)
     This function is useful for calculation of error probabilities of nucleotides that are close to the end 
     of the read
-
+    
     Parameters
     ----------
-    source_dataframe: pd.DataFrame
+    source_dataframe : pd.DataFrame
             Input DataFrame
-    left_drop: int
+    left_drop : int, optional
             Number of nucleotides to marginalize on in prefix of left context
-    right_drop: int
+    right_drop : int, optional
             Number of nucleotides to marginalize on in suffix of right context
+    
+    Returns
+    -------
+    pd.DataFrame
+        Description
     '''
     #source_dataframe = source_dataframe.drop(0, axis=0, level='hmer_number').copy()
     assert left_drop > 0 or right_drop > 0, "No marginalization needed for these drop values"
@@ -320,16 +572,21 @@ def marginalize_error_probs(source_dataframe: pd.DataFrame, left_drop: int = 0, 
 
 def create_marginalize_dictionary(source_dataframe: pd.DataFrame) -> dict:
     '''Creates a dictionary of all possible marginalizations of the error model
-
+    
     Parameters
     ----------
-    source_dataframe: pd.DataFrame
+    source_dataframe : pd.DataFrame
         original dataframe
-
+    
     Returns
     -------
-    dict: 
+    dict
         dictionary with keys - sizes of the left and right motif
+    
+    Raises
+    ------
+    Exception
+        Description
     '''
 
     marginalize_dict = {}
@@ -365,16 +622,16 @@ def add_zero_model(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     '''Add probabilities for 0->0 and 0->1 errors.  
     Due to implementation difficulties P(0|0) and P(0|1) were not reported.
     The calculation is P(0|1) = P (1|0), P(0|0) = 1-P(1|0)
-
+    
     Parameters
     ----------
-    source_dataframe: pd.DataFrame
+    source_dataframe : pd.DataFrame
         Input dataframe
-
+    
     Return
     ------
     pd.DataFrame
-
+    
     Note
     ----
     This function does not work yet with the new format of the error model
@@ -397,16 +654,16 @@ def add_zero_model(source_dataframe: pd.DataFrame) -> pd.DataFrame:
 def split_by_signal_bins(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     '''Recieves dataframe with hmers binned by regression signal and splits it 
     into a list by the bin of regression signal
-
+    
     Parameters
     ----------
-    source_dataframe: pd.DataFrame
+    source_dataframe : pd.DataFrame
         Source dataframe. Column names should be of the form ?(n_nn) where n is the difference
         between the read hmer and the ground truth hmer and nn is the value of the bin
-
+    
     Returns
     -------
-    List (indexed by bin values) with columns of the form ?(n)
+    pd.DataFrame
     '''
     column_name_regexp = r'([A-Za-z]*)\({0,1}([\-0-9]+)_([\-0-9]+)\){0,1}'
     parsed_column_names = [
@@ -433,14 +690,14 @@ def split_by_signal_bins(source_dataframe: pd.DataFrame) -> pd.DataFrame:
 
 def convert2readGivenData(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     '''Convert probabilities in P(read | data = i ) to P(read=i | data)
-
+    
     Parameters
     ----------
-    source_dataframe: pd.DataFrame
+    source_dataframe : pd.DataFrame
         source dataframe. Should contain columns with counts with integer names (-2,-1,0,1,2 etc.)
         and probability columns (P(-2), P(-1)...) that represent e.g P(R=-1|H=0) (i.e. probability of 
         deletion in read given haplotype for each row)
-
+    
     Returns
     -------
     pd.DataFrame
@@ -493,12 +750,16 @@ def convert2readGivenData(source_dataframe: pd.DataFrame) -> pd.DataFrame:
 class ErrorModel:
     '''Contains error model and functions to access it. The design of the class 
     is mosty for efficiency purposes
-
+    
     Attributes
     ----------
+    error_model : TYPE
+        Description
+    hashed_dict : TYPE
+        Description
     _em - error model. Currently implemented as numpy array, keeps only probabilities
     _hash_dict - dictionary between hash of the index and the index in the array
-
+    
     Methods
     -------
     get_hash - fetch by hash of the tuple
@@ -507,6 +768,15 @@ class ErrorModel:
     '''
 
     def __init__(self, error_model_file: str, n_bins: int=0):
+        """Summary
+        
+        Parameters
+        ----------
+        error_model_file : str
+            Description
+        n_bins : int, optional
+            Description
+        """
         if n_bins > 0:
             error_models = [pd.read_hdf(
                 error_model_file, key="bin_{}".format(b)) for b in range(n_bins)]
@@ -533,12 +803,40 @@ class ErrorModel:
             del error_model
 
     def hash2idx(self, hash_list: list, bins: Optional[np.ndarray]=None) -> list:
+        """Summary
+        
+        Parameters
+        ----------
+        hash_list : list
+            Description
+        bins : Optional[np.ndarray], optional
+            Description
+        
+        Returns
+        -------
+        list
+            Description
+        """
         if bins is None:
             return [self.hashed_dict.get(x, self.error_model.shape[0] - 1) for x in hash_list]
         else:
             return [self.hashed_dict[bins[i]].get(hash_list[i], self.error_model[bins[i]].shape[0] - 1) for i in range(len(bins))]
 
     def get_hash(self, tuple_hash: int, bin: Optional[int]=None) -> np.array:
+        """Summary
+        
+        Parameters
+        ----------
+        tuple_hash : int
+            Description
+        bin : Optional[int], optional
+            Description
+        
+        Returns
+        -------
+        np.array
+            Description
+        """
         if bin is None:
             hashed_idx = self.hashed_dict.get(
                 tuple_hash, self.error_model.shape[0] - 1)
@@ -549,6 +847,20 @@ class ErrorModel:
             return self.error_model[bin][hashed_idx, :]
 
     def get_tuple(self, tup: tuple, bin: Optional[int]=None) -> np.array:
+        """Summary
+        
+        Parameters
+        ----------
+        tup : tuple
+            Description
+        bin : Optional[int], optional
+            Description
+        
+        Returns
+        -------
+        np.array
+            Description
+        """
         if bin is None:
             hashed_idx = self.hashed_dict.get(
                 hash(tup), self.error_model.shape[0] - 1)
@@ -559,6 +871,20 @@ class ErrorModel:
             return self.error_model[bin][hashed_idx, :]
 
     def get_index(self, index_list: np.ndarray, bins: Optional[np.ndarray]=None) -> np.array:
+        """Summary
+        
+        Parameters
+        ----------
+        index_list : np.ndarray
+            Description
+        bins : Optional[np.ndarray], optional
+            Description
+        
+        Returns
+        -------
+        np.array
+            Description
+        """
         if bins is None:
             return self.error_model[index_list, :]
         else:
