@@ -166,7 +166,7 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
 array_repr = lambda x: ",".join([str(y) for y in x])
 
 
-def write_matrix_tags(tensor_name: str, key_name: Union[str, NoneType], output_file: str, 
+def write_matrix_tags(tensor_name: str, key_name: str, output_file: str, 
     n_flows: int=280, n_classes: int=13, probability_threshold: float=0.003) -> None:
     '''Writes probability tensor into the text file
     
@@ -174,7 +174,7 @@ def write_matrix_tags(tensor_name: str, key_name: Union[str, NoneType], output_f
     ----------
     tensor_name : str
         Name of the tensor file
-    key_name : Union[str, NoneType]
+    key_name : str
         Regressed key file name 
     output_file : str
         Name of the output file 
