@@ -18,6 +18,7 @@ import boto3
 import tqdm
 import subprocess
 import os
+import pysam
 
 ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
 
@@ -127,6 +128,7 @@ def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classe
             qual = generate_quality(seq)
             out.write(f"{seq}\t{qual}\n")
 
+
 def extract_tags( bamfile: str, output_file: str, tag_list: list) -> None: 
     """Extracts specified tags and writes them into the TSV file
     
@@ -142,8 +144,9 @@ def extract_tags( bamfile: str, output_file: str, tag_list: list) -> None:
     with open(output_file,'w') as out : 
         with pysam.AlignmentFile(bamfile, check_sq=False) as inp : 
             for rec in inp : 
-                tags = [ rec.get_tag(x,with_value_type=True)]
-                out.write("\t".join([f'{x}:{tags[i][1]}:{tags[i][0]}\n' for i,x in enumerate(tags)]))
+                tags = [ rec.get_tag(x,with_value_type=True) for x in tag_list]
+                out.write("\t".join([f'{tag_list[i]}:{tags[i][1]}:{tags[i][0]}' for i in range(len(tags))]))
+                out.write("\n")
 
 def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
                      probability_threshold: float=0) -> tuple:
@@ -287,10 +290,8 @@ def add_matrix_to_bam(input_bam: str, input_matrix: str, output_bam: str, replac
     extract_header(input_bam, output_bam + ".hdr")
     p1 = subprocess.Popen(['cat', output_bam + '.hdr'], stdout=we)
 
-    p4 = subprocess.Popen(
-        ['samtools', 'view', '-b', '-o', output_bam, '-'], stdin=re)
+    p4 = subprocess.Popen(['samtools', 'view', '-b', '-o', output_bam, '-'], stdin=re)
     p1.wait()
-
     if replace_sequence_file is None : 
         p2 = subprocess.Popen(['samtools', 'view', input_bam],
                           stdout=subprocess.PIPE)
@@ -304,7 +305,7 @@ def add_matrix_to_bam(input_bam: str, input_matrix: str, output_bam: str, replac
         p3 = subprocess.Popen(['paste', '-', input_matrix],
                           stdin=p2.stdout, stdout=we)
     else: 
-        p3 = subprocess.Popen(['paste', '-', input_matrix] + [replace_sequence_file, rgbi_fname],
+        p3 = subprocess.Popen(['paste', '-' ] + [replace_sequence_file, rgbi_fname, input_matrix],
                           stdin=p2.stdout, stdout=we)
 
     p2.stdout.close()

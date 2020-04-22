@@ -29,7 +29,7 @@ error_model.write_matrix_tags(tensor_name=args.probability_tensor,
                              probability_threshold=args.probability_threshold)
 if args.regressed_key is None : 
 	seq_file_name = '.'.join((args.probability_tensor, "output.seq.txt"))
-	error_model.write_sequences(tensor_name, seq_file_name, n_flows, n_classes, args.flow_order)
+	error_model.write_sequences(args.probability_tensor, seq_file_name, args.n_flows, args.n_classes, args.flow_order)
 
 error_model.add_matrix_to_bam(args.input_ubam, matrix_file_name, args.output_ubam)
 os.unlink(matrix_file_name)
