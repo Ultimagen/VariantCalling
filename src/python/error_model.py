@@ -127,6 +127,24 @@ def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classe
             qual = generate_quality(seq)
             out.write(f"{seq}\t{qual}\n")
 
+def extract_tags( bamfile: str, output_file: str, tag_list: list) -> None: 
+    """Extracts specified tags and writes them into the TSV file
+    
+    Parameters
+    ----------
+    bamfile : str
+        Input BAM file
+   output_file : str
+        Output txt file
+    tag_list : list
+        List of tags to extract
+    """
+    with open(output_file,'w') as out : 
+        with pysam.AlignmentFile(bamfile, check_sq=False) as inp : 
+            for rec in inp : 
+                tags = [ rec.get_tag(x,with_value_type=True)]
+                out.write("\t".join([f'{x}:{tags[i][1]}:{tags[i][0]}\n' for i,x in enumerate(tags)]))
+
 def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
                      probability_threshold: float=0) -> tuple:
     """Summary
