@@ -31,8 +31,8 @@ if args.regressed_key is None :
 	seq_file_name = '.'.join((args.probability_tensor, "output.seq.txt"))
 	error_model.write_sequences(args.probability_tensor, seq_file_name, args.n_flows, args.n_classes, args.flow_order)
 
-error_model.add_matrix_to_bam(args.input_ubam, matrix_file_name, args.output_ubam)
+error_model.add_matrix_to_bam(args.input_ubam, matrix_file_name, args.output_ubam, seq_file_name)
 os.unlink(matrix_file_name)
 
 if args.regressed_key is None : 
-	os.unlink(seq_file_name)
+    os.unlink(seq_file_name)
