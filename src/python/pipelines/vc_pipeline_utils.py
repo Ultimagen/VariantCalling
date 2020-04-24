@@ -609,7 +609,7 @@ def coverage_stats(input_files: list, output_files: list, genome_file: str, inte
         input_bam = input_files[0]
     output_metrics, output_log = output_files
     cmd = ['picard', '-Xmx10g', 'CollectWgsMetrics', f"INPUT={input_bam}",
-           f"OUTPUT={output_metrics}", f"R={genome_file}",
+           f"OUTPUT={output_metrics}", f"R={genome_file}", "Q=0",
            'MINIMUM_MAPPING_QUALITY=-1', 'COUNT_UNPAIRED=true',
            'USE_FAST_ALGORITHM=false', 'READ_LENGTH=500', f"INTERVALS={intervals}",
            'VALIDATION_STRINGENCY=LENIENT']
