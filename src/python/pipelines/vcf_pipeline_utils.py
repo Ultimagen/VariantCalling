@@ -252,21 +252,30 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 def annotate_concordance(df: pd.DataFrame, fasta: str,
                          alnfile: Optional[str] = None,
                          annotate_intervals: List[str] = [],
-                         runfile: Optional[str] = None) -> pd.DataFrame:
+                         runfile: Optional[str] = None, 
+                         flow_order: Optional[str] = "TACG") -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
-
+    
     Parameters
     ----------
-    df: pd.DataFrame
+    df : pd.DataFrame
         Concordance dataframe
-    fasta: str
+    fasta : str
         Indexed FASTA of the reference genome
-    alnfile: str
+    alnfile : Optional[str], optional
         Alignment file (Optional)
-
+    annotate_intervals : List[str], optional
+        Description
+    runfile : Optional[str], optional
+        Description
+    flow_order : Optional[str], optional
+        Description
+    
     Returns
+    -------
     pd.DataFrame
         Annotated dataframe
+    
     '''
 
     df = vcftools.classify_indel(df)
@@ -282,4 +291,5 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         for annotation_file in annotate_intervals:
             df = vcftools.annotate_intervals(df, annotation_file)
     df = vcftools.fill_filter_column(df)
+    df = vcftools.annotate_cycle_skip(df, flow_order="TACG")
     return df
