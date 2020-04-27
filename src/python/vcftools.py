@@ -365,6 +365,16 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
 
 def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame : 
     '''Fills filter status column with HPOL_RUN/PASS for false negatives
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Description
+    
+    Returns
+    -------
+    pd.DataFrame
+        Description
     '''
     if 'filter' not in df.columns:
         df['filter'] = np.nan; 
@@ -373,4 +383,59 @@ def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame :
     result = np.array(['HPOL_RUN']*fill_column_locs.sum())
     result[~is_hpol[fill_column_locs]] = 'PASS'
     df.loc[fill_column_locs,'filter'] = result
+    return df
+
+def annotate_cycle_skip(df: pd.DataFrame, flow_order: str) -> pd.DataFrame : 
+    """Adds cycle skip information: non-skip, NA, cycle-skip, possible cycle-skip
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe
+    flow_order : str
+        Flow order 
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe with columns "cycleskip_status" - possible values are: 
+        * non-skip (not a cycle skip at any flow order)
+        * NA (undefined - non-snps, multiallelic snps )
+        * cycle-skip 
+        ( possible cycle-skip (cycle skip at a different flow order))
+    """
+
+    na_pos = df['indel'] | (df['alleles'].apply(len) > 2) 
+    df.loc[na_pos, 'cycleskip_status'] = "NA"
+    snp_pos = ~na_pos
+    snps = df.loc[snp_pos].copy()
+    left_last = np.array(snps['left_motif']).astype(np.string_)
+    right_first = np.array(snps['right_motif']).astype(np.string_)
+
+    ref = np.array(snps['ref']).astype(np.string_)
+    alt = np.array(snps['alleles'].apply(lambda x:x[1] )).astype(np.string_)
+
+    ref_seqs = np.char.add(np.char.add(left_last, ref), right_first)
+    alt_seqs = np.char.add(np.char.add(left_last, alt), right_first)
+
+    ref_encs = [ utils.generateKeyFromSequence(str(np.char.decode(x)), flow_order) for x in ref_seqs]
+    alt_encs = [ utils.generateKeyFromSequence(str(np.char.decode(x)), flow_order) for x in alt_seqs]
+
+    cycleskip = np.array([ x for x in range(len(ref_encs)) if len(ref_encs[x]) != len(alt_encs[x])])
+    poss_cycleskip = [ x for x in range(len(ref_encs)) if len(ref_encs[x])==len(alt_encs[x]) \
+         and (np.any(ref_encs[x][ref_encs[x]-alt_encs[x]!=0]==0) or \
+              np.any(alt_encs[x][ref_encs[x]-alt_encs[x]!=0]==0))]
+    s = set(np.concatenate((cycleskip, poss_cycleskip)))    
+    non_cycleskip = [ x for x in range(len(ref_encs)) if x not in s]
+
+    vals =['']*len(snps)
+    for x in cycleskip:
+        vals[x] = "cycle-skip"
+    for x in poss_cycleskip: 
+        vals[x] = "possible-cycle-skip"
+    for x in non_cycleskip: 
+        vals[x] = "non-skip"
+    snps["cycleskip_status"] = vals
+
+    df.loc[snp_pos,"cycleskip_status"] = snps["cycleskip_status"]
     return df

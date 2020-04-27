@@ -20,6 +20,45 @@ def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray
     '''
     return np.random.choice(vals, 10000, p=probs)
 
+def generateKeyFromSequence(sequence: str, flow_order: str, truncate: int=None) -> np.ndarray:
+    """Converts bases to flow order
+    
+    Parameters
+    ----------
+    sequence : str
+        Input sequence (bases)
+    flow_order : str
+        Flow order
+    truncate : int, optional
+        maximal hmer to read
+    
+    Returns
+    -------
+    np.ndarray
+        sequence in key space
+    """
+
+    flow = flow_order*len(sequence)
+    
+    key = []
+    pos = 0
+    for base in flow:
+        hcount = 0
+        for i in range(pos, len(sequence)):
+            if sequence[i] == base:
+                hcount+=1
+            else:
+                break
+        else:
+            key.append(hcount)
+            break # end of sequence
+            
+        key.append(hcount)
+        pos += hcount
+    if truncate: 
+        return np.clip(np.array(key), 0, truncate)    
+    else: 
+        return np.array(key)
 
 def revcomp(seq: str) -> str:
     '''Reverse complements DNA given as string
