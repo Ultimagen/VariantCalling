@@ -41,7 +41,7 @@ def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray:
     return testmatrices[idx, 0, :, :].T
 
 
-def get_kr(key_matrix: np.ndarray, idx: int, sf: int =100) -> np.ndarray:
+def get_kr(key_matrix: np.ndarray, idx: int, sf: int = 100) -> np.ndarray:
     """Summary
 
     Parameters
@@ -80,8 +80,8 @@ def key2base(key: np.ndarray, flow_order: str) -> str:
 
 
 def _calculate_correct_prob(matrix: np.ndarray) -> np.ndarray:
-    '''Calculates the probability to be correct call at each flow 
-    The probabilities of errors other than the second highest are 
+    '''Calculates the probability to be correct call at each flow
+    The probabilities of errors other than the second highest are
     discarded
 
     Parameters
@@ -91,13 +91,11 @@ def _calculate_correct_prob(matrix: np.ndarray) -> np.ndarray:
     '''
     kr = np.argmax(matrix, axis=0)
     high_err = np.argpartition(matrix, -2, axis=0)[-2, :]
-    return matrix[kr, np.arange(matrix.shape[1])]/
-                (matrix[kr, np.arange(matrix.shape[1])] + \
-                 matrix[high_err, np.arange(matrix.shape[1])])
+    return matrix[kr, np.arange(matrix.shape[1])] / \
+        (matrix[kr, np.arange(matrix.shape[1])] + matrix[high_err, np.arange(matrix.shape[1])])
 
 
-def _generate_quality(seq: str, kr=None: np.ndarray,
-                     correct_prob=None: np.ndarray) -> str:
+def _generate_quality(seq: str, kr: np.ndarray = None, correct_prob: np.ndarray = None) -> str:
     """Summary
 
     Parameters
@@ -106,7 +104,7 @@ def _generate_quality(seq: str, kr=None: np.ndarray,
         Sequence
     kr : np.ndarray
         Kr (optional)
-    correct_prob: np.ndarray 
+    correct_prob: np.ndarray
         probability (optional)
 
     Returns
@@ -123,9 +121,8 @@ def _generate_quality(seq: str, kr=None: np.ndarray,
         probs = error_prob[kr > 0]
         tmp_kr = kr[kr > 0]
         ends = np.cumsum(tmp_kr) - 1
-        starts = np.right_shift(np.cumsum(tmp_kr), 1)
+        starts = ends + 1 - tmp_kr
         probs = probs / 2
-
         output = np.zeros((tmp_kr.sum()))
         output[ends] = output[ends] + probs
         output[starts] = output[starts] + probs
@@ -194,7 +191,7 @@ def extract_tags(bamfile: str, output_file: str, tag_list: list) -> None:
 
 
 def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
-                     probability_threshold: float=0) -> tuple:
+                     probability_threshold: float = 0) -> tuple:
     """Summary
 
     Parameters
@@ -229,11 +226,13 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
     suppress = normalized_values > probability_threshold
     return row[~suppress], column[~suppress], normalized_values[~suppress]
 
-array_repr = lambda x: ",".join([str(y) for y in x])
+
+def array_repr(x):
+    return ",".join([str(y) for y in x])
 
 
 def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
-                      n_flows: int=280, n_classes: int=13, probability_threshold: float=0.003) -> None:
+                      n_flows: int = 280, n_classes: int = 13, probability_threshold: float = 0.003) -> None:
     '''Writes probability tensor into the text file
 
     Parameters
@@ -241,9 +240,9 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
     tensor_name : str
         Name of the tensor file
     key_name : str
-        Regressed key file name 
+        Regressed key file name
     output_file : str
-        Name of the output file 
+        Name of the output file
     n_flows : int, optional
         Number of flows (default: 280)
     n_classes : int, optional
@@ -779,7 +778,7 @@ def convert2readGivenData(source_dataframe: pd.DataFrame) -> pd.DataFrame:
 
     bins_number = int((source_dataframe.shape[1]) / 2)
 
-    idx = pd.MultiIndex.from_product([left_names, hmer_number, hmer_names,  right_names],
+    idx = pd.MultiIndex.from_product([left_names, hmer_number, hmer_names, right_names],
                                      names=['left', 'hmer_number', 'hmer_letter', 'right']).sort_values()
     result_dataframe = pd.DataFrame(
         index=idx, columns=source_dataframe.columns)
