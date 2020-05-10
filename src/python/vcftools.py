@@ -6,6 +6,7 @@ from python import utils
 import numpy as np
 from collections import defaultdict
 
+
 def get_concordance(genotype_concordance_vcf: str,
                     input_vcf: str,
                     reference_genome: str) -> pd.DataFrame:
@@ -70,26 +71,28 @@ def get_concordance(genotype_concordance_vcf: str,
     return concordance_df
 
 
-def get_vcf_df(variant_calls: str) -> pd.DataFrame:
-    '''Reads VCF file into dataframe
+def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
+    '''Reads VCF file into dataframe, re
 
     Parameters
     ----------
     variant_calls: str
         VCF file
+    sample_id: int
+        Index of sample to fetch (default: 0)
 
     Returns
     -------
     pd.DataFrame
     '''
     vf = pysam.VariantFile(variant_calls)
-    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
-                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
-                                    ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
-    
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items()
+        + x.samples[sample_id].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
+          ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
+
     columns = ['chrom', 'pos', 'qual',
-                              'ref', 'alleles', 'gt', 'pl',
-                              'dp', 'ad', 'mq', 'sor', 'af', 'filter']
+               'ref', 'alleles', 'gt', 'pl',
+               'dp', 'ad', 'mq', 'sor', 'af', 'filter']
     concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     concordance_df.columns = columns
 
@@ -313,15 +316,16 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
     '''
     def _get_gc(rec, size, faidx):
         chrom = faidx[rec['chrom']]
-        beg = rec['pos']-int(size/2)
-        end = beg+size
+        beg = rec['pos'] - int(size / 2)
+        end = beg + size
         seq = chrom[beg:end].seq.upper()
         seqGC = seq.replace('A', '').replace('T', '')
-        return float(len(seqGC))/len(seq)
+        return float(len(seqGC)) / len(seq)
     faidx = pyfaidx.Fasta(fasta)
     tmp = concordance.apply(lambda x: _get_gc(x, window_size, faidx), axis=1)
     concordance['gc_content'] = [x for x in list(tmp)]
     return concordance
+
 
 def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int):
     results = []
@@ -368,12 +372,13 @@ def close_to_hmer_run(df: pd.DataFrame, runfile: str,
         df.loc[gdf_ix, "close_to_hmer_run"] = (close_dist & (~is_inside))
     return df
 
+
 def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
     '''Adds column based on interval annotation file (T/F)'''
-    annot=annotfile.split('/')[-1]
-    if annot[-4:]=='.bed':
-        annot=annot[:-4]
-    print('Annotating '+annot)       
+    annot = annotfile.split('/')[-1]
+    if annot[-4:] == '.bed':
+        annot = annot[:-4]
+    print('Annotating ' + annot)
 
     df[annot] = False
     annot_df = utils.parse_intervals_file(annotfile)
@@ -387,36 +392,37 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
         pos1_closest_pos2_start = np.searchsorted(pos2, pos1) - 1
         pos2 = np.array(annot_df.loc[gannot_ix, 'end'])
         pos1_closest_pos2_end = np.searchsorted(pos2, pos1)
-        
+
         is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
         df.loc[gdf_ix, annot] = is_inside
     return df
 
-def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame : 
+
+def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame:
     '''Fills filter status column with HPOL_RUN/PASS for false negatives
-    
+
     Parameters
     ----------
     df : pd.DataFrame
         Description
-    
+
     Returns
     -------
     pd.DataFrame
         Description
     '''
     if 'filter' not in df.columns:
-        df['filter'] = np.nan; 
-    fill_column_locs = pd.isnull(df['filter']) 
+        df['filter'] = np.nan
+    fill_column_locs = pd.isnull(df['filter'])
     is_hpol = df.close_to_hmer_run | df.inside_hmer_run
-    result = np.array(['HPOL_RUN']*fill_column_locs.sum())
+    result = np.array(['HPOL_RUN'] * fill_column_locs.sum())
     result[~is_hpol[fill_column_locs]] = 'PASS'
-    df.loc[fill_column_locs,'filter'] = result
+    df.loc[fill_column_locs, 'filter'] = result
     return df
 
 def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None) -> pd.DataFrame : 
     """Adds cycle skip information: non-skip, NA, cycle-skip, possible cycle-skip
-    
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -429,10 +435,10 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     Returns
     -------
     pd.DataFrame
-        Dataframe with columns "cycleskip_status" - possible values are: 
+        Dataframe with columns "cycleskip_status" - possible values are:
         * non-skip (not a cycle skip at any flow order)
         * NA (undefined - non-snps, multiallelic snps )
-        * cycle-skip 
+        * cycle-skip
         ( possible cycle-skip (cycle skip at a different flow order))
     """
 
@@ -469,24 +475,24 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     ref_seqs = np.char.add(np.char.add(left_last, ref), right_first)
     alt_seqs = np.char.add(np.char.add(left_last, alt), right_first)
 
-    ref_encs = [ utils.generateKeyFromSequence(str(np.char.decode(x)), flow_order) for x in ref_seqs]
-    alt_encs = [ utils.generateKeyFromSequence(str(np.char.decode(x)), flow_order) for x in alt_seqs]
+    ref_encs = [utils.generateKeyFromSequence(str(np.char.decode(x)), flow_order) for x in ref_seqs]
+    alt_encs = [utils.generateKeyFromSequence(str(np.char.decode(x)), flow_order) for x in alt_seqs]
 
-    cycleskip = np.array([ x for x in range(len(ref_encs)) if len(ref_encs[x]) != len(alt_encs[x])])
-    poss_cycleskip = [ x for x in range(len(ref_encs)) if len(ref_encs[x])==len(alt_encs[x]) \
-         and (np.any(ref_encs[x][ref_encs[x]-alt_encs[x]!=0]==0) or \
-              np.any(alt_encs[x][ref_encs[x]-alt_encs[x]!=0]==0))]
-    s = set(np.concatenate((cycleskip, poss_cycleskip)))    
-    non_cycleskip = [ x for x in range(len(ref_encs)) if x not in s]
+    cycleskip = np.array([x for x in range(len(ref_encs)) if len(ref_encs[x]) != len(alt_encs[x])])
+    poss_cycleskip = [x for x in range(len(ref_encs)) if len(ref_encs[x]) == len(alt_encs[x])
+                      and (np.any(ref_encs[x][ref_encs[x] - alt_encs[x] != 0] == 0) or
+                           np.any(alt_encs[x][ref_encs[x] - alt_encs[x] != 0] == 0))]
+    s = set(np.concatenate((cycleskip, poss_cycleskip)))
+    non_cycleskip = [x for x in range(len(ref_encs)) if x not in s]
 
-    vals =['']*len(snps)
+    vals = [''] * len(snps)
     for x in cycleskip:
         vals[x] = "cycle-skip"
-    for x in poss_cycleskip: 
+    for x in poss_cycleskip:
         vals[x] = "possible-cycle-skip"
-    for x in non_cycleskip: 
+    for x in non_cycleskip:
         vals[x] = "non-skip"
     snps["cycleskip_status"] = vals
 
-    df.loc[snp_pos,"cycleskip_status"] = snps["cycleskip_status"]
+    df.loc[snp_pos, "cycleskip_status"] = snps["cycleskip_status"]
     return df
