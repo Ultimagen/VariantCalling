@@ -100,7 +100,36 @@ def get_vcf_df(variant_calls: str) -> pd.DataFrame:
                             for x in concordance_df.iterrows()]
     return concordance_df
 
+def add_info_tag_from_df( vcf_input_file: str, vcf_output_file: str, 
+    df: pd.DataFrame, column: str, info_format: tuple): 
+    """Adds a value of a dataframe column as an info field in the  VCF file 
+    
+    Parameters
+    ----------
+    vcf_input_file : str
+        Input file
+    vcf_output_file : str
+        Output file
+    df : pd.DataFrame
+        Input dataframe
+    column : str
+        Column in he dataframe to fetch the data from
+    info_format : tuple
+        Tuple of info format (Tag, # values, format, Description)
+    """
+    with pysam.VariantFile(vcf_input_file) as vcfin: 
+        hdr = vcfin.header
+        hdr.info.add(*info_format)
+        with pysam.VariantFile(vcf_output_file, mode="w", header=hdr) as vcfout : 
+            for r in vcfin : 
+                val = df.loc[[(r.chrom, r.start+1)]][column].values[0]
+                if val is None or val == '':
+                    vcfout.write(r)
+                else: 
+                    r.info[info_format[0]] = val
+                    vcfout.write(r)
 
+        
 def summarize_concordance(concordance: pd.DataFrame):
     '''Summarize variant concordance
 
@@ -385,7 +414,7 @@ def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame :
     df.loc[fill_column_locs,'filter'] = result
     return df
 
-def annotate_cycle_skip(df: pd.DataFrame, flow_order: str) -> pd.DataFrame : 
+def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None) -> pd.DataFrame : 
     """Adds cycle skip information: non-skip, NA, cycle-skip, possible cycle-skip
     
     Parameters
@@ -394,6 +423,8 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str) -> pd.DataFrame :
         Input dataframe
     flow_order : str
         Flow order 
+    gt_field: str
+        If snps that correspond to a specific genotype are to be considered
 
     Returns
     -------
@@ -405,7 +436,21 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str) -> pd.DataFrame :
         ( possible cycle-skip (cycle skip at a different flow order))
     """
 
-    na_pos = df['indel'] | (df['alleles'].apply(len) > 2) 
+    def is_multiallelic(x, gt_field): 
+        s = set(x[gt_field]) | set([0])
+        if len(s) > 2 :
+            return True
+        else : 
+            return False
+
+    def get_non_ref(x): 
+        return [ y for y in x if y!=0][0]
+
+    if gt_field is None : 
+        na_pos = df['indel'] | (df['alleles'].apply(len) > 2) 
+    else: 
+        na_pos = df.apply(lambda x: is_multiallelic(x,gt_field), axis=1)
+
     df.loc[na_pos, 'cycleskip_status'] = "NA"
     snp_pos = ~na_pos
     snps = df.loc[snp_pos].copy()
@@ -413,7 +458,13 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str) -> pd.DataFrame :
     right_first = np.array(snps['right_motif']).astype(np.string_)
 
     ref = np.array(snps['ref']).astype(np.string_)
-    alt = np.array(snps['alleles'].apply(lambda x:x[1] )).astype(np.string_)
+    if gt_field is None  :
+        alt = np.array(snps['alleles'].apply(lambda x:x[1] )).astype(np.string_)
+    else : 
+        nra = snps[gt_field].apply(get_non_ref)
+        snps['nra_idx'] = nra
+        alt = np.array(snps.apply(lambda x:x['alleles'][x['nra_idx']] , axis=1)).astype(np.string_)
+    snps.drop('nra_idx', axis=1,inplace=True)
 
     ref_seqs = np.char.add(np.char.add(left_last, ref), right_first)
     alt_seqs = np.char.add(np.char.add(left_last, alt), right_first)
