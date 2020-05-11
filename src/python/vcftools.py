@@ -470,6 +470,8 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     else : 
         nra = snps[gt_field].apply(get_non_ref)
         snps['nra_idx'] = nra
+        snps.loc[snps.nra_idx.isnull(), 'nra_idx'] = 1
+        snps['nra_idx'] = snps['nra_idx'].astype(np.int)
         alt = np.array(snps.apply(lambda x:x['alleles'][x['nra_idx']] , axis=1)).astype(np.string_)
     snps.drop('nra_idx', axis=1,inplace=True)
 
