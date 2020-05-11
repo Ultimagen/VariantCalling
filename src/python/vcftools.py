@@ -92,7 +92,8 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
 
     columns = ['chrom', 'pos', 'qual',
                'ref', 'alleles', 'gt', 'pl',
-               'dp', 'ad', 'mq', 'sor', 'af', 'filter']
+               'dp', 'ad', 'mq', 'sor', 'af', 'filter',
+               'dp_r','dp_f','ad_r','ad_f']
     concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     concordance_df.columns = columns
 
