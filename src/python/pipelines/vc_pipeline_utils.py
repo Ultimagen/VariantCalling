@@ -47,6 +47,8 @@ def parse_params_file(pipeline_name):
                type=str, default='./')
         ap.add('--rqc_cram_reference_file', required=False, 
             help='Reference fasta used for CRAM compression (if demux_file is CRAM)', default=None)
+        ap.add('--rqc_disable_alignment', required=False, 
+            help='Do not realign the CRAM', default=False, action='store_true')
 
     elif pipeline_name == 'variant_calling':
         ap.add('--em_vc_demux_file', help='Path to the demultiplexed bam')
@@ -78,6 +80,18 @@ def parse_params_file(pipeline_name):
     else:
         args.em_vc_basename = basename(args.em_vc_demux_file)
     return args
+
+def extract_total_n_reads_acram(input_file, output_file, nthreads, reference) : 
+    output_count, output_err = output_file
+    assert type(input_file)==str, "Something wrong in extract reads"
+    cmd = ['samtools', 'view', f'-@{nthreads}', '-c', '-T', reference, input_file]
+    with open(output_count, 'w') as out, open(output_err, 'w') as err:
+        err.write(input_file)
+        err.write("\n")
+        err.write(" ".join(cmd))
+        err.write("\n")
+        err.flush()
+        subprocess.check_call(cmd, stderr=err, stdout=out)
 
 
 def head_file(input_file, output_file, number_to_sample, nthreads):
@@ -251,6 +265,7 @@ def align_and_merge(input_file, output_file, genome_file, nthreads):
         raise RuntimeError(exception_string)
 
 
+
 def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, the_chromosome, cram_reference_fname=None):
     output_bam, output_err = output_files
     input_file = input_file
@@ -405,14 +420,28 @@ def fetch_intervals(input_file, output_files):
     output_err_handle.close()
 
 
-def sort_file(input_file, output_file, nthreads):
+def sort_file(input_file, output_file, nthreads, cram_reference_fname=None):
     output_bam, output_err = output_file
-    with open(output_err, 'w') as output_err_handle:
-        cmd1 = [
-            'samtools', 'sort',
-            '-@%d' % max(1, nthreads - 1), '-T', dirname(output_bam), '-o', output_bam, input_file[0]]
-        subprocess.check_call(cmd1, stderr=output_err_handle)
+    if type(input_file)==str:
+        input_file = [input_file]
+    if cram_reference_fname is None :
+        with open(output_err, 'w') as output_err_handle:
 
+            cmd1 = [
+                'samtools', 'sort',
+                '-@%d' % max(1, nthreads - 1), '-T', dirname(output_bam), '-o', output_bam, input_file[0]]
+            output_err_handle.write(" ".join(cmd1))
+            output_err_handle.flush()
+            subprocess.check_call(cmd1, stderr=output_err_handle)
+    else: 
+        with open(output_err, 'w') as output_err_handle:
+
+            cmd1 = [
+                'samtools', 'sort', '--reference', cram_reference_fname, '-O', "BAM", 
+                '-@%d' % max(1, nthreads - 1), '-T', dirname(output_bam), '-o', output_bam, input_file[0]]
+            output_err_handle.write(" ".join(cmd1))
+            output_err_handle.flush()
+            subprocess.check_call(cmd1, stderr=output_err_handle)
 
 def recalibrate_file(input_file, output_files, recalibration_model, nthreads):
     input_file = input_file[0]
