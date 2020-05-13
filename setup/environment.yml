@@ -29,9 +29,9 @@ dependencies:
   - bowtie2=2.3.4.3=py37he860b03_1
   - bwa=0.7.17=hed695b0_6
   - bzip2=1.0.6=h14c3975_1002
-  - ca-certificates=2020.4.5.1=hecc5488_0
+  - ca-certificates=2020.1.1=0
   - cachetools=2.1.0=py_0
-  - certifi=2020.4.5.1=py37hc8dfbb8_0
+  - certifi=2020.4.5.1=py37_0
   - cffi=1.12.3=py37h8022711_0
   - cftime=1.0.4.2=py37hdd07704_0
   - cgatcore=0.5.15=py_0
@@ -92,7 +92,7 @@ dependencies:
   - jedi=0.15.1=py37_0
   - jinja2=2.10.1=py_0
   - jmespath=0.9.4=py_0
-  - joblib=0.13.2=py_0
+  - joblib=0.14.1=py_0
   - jpeg=9b=h470a237_3
   - jq=1.6=h14c3975_1000
   - jsonschema=3.0.1=py37_0
@@ -161,7 +161,7 @@ dependencies:
   - oniguruma=6.9.3=h516909a_0
   - openblas=0.3.6=h6e990d7_6
   - openjdk=8.0.152=h46b5887_1
-  - openssl=1.1.1g=h516909a_0
+  - openssl=1.1.1g=h7b6447c_0
   - packaging=19.0=py_0
   - pandas=0.24.2=py37hb3f55d8_0
   - pandoc=2.2.3.2=0
