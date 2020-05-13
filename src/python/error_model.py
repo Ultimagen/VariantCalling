@@ -19,6 +19,7 @@ import tqdm
 import subprocess
 import os
 import pysam
+import tempfile
 
 ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
 
@@ -39,6 +40,34 @@ def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray:
         Description
     """
     return testmatrices[idx, 0, :, :].T
+
+
+def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int) -> str:
+    """extract kr npy matrix from the probability tensor sequence
+
+    Parameters
+    ----------
+    tensor_name : str
+        File with a probability tensor
+    n_classes : int
+        number of classes (in case tensort sequence is not npy)
+    n_flows : int
+        number of flows (in case tensort sequence is not npy)
+
+    Returns
+    -------
+    Temporary file with Kr
+    """
+
+    if not tensor_name.endswith("npy"):
+        testmatrices = np.memmap(tensor_name, dtype=np.float32)
+        testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
+    else:
+        testmatrices = np.load(tensor_name, mmap_mode='r')
+    kr = np.squeeze(np.argmax(testmatrices, axis=3))
+    tempname = tempfile.mktemp(suffix=".npy")
+    np.save(tempname, kr)
+    return tempname
 
 
 def get_kr(key_matrix: np.ndarray, idx: int, sf: int = 100) -> np.ndarray:
@@ -92,7 +121,8 @@ def _calculate_correct_prob(matrix: np.ndarray) -> np.ndarray:
     kr = np.argmax(matrix, axis=0)
     high_err = np.argpartition(matrix, -2, axis=0)[-2, :]
     return matrix[kr, np.arange(matrix.shape[1])] / \
-        (matrix[kr, np.arange(matrix.shape[1])] + matrix[high_err, np.arange(matrix.shape[1])])
+        (matrix[kr, np.arange(matrix.shape[1])] +
+         matrix[high_err, np.arange(matrix.shape[1])])
 
 
 def _generate_quality(seq: str, kr: np.ndarray = None, correct_prob: np.ndarray = None) -> str:
