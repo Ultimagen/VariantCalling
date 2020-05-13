@@ -64,8 +64,8 @@ def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int) -> str:
         testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
     else:
         testmatrices = np.load(tensor_name, mmap_mode='r')
-    kr = np.argmax(testmatrices, axis=0)
-    tempname = tempfile.mktemp(suffix="npy")
+    kr = np.squeeze(np.argmax(testmatrices, axis=3))
+    tempname = tempfile.mktemp(suffix=".npy")
     np.save(tempname, kr)
     return tempname
 
