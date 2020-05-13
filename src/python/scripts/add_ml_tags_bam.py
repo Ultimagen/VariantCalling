@@ -2,6 +2,7 @@ import pathmagic
 import python.error_model as error_model
 import argparse
 import os
+from os.path import dirname
 
 ap = argparse.ArgumentParser(prog="add_ml_tags_bam.py", description="Add probability tags to uBAM")
 ap.add_argument("--probability_tensor", help='Probability tensor (npy/bin)', type=str)
