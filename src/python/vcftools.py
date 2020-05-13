@@ -123,7 +123,8 @@ def add_info_tag_from_df( vcf_input_file: str, vcf_output_file: str,
     """
     with pysam.VariantFile(vcf_input_file) as vcfin: 
         hdr = vcfin.header
-        hdr.info.add(*info_format)
+        if info_format[0] not in hdr.info.keys():
+            hdr.info.add(*info_format)
         with pysam.VariantFile(vcf_output_file, mode="w", header=hdr) as vcfout : 
             for r in vcfin : 
                 val = df.loc[[(r.chrom, r.start+1)]][column].values[0]
