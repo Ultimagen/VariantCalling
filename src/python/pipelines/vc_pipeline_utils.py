@@ -81,13 +81,10 @@ def parse_params_file(pipeline_name):
         args.em_vc_basename = basename(args.em_vc_demux_file)
     return args
 
-def extract_total_n_reads_acram(input_file, output_file, nthreads, reference) : 
+def extract_total_n_reads(input_file, output_file, nthreads) : 
     output_count, output_err = output_file
-    assert type(input_file)==str, "Something wrong in extract reads"
-    cmd = ['samtools', 'view', f'-@{nthreads}', '-c', '-T', reference, input_file]
+    cmd = ['samtools', 'view', '-c', f'-@{nthreads}', input_file[0]]
     with open(output_count, 'w') as out, open(output_err, 'w') as err:
-        err.write(input_file)
-        err.write("\n")
         err.write(" ".join(cmd))
         err.write("\n")
         err.flush()
@@ -265,6 +262,58 @@ def align_and_merge(input_file, output_file, genome_file, nthreads):
         raise RuntimeError(exception_string)
 
 
+def select_chromosome(input_file, output_files, nthreads, the_chromosome, cram_reference_fname=None):
+    output_bam, output_err = output_files
+    input_file = input_file
+
+    if input_file.endswith('cram') and cram_reference_fname is not None:
+        crammode = True
+    elif input_file.endswith('cram') and cram_reference_fname is None:
+        raise RuntimeError("Reference should be supplied for CRAM file")
+    else:
+        crammode = False
+
+    with open(output_err, 'w') as outlog :
+        samtools_in_threads = max(1, int(0.5 * nthreads))
+        samtools_out_threads = max(1, int(0.5 * nthreads))        
+
+        if not crammode:
+            cmd1 = ['samtools', 'view', '-h', '-@',
+                    str(samtools_in_threads), input_file]
+        else:
+            cmd1 = ['samtools', 'view', '-h', '-@',
+                    str(samtools_in_threads), '--reference',
+                    cram_reference_fname, input_file]
+
+        cmd2 = ['awk', f'($3=="{the_chromosome}") || ($1 ~ /^@/)']
+        cmd3 = [ 'samtools', 'view', f'-@{samtools_out_threads}', '-b','-o', output_bam, '-']
+
+        cmd1_str = ' '.join(cmd1)
+        cmd2_str = ' '.join(cmd2)
+        cmd3_str = ' '.join(cmd3)
+        outlog.write(f'{cmd1_str} | {cmd2_str} | {cmd3_str}' + "\n")
+        outlog.flush()
+
+        task1 = subprocess.Popen(cmd1, stdout=(subprocess.PIPE), stderr=outlog)
+        task2 = subprocess.Popen(cmd2,
+                                 stdout=(subprocess.PIPE), stderr=outlog, stdin=(task1.stdout))
+        task1.stdout.close()
+        task3 = subprocess.Popen(cmd3,stderr=outlog, stdin=(task2.stdout))
+        task2.stdout.close()
+    # Collect results and RCs
+    taskNames = ['extract', 'filter', 'compress']
+    time.sleep(30)
+    for x in [task1, task2, task3]:
+        x.poll()
+
+    rcs = [x.returncode for x in [task1, task2, task3]]
+    for i in range(len(rcs)):
+        result = ''
+        if rcs[i] != 0:
+            result += f"Task{i + 1}: {taskNames[i]} = {rcs[i]} "
+
+    if len(result) > 0:
+        raise RuntimeError(f"{result} of alignment failed")
 
 def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, the_chromosome, cram_reference_fname=None):
     output_bam, output_err = output_files
@@ -736,22 +785,6 @@ def generate_rqc_output(dup_ratio: float, metrics: pd.DataFrame, histogram: pd.D
         (histogram['high_quality_coverage_count'] / 1000).round(2))
     histogram.columns = ['loci (x1000)']
     return parameters, histogram
-
-
-def extract_total_n_reads(input_files: list, output_files: list) -> None:
-    input_file = input_files[1]
-    output_file = output_files[0]
-    with open(output_file, 'w') as outfile:
-        with open(input_file) as infile:
-            for line in infile:
-                if not line.startswith('INFO'):
-                    continue
-                else:
-                    matches = re.search(
-                        'Wrote ([0-9]*) alignment records', line)
-                    if matches is not None:
-                        outfile.write(f"{matches.groups()[0]}\n")
-                        break
 
 
 def flatten(lst: list) -> list:
