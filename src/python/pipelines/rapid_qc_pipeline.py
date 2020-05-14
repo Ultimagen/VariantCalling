@@ -38,26 +38,26 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
                                         extras=[params.em_vc_genome, params.em_vc_number_of_cpus,
                                                 params.rqc_chromosome, params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
 
-            count_reads = vc_pipeline.transform(vc_pipeline_utils.extract_total_n_reads, aln,
-                                                ruffus.formatter("rqc.aln.bam"),
-                                                [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt")])
-            sorted_bam = vc_pipeline.transform(vc_pipeline_utils.sort_file, aln, ruffus.formatter("aln.bam"),
+
+        else: 
+            aln = vc_pipeline.transform(vc_pipeline_utils.select_chromosome, params.em_vc_demux_file, 
+                ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln.bam"),
+                                         pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln.log")],
+                                        extras=[params.em_vc_number_of_cpus, params.rqc_chromosome, 
+                                        params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
+
+
+
+        count_reads = vc_pipeline.transform(vc_pipeline_utils.extract_total_n_reads, aln, 
+                                                ruffus.formatter('rqc.aln.bam'),
+                                                [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt"), 
+                                                pjoin(params.em_vc_output_dir, "logs","{basename[0]}.read_count.err")],
+                                                extras = [params.em_vc_number_of_cpus]).follows(md2)
+
+        sorted_bam = vc_pipeline.transform(vc_pipeline_utils.sort_file, aln, ruffus.formatter("aln.bam"),
                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.sort.bam"),
                                             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.sort.log")],
                                            extras=[params.em_vc_number_of_cpus]).jobs_limit(1, 'parallel_task')
-
-        else: 
-            count_reads = vc_pipeline.transform(vc_pipeline_utils.extract_total_n_reads_acram, [params.em_vc_demux_file], 
-                                                ruffus.formatter(),
-                                                [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt"), 
-                                                pjoin(params.em_vc_output_dir, "logs","{basename[0]}.read_count.err")],
-                                                extras = [params.em_vc_number_of_cpus, params.rqc_cram_reference_file]).follows(md2)
-
-            sorted_bam = vc_pipeline.transform(vc_pipeline_utils.sort_file, [params.em_vc_demux_file], ruffus.formatter(),
-                                           [pjoin(params.em_vc_output_dir, "{basename[0]}.sort.bam"),
-                                            pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.sort.log")],
-                                           extras=[params.em_vc_number_of_cpus, params.rqc_cram_reference_file]).jobs_limit(1, 'parallel_task')
-
 
         index_bam = vc_pipeline.transform(vc_pipeline_utils.index_file, sorted_bam, ruffus.formatter("sort.bam"),
                                           [pjoin(params.em_vc_output_dir, "{basename[0]}.bam.bai"),
