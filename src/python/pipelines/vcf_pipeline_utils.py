@@ -253,7 +253,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
                          alnfile: Optional[str] = None,
                          annotate_intervals: List[str] = [],
                          runfile: Optional[str] = None, 
-                         flow_order: Optional[str] = "TACG") -> pd.DataFrame:
+                         flow_order: Optional[str] = "TACG", 
+                         hmer_run_length_dist: Optional[tuple] = (10,10)) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
     
     Parameters
@@ -285,8 +286,9 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     if alnfile is not None:
         df = vcftools.get_coverage(df, alnfile, 10)
     if runfile is not None:
+        length, dist = hmer_run_length_dist
         df = vcftools.close_to_hmer_run(
-            df, runfile, min_hmer_run_length=10, max_distance=10)
+            df, runfile, min_hmer_run_length=length, max_distance=dist)
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:
             df = vcftools.annotate_intervals(df, annotation_file)
