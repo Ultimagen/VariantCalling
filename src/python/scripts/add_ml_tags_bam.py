@@ -2,6 +2,7 @@ import pathmagic
 import python.error_model as error_model
 import argparse
 import os
+from os.path import dirname
 
 ap = argparse.ArgumentParser(prog="add_ml_tags_bam.py", description="Add probability tags to uBAM")
 ap.add_argument("--probability_tensor", help='Probability tensor (npy/bin)', type=str)
@@ -29,7 +30,8 @@ assert (args.probability_tensor.endswith("npy") and (args.regressed_key and args
 assert (not args.regressed_key or not args.probability_tensor_sequence), \
     "regressed key and probability_tensor_sequence should not be given together"
 if args.probability_tensor_sequence:
-    args.regressed_key = error_model.save_tmp_kr_matrix(args.probability_tensor_sequence, args.n_classes, args.n_flows)
+    args.regressed_key = error_model.save_tmp_kr_matrix(args.probability_tensor_sequence, 
+      args.n_classes, args.n_flows, dirname(args.output_ubam))
 
 matrix_file_name = ".".join((args.probability_tensor, "output.matrix.txt"))
 

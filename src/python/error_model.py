@@ -42,7 +42,7 @@ def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray:
     return testmatrices[idx, 0, :, :].T
 
 
-def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int) -> str:
+def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int, output_dir: str) -> str:
     """extract kr npy matrix from the probability tensor sequence
 
     Parameters
@@ -53,6 +53,8 @@ def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int) -> str:
         number of classes (in case tensort sequence is not npy)
     n_flows : int
         number of flows (in case tensort sequence is not npy)
+    output_dir: str
+        Location to save the kr file
 
     Returns
     -------
@@ -65,7 +67,7 @@ def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int) -> str:
     else:
         testmatrices = np.load(tensor_name, mmap_mode='r')
     kr = np.squeeze(np.argmax(testmatrices, axis=3))
-    tempname = tempfile.mktemp(suffix=".npy")
+    fid, tempname = tempfile.mkstemp(suffix=".npy", dir=output_dir)
     np.save(tempname, kr)
     return tempname
 

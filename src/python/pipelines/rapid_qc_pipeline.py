@@ -16,6 +16,8 @@ try:
 except FileExistsError:
     pass
 
+if params.em_vc_demux_file.endswith("cram"):
+    assert params.rqc_cram_reference_file is not None, "Please supply reference for CRAM file"
 
 with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_log:
     logger = ruffus.task.t_stream_logger(output_log)
@@ -28,16 +30,29 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
         vc_pipeline = ruffus.Pipeline(name="Error rate estimation pipeline")
         md1 = vc_pipeline.mkdir(params.em_vc_output_dir)
         md2 = vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "logs"))
-        aln = vc_pipeline.transform(vc_pipeline_utils.align_minimap_and_filter,
-                                    params.em_vc_demux_file, ruffus.formatter(),
-                                    [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln.bam"),
-                                     pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln.log")],
-                                    extras=[params.em_vc_genome, params.em_vc_number_of_cpus,
-                                            params.rqc_chromosome, params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
+        if not params.rqc_disable_alignment:
+            aln = vc_pipeline.transform(vc_pipeline_utils.align_minimap_and_filter,
+                                        params.em_vc_demux_file, ruffus.formatter(),
+                                        [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln.bam"),
+                                         pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln.log")],
+                                        extras=[params.em_vc_genome, params.em_vc_number_of_cpus,
+                                                params.rqc_chromosome, params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
 
-        count_reads = vc_pipeline.transform(vc_pipeline_utils.extract_total_n_reads, aln,
-                                            ruffus.formatter("rqc.aln.bam"),
-                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt")])
+
+        else: 
+            aln = vc_pipeline.transform(vc_pipeline_utils.select_chromosome, params.em_vc_demux_file, 
+                ruffus.formatter(), [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln.bam"),
+                                         pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln.log")],
+                                        extras=[params.em_vc_number_of_cpus, params.rqc_chromosome, 
+                                        params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
+
+
+
+        count_reads = vc_pipeline.transform(vc_pipeline_utils.extract_total_n_reads, aln, 
+                                                ruffus.formatter('rqc.aln.bam'),
+                                                [pjoin(params.em_vc_output_dir, "{basename[0]}.read_count.txt"), 
+                                                pjoin(params.em_vc_output_dir, "logs","{basename[0]}.read_count.err")],
+                                                extras = [params.em_vc_number_of_cpus]).follows(md2)
 
         sorted_bam = vc_pipeline.transform(vc_pipeline_utils.sort_file, aln, ruffus.formatter("aln.bam"),
                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.sort.bam"),

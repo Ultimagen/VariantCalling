@@ -21,8 +21,11 @@ ap.add_argument("--find_thresholds", help='Should precision recall thresholds be
                 default=False, action='store_true')
 ap.add_argument("--filter_runs", help='Should variants on hmer runs be filtered out',
                 default=False, action='store_true')
+ap.add_argument("--hpol_filter_length_dist", nargs=2, type=int, help='Length and distance to the hpol run to mark', 
+                default=[10,10])
 ap.add_argument("--ignore_filter_status", help="Ignore variant filter status", default=False, action='store_true')
 ap.add_argument("--output_suffix", help='Add suffix to the output file', required=False, default='', type=str)
+
 
 args = ap.parse_args()
 if args.filter_runs:
@@ -44,7 +47,8 @@ else:
     concordance = results
 
 annotated_concordance = vcf_pipeline_utils.annotate_concordance(
-    concordance, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals)
+    concordance, args.reference, args.aligned_bam, args.annotate_intervals, 
+    args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
 
 annotated_concordance.to_hdf(args.output_file, key="concordance")
 if args.find_thresholds:

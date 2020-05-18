@@ -90,3 +90,4 @@ Text output files will be named:
 
 ### Testing 
 On the machine `ec2-3-208-150-254.compute-1.amazonaws.com` run ` python /home/ec2-user/proj/VariantCalling/src/python/pipelines/rapid_qc_pipeline.py -c rqc.config` in `/home/ec2-user/proj/VariantCalling/work/200112/`
+Run in `/home/ec2-user/proj/VariantCalling/work/200513/` for CRAM input
