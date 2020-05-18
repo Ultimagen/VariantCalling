@@ -329,7 +329,7 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
     return concordance
 
 
-def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int):
+def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int, filter_dups:bool=False):
     results = []
     with pysam.AlignmentFile(alnfile) as alns:
         for r in tqdm.tqdm(df.iterrows()):
@@ -337,6 +337,9 @@ def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int):
             count_total = 0
             count_well = 0
             for read in reads:
+                if filter_dups and read.is_duplicate: 
+                        continue
+
                 if read.mapping_quality > min_quality:
                     count_well += 1
                 count_total += 1
