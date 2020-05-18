@@ -47,6 +47,8 @@ def parse_params_file(pipeline_name):
                type=str, default='./')
         ap.add('--rqc_cram_reference_file', required=False, 
             help='Reference fasta used for CRAM compression (if demux_file is CRAM)', default=None)
+        ap.add('--rqc_disable_alignment', required=False, 
+            help='Do not realign the CRAM', default=False, action='store_true')
 
     elif pipeline_name == 'variant_calling':
         ap.add('--em_vc_demux_file', help='Path to the demultiplexed bam')
@@ -78,6 +80,15 @@ def parse_params_file(pipeline_name):
     else:
         args.em_vc_basename = basename(args.em_vc_demux_file)
     return args
+
+def extract_total_n_reads(input_file, output_file, nthreads) : 
+    output_count, output_err = output_file
+    cmd = ['samtools', 'view', '-c', f'-@{nthreads}', input_file[0]]
+    with open(output_count, 'w') as out, open(output_err, 'w') as err:
+        err.write(" ".join(cmd))
+        err.write("\n")
+        err.flush()
+        subprocess.check_call(cmd, stderr=err, stdout=out)
 
 
 def head_file(input_file, output_file, number_to_sample, nthreads):
@@ -251,6 +262,59 @@ def align_and_merge(input_file, output_file, genome_file, nthreads):
         raise RuntimeError(exception_string)
 
 
+def select_chromosome(input_file, output_files, nthreads, the_chromosome, cram_reference_fname=None):
+    output_bam, output_err = output_files
+    input_file = input_file
+
+    if input_file.endswith('cram') and cram_reference_fname is not None:
+        crammode = True
+    elif input_file.endswith('cram') and cram_reference_fname is None:
+        raise RuntimeError("Reference should be supplied for CRAM file")
+    else:
+        crammode = False
+
+    with open(output_err, 'w') as outlog :
+        samtools_in_threads = max(1, int(0.5 * nthreads))
+        samtools_out_threads = max(1, int(0.5 * nthreads))        
+
+        if not crammode:
+            cmd1 = ['samtools', 'view', '-h', '-@',
+                    str(samtools_in_threads), input_file]
+        else:
+            cmd1 = ['samtools', 'view', '-h', '-@',
+                    str(samtools_in_threads), '--reference',
+                    cram_reference_fname, input_file]
+
+        cmd2 = ['awk', f'($3=="{the_chromosome}") || ($1 ~ /^@/)']
+        cmd3 = [ 'samtools', 'view', f'-@{samtools_out_threads}', '-b','-o', output_bam, '-']
+
+        cmd1_str = ' '.join(cmd1)
+        cmd2_str = ' '.join(cmd2)
+        cmd3_str = ' '.join(cmd3)
+        outlog.write(f'{cmd1_str} | {cmd2_str} | {cmd3_str}' + "\n")
+        outlog.flush()
+
+        task1 = subprocess.Popen(cmd1, stdout=(subprocess.PIPE), stderr=outlog)
+        task2 = subprocess.Popen(cmd2,
+                                 stdout=(subprocess.PIPE), stderr=outlog, stdin=(task1.stdout))
+        task1.stdout.close()
+        task3 = subprocess.Popen(cmd3,stderr=outlog, stdin=(task2.stdout))
+        task2.stdout.close()
+    # Collect results and RCs
+    taskNames = ['extract', 'filter', 'compress']
+    time.sleep(30)
+    for x in [task1, task2, task3]:
+        x.poll()
+
+    rcs = [x.returncode for x in [task1, task2, task3]]
+    for i in range(len(rcs)):
+        result = ''
+        if rcs[i] != 0:
+            result += f"Task{i + 1}: {taskNames[i]} = {rcs[i]} "
+
+    if len(result) > 0:
+        raise RuntimeError(f"{result} of alignment failed")
+
 def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, the_chromosome, cram_reference_fname=None):
     output_bam, output_err = output_files
     input_file = input_file
@@ -405,14 +469,28 @@ def fetch_intervals(input_file, output_files):
     output_err_handle.close()
 
 
-def sort_file(input_file, output_file, nthreads):
+def sort_file(input_file, output_file, nthreads, cram_reference_fname=None):
     output_bam, output_err = output_file
-    with open(output_err, 'w') as output_err_handle:
-        cmd1 = [
-            'samtools', 'sort',
-            '-@%d' % max(1, nthreads - 1), '-T', dirname(output_bam), '-o', output_bam, input_file[0]]
-        subprocess.check_call(cmd1, stderr=output_err_handle)
+    if type(input_file)==str:
+        input_file = [input_file]
+    if cram_reference_fname is None :
+        with open(output_err, 'w') as output_err_handle:
 
+            cmd1 = [
+                'samtools', 'sort',
+                '-@%d' % max(1, nthreads - 1), '-T', dirname(output_bam), '-o', output_bam, input_file[0]]
+            output_err_handle.write(" ".join(cmd1))
+            output_err_handle.flush()
+            subprocess.check_call(cmd1, stderr=output_err_handle)
+    else: 
+        with open(output_err, 'w') as output_err_handle:
+
+            cmd1 = [
+                'samtools', 'sort', '--reference', cram_reference_fname, '-O', "BAM", 
+                '-@%d' % max(1, nthreads - 1), '-T', dirname(output_bam), '-o', output_bam, input_file[0]]
+            output_err_handle.write(" ".join(cmd1))
+            output_err_handle.flush()
+            subprocess.check_call(cmd1, stderr=output_err_handle)
 
 def recalibrate_file(input_file, output_files, recalibration_model, nthreads):
     input_file = input_file[0]
@@ -707,22 +785,6 @@ def generate_rqc_output(dup_ratio: float, metrics: pd.DataFrame, histogram: pd.D
         (histogram['high_quality_coverage_count'] / 1000).round(2))
     histogram.columns = ['loci (x1000)']
     return parameters, histogram
-
-
-def extract_total_n_reads(input_files: list, output_files: list) -> None:
-    input_file = input_files[1]
-    output_file = output_files[0]
-    with open(output_file, 'w') as outfile:
-        with open(input_file) as infile:
-            for line in infile:
-                if not line.startswith('INFO'):
-                    continue
-                else:
-                    matches = re.search(
-                        'Wrote ([0-9]*) alignment records', line)
-                    if matches is not None:
-                        outfile.write(f"{matches.groups()[0]}\n")
-                        break
 
 
 def flatten(lst: list) -> list:

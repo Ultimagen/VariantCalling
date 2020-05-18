@@ -123,7 +123,8 @@ def add_info_tag_from_df( vcf_input_file: str, vcf_output_file: str,
     """
     with pysam.VariantFile(vcf_input_file) as vcfin: 
         hdr = vcfin.header
-        hdr.info.add(*info_format)
+        if info_format[0] not in hdr.info.keys():
+            hdr.info.add(*info_format)
         with pysam.VariantFile(vcf_output_file, mode="w", header=hdr) as vcfout : 
             for r in vcfin : 
                 val = df.loc[[(r.chrom, r.start+1)]][column].values[0]
@@ -473,7 +474,7 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
         snps.loc[snps.nra_idx.isnull(), 'nra_idx'] = 1
         snps['nra_idx'] = snps['nra_idx'].astype(np.int)
         alt = np.array(snps.apply(lambda x:x['alleles'][x['nra_idx']] , axis=1)).astype(np.string_)
-    snps.drop('nra_idx', axis=1,inplace=True)
+        snps.drop('nra_idx', axis=1,inplace=True)
 
     ref_seqs = np.char.add(np.char.add(left_last, ref), right_first)
     alt_seqs = np.char.add(np.char.add(left_last, alt), right_first)
