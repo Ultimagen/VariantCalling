@@ -153,7 +153,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     concordance: pd.DataFrame
         Concordance dataframe
     test_train_split: np.ndarray
-        Test train split column
+        Test train split column. NOTE: currently ignored!
     selection : pd.Series
         Boolean - rows of concordance that belong to the group being trained
     gtr_column: str
@@ -168,10 +168,10 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     pairs_qual_sor_threshold = [(quals[i], sors[j]) for i in range(len(quals)) for j in range(len(sors))]
 
     fns = np.array(concordance[gtr_column] == 'fn')
-    train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+    train_data = concordance[selection & (~fns)][FEATURES]
 
     train_data = transformer.transform(train_data)
-    labels = concordance[test_train_split & selection & (~fns)][gtr_column]
+    labels = concordance[selection & (~fns)][gtr_column]
     enclabels = np.array(labels == 'tp')
     train_qual = train_data['qual']
     train_sor = train_data['sor']
