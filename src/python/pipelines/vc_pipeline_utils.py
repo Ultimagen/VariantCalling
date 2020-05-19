@@ -752,14 +752,20 @@ def parse_cvg_metrics(metric_file):
     """Parses Picard WGScoverage metrics file"""
     with open(metric_file) as infile:
         out = next(infile)
-        while not out.startswith('## METRICS CLASS\tpicard.analysis.WgsMetrics'):
-            out = next(infile)
-
+        try:
+            while not out.startswith('## METRICS CLASS\tpicard.analysis.WgsMetrics') and \
+                    not out.startswith('## METRICS CLASS\tpicard.analysis.CollectRawWgsMetrics$RawWgsMetrics'):
+                out = next(infile)
+        except StopIteration:
+            raise ValueError('Expected header line not found')
         res1 = pd.read_csv(infile, sep='\t', nrows=1)
     with open(metric_file) as infile:
         out = next(infile)
-        while not out.startswith('## HISTOGRAM\tjava.lang.Integer'):
-            out = next(infile)
+        try:
+            while not out.startswith('## HISTOGRAM\tjava.lang.Integer'):
+                out = next(infile)
+        except StopIteration:
+            raise ValueError('Expected histogram line not found')
 
         res2 = pd.read_csv(infile, sep='\t')
     return res1, res2
