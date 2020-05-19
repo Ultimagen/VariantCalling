@@ -34,3 +34,4 @@ __pycache__/
 *sublime*
 srcvm/
 .ruffus*
+.idea
