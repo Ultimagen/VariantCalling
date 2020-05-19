@@ -532,8 +532,8 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
     for g in groups:
-        select = (concordance["group_testing"] == g) & \
-                 (~concordance["test_train_split"])
+        select = (concordance["group_testing"] == g)
+        
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
