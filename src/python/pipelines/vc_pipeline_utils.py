@@ -286,6 +286,7 @@ def select_chromosome(input_file, output_files, nthreads, the_chromosome, cram_r
                     cram_reference_fname, input_file]
 
         cmd2 = ['awk', f'($3=="{the_chromosome}") || ($1 ~ /^@/)']
+
         cmd3 = [ 'samtools', 'view', f'-@{samtools_out_threads}', '-b','-o', output_bam, '-']
 
         cmd1_str = ' '.join(cmd1)
@@ -407,7 +408,7 @@ def align_minimap_and_filter(input_file, output_files, genome_file, nthreads, th
                 cmd_cram2, stdin=task_cram1.stdout, stdout=fifoout, stderr=outlog)
             task_cram1.stdout.close()
 
-        task_cram2.wait()
+            task_cram2.wait()
         _ = task4.communicate()
 
     # Collect results and RCs
@@ -752,20 +753,14 @@ def parse_cvg_metrics(metric_file):
     """Parses Picard WGScoverage metrics file"""
     with open(metric_file) as infile:
         out = next(infile)
-        try:
-            while not out.startswith('## METRICS CLASS\tpicard.analysis.WgsMetrics') and \
-                    not out.startswith('## METRICS CLASS\tpicard.analysis.CollectRawWgsMetrics$RawWgsMetrics'):
-                out = next(infile)
-        except StopIteration:
-            raise ValueError('Expected header line not found')
+        while not out.startswith('## METRICS CLASS\tpicard.analysis.WgsMetrics'):
+            out = next(infile)
+
         res1 = pd.read_csv(infile, sep='\t', nrows=1)
     with open(metric_file) as infile:
         out = next(infile)
-        try:
-            while not out.startswith('## HISTOGRAM\tjava.lang.Integer'):
-                out = next(infile)
-        except StopIteration:
-            raise ValueError('Expected histogram line not found')
+        while not out.startswith('## HISTOGRAM\tjava.lang.Integer'):
+            out = next(infile)
 
         res2 = pd.read_csv(infile, sep='\t')
     return res1, res2
