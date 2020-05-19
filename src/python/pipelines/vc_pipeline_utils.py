@@ -301,6 +301,7 @@ def select_chromosome(input_file, output_files, nthreads, the_chromosome, cram_r
         task1.stdout.close()
         task3 = subprocess.Popen(cmd3,stderr=outlog, stdin=(task2.stdout))
         task2.stdout.close()
+        _ = task3.communicate()    
     # Collect results and RCs
     taskNames = ['extract', 'filter', 'compress']
     time.sleep(30)
