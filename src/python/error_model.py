@@ -39,7 +39,10 @@ def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray:
     np.ndarray
         Description
     """
-    return testmatrices[idx, 0, :, :].T
+    if len(testmatrices.shape)==4:
+        return testmatrices[idx, 0, :, :].T
+    else: 
+        return testmatrices[idx, :, :].T
 
 
 def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int, output_dir: str) -> str:
@@ -201,6 +204,7 @@ def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classe
             seq = key2base(kr, flow_order)
             correct_prob = _calculate_correct_prob(matrix)
             qual = _generate_quality(seq, kr, correct_prob)
+            assert len(seq)==len(qual), "Sequence of a different length with quality"
             out.write(f"{seq}\t{qual}\n")
             count +=1
     return count
