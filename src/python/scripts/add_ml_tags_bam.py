@@ -35,21 +35,27 @@ if args.probability_tensor_sequence:
 
 matrix_file_name = ".".join((args.probability_tensor, "output.matrix.txt"))
 
-error_model.write_matrix_tags(tensor_name=args.probability_tensor,
+print("Writing matrix tags")
+n_written = error_model.write_matrix_tags(tensor_name=args.probability_tensor,
                               key_name=args.regressed_key,
                               output_file=matrix_file_name,
                               n_flows=args.n_flows,
                               n_classes=args.n_classes,
                               probability_threshold=args.probability_threshold)
-
-
+print("Wrote", n_written, "tags")
 if args.probability_tensor_sequence:
+    print("Writing sequences")
+
     seq_file_name = '.'.join((args.probability_tensor, "output.seq.txt"))
-    error_model.write_sequences(args.probability_tensor_sequence, seq_file_name,
+    n_written = error_model.write_sequences(args.probability_tensor_sequence, seq_file_name,
                                 args.n_flows, args.n_classes, args.flow_order)
+    print("Wrote", n_written, "tags")
+
 elif args.regressed_key is None:
+    print("Writing sequences")
     seq_file_name = '.'.join((args.probability_tensor, "output.seq.txt"))
-    error_model.write_sequences(args.probability_tensor, seq_file_name, args.n_flows, args.n_classes, args.flow_order)
+    n_written = error_model.write_sequences(args.probability_tensor, seq_file_name, args.n_flows, args.n_classes, args.flow_order)
+    print("Wrote", n_written, "tags")
 
 
 if args.probability_tensor_sequence:

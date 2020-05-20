@@ -164,7 +164,7 @@ def _generate_quality(seq: str, kr: np.ndarray = None, correct_prob: np.ndarray 
         return quals
 
 
-def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classes: int, flow_order: str) -> None:
+def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classes: int, flow_order: str) -> int:
     '''Write convert the prob. tensor to sequences and write them to the file
 
     Parameters
@@ -182,7 +182,8 @@ def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classe
 
     Returns
     ------------------
-    None
+    int
+        Number of records written
     '''
     if not tensor_name.endswith("npy"):
         testmatrices = np.memmap(tensor_name, dtype=np.float32)
@@ -191,6 +192,7 @@ def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classe
         testmatrices = np.load(tensor_name, mmap_mode='r')
 
     flow_order = (flow_order * n_flows)[:n_flows]
+    count = 0
     with open(seq_file_name, 'w') as out:
         for i in range(testmatrices.shape[0]):
             matrix = get_matrix(testmatrices, i)
@@ -200,7 +202,8 @@ def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classe
             correct_prob = _calculate_correct_prob(matrix)
             qual = _generate_quality(seq, kr, correct_prob)
             out.write(f"{seq}\t{qual}\n")
-
+            count +=1
+    return count
 
 def extract_tags(bamfile: str, output_file: str, tag_list: list) -> None:
     """Extracts specified tags and writes them into the TSV file
@@ -264,7 +267,7 @@ def array_repr(x):
 
 
 def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
-                      n_flows: int = 280, n_classes: int = 13, probability_threshold: float = 0.003) -> None:
+                      n_flows: int = 280, n_classes: int = 13, probability_threshold: float = 0.003) -> int:
     '''Writes probability tensor into the text file
 
     Parameters
@@ -284,7 +287,8 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
 
     Returns
     -------
-    None
+    int
+        Number of sequences written
     '''
 
     if key_name is not None:
@@ -301,6 +305,8 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
         testmatrices = np.load(tensor_name, mmap_mode='r')
 
     print(f'Read {testmatrices.shape[0]} predictions', flush=True, file=sys.stderr)
+    empty = 0
+    complete = 0 
     with open(output_file, 'w') as out:
         for idx in tqdm.tqdm(range(testmatrices.shape[0])):
             matrix = get_matrix(testmatrices, idx)
@@ -312,6 +318,7 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
             kh, kf, kd = matrix_to_sparse(matrix, kr, probability_threshold)
             if len(kh) == 0 or len(kf) == 0 or len(kd) == 0:
                 out.write("\n")
+                empty+=1
                 continue
             kr_str = array_repr(kr)
             kr_str = 'kr:B:C,' + kr_str
@@ -323,6 +330,8 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
             kd_str = 'kd:B:c,' + kd_str
             out.write('\t'.join((kr_str, kd_str, kh_str, kf_str)))
             out.write("\n")
+            complete+=1
+    return empty, complete
 
 
 def extract_header(input_bam: str, output_sam: str) -> None:
