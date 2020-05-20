@@ -64,8 +64,3 @@ def read_vcf_as_dataframe(vcf_file, reformatted=True, multiprocessed_read=True, 
             columns={'#CHROM': 'CHROM'})
 
     return _reformat_vcf(df, reformatted, multiprocessed_read=multiprocessed_read)
-
-
-if __name__ == '__main__':
-    df = read_vcf_as_dataframe('/data/VariantCalling/work/200516/ABS1405-20_ffpe.filtered.annotated.noruns.csk.vcf.gz',
-                           nrows=10_000)
