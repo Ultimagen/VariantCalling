@@ -4,6 +4,11 @@ from joblib import delayed, Parallel
 import pysam
 import gzip
 import os
+from os.path import join as pjoin, dirname
+from multiprocessing import cpu_count
+import tempfile
+from .utils import run_shell_command, parse_output_file
+#todo add logging and change print statements
 
 
 def _alt_or_ref_colname(c):
@@ -64,3 +69,86 @@ def read_vcf_as_dataframe(vcf_file, reformatted=True, multiprocessed_read=True, 
             columns={'#CHROM': 'CHROM'})
 
     return _reformat_vcf(df, reformatted, multiprocessed_read=multiprocessed_read)
+
+
+def index_vcfs(in_path, print_output=True, ext='.vcf.gz', n_threads=None):
+    if n_threads is None:
+        n_threads = cpu_count()
+    if in_path.endswith(ext):
+        if not os.path.isfile(in_path):
+            raise ValueError(f'{in_path} does not exist - no such file')
+        if print_output:
+            print(f'indexing {in_path}')
+        if not os.path.isfile(in_path + '.csi'):
+            out = run_shell_command(f"bcftools index --threads {n_threads} {in_path}")
+            if print_output and out is not None and len(out) > 0:
+                print(out)
+    else:
+        if not os.path.isdir(in_path):
+            raise ValueError(f'{in_path} does not exist - no such directory')
+        for dirpath, dirnames, filenames in os.walk(in_path):
+            for f in filenames:
+                if f.endswith(ext):
+                    index_vcfs(pjoin(dirpath, f), print_output=print_output)
+
+
+def compress_vcfs(in_path, print_output=True, ext='.vcf', n_threads=None):
+    if n_threads is None:
+        n_threads = cpu_count()
+    if in_path.endswith(ext):
+        if not os.path.isfile(in_path):
+            raise ValueError(f'{in_path} does not exist - no such file')
+        if not os.path.isfile(in_path + '.gz'):
+            out = run_shell_command(f"bcftools view {in_path} --threads {n_threads} -Oz -o {in_path + '.gz'}")
+            if print_output and out is not None and len(out) > 0:
+                print(out)
+    else:
+        if not os.path.isdir(in_path):
+            raise ValueError(f'{in_path} does not exist - no such directory')
+        for dirpath, dirnames, filenames in os.walk(in_path):
+            for f in filenames:
+                if f.endswith(ext):
+                    compress_vcfs(pjoin(dirpath, f), print_output=print_output)
+
+
+def filter_vcfs(in_path, output_file=None, ext_expected='.vcf.gz', tag='filtered', min_ad_alt1_in_vcf=None,
+                cmd_args=None, print_output=True, recursive=False):
+    if cmd_args is None:
+        cmd_args = f"--types snps --novel"
+        if min_ad_alt1_in_vcf is not None:
+            cmd_args += f" -i'FORMAT/AD[:1]>{min_ad_alt1_in_vcf - 1}'"
+    if in_path.endswith(ext_expected) and not in_path.endswith(f'.{tag}{ext_expected}'):
+        if not os.path.isfile(in_path):
+            raise ValueError(f'{in_path} does not exist - no such file')
+        output_file = parse_output_file(tag, in_path, output_file)
+        out = run_shell_command(f"bcftools view {cmd_args} {in_path} -O z -o {output_file}")
+        if print_output and out is not None and len(out) > 0:
+            print(out)
+        return output_file
+    else:
+        for dirpath, dirnames, filenames in os.walk(in_path):
+            if not recursive and (dirpath != in_path):
+                continue
+            for f in filenames:
+                if f.endswith(ext_expected):
+                    filter_vcfs(pjoin(dirpath, f), print_output=print_output)
+
+
+def concat_vcfs(in_files, output_file, also_index=True, print_output=False):
+    run_shell_command(
+        f"bcftools concat {' '.join([f + '.gz' for f in in_files])} -O z -o {output_file}"
+    )
+    if also_index:
+        index_vcfs(output_file, print_output=print_output)
+
+
+def intersect_vcfs(input_file, output_file, complement_file, collapse_mode='snps'):
+    with tempfile.TemporaryDirectory(dir=dirname(output_file)) as tmpdirname:
+        run_shell_command(
+            f"bcftools isec --collapse {collapse_mode} --complement {input_file} {complement_file} -O z -p {tmpdirname}"
+        )
+        isec_output = pjoin(tmpdirname, '0000.vcf.gz')
+        if os.path.isfile(isec_output):
+            os.rename(isec_output, output_file)
+        if os.path.isfile(isec_output + '.tbi'):
+            os.rename(isec_output + '.tbi', output_file + '.tbi')
