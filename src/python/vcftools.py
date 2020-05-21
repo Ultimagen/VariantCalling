@@ -87,7 +87,7 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
     '''
     vf = pysam.VariantFile(variant_calls)
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items()
-        + x.samples[sample_id].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
+        + x.samples[sample_id].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF',x.ref),
           ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
 
     columns = ['chrom', 'pos', 'qual',
