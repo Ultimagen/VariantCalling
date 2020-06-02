@@ -19,6 +19,7 @@ ap.add_argument("--n_classes",
                 type=int, required=False, default=None)
 ap.add_argument("--probability_threshold", help="Minimal probability to report",
                 required=False, default=0.003, type=float)
+ap.add_argument("--probability_scaling_factor", help="Probability scaling factor", default=10, type=float)
 
 args = ap.parse_args()
 
@@ -36,13 +37,14 @@ if args.probability_tensor_sequence:
 matrix_file_name = ".".join((args.probability_tensor, "output.matrix.txt"))
 
 print("Writing matrix tags")
-n_written = error_model.write_matrix_tags(tensor_name=args.probability_tensor,
+empty, complete = error_model.write_matrix_tags(tensor_name=args.probability_tensor,
                               key_name=args.regressed_key,
                               output_file=matrix_file_name,
                               n_flows=args.n_flows,
                               n_classes=args.n_classes,
-                              probability_threshold=args.probability_threshold)
-print("Wrote", n_written, "tags")
+                              probability_threshold=args.probability_threshold, 
+                              probabilty_sf = args.probability_scaling_factor)
+print("Wrote", complete, "complete tags and", empty, "empty lines")
 if args.probability_tensor_sequence:
     print("Writing sequences")
 
