@@ -321,7 +321,6 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
     print(f'Read {testmatrices.shape[0]} predictions', flush=True, file=sys.stderr)
     empty = 0
     complete = 0 
-    empty_lines = 
     with open(output_file, 'w') as out:
         for idx in tqdm.tqdm(range(testmatrices.shape[0])):
             matrix = get_matrix(testmatrices, idx)
