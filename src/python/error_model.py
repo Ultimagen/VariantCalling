@@ -341,7 +341,7 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
             kf_str = array_repr(kf)
             kf_str = 'kf:B:S,' + kf_str
             kd_str = array_repr(kd)
-            kd_str = 'kd:B:c,' + kd_str
+            kd_str = 'kd:B:s,' + kd_str
             out.write('\t'.join((kr_str, kd_str, kh_str, kf_str)))
             out.write("\n")
             complete+=1
