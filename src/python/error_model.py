@@ -250,7 +250,7 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
         Row, column, probability ratio normalized to the kr
     """
     max_hmer = matrix.shape[0] - 1
-    probability_threshold = -10 * np.log10(probability_threshold)
+    probability_threshold = -probability_sf * np.log10(probability_threshold)
 
     tmp_matrix = matrix.copy()
     kr_clip = np.clip(kr, 0, max_hmer)

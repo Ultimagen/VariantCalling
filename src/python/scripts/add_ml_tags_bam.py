@@ -43,7 +43,7 @@ empty, complete = error_model.write_matrix_tags(tensor_name=args.probability_ten
                               n_flows=args.n_flows,
                               n_classes=args.n_classes,
                               probability_threshold=args.probability_threshold, 
-                              probabilty_sf = args.probability_scaling_factor)
+                              probability_sf = args.probability_scaling_factor)
 print("Wrote", complete, "complete tags and", empty, "empty lines")
 if args.probability_tensor_sequence:
     print("Writing sequences")
