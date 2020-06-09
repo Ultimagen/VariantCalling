@@ -826,14 +826,22 @@ def _parse_sample(sample_block: str, haplotypes: pd.Series) -> pd.DataFrame:
     '''
     reads_start = sample_block.index(">>> Reads")
     reads_end = sample_block.index(">>> Matrix")
+    try:
+        full_matrix_start = sample_block.index(">>> Read->Haplotype in Full")
+    except ValueError:
+        full_matrix_start=None
+
+
     reads = [x for x in sample_block[reads_start:reads_end].split("\n") if x and not x.startswith('>')]
     read_names = [x.strip().split()[1] for x in reads]
-    matrix = [x for x in sample_block[reads_end:].split("\n") if x and not x.startswith(">")]
+    if full_matrix_start is None :
+        matrix = [x for x in sample_block[reads_end:].split("\n") if x and not x.startswith(">")]
+    else: 
+        matrix = [x for x in sample_block[reads_end:full_matrix_start].split("\n") if x and not x.startswith(">")]
     array = np.vstack([np.fromstring(x, dtype=np.float, sep=" ") for x in matrix])
     result = pd.DataFrame(data=array, index=haplotypes.index, columns=read_names)
     result['sequence'] = haplotypes
     return result
-
 
 def parse_haplotype_matrix_file(filename: str) -> dict:
     '''Parses a file that contains haplotype matrices, return
