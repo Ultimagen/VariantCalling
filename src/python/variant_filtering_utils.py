@@ -425,7 +425,7 @@ def get_testing_selection_functions() -> dict:
 def add_testing_train_split_column(concordance: pd.DataFrame,
                                    training_groups_column: str, test_train_split_column: str,
                                    gtr_column: str,
-                                   min_test_set: int = 2000, max_train_set: int = 200000,
+                                   min_test_set: int = 50, max_train_set: int = 200000,
                                    test_set_fraction: float = .5) -> pd.DataFrame:
     '''Adds a column that divides each training group into a train/test set. Supports
     requirements for the minimal testing set size, maximal training test size and the fraction of test
