@@ -458,14 +458,14 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     for g in groups:
         group_vector = (concordance[training_groups_column] == g)
         locations = group_vector.to_numpy().nonzero()[0]
-        assert(group_vector.sum() > min_test_set), "Group size too small for training"
+        assert(group_vector.sum() >= min_test_set), "Group size too small for training"
         train_set_size = int(min(group_vector.sum() - min_test_set,
                                  max_train_set,
                                  group_vector.sum() * (1 - test_set_fraction)))
         test_set_size = group_vector.sum() - train_set_size
-        assert(test_set_size > min_test_set), \
+        assert(test_set_size >= min_test_set), \
             f"Test set size too small -> test:{test_set_size}, train:{train_set_size}"
-        assert(train_set_size < max_train_set), \
+        assert(train_set_size <= max_train_set), \
             f"Train set size too big -> test:{test_set_size}, train:{train_set_size}"
         train_set = locations[np.random.choice(np.arange(group_vector.sum(), dtype=np.int),
                                                train_set_size, replace=False)]
