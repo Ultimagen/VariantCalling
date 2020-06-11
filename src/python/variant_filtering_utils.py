@@ -105,7 +105,7 @@ class MaskedHierarchicalModel:
             if self.transformer is not None : 
                 predictions.append(model.predict(self.transformer.fit_transform(df.iloc[i:i+1000000,:])))
             else:
-                predictions = model.predict(df.iloc[i:i+1000000,:])
+                predictions.append(model.predict(df.iloc[i:i+1000000,:]))
         return np.hstack(predictions)
 
 def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
