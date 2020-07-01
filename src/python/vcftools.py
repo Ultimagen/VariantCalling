@@ -5,7 +5,7 @@ import tqdm
 from python import utils
 import numpy as np
 from collections import defaultdict
-
+import re
 
 def get_concordance(genotype_concordance_vcf: str,
                     input_vcf: str,
@@ -174,6 +174,22 @@ def summarize_concordance(concordance: pd.DataFrame):
                       "precision_snp": precision_snp,
                       "recall_indel": recall_indel,
                       "precision_indel": precision_indel})
+
+
+def fix_symbolic_alleles( df: pd.DataFrame) -> pd.DataFrame: 
+    '''Replaces <%d> alleles with * for pysam compatibility
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    pd.DataFrame
+    '''
+    df['alleles'] = df['alleles'].apply(lambda x : tuple([y if re.match(r'<[0-9]+>',y) is None else '*' for y in x]))
+    df['ref'] = df['ref'].apply(lambda x: x if re.match(r'<[0-9]+>',x) is None else '*')
+    return df
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:

@@ -1,3 +1,4 @@
+import pathmagic
 import python.variant_filtering_utils as variant_filtering_utils
 import python.vcftools as vcftools
 import argparse
@@ -8,11 +9,14 @@ import sys
 import tqdm 
 import subprocess
 import pandas as pd 
+import re
 
 ap = argparse.ArgumentParser(prog="filter_variants_pipeline.py", description="Filter VCF")
 ap.add_argument("--input_file", help="Name of the input VCF file", type=str, required=True)
 ap.add_argument("--model_file", help="Pickle model file", type=str, required=True)
 ap.add_argument("--model_name", help="Model file", type=str, required=True)
+ap.add_argument("--hpol_filter_length_dist", nargs=2, type=int, help='Length and distance to the hpol run to mark', 
+                default=[10,10])
 ap.add_argument("--runs_file", help="Homopolymer runs file", type=str, required=True)
 ap.add_argument("--reference_file", help="Indexed reference FASTA file", type=str, required=True)
 ap.add_argument("--output_file", help="Output VCF file",
@@ -22,7 +26,8 @@ try:
     print("Reading VCF", flush=True, file=sys.stderr)
     df = vcftools.get_vcf_df(args.input_file)
     print("Adding hpol run info", flush=True, file=sys.stderr)
-    df = vcftools.close_to_hmer_run(df, args.runs_file, min_hmer_run_length=10, max_distance=10)
+    min_hmer_run_length, max_distance = args.hpol_filter_length_dist
+    df = vcftools.close_to_hmer_run(df, args.runs_file, min_hmer_run_length=min_hmer_run_length, max_distance=max_distance)
     print("Classifying indel/SNP", flush=True, file=sys.stderr)
     df = vcftools.classify_indel(df)
     print("Classifying hmer/non-hmer indel", flush=True, file=sys.stderr)
@@ -60,7 +65,9 @@ try:
     predictions_score = np.array(predictions_score)
 
     hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
+    
     print("Writing", flush=True)
+
     with pysam.VariantFile(args.input_file) as infile:
         hdr = infile.header
         hdr.filters.add("HPOL_RUN", None, None, "Homopolymer run")
@@ -80,6 +87,11 @@ try:
                     rec.filter.add("PASS")
                 if is_decision_tree:
                     rec.info["TREE_SCORE"] = predictions_score[i]
+
+                # fix the alleles of form <1> that our GATK adds
+                rec.ref = rec.ref if re.match(r'<[0-9]+>', rec.ref) is None else '*'
+                rec.alleles = tuple([y if re.match(r'<[0-9]+>', y) is None else '*' for y in rec.alleles])
+
                 outfile.write(rec)
 
     cmd = ['bcftools', 'index', '-t', args.output_file]
