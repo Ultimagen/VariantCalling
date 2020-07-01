@@ -162,8 +162,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
         Feature mapper
     '''
 
-    quals = np.linspace(0, 2000, 30)
-    sors = np.linspace(0, 20, 80)
+    quals = np.linspace(0, 500, 49)
+    sors = np.linspace(0, 10, 49)
 
     pairs_qual_sor_threshold = [(quals[i], sors[j]) for i in range(len(quals)) for j in range(len(sors))]
 
