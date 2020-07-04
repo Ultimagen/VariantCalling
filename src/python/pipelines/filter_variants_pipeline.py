@@ -67,7 +67,7 @@ try:
     hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
     
     print("Writing", flush=True)
-
+    skipped_records = 0 
     with pysam.VariantFile(args.input_file) as infile:
         hdr = infile.header
         hdr.filters.add("HPOL_RUN", None, None, "Homopolymer run")
@@ -92,11 +92,15 @@ try:
                 rec.ref = rec.ref if re.match(r'<[0-9]+>', rec.ref) is None else '*'
                 rec.alleles = tuple([y if re.match(r'<[0-9]+>', y) is None else '*' for y in rec.alleles])
 
+                #Removing the edge case of multiple * alleles passed due to the above correction
+                if len(rec.alleles)!=len(set(rec.alleles)):
+                    skipped_records+=1
+                    continue
                 outfile.write(rec)
 
     cmd = ['bcftools', 'index', '-t', args.output_file]
     subprocess.check_call(cmd)
-
+    print(f"Removed {skipped_records} malformed records", file=sys.stderr, flush=True)
     print("Variant filtering run: success", file=sys.stderr, flush=True)
 except Exception as err:
     exc_info = sys.exc_info()
