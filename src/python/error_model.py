@@ -230,7 +230,8 @@ def extract_tags(bamfile: str, output_file: str, tag_list: list) -> None:
 
 
 def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
-                     probability_threshold: float = 0) -> tuple:
+                     probability_threshold: float = 0, 
+                     probability_sf: float = 10) -> tuple:
     """Summary
 
     Parameters
@@ -241,14 +242,15 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
         regressed key
     probability_threshold : float, optional
         threshold **ratio** to report
-
+    probability_sf: float
+        Phred scaling factor (default - 10)
     Returns
     -------
     tuple
         Row, column, probability ratio normalized to the kr
     """
     max_hmer = matrix.shape[0] - 1
-    probability_threshold = -10 * np.log10(probability_threshold)
+    probability_threshold = -probability_sf * np.log10(probability_threshold)
 
     tmp_matrix = matrix.copy()
     kr_clip = np.clip(kr, 0, max_hmer)
@@ -260,8 +262,8 @@ def matrix_to_sparse(matrix: np.ndarray, kr: np.ndarray,
 
     values = np.log10(values)
     norm_value = np.log10(np.clip(kr_val[column], 1e-10, None))
-    normalized_values = -10 * (values - norm_value)
-    normalized_values = np.clip(normalized_values, -60, 60).astype(np.int8)
+    normalized_values = -probability_sf * (values - norm_value)
+    normalized_values = np.clip(normalized_values, -6*probability_sf, 6*probability_sf).astype(np.int16)
     suppress = normalized_values > probability_threshold
     return row[~suppress], column[~suppress], normalized_values[~suppress]
 
@@ -271,7 +273,9 @@ def array_repr(x):
 
 
 def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
-                      n_flows: int = 280, n_classes: int = 13, probability_threshold: float = 0.003) -> int:
+                      n_flows: int = 280, n_classes: int = 13, 
+                      probability_threshold: float = 0.003,
+                      probability_sf: float = 10) -> int:
     '''Writes probability tensor into the text file
 
     Parameters
@@ -287,7 +291,10 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
     n_classes : int, optional
         Number of classes called (default: 13)
     probability_threshold : float, optional
-        Description
+        Minimal probability to report
+    probability_sf: float, optional
+        Scaling factor for phred probability
+
 
     Returns
     -------
@@ -300,6 +307,7 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
             key = np.memmap(key_name, dtype=np.int16).reshape((-1, n_flows))
         else:
             key = np.load(key_name, mmap_mode='r')
+
     else:
         key = None
     if not tensor_name.endswith("npy"):
@@ -307,6 +315,8 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
         testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
     else:
         testmatrices = np.load(tensor_name, mmap_mode='r')
+        if len(testmatrices.shape)==3:
+            testmatrices = testmatrices[:,np.newaxis,...]
 
     print(f'Read {testmatrices.shape[0]} predictions', flush=True, file=sys.stderr)
     empty = 0
@@ -319,7 +329,7 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
             else:
                 kr = np.argmax(matrix, axis=0)
 
-            kh, kf, kd = matrix_to_sparse(matrix, kr, probability_threshold)
+            kh, kf, kd = matrix_to_sparse(matrix, kr, probability_threshold, probability_sf)
             if len(kh) == 0 or len(kf) == 0 or len(kd) == 0:
                 out.write("\n")
                 empty+=1
@@ -331,7 +341,7 @@ def write_matrix_tags(tensor_name: str, key_name: str, output_file: str,
             kf_str = array_repr(kf)
             kf_str = 'kf:B:S,' + kf_str
             kd_str = array_repr(kd)
-            kd_str = 'kd:B:c,' + kd_str
+            kd_str = 'kd:B:s,' + kd_str
             out.write('\t'.join((kr_str, kd_str, kh_str, kf_str)))
             out.write("\n")
             complete+=1
@@ -401,6 +411,7 @@ def add_matrix_to_bam(input_bam: str, input_matrix: str, output_bam: str, replac
 
     p2.stdout.close()
     os.close(we)
+
     p4.wait()
     os.unlink(output_bam + ".hdr")
     if replace_sequence_file is not None:

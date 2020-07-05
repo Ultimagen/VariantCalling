@@ -754,7 +754,7 @@ def parse_cvg_metrics(metric_file):
     """Parses Picard WGScoverage metrics file"""
     with open(metric_file) as infile:
         out = next(infile)
-        while not out.startswith('## METRICS CLASS\tpicard.analysis.WgsMetrics'):
+        while not out.startswith('## METRICS CLASS'):
             out = next(infile)
 
         res1 = pd.read_csv(infile, sep='\t', nrows=1)
