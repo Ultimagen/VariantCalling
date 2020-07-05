@@ -5,7 +5,7 @@ import tqdm
 from python import utils
 import numpy as np
 from collections import defaultdict
-
+import re
 
 def get_concordance(genotype_concordance_vcf: str,
                     input_vcf: str,
@@ -174,6 +174,22 @@ def summarize_concordance(concordance: pd.DataFrame):
                       "precision_snp": precision_snp,
                       "recall_indel": recall_indel,
                       "precision_indel": precision_indel})
+
+
+def fix_symbolic_alleles( df: pd.DataFrame) -> pd.DataFrame: 
+    '''Replaces <%d> alleles with * for pysam compatibility
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+
+    Returns
+    -------
+    pd.DataFrame
+    '''
+    df['alleles'] = df['alleles'].apply(lambda x : tuple([y if re.match(r'<[0-9]+>',y) is None else '*' for y in x]))
+    df['ref'] = df['ref'].apply(lambda x: x if re.match(r'<[0-9]+>',x) is None else '*')
+    return df
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
@@ -365,13 +381,12 @@ def close_to_hmer_run(df: pd.DataFrame, runfile: str,
         pos1 = np.array(df.loc[gdf_ix, 'pos'])
         pos2 = np.array(run_df.loc[grun_ix, 'start'])
         pos1_closest_pos2_start = np.searchsorted(pos2, pos1) - 1
-        close_dist = (pos1 - pos2[np.clip(pos1_closest_pos2_start, 0, None)]) < max_distance
-        close_dist |= (pos2[np.clip(pos1_closest_pos2_start + 1, None, len(pos2) - 1)] - pos1) < max_distance
+        close_dist = abs(pos1 - pos2[np.clip(pos1_closest_pos2_start, 0, None)]) < max_distance
+        close_dist |= abs(pos2[np.clip(pos1_closest_pos2_start + 1, None, len(pos2) - 1)] - pos1) < max_distance
         pos2 = np.array(run_df.loc[grun_ix, 'end'])
         pos1_closest_pos2_end = np.searchsorted(pos2, pos1)
-        close_dist |= (pos1 - pos2[np.clip(pos1_closest_pos2_end - 1, 0, None)]) < max_distance
-        close_dist |= (pos2[np.clip(pos1_closest_pos2_end, None, len(pos2) - 1)] - pos1) < max_distance
-
+        close_dist |= abs(pos1 - pos2[np.clip(pos1_closest_pos2_end - 1, 0, None)]) < max_distance
+        close_dist |= abs(pos2[np.clip(pos1_closest_pos2_end, None, len(pos2) - 1)] - pos1) < max_distance
         is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
         df.loc[gdf_ix, "inside_hmer_run"] = is_inside
         df.loc[gdf_ix, "close_to_hmer_run"] = (close_dist & (~is_inside))

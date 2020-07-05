@@ -105,7 +105,7 @@ class MaskedHierarchicalModel:
             if self.transformer is not None : 
                 predictions.append(model.predict(self.transformer.fit_transform(df.iloc[i:i+1000000,:])))
             else:
-                predictions = model.predict(df.iloc[i:i+1000000,:])
+                predictions.append(model.predict(df.iloc[i:i+1000000,:]))
         return np.hstack(predictions)
 
 def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
@@ -162,8 +162,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
         Feature mapper
     '''
 
-    quals = np.linspace(0, 2000, 30)
-    sors = np.linspace(0, 20, 80)
+    quals = np.linspace(0, 500, 49)
+    sors = np.linspace(0, 10, 49)
 
     pairs_qual_sor_threshold = [(quals[i], sors[j]) for i in range(len(quals)) for j in range(len(sors))]
 
@@ -414,9 +414,16 @@ def get_testing_selection_functions() -> dict:
     sfs.append(("Non-hmer INDEL", lambda x: x.indel & (x.hmer_indel_length == 0)))
     sfs.append(("HMER indel <= 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
                                                         (x.hmer_indel_length < 5))))
-    sfs.append(("HMER indel > 4, < 12", lambda x: x.indel & (x.hmer_indel_length >= 5) &
-                (x.hmer_indel_length < 12)))
-    sfs.append(("HMER indel > 12", lambda x: x.indel & (x.hmer_indel_length >= 12)))
+    sfs.append(("HMER indel (4,8)", lambda x: x.indel & (x.hmer_indel_length >= 5) &
+                (x.hmer_indel_length < 8)))
+    sfs.append(("HMER indel [8,10]", lambda x: x.indel & (x.hmer_indel_length >= 8) &
+                (x.hmer_indel_length <=10 )))
+    
+    
+    sfs.append(("HMER indel 11,12", lambda x: x.indel & (x.hmer_indel_length >= 11) &
+                (x.hmer_indel_length <= 12)))
+    
+    sfs.append(("HMER indel > 12", lambda x: x.indel & (x.hmer_indel_length > 12)))
     #sfs.append(("HMER indel", lambda x: x.indel & (x.hmer_indel_length > 0)))
 
     return dict(sfs)
@@ -425,7 +432,7 @@ def get_testing_selection_functions() -> dict:
 def add_testing_train_split_column(concordance: pd.DataFrame,
                                    training_groups_column: str, test_train_split_column: str,
                                    gtr_column: str,
-                                   min_test_set: int = 2000, max_train_set: int = 200000,
+                                   min_test_set: int = 50, max_train_set: int = 200000,
                                    test_set_fraction: float = .5) -> pd.DataFrame:
     '''Adds a column that divides each training group into a train/test set. Supports
     requirements for the minimal testing set size, maximal training test size and the fraction of test
@@ -458,14 +465,14 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     for g in groups:
         group_vector = (concordance[training_groups_column] == g)
         locations = group_vector.to_numpy().nonzero()[0]
-        assert(group_vector.sum() > min_test_set), "Group size too small for training"
+        assert(group_vector.sum() >= min_test_set), "Group size too small for training"
         train_set_size = int(min(group_vector.sum() - min_test_set,
                                  max_train_set,
                                  group_vector.sum() * (1 - test_set_fraction)))
         test_set_size = group_vector.sum() - train_set_size
-        assert(test_set_size > min_test_set), \
+        assert(test_set_size >= min_test_set), \
             f"Test set size too small -> test:{test_set_size}, train:{train_set_size}"
-        assert(train_set_size < max_train_set), \
+        assert(train_set_size <= max_train_set), \
             f"Train set size too big -> test:{test_set_size}, train:{train_set_size}"
         train_set = locations[np.random.choice(np.arange(group_vector.sum(), dtype=np.int),
                                                train_set_size, replace=False)]

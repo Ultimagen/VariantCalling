@@ -60,7 +60,7 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: int=None) 
     else: 
         return np.array(key)
 
-def revcomp(seq: str) -> str:
+def revcomp(seq: str) -> Union[str, list, np.ndarray]:
     '''Reverse complements DNA given as string
 
     Parameters
