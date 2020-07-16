@@ -521,7 +521,7 @@ def block_idx_to_block_start_end(block_idx, block_size_in_reads, total_number_of
     return(block_idx * block_size_in_reads, min(total_number_of_reads, (block_idx + 1) * block_size_in_reads))
 
 
-def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray):
+def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray, output_file: str=None):
     '''Fetch keys that correspond to bead indices 
 
     Parameters
@@ -543,9 +543,15 @@ def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray):
     key = "/".join(re.split(r"/+", s3_url)[2:])
     obj = s3.Object(bucket_name=bucket_name, key=key)
     total_number_of_reads = obj.content_length / n_flows / 2
-    reads_regressed_signals = np.zeros((len(read_indices), n_flows), np.int16)
-    cur_block_idx = -1
     block_size_in_reads = 1000000
+    if output_file is None :
+        reads_regressed_signals = np.zeros((len(read_indices), n_flows), np.int16)
+    else: 
+        reads_regressed_signals = np.zeros((block_size_in_reads, n_flows), np.int16)
+        ouptut_f = open(output_file,"wb")
+
+    cur_block_idx = -1
+    cur_output_count = 0
     for i, read_id in enumerate(tqdm.tqdm(read_indices)):
         read_block = idx_to_block(read_id, block_size_in_reads)
         if read_block != cur_block_idx:
@@ -554,8 +560,21 @@ def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray):
             cur_block_idx = read_block
             block = read_key_range(obj, start, end, n_flows)
         pos_in_block = read_in_block(read_id, block_size_in_reads)
-        reads_regressed_signals[i, :] = block[pos_in_block, :]
+        if output_file is None :
+            reads_regressed_signals[i, :] = block[pos_in_block, :]
+        else: 
+            reads_regressed_signals[cur_output_count, :] = block[pos_in_block, :]
+            cur_output_count+=1
+        if cur_output_count == block_size_in_reads:
+            reads_regressed_signals.tofile(output_f)
+            cur_output_count = 0 
+    if cur_output_count > 0 and cur_output_count < block_size_in_reads: 
+        reads_regressed_signals[:cur_output_count,:].tofile(output_f)
+    if output_file is not None : 
+        output_f.close()
+
     return reads_regressed_signals
+
 
 
 def read_error_probs(error_probs_csv: str = ERROR_PROBS, binned_by_quality: bool = False,
