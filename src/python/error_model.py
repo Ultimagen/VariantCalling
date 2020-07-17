@@ -533,6 +533,7 @@ def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray, output_fi
     read_indices : np.ndarray
         Array of indices to fetch
 
+
     Returns
     -------
     TYPE
@@ -548,7 +549,7 @@ def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray, output_fi
         reads_regressed_signals = np.zeros((len(read_indices), n_flows), np.int16)
     else: 
         reads_regressed_signals = np.zeros((block_size_in_reads, n_flows), np.int16)
-        ouptut_f = open(output_file,"wb")
+        output_f = open(output_file,"wb")
 
     cur_block_idx = -1
     cur_output_count = 0

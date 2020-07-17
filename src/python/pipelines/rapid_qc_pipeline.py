@@ -79,7 +79,7 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
         for ev_set in evaluation_intervals:
             coverage_stats_tasks.append(
                 vc_pipeline.transform(vc_pipeline_utils.coverage_stats,
-                                      sorted_bam, ruffus.formatter("sort.bam"),
+                                      mark_duplicates_bam, ruffus.formatter("rmdup.bam"),
                                       [pjoin(params.em_vc_output_dir, "{basename[0]}." + ev_set[0] + ".coverage.metrics"),
                                        pjoin(params.em_vc_output_dir, "logs", "{basename[0]}." + ev_set[0] + ".coverage.log")],
                                       extras=[params.em_vc_genome, ev_set[1]], name=f"coverage.{ev_set[0]}").follows(index_bam))
@@ -98,8 +98,8 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
             memory = virtual_memory()
             max_jobs = memory.total // 10e9
             coverage_categories = vc_pipeline.product(vc_pipeline_utils.coverage_stats,
-                                                      sorted_bam, ruffus.formatter(
-                                                          "sort.bam"),
+                                                      mark_duplicates_bam, ruffus.formatter(
+                                                          "rmdup.bam"),
                                                       coverage_intervals_files, ruffus.formatter(
                                                           "interval_list"),
                                                       [pjoin(params.em_vc_output_dir,
