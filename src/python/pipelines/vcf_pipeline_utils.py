@@ -246,6 +246,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
+    only_ref = concordance.alleles.apply(len)==1
+    concordance = concordance[~only_ref]
     return concordance
 
 
