@@ -213,8 +213,7 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
             return 'ins'
         return 'del'
     concordance['indel_classify'] = concordance.apply(classify, axis=1)
-    concordance['indel_length'] = concordance.apply(lambda x: abs(
-        len(x['ref']) - max([len(y) for y in x['alleles'] if y != x['ref']])), axis=1)
+    concordance['indel_length'] = concordance.apply(lambda x: max([abs(len(y)-len(x['ref'])) for y in x['alleles'] ]), axis=1)
     return concordance
 
 
