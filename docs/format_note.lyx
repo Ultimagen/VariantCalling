@@ -1,0 +1,191 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section
+Description
+\end_layout
+
+\begin_layout Enumerate
+Assume we are calling probabilities of hmer to be 
+\begin_inset Formula $P=(p_{0,...}p_{N}).$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Enumerate
+Let 
+\begin_inset Formula $N_{h}=\text{argmax }P$
+\end_inset
+
+, that is the corresponding sequence of the nucleotides is P
+\begin_inset Formula $NN\dots N$
+\end_inset
+
+ 
+\begin_inset Formula $N_{h}$
+\end_inset
+
+times.
+\end_layout
+
+\begin_layout Enumerate
+We retain the 
+\begin_inset Formula $\lceil(N_{h}+1)/2\rceil$
+\end_inset
+
+ highest probabilities.
+ Let's assume for simplicity that these are (from the lowest to the highest)
+ 
+\begin_inset Formula $p_{N_{h}-1},p_{N_{h}+1},p_{N_{h}}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Enumerate
+The important point in our encoding is that we can interpret 
+\begin_inset Formula $P_{N_{h}-1}$
+\end_inset
+
+ and 
+\begin_inset Formula $P_{N_{h}+1}$
+\end_inset
+
+ as the probabilities of independent errors of different nucleotides of
+ the same homopolymer run.
+ That is, we can say that the last nucleotide is duplicated with probability
+ 
+\begin_inset Formula $P_{N_{h}+1}$
+\end_inset
+
+ and the one before last nucleotide is deleted with probability 
+\begin_inset Formula $P_{N_{h}-1}.$
+\end_inset
+
+ As in the old version of the format we ignore the probability that two
+ independent errors occured.
+ 
+\end_layout
+
+\begin_layout Enumerate
+The error probabilities are encoded as previously with phred encoding 
+\begin_inset Formula $\text{char(}\text{round}(-10\text{log}_{10}P)+33)$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Enumerate
+The 
+\begin_inset Formula $ti$
+\end_inset
+
+ tag encodes now not only the direction of the error, but also the quantity
+ of deleted / inserted nucleotides.
+ 
+\end_layout
+
+\begin_layout Enumerate
+We still keep the symmetric representation
+\end_layout
+
+\begin_layout Section
+Example
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $P=(0,0,0,0.1,.85,0.05,0,0)$
+\end_inset
+
+ for G will be encoded in sequence as GGGG, in quality +..+, in 
+\begin_inset Formula $ti$
+\end_inset
+
+ as -1,1,1,-1
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $P=(0,0,0.05,0.1,.85,0,0,0)$
+\end_inset
+
+ for G will be encoded in sequence as GGGG, in quality +..+, in 
+\begin_inset Formula $ti$
+\end_inset
+
+ as -1,-2,-2,-1
+\end_layout
+
+\end_body
+\end_document
