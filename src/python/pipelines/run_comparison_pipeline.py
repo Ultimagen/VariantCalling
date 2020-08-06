@@ -57,6 +57,9 @@ annotated_concordance = vcf_pipeline_utils.annotate_concordance(
 
 annotated_concordance.to_hdf(args.output_file, key="concordance")
 
+vcf_pipeline_utils.bed_files_output(annotated_concordance, args.output_file)
+
+
 if args.find_thresholds:
     results[1].to_hdf(args.output_file, key="results_calling")
     results[2].to_hdf(args.output_file, key="results_genotyping")
