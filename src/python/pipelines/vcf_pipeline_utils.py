@@ -1,7 +1,7 @@
 import subprocess
 import pandas as pd
 import pysam
-from os.path import exists
+import os.path
 from collections import defaultdict
 import python.vcftools as vcftools
 from typing import Optional, List
@@ -229,6 +229,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'tp'
     concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1)
 
+    concordance_df[(concordance_df['classify_gt'] == 'tp') & (concordance_df['classify'] == 'fp'),'classify_gt'] = 'fp'
+
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
     vf = pysam.VariantFile(raw_calls_file)
@@ -297,3 +299,159 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = vcftools.fill_filter_column(df)
     df = vcftools.annotate_cycle_skip(df, flow_order="TACG")
     return df
+
+
+def bed_files_output(data: pd.DataFrame, output_file: str):
+    '''Create a set of bed file tracks that are often used in the
+    debugging and the evaluation of the variant calling results
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Concordance dataframe
+
+    Returns
+    -------
+    pd.DataFrame
+        dict of dataframes
+    '''
+
+    basename, file_extension = os.path.splitext(output_file)
+    # decide of a threshold and color by tree_score while using a threshold
+    def threshold_calc(data):
+        tree_score_fp = data[data['classify'] == 'fp']['tree_score']
+        threshold = tree_score_fp.sort_values(ascending=True).iloc[round(tree_score_fp.size * 0.8)]
+        return threshold
+
+    class FilterWrapper:
+        def __init__(self, df):
+            self.orig_df = df
+            self.df = df
+            self.reset()
+
+        def reset(self):
+            self.df = self.orig_df
+            return self
+
+        # here we also keep tp which are under the threshold.
+        # We consider them also as fn
+        def get_fn(self, threshold):
+            self.df = self.df[
+                (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (self.df['tree_score'] < threshold))]
+            return self
+
+        def get_fp(self):
+            self.df = self.df[self.df['classify'] == 'fp']
+            return self
+
+        def get_fp_diff(self):
+            self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
+            return self
+
+        # here we also keep tp which are under the threshold.
+        # We consider them also as fn
+        def get_fn_diff(self, threshold):
+            self.df = self.df[((self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fn'))]
+            return self
+
+        def get_SNP(self):
+            self.df = self.df[self.df['indel'] == False]
+            return self
+
+        def get_h_mer(self, val_start=1, val_end=999):
+            self.df = self.df[(self.df['hmer_indel_length'] >= val_start) & (self.df['indel'] == True)]
+            self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
+            return self
+
+        def get_non_h_mer(self):
+            self.df = self.df[(self.df['hmer_indel_length'] == 0) & (self.df['indel'] == True)]
+            return self
+
+        def get_df(self):
+            return self.df
+
+        # converts the h5 format to the BED format
+        def BED_format(self, threshold):
+            # decide of a threshold and color by tree_score while using a threshold
+            rgb_color = self.df['tree_score'] > threshold
+            rgb_color[rgb_color] = "0,0,255"
+            rgb_color[rgb_color == False] = "121,121,121"
+            # add the columns
+            hmer_length_column = self.df['hmer_indel_length']
+            # end pos
+            # we want to add the rgb column, so we need to add all the columns before it
+            self.df = pd.concat([self.df['chrom'],  # chrom
+                                 self.df['pos'] - 1,  # chromStart
+                                 self.df['pos'],  # chromEnd
+                                 hmer_length_column], axis=1)  # name
+
+            self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
+            self.df['score'] = 500
+            self.df['strand'] = "."
+            self.df['thickStart'] = self.df['chromStart']
+            self.df['thickEnd'] = self.df['chromEnd']
+            self.df['itemRgb'] = rgb_color
+            self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
+                               'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
+            return self
+
+    threshold = threshold_calc(data)
+    # SNP filtering
+    # fp
+    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(threshold).get_df()
+    # fn
+    snp_fn = FilterWrapper(data).get_SNP().get_fn(threshold).BED_format(threshold).get_df()
+
+    # Diff filtering
+    # fp
+    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(threshold).get_df()
+    # fn
+    all_fn_diff = FilterWrapper(data).get_fn_diff(threshold).BED_format(threshold).get_df()
+
+    # Hmer filtering
+    # 1 to 3
+    # fp
+    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format(threshold).get_df()
+    # fn
+    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn(threshold).BED_format(
+        threshold).get_df()
+
+    # 4 until 7
+    # fp
+    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format(threshold).get_df()
+    # fn
+    hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn(threshold).BED_format(
+        threshold).get_df()
+
+    # 18 and more
+    # fp
+    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format(threshold).get_df()
+    # fn
+    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn(threshold).BED_format(threshold).get_df()
+
+    # non-Hmer filtering
+    # fp
+    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format(threshold).get_df()
+    # fn
+    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn(threshold).BED_format(threshold).get_df()
+
+    def save_bam_file(file, basename, curr_name):
+        file.to_csv((basename + f"{curr_name}.bed"), sep='\t', index=False, header=False)
+
+    save_bam_file(snp_fp, basename, "snp_fp")
+    save_bam_file(snp_fn, basename, "snp_fn")
+
+    save_bam_file(all_fp_diff, basename, "all_fp_diff")
+    save_bam_file(all_fn_diff, basename, "all_fn_diff")
+
+    save_bam_file(hmer_fp_1_3, basename, "hmer_fp_1_3")
+    save_bam_file(hmer_fn_1_3, basename, "hmer_fn_1_3")
+    save_bam_file(hmer_fp_4_7, basename, "hmer_fp_4_7")
+    save_bam_file(hmer_fn_4_7, basename, "hmer_fn_4_7")
+    save_bam_file(hmer_fp_8_end, basename, "hmer_fp_8_end")
+    save_bam_file(hmer_fn_8_end, basename, "hmer_fn_8_end")
+
+    save_bam_file(non_hmer_fp, basename, "non_hmer_fp")
+    save_bam_file(non_hmer_fn, basename, "non_hmer_fn")
+
+    return
