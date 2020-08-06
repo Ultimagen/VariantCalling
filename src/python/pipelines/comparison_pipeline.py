@@ -68,7 +68,6 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
 
     ## bed files creation
     vcf_pipeline_utils.bed_files_output(concordance)
-    # how do I save all the bed files that I create?
 
 
     if find_thresholds:

@@ -312,8 +312,6 @@ def bed_files_output(data: pd.DataFrame, output_file: str):
 
     Returns
     -------
-    pd.DataFrame
-        dict of dataframes
     '''
 
     basename, file_extension = os.path.splitext(output_file)
@@ -453,5 +451,3 @@ def bed_files_output(data: pd.DataFrame, output_file: str):
 
     save_bam_file(non_hmer_fp, basename, "non_hmer_fp")
     save_bam_file(non_hmer_fn, basename, "non_hmer_fn")
-
-    return
