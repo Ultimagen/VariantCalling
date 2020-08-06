@@ -350,7 +350,9 @@ class FilterWrapper:
             return self.df
 
         # converts the h5 format to the BED format
-        def BED_format(self, threshold: float, do_filtering: bool):
+        def BED_format(self, threshold: float, do_filtering: bool = True):
+            if do_filtering:
+                tree_scores = self.df['tree_score']
 
             hmer_length_column = self.df['hmer_indel_length']
             # end pos
@@ -364,7 +366,7 @@ class FilterWrapper:
 
             # decide of a threshold and color by tree_score while using a threshold
             if do_filtering:
-                rgb_color = self.df['tree_score'] > threshold
+                rgb_color = tree_scores > threshold
                 rgb_color[rgb_color] = "0,0,255"  # blue
                 rgb_color[rgb_color == False] = "121,121,121"  # grey
                 self.df['score'] = 500
@@ -404,45 +406,45 @@ def bed_files_output(data: pd.DataFrame, output_file: str, do_filtering: bool = 
         threshold = -1
     # SNP filtering
     # fp
-    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(threshold).get_df()
+    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(threshold, do_filtering).get_df()
     # fn
-    snp_fn = FilterWrapper(data).get_SNP().get_fn(threshold).BED_format(threshold).get_df()
+    snp_fn = FilterWrapper(data).get_SNP().get_fn(threshold).BED_format(threshold, do_filtering).get_df()
 
     # Diff filtering
     # fp
-    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(threshold).get_df()
+    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(threshold, do_filtering).get_df()
     # fn
-    all_fn_diff = FilterWrapper(data).get_fn_diff(threshold).BED_format(threshold).get_df()
+    all_fn_diff = FilterWrapper(data).get_fn_diff(threshold).BED_format(threshold, do_filtering).get_df()
 
     # Hmer filtering
     # 1 to 3
     # fp
-    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format(threshold).get_df()
+    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format(threshold, do_filtering).get_df()
     # fn
     hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn(threshold).BED_format(
-        threshold).get_df()
+        threshold, do_filtering).get_df()
 
     # 4 until 7
     # fp
-    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format(threshold).get_df()
+    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format(threshold, do_filtering).get_df()
     # fn
     hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn(threshold).BED_format(
-        threshold).get_df()
+        threshold, do_filtering).get_df()
 
     # 18 and more
     # fp
-    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format(threshold).get_df()
+    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format(threshold, do_filtering).get_df()
     # fn
-    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn(threshold).BED_format(threshold).get_df()
+    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn(threshold).BED_format(threshold, do_filtering).get_df()
 
     # non-Hmer filtering
     # fp
-    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format(threshold).get_df()
+    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format(threshold, do_filtering).get_df()
     # fn
-    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn(threshold).BED_format(threshold).get_df()
+    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn(threshold).BED_format(threshold, do_filtering).get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
-        file.to_csv((basename + f"{curr_name}.bed"), sep='\t', index=False, header=False)
+        file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
 
     save_bed_file(snp_fp, basename, "snp_fp")
     save_bed_file(snp_fn, basename, "snp_fn")
