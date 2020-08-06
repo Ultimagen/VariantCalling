@@ -449,8 +449,8 @@ def bed_files_output(data: pd.DataFrame, output_file: str, do_filtering: bool = 
     save_bed_file(snp_fp, basename, "snp_fp")
     save_bed_file(snp_fn, basename, "snp_fn")
 
-    save_bed_file(all_fp_diff, basename, "all_fp_diff")
-    save_bed_file(all_fn_diff, basename, "all_fn_diff")
+    save_bed_file(all_fp_diff, basename, "genotyping_errors_fp")
+    save_bed_file(all_fn_diff, basename, "genotyping_errors_fn")
 
     save_bed_file(hmer_fp_1_3, basename, "hmer_fp_1_3")
     save_bed_file(hmer_fn_1_3, basename, "hmer_fn_1_3")
