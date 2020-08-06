@@ -66,10 +66,6 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
         concordance = vcf_pipeline_utils.vcf2concordance(select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"),
                                                          output_prefix + ".genotype_concordance.highconf.vcf.gz")
 
-    ## bed files creation
-    vcf_pipeline_utils.bed_files_output(concordance)
-
-
     if find_thresholds:
         filtering_results = variant_filtering_utils.find_thresholds(concordance)
         filtering_results.index = pd.MultiIndex.from_tuples(filtering_results.index, names=['qual', 'sor'])
@@ -80,5 +76,3 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
         return concordance, filtering_results, filtering_results_gt
     else:
         return concordance
-
-
