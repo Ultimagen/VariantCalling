@@ -229,7 +229,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'tp'
     concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1)
 
-    concordance_df[(concordance_df['classify_gt'] == 'tp') & (concordance_df['classify'] == 'fp'),'classify_gt'] = 'fp'
+    concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (concordance_df['classify'] == 'fp'),'classify_gt'] = 'fp'
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
