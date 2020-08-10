@@ -318,8 +318,7 @@ class FilterWrapper:
                 self.df = self.df[
                     (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering(self.df['filter'])))]
             else:
-                self.df = self.df[
-                    (self.df['classify'] == 'fn') | (self.df['classify'] == 'tp')]
+                self.df = self.df[(self.df['classify'] == 'fn')]
             return self
 
         def get_fp(self):
