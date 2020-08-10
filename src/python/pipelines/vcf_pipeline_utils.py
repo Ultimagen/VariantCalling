@@ -316,7 +316,7 @@ class FilterWrapper:
         def get_fn(self):
             if 'filter' in self.df.columns:
                 self.df = self.df[
-                    (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & self.filtering(self.df['filter']))]
+                    (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering(self.df['filter'])))]
             else:
                 self.df = self.df[
                     (self.df['classify'] == 'fn') | (self.df['classify'] == 'tp')]
