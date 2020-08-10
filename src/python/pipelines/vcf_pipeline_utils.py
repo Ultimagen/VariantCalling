@@ -166,7 +166,6 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         cmd = ['bcftools', 'index', '-tf', runs_file_name]
         subprocess.check_call(cmd)
 
-
 def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC') -> pd.DataFrame:
     '''Generates concordance dataframe
 
@@ -312,11 +311,15 @@ class FilterWrapper:
             self.df = self.orig_df
             return self
 
-        # here we also keep tp which are under the threshold.
+        # here we also keep tp which are low_score.
         # We consider them also as fn
-        def get_fn(self, threshold: float):
-            self.df = self.df[
-                (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (self.df['tree_score'] < threshold))]
+        def get_fn(self):
+            if 'filter' in self.df.columns:
+                self.df = self.df[
+                    (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & self.filtering(self.df['filter']))]
+            else:
+                self.df = self.df[
+                    (self.df['classify'] == 'fn') | (self.df['classify'] == 'tp')]
             return self
 
         def get_fp(self):
@@ -327,9 +330,7 @@ class FilterWrapper:
             self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
             return self
 
-        # here we also keep tp which are under the threshold.
-        # We consider them also as fn
-        def get_fn_diff(self, threshold:float):
+        def get_fn_diff(self):
             self.df = self.df[((self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fn'))]
             return self
 
@@ -349,10 +350,14 @@ class FilterWrapper:
         def get_df(self):
             return self.df
 
+        def filtering(self,filter_column):
+            return ~filter_column.str.contains('LOW_SCORE', regex=False)
+
         # converts the h5 format to the BED format
-        def BED_format(self, threshold: float, do_filtering: bool = True):
+        def BED_format(self):
+            do_filtering = 'filter' in self.df.columns
             if do_filtering:
-                tree_scores = self.df['tree_score']
+                filter_column = self.df['filter']
 
             hmer_length_column = self.df['hmer_indel_length']
             # end pos
@@ -364,9 +369,9 @@ class FilterWrapper:
 
             self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
 
-            # decide of a threshold and color by tree_score while using a threshold
+            # decide a color by filter column
             if do_filtering:
-                rgb_color = tree_scores > threshold
+                rgb_color = self.filtering(filter_column)
                 rgb_color[rgb_color] = "0,0,255"  # blue
                 rgb_color[rgb_color == False] = "121,121,121"  # grey
                 self.df['score'] = 500
@@ -378,7 +383,7 @@ class FilterWrapper:
                                    'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
             return self
 
-def bed_files_output(data: pd.DataFrame, output_file: str, do_filtering: bool = True) -> None:
+def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     '''Create a set of bed file tracks that are often used in the
     debugging and the evaluation of the variant calling results
 
@@ -392,56 +397,45 @@ def bed_files_output(data: pd.DataFrame, output_file: str, do_filtering: bool = 
     None
     '''
 
-
-    # decide of a threshold and color by tree_score while using a threshold
-    def threshold_calc(data: pd.DataFrame) -> float:
-        tree_score_fp = data[data['classify'] == 'fp']['tree_score']
-        threshold = tree_score_fp.sort_values(ascending=True).iloc[round(tree_score_fp.size * 0.8)]
-        return threshold
-
     basename, file_extension = os.path.splitext(output_file)
-    if do_filtering:
-        threshold = threshold_calc(data)
-    else:
-        threshold = -1
+
     # SNP filtering
     # fp
-    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(threshold, do_filtering).get_df()
+    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format().get_df()
     # fn
-    snp_fn = FilterWrapper(data).get_SNP().get_fn(threshold).BED_format(threshold, do_filtering).get_df()
+    snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format().get_df()
 
     # Diff filtering
     # fp
-    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(threshold, do_filtering).get_df()
+    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format().get_df()
     # fn
-    all_fn_diff = FilterWrapper(data).get_fn_diff(threshold).BED_format(threshold, do_filtering).get_df()
+    all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format().get_df()
 
     # Hmer filtering
     # 1 to 3
     # fp
-    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format(threshold, do_filtering).get_df()
+    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format().get_df()
     # fn
-    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn(threshold).BED_format(
-        threshold, do_filtering).get_df()
+    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn().BED_format().get_df()
 
     # 4 until 7
     # fp
-    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format(threshold, do_filtering).get_df()
+    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format().get_df()
     # fn
-    hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn(threshold).BED_format(
-        threshold, do_filtering).get_df()
+    hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().BED_format(
+        ).get_df()
 
     # 18 and more
     # fp
-    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format(threshold, do_filtering).get_df()
+    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format().get_df()
     # fn
-    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn(threshold).BED_format(threshold, do_filtering).get_df()
+    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn().BED_format().get_df()
 
     # non-Hmer filtering
     # fp
-    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format(threshold, do_filtering).get_df()
+    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format().get_df()
     # fn
-    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn(threshold).BED_format(threshold, do_filtering).get_df()
+    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn().BED_format().get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
         file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
