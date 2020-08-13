@@ -11,7 +11,7 @@ ap.add_argument("--input_file", help="Name of the input h5 file", type=str)
 ap.add_argument("--output_file", help="Output h5 file", type=str, required=True)
 args = ap.parse_args()
 
-concordance = pd.read_hdf(args.input_file)
+concordance = pd.read_hdf(args.input_file, key="concordance")
 assert 'tree_score' in concordance.columns, "Input concordance file should be after applying a model"
 
 concordance.loc[pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
