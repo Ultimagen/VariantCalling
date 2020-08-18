@@ -20,7 +20,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''
     input_files = [f'{input_prefix}.{x}.vcf' for x in range(1, n_parts + 1)] +\
         [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
-    input_files = [x for x in input_files if exists(x)]
+    input_files = [x for x in input_files if os.path.exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
     print(" ".join(cmd))
     subprocess.check_call(cmd)
