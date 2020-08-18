@@ -41,14 +41,13 @@ def get_or_download_file(input_file, dirname):
         raise NotImplementedError(f'Expected either a file on google cloud or a local file, got {input_file}')
 
 
-def parse_output_file(tag, input_file=None, output_file=None, ):
-    if output_file is None:
-        if input_file is None:
-            raise ValueError('input_file and output_file cannpt both be None')
-        if not input_file.endswith('.vcf.gz'):
-            raise ValueError(
-                f'''Could not automatically determine output file name. Expected input to end with .vcf.gz, got 
-{input_file}'''
-            )
-        output_file = f"{'.'.join(input_file.split('.')[:-2])}.{tag}.{'.'.join(input_file.split('.')[-2:])}"
+def get_tagged_output_file(tag, input_file, ext_insertion_index=None, ):
+    if ext_insertion_index is None:
+        if input_file.endswith('.gz'):
+            ext_insertion_index = -2
+        elif input_file.endswith('.bam'):
+            ext_insertion_index = -1
+        else:
+            raise ValueError(f'Could not determine where to insert the tag in {input_file}')
+    output_file = f"{'.'.join(input_file.split('.')[:ext_insertion_index])}.{tag}.{'.'.join(input_file.split('.')[ext_insertion_index:])}"
     return output_file

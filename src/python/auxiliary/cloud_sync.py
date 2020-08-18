@@ -2,8 +2,6 @@ import os
 import sys
 from subprocess import call
 
-from src.python.scripts.cloud_sync import cloud_path
-
 
 def dir_path(string, check_cloud_path=False):
     if os.path.isdir(string):
@@ -28,10 +26,11 @@ def cloud_sync(cloud_path_in, local_dir_in, print_output=False, raise_error_is_f
             raise FileExistsError(f'target local file {local_path} exists')
         if print_output:
             sys.stdout.write(f'Local file {local_path} already exists, skipping...')
-        return
-    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    is_gs = cloud_path_in.split(":")[0] == 'gs'
-    cmd = f'{"gsutil" if is_gs else "aws s3"} cp {cloud_path} {local_path}'
-    if print_output:
-        sys.stdout.write(f'Downloading to {local_path}')
-    call(cmd.split())
+    else:
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        is_gs = cloud_path_in.split(":")[0] == 'gs'
+        cmd = f'{"gsutil" if is_gs else "aws s3"} cp {cloud_path_in} {local_path}'
+        if print_output:
+            sys.stdout.write(f'Downloading to {local_path}')
+        call(cmd.split())
+    return local_path
