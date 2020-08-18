@@ -7,7 +7,7 @@ import os
 from os.path import join as pjoin, dirname
 from multiprocessing import cpu_count
 import tempfile
-from .utils import run_shell_command, parse_output_file
+from .utils import run_shell_command, get_tagged_output_file
 #todo add logging and change print statements
 
 
@@ -111,7 +111,7 @@ def compress_vcfs(in_path, print_output=True, ext='.vcf', n_threads=None):
                     compress_vcfs(pjoin(dirpath, f), print_output=print_output)
 
 
-def filter_vcfs(in_path, output_file=None, ext_expected='.vcf.gz', tag='filtered', min_ad_alt1_in_vcf=None,
+def filter_vcfs(in_path, ext_expected='.vcf.gz', tag='filtered', min_ad_alt1_in_vcf=None,
                 cmd_args=None, print_output=True, recursive=False):
     if cmd_args is None:
         cmd_args = f"--types snps --novel"
@@ -120,7 +120,7 @@ def filter_vcfs(in_path, output_file=None, ext_expected='.vcf.gz', tag='filtered
     if in_path.endswith(ext_expected) and not in_path.endswith(f'.{tag}{ext_expected}'):
         if not os.path.isfile(in_path):
             raise ValueError(f'{in_path} does not exist - no such file')
-        output_file = parse_output_file(tag, in_path, output_file)
+        output_file = get_tagged_output_file(tag, in_path, )
         out = run_shell_command(f"bcftools view {cmd_args} {in_path} -O z -o {output_file}")
         if print_output and out is not None and len(out) > 0:
             print(out)
