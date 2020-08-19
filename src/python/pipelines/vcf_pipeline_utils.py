@@ -327,6 +327,10 @@ class FilterWrapper:
         self.df = self.df[self.df['classify'] == 'fp']
         return self
 
+    def get_tp(self):
+        self.df = self.df[self.df['classify'] == 'tp']
+        return self
+
     def get_fp_diff(self):
         self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
         return self
@@ -354,7 +358,7 @@ class FilterWrapper:
     def filtering(self):
         do_filtering = 'filter' in self.df.columns
         if not do_filtering:
-            return True
+            return pd.Series([True] * self.df.shape[0])
         filter_column = self.df['filter']
         return ~filter_column.str.contains('LOW_SCORE', regex=False)
 
@@ -363,7 +367,7 @@ class FilterWrapper:
     def filtering_fp(self):
         do_filtering = 'filter' in self.df.columns
         if not do_filtering:
-            return True
+            return pd.Series([True] * self.df.shape[0])
         filter_column = self.df['filter']
         # remove low score points
         self.df = self.df[~filter_column.str.contains('LOW_SCORE', regex=False)]
