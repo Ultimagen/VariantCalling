@@ -201,8 +201,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
     def classify(x):
-        if x['partial']:
-            return 'partial'
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
             return 'fn'
         elif x['gt_ground_truth'] == (None, None) or x['gt_ground_truth'] == (None,):
@@ -306,106 +304,106 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
 
 
 class FilterWrapper:
-        def __init__(self, df: pd.DataFrame):
-            self.orig_df = df
-            self.df = df
-            self.reset()
+    def __init__(self, df: pd.DataFrame):
+        self.orig_df = df
+        self.df = df
+        self.reset()
 
-        def reset(self):
-            self.df = self.orig_df
-            return self
+    def reset(self):
+        self.df = self.orig_df
+        return self
 
-        # here we also keep tp which are low_score.
-        # We consider them also as fn
-        def get_fn(self):
-            if 'filter' in self.df.columns:
-                self.df = self.df[
-                    (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering()))]
+    # here we also keep tp which are low_score.
+    # We consider them also as fn
+    def get_fn(self):
+        if 'filter' in self.df.columns:
+            self.df = self.df[
+                (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering()))]
+        else:
+            self.df = self.df[(self.df['classify'] == 'fn')]
+        return self
+
+    def get_fp(self):
+        self.df = self.df[self.df['classify'] == 'fp']
+        return self
+
+    def get_fp_diff(self):
+        self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
+        return self
+
+    def get_fn_diff(self):
+        self.df = self.df[((self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fn'))]
+        return self
+
+    def get_SNP(self):
+        self.df = self.df[self.df['indel'] == False]
+        return self
+
+    def get_h_mer(self, val_start:int =1, val_end:int =999):
+        self.df = self.df[(self.df['hmer_indel_length'] >= val_start) & (self.df['indel'] == True)]
+        self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
+        return self
+
+    def get_non_h_mer(self):
+        self.df = self.df[(self.df['hmer_indel_length'] == 0) & (self.df['indel'] == True)]
+        return self
+
+    def get_df(self):
+        return self.df
+
+    def filtering(self):
+        do_filtering = 'filter' in self.df.columns
+        if not do_filtering:
+            return True
+        filter_column = self.df['filter']
+        return ~filter_column.str.contains('LOW_SCORE', regex=False)
+
+    # for fp, we filter out all the low_score points, and color the lower 10% of them
+    # in grey and the others in blue
+    def filtering_fp(self):
+        do_filtering = 'filter' in self.df.columns
+        if not do_filtering:
+            return True
+        filter_column = self.df['filter']
+        # remove low score points
+        self.df = self.df[~filter_column.str.contains('LOW_SCORE', regex=False)]
+        tree_score_column = self.df['tree_score']
+        p = np.percentile(tree_score_column, 10)
+        # 10% of the points should be grey
+        return tree_score_column > p
+
+    # converts the h5 format to the BED format
+    def BED_format(self, kind=None):
+        do_filtering = 'filter' in self.df.columns
+        if do_filtering:
+            if kind == "fp":
+                rgb_color = self.filtering_fp()
             else:
-                self.df = self.df[(self.df['classify'] == 'fn')]
-            return self
+                rgb_color = self.filtering()
 
-        def get_fp(self):
-            self.df = self.df[self.df['classify'] == 'fp']
-            return self
+        hmer_length_column = self.df['hmer_indel_length']
+        # end pos
+        # we want to add the rgb column, so we need to add all the columns before it
+        self.df = pd.concat([self.df['chrom'],  # chrom
+                             self.df['pos'] - 1,  # chromStart
+                             self.df['pos'],  # chromEnd
+                             hmer_length_column], axis=1)  # name
 
-        def get_fp_diff(self):
-            self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
-            return self
+        self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
 
-        def get_fn_diff(self):
-            self.df = self.df[((self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fn'))]
-            return self
+        # decide the color by filter column
+        if do_filtering:
 
-        def get_SNP(self):
-            self.df = self.df[self.df['indel'] == False]
-            return self
-
-        def get_h_mer(self, val_start:int =1, val_end:int =999):
-            self.df = self.df[(self.df['hmer_indel_length'] >= val_start) & (self.df['indel'] == True)]
-            self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
-            return self
-
-        def get_non_h_mer(self):
-            self.df = self.df[(self.df['hmer_indel_length'] == 0) & (self.df['indel'] == True)]
-            return self
-
-        def get_df(self):
-            return self.df
-
-        def filtering(self):
-            do_filtering = 'filter' in self.df.columns
-            if not do_filtering:
-                return True
-            filter_column = self.df['filter']
-            return ~filter_column.str.contains('LOW_SCORE', regex=False)
-
-        # for fp, we filter out all the low_score points, and color the lower 10% of them
-        # in grey and the others in blue
-        def filtering_fp(self):
-            do_filtering = 'filter' in self.df.columns
-            if not do_filtering:
-                return True
-            filter_column = self.df['filter']
-            # remove low score points
-            self.df = self.df[~filter_column.str.contains('LOW_SCORE', regex=False)]
-            tree_score_column = self.df['tree_score']
-            p = np.percentile(tree_score_column, 10)
-            # 10% of the points should be grey
-            return tree_score_column > p
-
-        # converts the h5 format to the BED format
-        def BED_format(self, kind=None):
-            do_filtering = 'filter' in self.df.columns
-            if do_filtering:
-                if kind == "fp":
-                    rgb_color = self.filtering_fp()
-                else:
-                    rgb_color = self.filtering()
-
-            hmer_length_column = self.df['hmer_indel_length']
-            # end pos
-            # we want to add the rgb column, so we need to add all the columns before it
-            self.df = pd.concat([self.df['chrom'],  # chrom
-                                 self.df['pos'] - 1,  # chromStart
-                                 self.df['pos'],  # chromEnd
-                                 hmer_length_column], axis=1)  # name
-
-            self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
-
-            # decide the color by filter column
-            if do_filtering:
-
-                rgb_color[rgb_color] = "0,0,255"  # blue
-                rgb_color[rgb_color == False] = "121,121,121"  # grey
-                self.df['score'] = 500
-                self.df['strand'] = "."
-                self.df['thickStart'] = self.df['chromStart']
-                self.df['thickEnd'] = self.df['chromEnd']
-                self.df['itemRgb'] = rgb_color
-                self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
-                                   'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
-            return self
+            rgb_color[rgb_color] = "0,0,255"  # blue
+            rgb_color[rgb_color == False] = "121,121,121"  # grey
+            self.df['score'] = 500
+            self.df['strand'] = "."
+            self.df['thickStart'] = self.df['chromStart']
+            self.df['thickEnd'] = self.df['chromEnd']
+            self.df['itemRgb'] = rgb_color
+            self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
+                               'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
+        return self
 
 def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     '''Create a set of bed file tracks that are often used in the
