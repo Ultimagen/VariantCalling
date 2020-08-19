@@ -21,7 +21,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''
     input_files = [f'{input_prefix}.{x}.vcf' for x in range(1, n_parts + 1)] +\
         [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
-    input_files = [x for x in input_files if exists(x)]
+    input_files = [x for x in input_files if os.path.exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
     print(" ".join(cmd))
     subprocess.check_call(cmd)
@@ -192,12 +192,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
-                         x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
-                        x.info['CALL'] != 'OUT']
-        # vf = pysam.VariantFile(concordance_file)
-        # is_partial = [('CALL' in x.info.keys() and 'CA' in x.info['CALL']) or ('BASE' in x.info.keys() and 'CA' in x.info['BASE'])
-        #               for x in vf if 'CALL' not in x.info.keys() or
-        #                 x.info['CALL'] != 'OUT']
+                        x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
+                       x.info['CALL'] != 'OUT']
     concordance_df: pd.DataFrame = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
