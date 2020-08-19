@@ -70,7 +70,8 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     None
         Writes output_fn file
     '''
-    cmd = ['gatk', 'SelectVariants', '-V', input_fn, '-L', intervals_fn, '-O', output_fn]
+    cmd = ['gatk', 'SelectVariants', '-V', input_fn,
+           '-L', intervals_fn, '-O', output_fn]
     subprocess.check_call(cmd)
 
 def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
@@ -219,6 +220,7 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         cmd = ['bcftools', 'index', '-tf', runs_file_name]
         subprocess.check_call(cmd)
 
+
 def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC') -> pd.DataFrame:
     '''Generates concordance dataframe
 
@@ -290,7 +292,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'tp'
     concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1)
 
-    concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (concordance_df['classify'] == 'fp'),'classify_gt'] = 'fp'
+    concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
+        concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
@@ -309,7 +312,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
-    only_ref = concordance.alleles.apply(len)==1
+    only_ref = concordance.alleles.apply(len) == 1
     concordance = concordance[~only_ref]
     return concordance
 
@@ -319,7 +322,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
                          annotate_intervals: List[str] = [],
                          runfile: Optional[str] = None,
                          flow_order: Optional[str] = "TACG",
-                         hmer_run_length_dist: Optional[tuple] = (10,10)) -> pd.DataFrame:
+                         hmer_run_length_dist: Optional[tuple] = (10, 10)) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
 
     Parameters
@@ -336,12 +339,12 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         Description
     flow_order : Optional[str], optional
         Description
-    
+
     Returns
     -------
     pd.DataFrame
         Annotated dataframe
-    
+
     '''
 
     df = vcftools.classify_indel(df)
@@ -360,7 +363,6 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = vcftools.fill_filter_column(df)
     df = vcftools.annotate_cycle_skip(df, flow_order="TACG")
     return df
-
 
 
 class FilterWrapper:
