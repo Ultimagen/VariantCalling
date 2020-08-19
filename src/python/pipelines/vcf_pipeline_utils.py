@@ -69,7 +69,8 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     None
         Writes output_fn file
     '''
-    cmd = ['gatk', 'SelectVariants', '-V', input_fn, '-L', intervals_fn, '-O', output_fn]
+    cmd = ['gatk', 'SelectVariants', '-V', input_fn,
+           '-L', intervals_fn, '-O', output_fn]
     subprocess.check_call(cmd)
 
 
@@ -166,6 +167,7 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         cmd = ['bcftools', 'index', '-tf', runs_file_name]
         subprocess.check_call(cmd)
 
+
 def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC') -> pd.DataFrame:
     '''Generates concordance dataframe
 
@@ -228,7 +230,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'tp'
     concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1)
 
-    concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (concordance_df['classify'] == 'fp'),'classify_gt'] = 'fp'
+    concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
+        concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
@@ -247,7 +250,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
-    only_ref = concordance.alleles.apply(len)==1
+    only_ref = concordance.alleles.apply(len) == 1
     concordance = concordance[~only_ref]
     return concordance
 
@@ -255,11 +258,11 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 def annotate_concordance(df: pd.DataFrame, fasta: str,
                          alnfile: Optional[str] = None,
                          annotate_intervals: List[str] = [],
-                         runfile: Optional[str] = None, 
-                         flow_order: Optional[str] = "TACG", 
-                         hmer_run_length_dist: Optional[tuple] = (10,10)) -> pd.DataFrame:
+                         runfile: Optional[str] = None,
+                         flow_order: Optional[str] = "TACG",
+                         hmer_run_length_dist: Optional[tuple] = (10, 10)) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
-    
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -274,12 +277,12 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         Description
     flow_order : Optional[str], optional
         Description
-    
+
     Returns
     -------
     pd.DataFrame
         Annotated dataframe
-    
+
     '''
 
     df = vcftools.classify_indel(df)
@@ -300,87 +303,97 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     return df
 
 
-
 class FilterWrapper:
-        def __init__(self, df: pd.DataFrame):
-            self.orig_df = df
-            self.df = df
-            self.reset()
 
-        def reset(self):
-            self.df = self.orig_df
-            return self
+    def __init__(self, df: pd.DataFrame):
+        self.orig_df = df
+        self.df = df
+        self.reset()
 
-        # here we also keep tp which are low_score.
-        # We consider them also as fn
-        def get_fn(self):
-            if 'filter' in self.df.columns:
-                self.df = self.df[
-                    (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering(self.df['filter'])))]
-            else:
-                self.df = self.df[(self.df['classify'] == 'fn')]
-            return self
+    def reset(self):
+        self.df = self.orig_df
+        return self
 
-        def get_fp(self):
-            self.df = self.df[self.df['classify'] == 'fp']
-            return self
+    # here we also keep tp which are low_score.
+    # We consider them also as fn
+    def get_fn(self):
+        if 'filter' in self.df.columns:
+            self.df = self.df[
+                (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering(self.df['filter'])))]
+        else:
+            self.df = self.df[(self.df['classify'] == 'fn')]
+        return self
 
-        def get_fp_diff(self):
-            self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
-            return self
+    def get_fp(self):
+        self.df = self.df[self.df['classify'] == 'fp']
+        return self
 
-        def get_fn_diff(self):
-            self.df = self.df[((self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fn'))]
-            return self
+    def get_tp(self):
+        self.df = self.df[self.df['classify'] == 'tp']
+        return self
 
-        def get_SNP(self):
-            self.df = self.df[self.df['indel'] == False]
-            return self
+    def get_fp_diff(self):
+        self.df = self.df[(self.df['classify'] == 'tp') &
+                          (self.df['classify_gt'] == 'fp')]
+        return self
 
-        def get_h_mer(self, val_start:int =1, val_end:int =999):
-            self.df = self.df[(self.df['hmer_indel_length'] >= val_start) & (self.df['indel'] == True)]
-            self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
-            return self
+    def get_fn_diff(self):
+        self.df = self.df[((self.df['classify'] == 'tp') &
+                           (self.df['classify_gt'] == 'fn'))]
+        return self
 
-        def get_non_h_mer(self):
-            self.df = self.df[(self.df['hmer_indel_length'] == 0) & (self.df['indel'] == True)]
-            return self
+    def get_SNP(self):
+        self.df = self.df[self.df['indel'] == False]
+        return self
 
-        def get_df(self):
-            return self.df
+    def get_h_mer(self, val_start: int =1, val_end: int =999):
+        self.df = self.df[(self.df['hmer_indel_length'] >=
+                           val_start) & (self.df['indel'] == True)]
+        self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
+        return self
 
-        def filtering(self,filter_column):
-            return ~filter_column.str.contains('LOW_SCORE', regex=False)
+    def get_non_h_mer(self):
+        self.df = self.df[(self.df['hmer_indel_length'] == 0)
+                          & (self.df['indel'] == True)]
+        return self
 
-        # converts the h5 format to the BED format
-        def BED_format(self):
-            do_filtering = 'filter' in self.df.columns
-            if do_filtering:
-                filter_column = self.df['filter']
+    def get_df(self):
+        return self.df
 
-            hmer_length_column = self.df['hmer_indel_length']
-            # end pos
-            # we want to add the rgb column, so we need to add all the columns before it
-            self.df = pd.concat([self.df['chrom'],  # chrom
-                                 self.df['pos'] - 1,  # chromStart
-                                 self.df['pos'],  # chromEnd
-                                 hmer_length_column], axis=1)  # name
+    def filtering(self, filter_column):
+        return ~filter_column.str.contains('LOW_SCORE', regex=False)
 
-            self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
+    # converts the h5 format to the BED format
+    def BED_format(self):
+        do_filtering = 'filter' in self.df.columns
+        if do_filtering:
+            filter_column = self.df['filter']
 
-            # decide a color by filter column
-            if do_filtering:
-                rgb_color = self.filtering(filter_column)
-                rgb_color[rgb_color] = "0,0,255"  # blue
-                rgb_color[rgb_color == False] = "121,121,121"  # grey
-                self.df['score'] = 500
-                self.df['strand'] = "."
-                self.df['thickStart'] = self.df['chromStart']
-                self.df['thickEnd'] = self.df['chromEnd']
-                self.df['itemRgb'] = rgb_color
-                self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
-                                   'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
-            return self
+        hmer_length_column = self.df['hmer_indel_length']
+        # end pos
+        # we want to add the rgb column, so we need to add all the columns
+        # before it
+        self.df = pd.concat([self.df['chrom'],  # chrom
+                             self.df['pos'] - 1,  # chromStart
+                             self.df['pos'],  # chromEnd
+                             hmer_length_column], axis=1)  # name
+
+        self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
+
+        # decide a color by filter column
+        if do_filtering:
+            rgb_color = self.filtering(filter_column)
+            rgb_color[rgb_color] = "0,0,255"  # blue
+            rgb_color[rgb_color == False] = "121,121,121"  # grey
+            self.df['score'] = 500
+            self.df['strand'] = "."
+            self.df['thickStart'] = self.df['chromStart']
+            self.df['thickEnd'] = self.df['chromEnd']
+            self.df['itemRgb'] = rgb_color
+            self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
+                               'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
+        return self
+
 
 def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     '''Create a set of bed file tracks that are often used in the
@@ -413,28 +426,35 @@ def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     # Hmer filtering
     # 1 to 3
     # fp
-    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format().get_df()
+    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(
+        val_start=1, val_end=3).get_fp().BED_format().get_df()
     # fn
-    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn().BED_format().get_df()
+    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(
+        val_start=1, val_end=3).get_fn().BED_format().get_df()
 
     # 4 until 7
     # fp
-    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format().get_df()
+    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(
+        val_start=4, val_end=7).get_fp().BED_format().get_df()
     # fn
     hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().BED_format(
-        ).get_df()
+    ).get_df()
 
     # 18 and more
     # fp
-    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format().get_df()
+    hmer_fp_8_end = FilterWrapper(data).get_h_mer(
+        val_start=8).get_fp().BED_format().get_df()
     # fn
-    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn().BED_format().get_df()
+    hmer_fn_8_end = FilterWrapper(data).get_h_mer(
+        val_start=8).get_fn().BED_format().get_df()
 
     # non-Hmer filtering
     # fp
-    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format().get_df()
+    non_hmer_fp = FilterWrapper(
+        data).get_non_h_mer().get_fp().BED_format().get_df()
     # fn
-    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn().BED_format().get_df()
+    non_hmer_fn = FilterWrapper(
+        data).get_non_h_mer().get_fn().BED_format().get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
         file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
