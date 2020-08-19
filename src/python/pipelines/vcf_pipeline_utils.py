@@ -2,6 +2,7 @@ import subprocess
 import pandas as pd
 import pysam
 import os.path
+import numpy as np
 from collections import defaultdict
 import python.vcftools as vcftools
 from typing import Optional, List
@@ -20,7 +21,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''
     input_files = [f'{input_prefix}.{x}.vcf' for x in range(1, n_parts + 1)] +\
         [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
-    input_files = [x for x in input_files if os.path.exists(x)]
+    input_files = [x for x in input_files if exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
     print(" ".join(cmd))
     subprocess.check_call(cmd)
@@ -71,6 +72,58 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     '''
     cmd = ['gatk', 'SelectVariants', '-V', input_fn, '-L', intervals_fn, '-O', output_fn]
     subprocess.check_call(cmd)
+
+def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
+                             comparison_intervals: str,
+                             input_sample: str='NA12878', truth_sample='HG001',
+                             ignore_filter: bool=False):
+    '''Run GenotypeConcordance, correct the bug and reindex
+
+    Parameters
+    ----------
+    input_file: str
+        Our variant calls
+    truth_file: str
+        GIAB (or other source truth file)
+    output_prefix: str
+        Output prefix
+    comparison_intervals: str
+        Picard intervals file to make the comparisons on
+    input_sample: str
+        Name of the sample in our input_file
+    truth_samle: str
+        Name of the sample in the truth file
+    ignore_filter: bool
+        Ignore status of the variant filter
+    Returns
+    -------
+    None
+    '''
+
+    fasta_file = "/data/VariantCalling/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta"
+
+    path, filename = os.path.split(fasta_file)
+    SDF_path = os.path.join(path, 'SDF')
+    # convert the fasta file into
+    cmd = ['/home/ec2-user/software/vcfeval/rtg-tools-3.11/rtg', 'format',
+           '-o {} {}'.format(SDF_path, fasta_file),
+           '--region {}'.format('chr9')]
+    subprocess.check_call(cmd)
+
+    cmd = ['/home/ec2-user/software/vcfeval/rtg-tools-3.11/rtg', 'vcfeval',
+       '-b {}'.format(truth_file),
+       '-e {}'.format(comparison_intervals),
+       '--calls {}'.format(input_file),
+       #'--sample {},{}'.format(truth_sample, input_sample),###??
+        '-o {}'.format(output_prefix),
+        '-t {}'.format(SDF_path),
+        '--region {}'.format('chr9'),####
+        '-m {}'.format('combine'),
+        '--all-records']
+    subprocess.check_call(cmd)
+
+    cmd = ['gatk', 'SelectVariants', '-V {}'.format(input_file), '-L {}'.format(interval_list),
+           '-O {}'.format(interval_filtered_file)]
 
 
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
@@ -186,19 +239,28 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     vf = pysam.VariantFile(concordance_file)
     if format == 'GC':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
-                        0]['GT'], x.samples[1]['GT']) for x in vf]
+                        0]['GT'], x.samples[1]['GT'], None) for x in vf]
+
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
-                        x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
-                       x.info['CALL'] != 'OUT']
-
+                         x.samples[1]['GT'], x.samples[0]['GT'],
+                        ('CALL' in x.info.keys() and 'CA' in x.info['CALL']) or
+                        ('BASE' in x.info.keys() and 'CA' in x.info['BASE']))
+                       for x in vf if 'CALL' not in x.info.keys() or
+                        x.info['CALL'] != 'OUT']
+        # vf = pysam.VariantFile(concordance_file)
+        # is_partial = [('CALL' in x.info.keys() and 'CA' in x.info['CALL']) or ('BASE' in x.info.keys() and 'CA' in x.info['BASE'])
+        #               for x in vf if 'CALL' not in x.info.keys() or
+        #                 x.info['CALL'] != 'OUT']
     concordance_df: pd.DataFrame = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
-                              'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
+                              'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'partial']
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
     def classify(x):
+        if x['partial']:
+            return 'partial'
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
             return 'fn'
         elif x['gt_ground_truth'] == (None, None) or x['gt_ground_truth'] == (None,):
@@ -255,11 +317,11 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 def annotate_concordance(df: pd.DataFrame, fasta: str,
                          alnfile: Optional[str] = None,
                          annotate_intervals: List[str] = [],
-                         runfile: Optional[str] = None, 
-                         flow_order: Optional[str] = "TACG", 
+                         runfile: Optional[str] = None,
+                         flow_order: Optional[str] = "TACG",
                          hmer_run_length_dist: Optional[tuple] = (10,10)) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
-    
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -316,7 +378,7 @@ class FilterWrapper:
         def get_fn(self):
             if 'filter' in self.df.columns:
                 self.df = self.df[
-                    (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering(self.df['filter'])))]
+                    (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering()))]
             else:
                 self.df = self.df[(self.df['classify'] == 'fn')]
             return self
@@ -349,14 +411,35 @@ class FilterWrapper:
         def get_df(self):
             return self.df
 
-        def filtering(self,filter_column):
+        def filtering(self):
+            do_filtering = 'filter' in self.df.columns
+            if not do_filtering:
+                return True
+            filter_column = self.df['filter']
             return ~filter_column.str.contains('LOW_SCORE', regex=False)
 
+        # for fp, we filter out all the low_score points, and color the lower 10% of them
+        # in grey and the others in blue
+        def filtering_fp(self):
+            do_filtering = 'filter' in self.df.columns
+            if not do_filtering:
+                return True
+            filter_column = self.df['filter']
+            # remove low score points
+            self.df = self.df[~filter_column.str.contains('LOW_SCORE', regex=False)]
+            tree_score_column = self.df['tree_score']
+            p = np.percentile(tree_score_column, 10)
+            # 10% of the points should be grey
+            return tree_score_column > p
+
         # converts the h5 format to the BED format
-        def BED_format(self):
+        def BED_format(self, kind=None):
             do_filtering = 'filter' in self.df.columns
             if do_filtering:
-                filter_column = self.df['filter']
+                if kind == "fp":
+                    rgb_color = self.filtering_fp()
+                else:
+                    rgb_color = self.filtering()
 
             hmer_length_column = self.df['hmer_indel_length']
             # end pos
@@ -368,9 +451,9 @@ class FilterWrapper:
 
             self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
 
-            # decide a color by filter column
+            # decide the color by filter column
             if do_filtering:
-                rgb_color = self.filtering(filter_column)
+
                 rgb_color[rgb_color] = "0,0,255"  # blue
                 rgb_color[rgb_color == False] = "121,121,121"  # grey
                 self.df['score'] = 500
@@ -400,44 +483,44 @@ def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
 
     # SNP filtering
     # fp
-    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format().get_df()
+    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(kind="fp").get_df()
     # fn
     snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format().get_df()
 
     # Diff filtering
     # fp
-    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format().get_df()
+    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(kind="fp").get_df()
     # fn
     all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format().get_df()
 
     # Hmer filtering
     # 1 to 3
     # fp
-    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format().get_df()
+    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format(kind="fp").get_df()
     # fn
     hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn().BED_format().get_df()
 
     # 4 until 7
     # fp
-    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format().get_df()
+    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format(kind="fp").get_df()
     # fn
     hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().BED_format(
         ).get_df()
 
     # 18 and more
     # fp
-    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format().get_df()
+    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format(kind="fp").get_df()
     # fn
     hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn().BED_format().get_df()
 
     # non-Hmer filtering
     # fp
-    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format().get_df()
+    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format(kind="fp").get_df()
     # fn
     non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn().BED_format().get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
-        file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
+        pd.read_csv((basename + "_" + f"{curr_name}.bed"))
 
     save_bed_file(snp_fp, basename, "snp_fp")
     save_bed_file(snp_fn, basename, "snp_fn")
