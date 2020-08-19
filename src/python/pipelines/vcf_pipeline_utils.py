@@ -74,59 +74,6 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
            '-L', intervals_fn, '-O', output_fn]
     subprocess.check_call(cmd)
 
-def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
-                             comparison_intervals: str,
-                             input_sample: str='NA12878', truth_sample='HG001',
-                             ignore_filter: bool=False):
-    '''Run GenotypeConcordance, correct the bug and reindex
-
-    Parameters
-    ----------
-    input_file: str
-        Our variant calls
-    truth_file: str
-        GIAB (or other source truth file)
-    output_prefix: str
-        Output prefix
-    comparison_intervals: str
-        Picard intervals file to make the comparisons on
-    input_sample: str
-        Name of the sample in our input_file
-    truth_samle: str
-        Name of the sample in the truth file
-    ignore_filter: bool
-        Ignore status of the variant filter
-    Returns
-    -------
-    None
-    '''
-
-    fasta_file = "/data/VariantCalling/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta"
-
-    path, filename = os.path.split(fasta_file)
-    SDF_path = os.path.join(path, 'SDF')
-    # convert the fasta file into
-    cmd = ['/home/ec2-user/software/vcfeval/rtg-tools-3.11/rtg', 'format',
-           '-o {} {}'.format(SDF_path, fasta_file),
-           '--region {}'.format('chr9')]
-    subprocess.check_call(cmd)
-
-    cmd = ['/home/ec2-user/software/vcfeval/rtg-tools-3.11/rtg', 'vcfeval',
-       '-b {}'.format(truth_file),
-       '-e {}'.format(comparison_intervals),
-       '--calls {}'.format(input_file),
-       #'--sample {},{}'.format(truth_sample, input_sample),###??
-        '-o {}'.format(output_prefix),
-        '-t {}'.format(SDF_path),
-        '--region {}'.format('chr9'),####
-        '-m {}'.format('combine'),
-        '--all-records']
-    subprocess.check_call(cmd)
-
-    cmd = ['gatk', 'SelectVariants', '-V {}'.format(input_file), '-L {}'.format(interval_list),
-           '-O {}'.format(interval_filtered_file)]
-
-
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
                              comparison_intervals: str,
                              input_sample: str='NA12878', truth_sample='HG001',
@@ -241,14 +188,11 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     vf = pysam.VariantFile(concordance_file)
     if format == 'GC':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
-                        0]['GT'], x.samples[1]['GT'], None) for x in vf]
+                        0]['GT'], x.samples[1]['GT']) for x in vf]
 
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
-                         x.samples[1]['GT'], x.samples[0]['GT'],
-                        ('CALL' in x.info.keys() and 'CA' in x.info['CALL']) or
-                        ('BASE' in x.info.keys() and 'CA' in x.info['BASE']))
-                       for x in vf if 'CALL' not in x.info.keys() or
+                         x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
                         x.info['CALL'] != 'OUT']
         # vf = pysam.VariantFile(concordance_file)
         # is_partial = [('CALL' in x.info.keys() and 'CA' in x.info['CALL']) or ('BASE' in x.info.keys() and 'CA' in x.info['BASE'])
@@ -256,7 +200,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         #                 x.info['CALL'] != 'OUT']
     concordance_df: pd.DataFrame = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
-                              'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'partial']
+                              'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
@@ -522,7 +466,7 @@ def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn().BED_format().get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
-        pd.read_csv((basename + "_" + f"{curr_name}.bed"))
+        file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
 
     save_bed_file(snp_fp, basename, "snp_fp")
     save_bed_file(snp_fn, basename, "snp_fn")
