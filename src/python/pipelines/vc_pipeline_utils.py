@@ -692,7 +692,7 @@ def coverage_stats(input_files: list, output_files: list, genome_file: str, inte
            f"OUTPUT={output_metrics}", f"R={genome_file}", "Q=0",
            'MINIMUM_MAPPING_QUALITY=-1', 'COUNT_UNPAIRED=true',
            'USE_FAST_ALGORITHM=false', 'READ_LENGTH=500', f"INTERVALS={intervals}",
-           'VALIDATION_STRINGENCY=LENIENT']
+           'VALIDATION_STRINGENCY=LENIENT', 'INCLUDE_BQ_HISTOGRAM=true']
     with open(output_log, 'w') as out:
         out.write(' '.join(cmd) + '\n')
         subprocess.check_call(cmd, stdout=out, stderr=out)
@@ -734,7 +734,7 @@ def combine_coverage_metrics(input_files: list, output_file: str, coverage_inter
     class_count = pd.DataFrame(class_count).reset_index()
     class_count.columns = ['category', 'counts']
     class_count.set_index('category', inplace=True)
-    class_count = pd.concat((coverage_interval_df, class_count), axis=1)
+    class_count = pd.concat((coverage_interval_df, class_count), axis=1, sort=True)
     genome_df.to_hdf(output_file, key="coverage_histograms")
     class_count.to_hdf(output_file, key="counts")
 
