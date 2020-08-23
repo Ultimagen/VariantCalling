@@ -1029,6 +1029,7 @@ def coverage_stats(
         "READ_LENGTH=500",
         f"INTERVALS={intervals}",
         "VALIDATION_STRINGENCY=LENIENT",
+        "INCLUDE_BQ_HISTOGRAM=true"
     ]
     with open(output_log, "w") as out:
         out.write(" ".join(cmd) + "\n")
@@ -1075,7 +1076,7 @@ def combine_coverage_metrics(
     class_count = pd.DataFrame(class_count).reset_index()
     class_count.columns = ["category", "counts"]
     class_count.set_index("category", inplace=True)
-    class_count = pd.concat((coverage_interval_df, class_count), axis=1)
+    class_count = pd.concat((coverage_interval_df, class_count), axis=1, sort=True)
     genome_df.to_hdf(output_file, key="coverage_histograms")
     class_count.to_hdf(output_file, key="counts")
 
