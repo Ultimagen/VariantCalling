@@ -365,7 +365,9 @@ class FilterWrapper:
     # for fp, we filter out all the low_score points, and color the lower 10% of them
     # in grey and the others in blue
     def filtering_fp(self):
-        do_filtering = 'filter' in self.df.columns
+        do_filtering = 'filter' in self.df.columns \
+                       and 'tree_score' in self.df.columns \
+                       and (pd.to_numeric(self.df['tree_score'], errors='coerce').notnull().all())
         if not do_filtering:
             return pd.Series([True] * self.df.shape[0])
         filter_column = self.df['filter']
