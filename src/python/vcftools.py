@@ -478,7 +478,7 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     if gt_field is None : 
         na_pos = df['indel'] | (df['alleles'].apply(len) > 2) 
     else: 
-        na_pos = df['indel'] | df.apply(lambda x: is_multiallelic(x,gt_field), axis=1) | df.apply(lambda x: is_non_polymorphic(x,gt_field))
+        na_pos = df['indel'] | df.apply(lambda x: is_multiallelic(x,gt_field), axis=1) | df.apply(lambda x: is_non_polymorphic(x,gt_field), axis=1)
 
     df.loc[na_pos, 'cycleskip_status'] = "NA"
     snp_pos = ~na_pos
