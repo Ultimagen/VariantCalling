@@ -61,7 +61,7 @@ rqc_coverage_intervals_location=/data/genomes/broad-references/hg38/v0/coverage_
 
 # If the demux file is CRAM, reference should be supplied in 
 rqc_cram_reference_file=<path_to fasta file>
-rqc_disable_alignments #if no alignment is needed
+rqc_disable_alignment #if no alignment is needed
 
 ```
 
