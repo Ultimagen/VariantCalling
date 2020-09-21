@@ -53,18 +53,26 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
 
     output_prefix = select_intervals_fn[:select_intervals_fn.index(".intsct.vcf.gz")]
 
-    vcf_pipeline_utils.run_genotype_concordance(select_intervals_fn, truth_file, output_prefix,
-                                                cmp_intervals, call_sample, truth_sample, ignore_filter)
+
+    vcfeval_concordance = True
+    if vcfeval_concordance:
+        vcf_pipeline_utils.run_vcfeval_concordance(select_intervals_fn, truth_file, output_prefix,
+                                                    cmp_intervals, ref_genome, call_sample, truth_sample, ignore_filter)
+        output_prefix = f'{output_prefix}.vcfeval_concordance'
+    else:
+        vcf_pipeline_utils.run_genotype_concordance(select_intervals_fn, truth_file, output_prefix,
+                                                 cmp_intervals, call_sample, truth_sample, ignore_filter)
+        output_prefix = f'{output_prefix}.genotype_concordance'
 
     vcf_pipeline_utils.filter_bad_areas(select_intervals_fn, highconf_intervals, runs_intervals)
-    vcf_pipeline_utils.filter_bad_areas(output_prefix + ".genotype_concordance.vcf.gz",
+    vcf_pipeline_utils.filter_bad_areas(output_prefix + ".vcf.gz",
                                         highconf_intervals, runs_intervals)
     if runs_intervals is not None:
         concordance = vcf_pipeline_utils.vcf2concordance(select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"),
-                                                         output_prefix + ".genotype_concordance.runs.vcf.gz")
+                                                         output_prefix + ".runs.vcf.gz")
     else:
         concordance = vcf_pipeline_utils.vcf2concordance(select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"),
-                                                         output_prefix + ".genotype_concordance.highconf.vcf.gz")
+                                                         output_prefix + ".highconf.vcf.gz")
 
     if find_thresholds:
         filtering_results = variant_filtering_utils.find_thresholds(concordance)
