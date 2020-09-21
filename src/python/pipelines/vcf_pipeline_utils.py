@@ -150,7 +150,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
         Fasta reference file
     input_sample: str
         Name of the sample in our input_file
-    truth_samle: str
+    truth_sample: str
         Name of the sample in the truth file
     ignore_filter: bool
         Ignore status of the variant filter
@@ -185,8 +185,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
            '--decompose']
     subprocess.check_call(cmd)
 
-
-    ## todo: check
+    # fix the vcf file format
     cmd = ['gunzip', '-f', os.path.join('vcfeval_output', "output.vcf.gz")]
     print(' '.join(cmd))
     subprocess.check_call(cmd)
@@ -208,7 +207,6 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     cmd = ['bcftools', 'index', '-tf', f'{input_file_handle.name}.gz']
     print(' '.join(cmd))
     subprocess.check_call(cmd)
-    ## todo: end
 
     # make the vcfeval output file without weird variants
     cmd = ['bcftools', 'norm',
@@ -219,7 +217,6 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     subprocess.check_call(cmd)
 
     # move the file to be compatible with the output file of the genotype concordance
-    # todo: another name +in the comparison pipeline
     cmd = ['mv', os.path.join('vcfeval_output', 'output.norm.vcf.gz'), output_prefix + '.vcfeval_concordance.vcf.gz']
     subprocess.check_call(cmd)
 
@@ -393,8 +390,6 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         df = vcftools.get_coverage(df, alnfile, 10)
     if runfile is not None:
         length, dist = hmer_run_length_dist
-        print(length)
-        print(dist)
         df = vcftools.close_to_hmer_run(
             df, runfile, min_hmer_run_length=length, max_distance=dist)
     if annotate_intervals is not None:
