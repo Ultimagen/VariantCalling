@@ -3,6 +3,7 @@ import pandas as pd
 import pysam
 import os.path
 import numpy as np
+import shutil
 from collections import defaultdict
 import python.vcftools as vcftools
 from typing import Optional, List
@@ -22,7 +23,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     input_files = [f'{input_prefix}.{x}.vcf' for x in range(1, n_parts + 1)] +\
         [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
     input_files = [x for x in input_files if os.path.exists(x)]
-    cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
+    cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z', " ".join(input_files)]
     print(" ".join(cmd))
     subprocess.check_call(cmd)
     cmd = ['bcftools', 'index', '-t', output_fname]
@@ -127,6 +128,105 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
     subprocess.check_call(cmd)
     cmd = ['bcftools', 'index', '-tf', f'{input_file_handle.name}.gz']
     subprocess.check_call(cmd)
+
+def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
+                             comparison_intervals: str,
+                             ref_genome: str,
+                             input_sample: str='NA12878', truth_sample='HG001',
+                             ignore_filter: bool=False):
+    '''Run GenotypeConcordance, correct the bug and reindex
+
+    Parameters
+    ----------
+    input_file: str
+        Our variant calls
+    truth_file: str
+        GIAB (or other source truth file)
+    output_prefix: str
+        Output prefix
+    comparison_intervals: str
+        Picard intervals file to make the comparisons on
+    ref_genome: str
+        Fasta reference file
+    input_sample: str
+        Name of the sample in our input_file
+    truth_samle: str
+        Name of the sample in the truth file
+    ignore_filter: bool
+        Ignore status of the variant filter
+    Returns
+    -------
+    None
+    '''
+
+    ## convert the fasta reference file into SDF file
+    SDF_path = os.path.join('.', 'SDF')
+    cmd = ['rtg', 'format',
+           '-o', SDF_path, ref_genome]
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+
+    # filter the vcf to be only in the comparison_intervals.
+    filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
+
+    cmd = ['gatk', 'SelectVariants', '-V', truth_file,
+           '-L',  comparison_intervals, '-O', filtered_truth_file]
+    subprocess.check_call(cmd)
+
+    # vcfeval calculation
+    cmd = ['rtg', 'vcfeval',
+           '-b', filtered_truth_file,
+           '--calls', input_file,
+           '-o', 'vcfeval_output',
+           '-t', SDF_path,
+           '-m', 'combine',
+           '--sample', f'{truth_sample},{input_sample}',
+           '--all-records',
+           '--decompose']
+    subprocess.check_call(cmd)
+
+
+    ## todo: check
+    cmd = ['gunzip', '-f', os.path.join('vcfeval_output', "output.vcf.gz")]
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+
+    with open(os.path.join('vcfeval_output', "output.vcf")) as input_file_handle:
+        with open(os.path.join('vcfeval_output', 'output.tmp'), 'w') as output_file_handle:
+            for line in input_file_handle:
+                if line.startswith("##FORMAT=<ID=PS"):
+                    output_file_handle.write(line.replace(
+                        "Type=Integer", "Type=String"))
+                else:
+                    output_file_handle.write(line)
+    cmd = ['mv', output_file_handle.name, input_file_handle.name]
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+    cmd = ['bgzip', input_file_handle.name]
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+    cmd = ['bcftools', 'index', '-tf', f'{input_file_handle.name}.gz']
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+    ## todo: end
+
+    # make the vcfeval output file without weird variants
+    cmd = ['bcftools', 'norm',
+           '-f', ref_genome, '-m+', '-o', os.path.join('vcfeval_output', 'output.norm.vcf.gz'),
+           '-O', 'z', os.path.join('vcfeval_output', 'output.vcf.gz')
+           ]
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+
+    # move the file to be compatible with the output file of the genotype concordance
+    # todo: another name +in the comparison pipeline
+    cmd = ['mv', os.path.join('vcfeval_output', 'output.norm.vcf.gz'), output_prefix + '.vcfeval_concordance.vcf.gz']
+    subprocess.check_call(cmd)
+
+    # generate index file for the vcf.gz file
+    cmd = ['bcftools', 'index', '-t', output_prefix + '.vcfeval_concordance.vcf.gz']
+    subprocess.check_call(cmd)
+
 
 
 def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions: str):
@@ -293,6 +393,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         df = vcftools.get_coverage(df, alnfile, 10)
     if runfile is not None:
         length, dist = hmer_run_length_dist
+        print(length)
+        print(dist)
         df = vcftools.close_to_hmer_run(
             df, runfile, min_hmer_run_length=length, max_distance=dist)
     if annotate_intervals is not None:
