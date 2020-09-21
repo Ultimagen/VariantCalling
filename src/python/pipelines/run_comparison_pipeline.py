@@ -1,23 +1,39 @@
 import pathmagic
 import python.pipelines.comparison_pipeline as comparison_pipeline
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
-import argparse,sys
+import python.vcftools as vcftools
+import argparse
+import sys
 import pandas as pd
 
-ap = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
-ap.add_argument("--n_parts", help='Number of parts that the VCF is split into', required=True, type=int)
-ap.add_argument("--input_prefix", help="Prefix of the input file", required=True, type=str)
-ap.add_argument("--output_file", help='Output h5 file', required=True, type=str)
-ap.add_argument("--gtr_vcf", help='Ground truth VCF file', required=True, type=str)
-ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison', required=True, type=str)
-ap.add_argument("--highconf_intervals", help='High confidence intervals', required=True, type=str)
-ap.add_argument("--runs_intervals", help='Runs intervals', required=False, type=str, default=None)
-ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False, type=str, default=None, action='append')
-ap.add_argument("--reference", help='Reference genome', required=True, type=str)
-ap.add_argument("--aligned_bam", help='Aligned bam', required=False, default=None, type=str)
-ap.add_argument("--call_sample_name", help='Name of the call sample', required=True, default='sm1')
-ap.add_argument("--truth_sample_name", help='Name of the truth sample', required=True)
-ap.add_argument("--header_file", help="Desired header", required=False, default=None)
+ap = argparse.ArgumentParser(
+    prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
+ap.add_argument(
+    "--n_parts", help='Number of parts that the VCF is split into', required=True, type=int)
+ap.add_argument("--input_prefix", help="Prefix of the input file",
+                required=True, type=str)
+ap.add_argument("--output_file", help='Output h5 file',
+                required=True, type=str)
+ap.add_argument("--gtr_vcf", help='Ground truth VCF file',
+                required=True, type=str)
+ap.add_argument("--cmp_intervals",
+                help='Ranges on which to perform comparison', required=True, type=str)
+ap.add_argument("--highconf_intervals",
+                help='High confidence intervals', required=True, type=str)
+ap.add_argument("--runs_intervals", help='Runs intervals',
+                required=False, type=str, default=None)
+ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)',
+                required=False, type=str, default=None, action='append')
+ap.add_argument("--reference", help='Reference genome',
+                required=True, type=str)
+ap.add_argument("--aligned_bam", help='Aligned bam',
+                required=False, default=None, type=str)
+ap.add_argument("--call_sample_name",
+                help='Name of the call sample', required=True, default='sm1')
+ap.add_argument("--truth_sample_name",
+                help='Name of the truth sample', required=True)
+ap.add_argument("--header_file", help="Desired header",
+                required=False, default=None)
 ap.add_argument("--find_thresholds", help='Should precision recall thresholds be found',
                 default=False, action='store_true')
 ap.add_argument("--filter_runs", help='Should variants on hmer runs be filtered out',
@@ -30,7 +46,8 @@ ap.add_argument("--concordance_tool", help='The concordance method to use (GC or
 
 args = ap.parse_args()
 
-pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[0]).to_hdf(args.output_file, key="input_args")
+pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[
+             0]).to_hdf(args.output_file, key="input_args")
 
 
 if args.filter_runs:
@@ -54,12 +71,15 @@ else:
     concordance = results
 
 annotated_concordance = vcf_pipeline_utils.annotate_concordance(
-    concordance, args.reference, args.aligned_bam, args.annotate_intervals, 
+    concordance, args.reference, args.aligned_bam, args.annotate_intervals,
     args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
+
+annotated_concordance = vcf_pipeline_utils.reinterpret_variants(annotated_concordance,
+                                                                args.reference)
 
 annotated_concordance.to_hdf(args.output_file, key="concordance")
 
-vcf_pipeline_utils.bed_files_output(annotated_concordance, args.output_file)
+vcftools.bed_files_output(annotated_concordance, args.output_file)
 
 
 if args.find_thresholds:

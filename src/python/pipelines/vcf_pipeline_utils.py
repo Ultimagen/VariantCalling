@@ -1,11 +1,19 @@
+import pathmagic
 import subprocess
+import numpy as np
 import pandas as pd
 import pysam
+import pyfaidx
 import os.path
+<<<<<<< HEAD
 import shutil
 import numpy as np
+=======
+>>>>>>> Work in progress - some version of flow based concordance, still not working
 from collections import defaultdict
 import python.vcftools as vcftools
+import python.modules.concordance_annotation as annotation
+import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
 
 
@@ -74,6 +82,7 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     cmd = ['gatk', 'SelectVariants', '-V', input_fn,
            '-L', intervals_fn, '-O', output_fn]
     subprocess.check_call(cmd)
+
 
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
                              comparison_intervals: str,
@@ -280,9 +289,14 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
                        x.info['CALL'] != 'OUT']
+<<<<<<< HEAD
 
 
     concordance_df: pd.DataFrame = pd.DataFrame(concordance)
+=======
+    concordance_df:
+        pd.DataFrame = pd.DataFrame(concordance)
+>>>>>>> Work in progress - some version of flow based concordance, still not working
     concordance_df.columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
     if format == 'VCFEVAL':
@@ -352,7 +366,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
                          annotate_intervals: List[str] = [],
                          runfile: Optional[str] = None,
                          flow_order: Optional[str] = "TACG",
-                         hmer_run_length_dist: Optional[tuple] = (10, 10)) -> pd.DataFrame:
+                         hmer_run_length_dist: tuple = (10, 10)) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
 
     Parameters
@@ -377,201 +391,112 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
 
     '''
 
-    df = vcftools.classify_indel(df)
-    df = vcftools.is_hmer_indel(df, fasta)
-    df = vcftools.get_motif_around(df, 5, fasta)
-    df = vcftools.get_gc_content(df, 10, fasta)
+    df = annotation.classify_indel(df)
+    df = annotation.is_hmer_indel(df, fasta)
+    df = annotation.get_motif_around(df, 5, fasta)
+    df = annotation.get_gc_content(df, 10, fasta)
     if alnfile is not None:
-        df = vcftools.get_coverage(df, alnfile, 10)
+        df = annotation.get_coverage(df, alnfile, 10)
     if runfile is not None:
         length, dist = hmer_run_length_dist
-        df = vcftools.close_to_hmer_run(
+        df = annotation.close_to_hmer_run(
             df, runfile, min_hmer_run_length=length, max_distance=dist)
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:
-            df = vcftools.annotate_intervals(df, annotation_file)
-    df = vcftools.fill_filter_column(df)
-    df = vcftools.annotate_cycle_skip(df, flow_order="TACG")
+            df = annotation.annotate_intervals(df, annotation_file)
+    df = annotation.fill_filter_column(df)
+    df = annotation.annotate_cycle_skip(df, flow_order="TACG")
     return df
 
 
-class FilterWrapper:
-    def __init__(self, df: pd.DataFrame):
-        self.orig_df = df
-        self.df = df
-        self.reset()
-
-    def reset(self):
-        self.df = self.orig_df
-        return self
-
-    # here we also keep tp which are low_score.
-    # We consider them also as fn
-    def get_fn(self):
-        if 'filter' in self.df.columns:
-            self.df = self.df[
-                (self.df['classify'] == 'fn') | ((self.df['classify'] == 'tp') & (~ self.filtering()))]
-        else:
-            self.df = self.df[(self.df['classify'] == 'fn')]
-        return self
-
-    def get_fp(self):
-        self.df = self.df[self.df['classify'] == 'fp']
-        return self
-
-    def get_tp(self):
-        self.df = self.df[self.df['classify'] == 'tp']
-        return self
-
-    def get_fp_diff(self):
-        self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
-        return self
-
-    def get_fn_diff(self):
-        self.df = self.df[((self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fn'))]
-        return self
-
-    def get_SNP(self):
-        self.df = self.df[self.df['indel'] == False]
-        return self
-
-    def get_h_mer(self, val_start:int =1, val_end:int =999):
-        self.df = self.df[(self.df['hmer_indel_length'] >= val_start) & (self.df['indel'] == True)]
-        self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
-        return self
-
-    def get_non_h_mer(self):
-        self.df = self.df[(self.df['hmer_indel_length'] == 0) & (self.df['indel'] == True)]
-        return self
-
-    def get_df(self):
-        return self.df
-
-    def filtering(self):
-        do_filtering = 'filter' in self.df.columns
-        if not do_filtering:
-            return pd.Series([True] * self.df.shape[0])
-        filter_column = self.df['filter']
-        return ~filter_column.str.contains('LOW_SCORE', regex=False)
-
-    # for fp, we filter out all the low_score points, and color the lower 10% of them
-    # in grey and the others in blue
-    def filtering_fp(self):
-        do_filtering = 'filter' in self.df.columns \
-                       and 'tree_score' in self.df.columns \
-                       and (pd.to_numeric(self.df['tree_score'], errors='coerce').notnull().all())
-        if not do_filtering:
-            return pd.Series([True] * self.df.shape[0])
-        filter_column = self.df['filter']
-        # remove low score points
-        self.df = self.df[~filter_column.str.contains('LOW_SCORE', regex=False)]
-        tree_score_column = self.df['tree_score']
-        p = np.percentile(tree_score_column, 10)
-        # 10% of the points should be grey
-        return tree_score_column > p
-
-    # converts the h5 format to the BED format
-    def BED_format(self, kind=None):
-        do_filtering = 'filter' in self.df.columns
-        if do_filtering:
-            if kind == "fp":
-                rgb_color = self.filtering_fp()
-            else:
-                rgb_color = self.filtering()
-
-        hmer_length_column = self.df['hmer_indel_length']
-        # end pos
-        # we want to add the rgb column, so we need to add all the columns before it
-        self.df = pd.concat([self.df['chrom'],  # chrom
-                             self.df['pos'] - 1,  # chromStart
-                             self.df['pos'],  # chromEnd
-                             hmer_length_column], axis=1)  # name
-
-        self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
-
-        # decide the color by filter column
-        if do_filtering:
-
-            rgb_color[rgb_color] = "0,0,255"  # blue
-            rgb_color[rgb_color == False] = "121,121,121"  # grey
-            self.df['score'] = 500
-            self.df['strand'] = "."
-            self.df['thickStart'] = self.df['chromStart']
-            self.df['thickEnd'] = self.df['chromEnd']
-            self.df['itemRgb'] = rgb_color
-            self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
-                               'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
-        return self
-
-def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
-    '''Create a set of bed file tracks that are often used in the
-    debugging and the evaluation of the variant calling results
+def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> pd.DataFrame:
+    '''Reinterprets the variants by comparing the variant to the ground truth
 
     Parameters
     ----------
-    df : pd.DataFrame
-        Concordance dataframe
+    concordance_df: pd.DataFrame
+        Input dataframe
+    reference_fasta: str
+        Indexed FASTA
 
     Returns
     -------
-    None
+    pd.DataFrame
+        Reinterpreted dataframe
+
+    See Also
+    --------
+    `flow_based_concordance.py`
     '''
 
-    basename, file_extension = os.path.splitext(output_file)
+    input_dict = _get_locations_to_work_on(concordance_df)
+    fasta = pyfaidx.Fasta(reference_fasta)
+    corrections_fps, best_pairs = \
+        fbc.compare_two_sets_of_variants(input_dict['pos_fps'],
+                                         input_dict['ugi'], input_dict['gtr'],
+                                         fasta, 'gt_ultima', 'gt_ground_truth')
+    concordance_df = _apply_corrections(concordance_df, input_dict[
+                                        'fps'].index, corrections_fps)
 
-    # SNP filtering
-    # fp
-    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(kind="fp").get_df()
-    # fn
-    snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format().get_df()
+    correction_fns, _ = \
+        fbc.compare_two_sets_of_variants(input_dict['pos_fns'],
+                                         input_dict['gtr'], input_dict['ugi'],
+                                         fasta, 'gt_ground_truth', 'gt_ultima')
+    concordance_df = _apply_corrections(concordance_df, input_dict[
+                                        'fns'].index, corrections_fns)
+    concordance_df = _fix_zero_mer_indels(concordance_df)
 
-    # Diff filtering
-    # fp
-    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(kind="fp").get_df()
-    # fn
-    all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format().get_df()
+    return concordance_df
 
-    # Hmer filtering
-    # 1 to 3
-    # fp
-    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format(kind="fp").get_df()
-    # fn
-    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn().BED_format().get_df()
 
-    # 4 until 7
-    # fp
-    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format(kind="fp").get_df()
-    # fn
-    hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().BED_format(
-        ).get_df()
+def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
+    df = vcftools.FilterWrapper(_df)
+    fps = df.reset().get_fp().get_df()
+    fns = df.reset().get_df().query('classify=="fn"')
+    tps = df.reset().get_tp().get_df()
+    gtr = df.reset().get_df()[
+        df.get_df()["gt_ground_truth"].apply(
+            lambda x: x != (None, None) and x != (None,))
+    ]
+    gtr.sort_values("pos", inplace=True)
+    ugi = df.reset().get_df()[df.get_df()["gt_ultima"].apply(
+        lambda x: x != (None, None) and x != (None,))]
+    ugi.sort_values("pos", inplace=True)
 
-    # 18 and more
-    # fp
-    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format(kind="fp").get_df()
-    # fn
-    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn().BED_format().get_df()
+    pos_fps = np.array(fps.pos)
+    pos_gtr = np.array(gtr.pos)
+    pos_ugi = np.array(ugi.pos)
+    pos_fns = np.array(fns.pos)
 
-    # non-Hmer filtering
-    # fp
-    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format(kind="fp").get_df()
-    # fn
-    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn().BED_format().get_df()
+    result = {'fps': fps, 'fns': fns, 'tps': tps,
+              'gtr': gtr, 'ugi': ugi, 'pos_fps': pos_fps,
+              'pos_gtr': pos_gtr, 'pos_ugi': pos_ugi, 'pos_fns': pos_fns}
 
-    def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
-        file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
+    return result
 
-    save_bed_file(snp_fp, basename, "snp_fp")
-    save_bed_file(snp_fn, basename, "snp_fn")
 
-    save_bed_file(all_fp_diff, basename, "genotyping_errors_fp")
-    save_bed_file(all_fn_diff, basename, "genotyping_errors_fn")
+def _apply_corrections(_df: pd.DataFrame, positions: pd.Index, corrections: list) -> pd.DataFrame:
+    'Applies corrections to the dataframe'
 
-    save_bed_file(hmer_fp_1_3, basename, "hmer_fp_1_3")
-    save_bed_file(hmer_fn_1_3, basename, "hmer_fn_1_3")
-    save_bed_file(hmer_fp_4_7, basename, "hmer_fp_4_7")
-    save_bed_file(hmer_fn_4_7, basename, "hmer_fn_4_7")
-    save_bed_file(hmer_fp_8_end, basename, "hmer_fp_8_end")
-    save_bed_file(hmer_fn_8_end, basename, "hmer_fn_8_end")
+    compare_to_gtr_result = [x[0] if x[0] < 3 else 100 for x in corrections]
+    hmer_indel_to_gtr = [x[1] if x[0] < 3 else 0 for x in corrections]
+    _df.loc[positions, "compare_to_gtr_changes"] = compare_to_gtr_result
+    _df.loc[positions, "compare_to_gtr_hmer_indel_len"] = hmer_indel_to_gtr
+    return _df
 
-    save_bed_file(non_hmer_fp, basename, "non_hmer_fp")
-    save_bed_file(non_hmer_fn, basename, "non_hmer_fn")
+
+def _fix_zero_mer_indelx(_df: pd.DataFrame) -> pd.DataFrame:
+    '''Fixes 1->0 deletions that corrections show as 1-mer
+    '''
+    take = (
+        (_df["indel_classify"] == "del")
+        & (_df["compare_to_gtr_changes"] == 1)
+        & (
+            _df["compare_to_gtr_hmer_indel_len"].apply(
+                lambda x: type(x) != np.ndarray and x == 1
+            )
+        )
+    )
+    _df.loc[take, "compare_to_gtr_hmer_indel_len"] = 0
+    return _df
+
