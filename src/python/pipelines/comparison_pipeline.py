@@ -53,8 +53,8 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
 
     output_prefix = select_intervals_fn[:select_intervals_fn.index(".intsct.vcf.gz")]
 
-
     vcfeval_concordance = True
+    vcf2concordance_format = 'VCFEVAL' if vcfeval_concordance else 'GC'
     if vcfeval_concordance:
         vcf_pipeline_utils.run_vcfeval_concordance(select_intervals_fn, truth_file, output_prefix,
                                                     cmp_intervals, ref_genome, call_sample, truth_sample, ignore_filter)
@@ -69,10 +69,10 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
                                         highconf_intervals, runs_intervals)
     if runs_intervals is not None:
         concordance = vcf_pipeline_utils.vcf2concordance(select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"),
-                                                         output_prefix + ".runs.vcf.gz")
+                                                         output_prefix + ".runs.vcf.gz", vcf2concordance_format)
     else:
         concordance = vcf_pipeline_utils.vcf2concordance(select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"),
-                                                         output_prefix + ".highconf.vcf.gz")
+                                                         output_prefix + ".highconf.vcf.gz", vcf2concordance_format)
 
     if find_thresholds:
         filtering_results = variant_filtering_utils.find_thresholds(concordance)
