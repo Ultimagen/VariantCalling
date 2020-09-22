@@ -182,8 +182,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
            '-m', 'combine',
            '--sample', f'{truth_sample},{input_sample}',
            '--all-records',
-           '--decompose',
-           '--vcf-score-field','QUAL']
+           '--decompose']
     subprocess.check_call(cmd)
 
     # fix the vcf file format
@@ -288,7 +287,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
                         0]['GT'], x.samples[1]['GT']) for x in vf]
 
-
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
@@ -296,9 +294,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance_df: pd.DataFrame = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
-    print('here1')
-    print(concordance_df.head())
-    print(concordance_df.iloc[0])
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
@@ -347,25 +342,13 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     original.columns = columns
     original.index = [(x[1]['chrom'], x[1]['pos'])
                       for x in original.iterrows()]
-    print('here2')
-    print(original.head())
-    print(original.iloc[0])
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
-    print('here3')
-    print(concordance_df.head())
-    print(concordance_df.iloc[0])
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
-    print('here4')
-    print(concordance.head())
-    print(concordance.iloc[0])
     only_ref = concordance.alleles.apply(len) == 1
     concordance = concordance[~only_ref]
-    print('here5')
-    print(concordance.head())
-    print(concordance.iloc[0])
     return concordance
 
 
