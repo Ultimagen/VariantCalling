@@ -29,9 +29,9 @@ dependencies:
   - bowtie2=2.3.4.3=py37he860b03_1
   - bwa=0.7.17=hed695b0_6
   - bzip2=1.0.6=h14c3975_1002
-  - ca-certificates=2020.1.1=0
+  - ca-certificates=2020.6.20=hecda079_0
   - cachetools=2.1.0=py_0
-  - certifi=2020.4.5.1=py37_0
+  - certifi=2020.6.20=py37hc8dfbb8_0
   - cffi=1.12.3=py37h8022711_0
   - cftime=1.0.4.2=py37hdd07704_0
   - cgatcore=0.5.15=py_0
@@ -51,6 +51,7 @@ dependencies:
   - entrypoints=0.3=py37_1000
   - expat=2.2.6=he6710b0_0
   - flake8=3.7.7=py37_0
+  - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - fontconfig=2.13.0=h9420a91_0
   - freetype=2.9.1=he983fc9_1006
   - ftputil=3.4=py_0
@@ -83,6 +84,7 @@ dependencies:
   - igv=2.4.17=0
   - imagesize=1.1.0=py_0
   - intel-openmp=2019.4=243
+  - ipdb=0.13.3=pyh9f0ad1d_0
   - ipykernel=5.1.1=py37h5ca1d4c_0
   - ipython=7.8.0=py37h39e3cac_0
   - ipython_genutils=0.2.0=py_1
@@ -93,6 +95,7 @@ dependencies:
   - jinja2=2.10.1=py_0
   - jmespath=0.9.4=py_0
   - joblib=0.14.1=py_0
+  - jpeg=9d=h516909a_0
   - jq=1.6=h14c3975_1000
   - jsonschema=3.0.1=py37_0
   - jupyter=1.0.0=py_2
@@ -160,7 +163,7 @@ dependencies:
   - oniguruma=6.9.3=h516909a_0
   - openblas=0.3.6=h6e990d7_6
   - openjdk=8.0.152=h46b5887_1
-  - openssl=1.1.1g=h7b6447c_0
+  - openssl=1.1.1g=h516909a_1
   - packaging=19.0=py_0
   - pandas=0.24.2=py37hb3f55d8_0
   - pandoc=2.2.3.2=0
@@ -210,6 +213,7 @@ dependencies:
   - reportlab=3.5.23=py37h7d98c4e_0
   - requests=2.22.0=py37_1
   - rsa=3.4.2=py_1
+  - rtg-tools=3.11=0
   - ruffus=2.8.3=py_0
   - s3transfer=0.2.0=py37_0
   - samtools=1.9=h8571acd_11
@@ -261,7 +265,7 @@ dependencies:
   - zlib=1.2.11=h516909a_1005
   - zstd=1.3.7=h0a35d5f_1001
   - pip:
+    - crcmod==1.7
     - memory-profiler==0.55.0
     - sklearn-pandas==1.8.0
-prefix: /home/ec2-user/miniconda3/envs/genomics.py3
-
+prefix: /home/ubuntu/miniconda3/envs/genomics.py3
