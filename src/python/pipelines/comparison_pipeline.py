@@ -11,6 +11,7 @@ RUNS_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190724/runs.bed"
 REFERENCE = "/home/ubuntu/proj/VariantCalling/data/genomes/hg19.fa"
 CALL_SAMPLE = "NA12878"
 TRUTH_SAMPLE = "HG001"
+CONCORDANCE_TOOL = "VCFEVAL"
 
 
 def pipeline(n_parts: int, input_prefix: str, header: str,
@@ -23,7 +24,8 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
              truth_sample: str = TRUTH_SAMPLE,
              find_thresholds: bool = True,
              output_suffix: str = '',
-             ignore_filter: bool = False) -> tuple:
+             ignore_filter: bool = False,
+             concordance_tool: str = CONCORDANCE_TOOL) -> tuple:
     '''Run comparison between the two sets of dataframes
     '''
     if not output_suffix:
@@ -53,9 +55,7 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
 
     output_prefix = select_intervals_fn[:select_intervals_fn.index(".intsct.vcf.gz")]
 
-    vcfeval_concordance = True
-    vcf2concordance_format = 'VCFEVAL' if vcfeval_concordance else 'GC'
-    if vcfeval_concordance:
+    if concordance_tool == 'VCFEVAL':
         vcf_pipeline_utils.run_vcfeval_concordance(select_intervals_fn, truth_file, output_prefix,
                                                     cmp_intervals, ref_genome, call_sample, truth_sample, ignore_filter)
         output_prefix = f'{output_prefix}.vcfeval_concordance'
@@ -69,10 +69,10 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
                                         highconf_intervals, runs_intervals)
     if runs_intervals is not None:
         concordance = vcf_pipeline_utils.vcf2concordance(select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"),
-                                                         output_prefix + ".runs.vcf.gz", vcf2concordance_format)
+                                                         output_prefix + ".runs.vcf.gz", concordance_tool)
     else:
         concordance = vcf_pipeline_utils.vcf2concordance(select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"),
-                                                         output_prefix + ".highconf.vcf.gz", vcf2concordance_format)
+                                                         output_prefix + ".highconf.vcf.gz", concordance_tool)
 
     if find_thresholds:
         filtering_results = variant_filtering_utils.find_thresholds(concordance)
