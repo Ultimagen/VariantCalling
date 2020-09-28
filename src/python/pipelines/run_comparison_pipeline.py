@@ -3,7 +3,6 @@ import python.pipelines.comparison_pipeline as comparison_pipeline
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.vcftools as vcftools
 import argparse
-import sys
 import pandas as pd
 
 ap = argparse.ArgumentParser(

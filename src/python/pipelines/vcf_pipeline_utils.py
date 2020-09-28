@@ -1,18 +1,13 @@
-import pathmagic
 import subprocess
 import numpy as np
 import pandas as pd
 import pysam
 import pyfaidx
 import os.path
-<<<<<<< HEAD
 import shutil
-import numpy as np
-=======
->>>>>>> Work in progress - some version of flow based concordance, still not working
 from collections import defaultdict
 import python.vcftools as vcftools
-import python.modules.concordance_annotation as annotation
+import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
 
@@ -123,10 +118,10 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
 
 
 def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
-                             comparison_intervals: str,
-                             ref_genome: str,
-                             input_sample: str='NA12878', truth_sample='HG001',
-                             ignore_filter: bool=False):
+                            comparison_intervals: str,
+                            ref_genome: str,
+                            input_sample: str='NA12878', truth_sample='HG001',
+                            ignore_filter: bool=False):
     '''Run vcfevalConcordance
 
     Parameters
@@ -161,7 +156,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     if os.path.exists(SDF_path) and os.path.isdir(SDF_path):
         shutil.rmtree(SDF_path)
 
-    ## convert the fasta reference file into SDF file
+    # convert the fasta reference file into SDF file
     cmd = ['rtg', 'format',
            '-o', SDF_path, ref_genome]
     print(' '.join(cmd))
@@ -169,8 +164,8 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
     # filter the vcf to be only in the comparison_intervals.
     filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
-    intersect_with_intervals(truth_file, comparison_intervals, filtered_truth_file)
-
+    intersect_with_intervals(
+        truth_file, comparison_intervals, filtered_truth_file)
 
     # vcfeval calculation
     cmd = ['rtg', 'vcfeval',
@@ -188,18 +183,22 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
     # make the vcfeval output file without weird variants
     cmd = ['bcftools', 'norm',
-           '-f', ref_genome, '-m+any', '-o', os.path.join(vcfeval_output_dir, 'output.norm.vcf.gz'),
+           '-f', ref_genome, '-m+any', '-o', os.path.join(
+               vcfeval_output_dir, 'output.norm.vcf.gz'),
            '-O', 'z', os.path.join(vcfeval_output_dir, 'output.vcf.gz')
            ]
     print(' '.join(cmd))
     subprocess.check_call(cmd)
 
-    # move the file to be compatible with the output file of the genotype concordance
-    cmd = ['mv', os.path.join(vcfeval_output_dir, 'output.norm.vcf.gz'), output_prefix + '.vcfeval_concordance.vcf.gz']
+    # move the file to be compatible with the output file of the genotype
+    # concordance
+    cmd = ['mv', os.path.join(vcfeval_output_dir, 'output.norm.vcf.gz'),
+           output_prefix + '.vcfeval_concordance.vcf.gz']
     subprocess.check_call(cmd)
 
     # generate index file for the vcf.gz file
-    cmd = ['bcftools', 'index', '-t', output_prefix + '.vcfeval_concordance.vcf.gz']
+    cmd = ['bcftools', 'index', '-t',
+           output_prefix + '.vcfeval_concordance.vcf.gz']
     subprocess.check_call(cmd)
 
 
@@ -268,7 +267,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     Parameters
     ----------
-    raw_calls_file :str
+    raw_calls_file: str
         File with GATK calls
     concordance_file: str
         GenotypeConcordance file
@@ -289,23 +288,18 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
                        x.info['CALL'] != 'OUT']
-<<<<<<< HEAD
-
-
-    concordance_df: pd.DataFrame = pd.DataFrame(concordance)
-=======
-    concordance_df:
-        pd.DataFrame = pd.DataFrame(concordance)
->>>>>>> Work in progress - some version of flow based concordance, still not working
+    concordance_df = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
     if format == 'VCFEVAL':
         # make the gt_ground_truth compatible with GC
         concordance_df['gt_ground_truth'] =\
-            concordance_df['gt_ground_truth'].map(lambda x: (None, None) if x == (None,) else x)
+            concordance_df['gt_ground_truth'].map(
+                lambda x: (None, None) if x == (None,) else x)
 
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
+
     def classify(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
             return 'fn'
@@ -410,7 +404,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
 
 
 def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> pd.DataFrame:
-    '''Reinterprets the variants by comparing the variant to the ground truth
+    '''Reinterprets the variants by comparing the variant to the ground truth in flow space
 
     Parameters
     ----------
@@ -431,25 +425,15 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> 
 
     input_dict = _get_locations_to_work_on(concordance_df)
     fasta = pyfaidx.Fasta(reference_fasta)
-    corrections_fps, best_pairs = \
-        fbc.compare_two_sets_of_variants(input_dict['pos_fps'],
-                                         input_dict['ugi'], input_dict['gtr'],
-                                         fasta, 'gt_ultima', 'gt_ground_truth')
-    concordance_df = _apply_corrections(concordance_df, input_dict[
-                                        'fps'].index, corrections_fps)
-
-    correction_fns, _ = \
-        fbc.compare_two_sets_of_variants(input_dict['pos_fns'],
-                                         input_dict['gtr'], input_dict['ugi'],
-                                         fasta, 'gt_ground_truth', 'gt_ultima')
-    concordance_df = _apply_corrections(concordance_df, input_dict[
-                                        'fns'].index, corrections_fns)
-    concordance_df = _fix_zero_mer_indels(concordance_df)
+    concordance_df = fbc.reinterpret_variants(
+        concordance_df, input_dict, fasta)
 
     return concordance_df
 
 
 def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
+    '''Dictionary of service locatoins
+    '''
     df = vcftools.FilterWrapper(_df)
     fps = df.reset().get_fp().get_df()
     fns = df.reset().get_df().query('classify=="fn"')
@@ -457,10 +441,10 @@ def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
     gtr = df.reset().get_df()[
         df.get_df()["gt_ground_truth"].apply(
             lambda x: x != (None, None) and x != (None,))
-    ]
+    ].copy()
     gtr.sort_values("pos", inplace=True)
     ugi = df.reset().get_df()[df.get_df()["gt_ultima"].apply(
-        lambda x: x != (None, None) and x != (None,))]
+        lambda x: x != (None, None) and x != (None,))].copy()
     ugi.sort_values("pos", inplace=True)
 
     pos_fps = np.array(fps.pos)
@@ -473,30 +457,3 @@ def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
               'pos_gtr': pos_gtr, 'pos_ugi': pos_ugi, 'pos_fns': pos_fns}
 
     return result
-
-
-def _apply_corrections(_df: pd.DataFrame, positions: pd.Index, corrections: list) -> pd.DataFrame:
-    'Applies corrections to the dataframe'
-
-    compare_to_gtr_result = [x[0] if x[0] < 3 else 100 for x in corrections]
-    hmer_indel_to_gtr = [x[1] if x[0] < 3 else 0 for x in corrections]
-    _df.loc[positions, "compare_to_gtr_changes"] = compare_to_gtr_result
-    _df.loc[positions, "compare_to_gtr_hmer_indel_len"] = hmer_indel_to_gtr
-    return _df
-
-
-def _fix_zero_mer_indelx(_df: pd.DataFrame) -> pd.DataFrame:
-    '''Fixes 1->0 deletions that corrections show as 1-mer
-    '''
-    take = (
-        (_df["indel_classify"] == "del")
-        & (_df["compare_to_gtr_changes"] == 1)
-        & (
-            _df["compare_to_gtr_hmer_indel_len"].apply(
-                lambda x: type(x) != np.ndarray and x == 1
-            )
-        )
-    )
-    _df.loc[take, "compare_to_gtr_hmer_indel_len"] = 0
-    return _df
-

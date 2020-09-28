@@ -45,10 +45,11 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
 def get_region_around_variant(
     vpos: int, vlocs: np.ndarray, region_size: int = 100
 ) -> tuple:
-    """Finds genomic region that around `vpos` of size at
-    least `region_size` bases but the distance of locations
-    in `vlocs` contained in the region from its ends is at least 10 bases. 
-    Useful for finding region around variants
+    """Finds a genomic region around `vpos` of length at
+    least `region_size` bases. `vlocs` is a list of locations.
+    There is no location from vlocs that falls inside the region
+    that is closer than 10 bases to either end of the region.
+    This function is useful for finding region around a variant.
 
     Parameters
     ----------
@@ -59,18 +60,21 @@ def get_region_around_variant(
     region_size : int, optional
         Initial size of the region around `vpos`
 
-    No Longer Returned
+    Returns
     ------------------
     tuple
         (start, end)
     """
-    initial_region = (vpos - region_size // 2, vpos + region_size // 2)
+    initial_region = (max(vpos - region_size // 2, 0), vpos + region_size // 2)
 
     # expand the region to the left
     while vlocs[np.searchsorted(vlocs, initial_region[0])] - initial_region[0] < 10:
         initial_region = (initial_region[0] - 10, initial_region[1])
 
+    initial_region = (max(initial_region[0], 0), initial_region[1])
+
     # expand the region to the right
+    # The second conditions is for the case np.searchsorted(vlocs, initial_region[1]) == 0
     while (
         initial_region[1] -
             vlocs[np.searchsorted(vlocs, initial_region[1]) - 1] < 10
@@ -103,6 +107,7 @@ def get_variants_from_region(variant_df: pd.DataFrame, region: tuple) -> pd.Data
 
 
 class FilterWrapper:
+
     def __init__(self, df: pd.DataFrame):
         self.orig_df = df
         self.df = df
@@ -131,24 +136,28 @@ class FilterWrapper:
         return self
 
     def get_fp_diff(self):
-        self.df = self.df[(self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fp')]
+        self.df = self.df[(self.df['classify'] == 'tp') &
+                          (self.df['classify_gt'] == 'fp')]
         return self
 
     def get_fn_diff(self):
-        self.df = self.df[((self.df['classify'] == 'tp') & (self.df['classify_gt'] == 'fn'))]
+        self.df = self.df[((self.df['classify'] == 'tp') &
+                           (self.df['classify_gt'] == 'fn'))]
         return self
 
     def get_SNP(self):
         self.df = self.df[self.df['indel'] == False]
         return self
 
-    def get_h_mer(self, val_start:int =1, val_end:int =999):
-        self.df = self.df[(self.df['hmer_indel_length'] >= val_start) & (self.df['indel'] == True)]
+    def get_h_mer(self, val_start: int = 1, val_end: int = 999):
+        self.df = self.df[(self.df['hmer_indel_length'] >=
+                           val_start) & (self.df['indel'] == True)]
         self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
         return self
 
     def get_non_h_mer(self):
-        self.df = self.df[(self.df['hmer_indel_length'] == 0) & (self.df['indel'] == True)]
+        self.df = self.df[(self.df['hmer_indel_length'] == 0)
+                          & (self.df['indel'] == True)]
         return self
 
     def get_df(self):
@@ -171,7 +180,8 @@ class FilterWrapper:
             return pd.Series([True] * self.df.shape[0])
         filter_column = self.df['filter']
         # remove low score points
-        self.df = self.df[~filter_column.str.contains('LOW_SCORE', regex=False)]
+        self.df = self.df[~filter_column.str.contains(
+            'LOW_SCORE', regex=False)]
         tree_score_column = self.df['tree_score']
         p = np.percentile(tree_score_column, 10)
         # 10% of the points should be grey
@@ -188,7 +198,8 @@ class FilterWrapper:
 
         hmer_length_column = self.df['hmer_indel_length']
         # end pos
-        # we want to add the rgb column, so we need to add all the columns before it
+        # we want to add the rgb column, so we need to add all the columns
+        # before it
         self.df = pd.concat([self.df['chrom'],  # chrom
                              self.df['pos'] - 1,  # chromStart
                              self.df['pos'],  # chromEnd
@@ -210,6 +221,7 @@ class FilterWrapper:
                                'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
         return self
 
+
 def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     '''Create a set of bed file tracks that are often used in the
     debugging and the evaluation of the variant calling results
@@ -228,41 +240,50 @@ def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
 
     # SNP filtering
     # fp
-    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(kind="fp").get_df()
+    snp_fp = FilterWrapper(data).get_SNP(
+    ).get_fp().BED_format(kind="fp").get_df()
     # fn
     snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format().get_df()
 
     # Diff filtering
     # fp
-    all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(kind="fp").get_df()
+    all_fp_diff = FilterWrapper(
+        data).get_fp_diff().BED_format(kind="fp").get_df()
     # fn
     all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format().get_df()
 
     # Hmer filtering
     # 1 to 3
     # fp
-    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().BED_format(kind="fp").get_df()
+    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(
+        val_start=1, val_end=3).get_fp().BED_format(kind="fp").get_df()
     # fn
-    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn().BED_format().get_df()
+    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(
+        val_start=1, val_end=3).get_fn().BED_format().get_df()
 
     # 4 until 7
     # fp
-    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().BED_format(kind="fp").get_df()
+    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(
+        val_start=4, val_end=7).get_fp().BED_format(kind="fp").get_df()
     # fn
     hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().BED_format(
-        ).get_df()
+    ).get_df()
 
     # 18 and more
     # fp
-    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().BED_format(kind="fp").get_df()
+    hmer_fp_8_end = FilterWrapper(data).get_h_mer(
+        val_start=8).get_fp().BED_format(kind="fp").get_df()
     # fn
-    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn().BED_format().get_df()
+    hmer_fn_8_end = FilterWrapper(data).get_h_mer(
+        val_start=8).get_fn().BED_format().get_df()
 
     # non-Hmer filtering
     # fp
-    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().BED_format(kind="fp").get_df()
+    non_hmer_fp = FilterWrapper(data).get_non_h_mer(
+    ).get_fp().BED_format(kind="fp").get_df()
     # fn
-    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn().BED_format().get_df()
+    non_hmer_fn = FilterWrapper(
+        data).get_non_h_mer().get_fn().BED_format().get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
         file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
@@ -282,6 +303,7 @@ def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
 
     save_bed_file(non_hmer_fp, basename, "non_hmer_fp")
     save_bed_file(non_hmer_fn, basename, "non_hmer_fn")
+
 
 def isin(pos, interval):
     return pos > interval[0] and pos < interval[1]
