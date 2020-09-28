@@ -5,6 +5,7 @@ import python.utils as utils
 import pysam
 import tqdm
 
+
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
     '''Classifies indel as insertion or deletion
 
@@ -159,7 +160,7 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
     return concordance
 
 
-def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int, filter_dups: bool=False):
+def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int, filter_dups: bool = False):
     results = []
     with pysam.AlignmentFile(alnfile) as alns:
         for r in tqdm.tqdm(df.iterrows()):
@@ -182,7 +183,7 @@ def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int, filter_dups: 
 
 
 def close_to_hmer_run(df: pd.DataFrame, runfile: str,
-                      min_hmer_run_length: int=10, max_distance: int=10) -> pd.DataFrame:
+                      min_hmer_run_length: int = 10, max_distance: int = 10) -> pd.DataFrame:
     '''Adds column is_close_to_hmer_run and inside_hmer_run that is T/F'''
     df['close_to_hmer_run'] = False
     df['inside_hmer_run'] = False
