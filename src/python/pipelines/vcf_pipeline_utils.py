@@ -2,6 +2,7 @@ import subprocess
 import pandas as pd
 import pysam
 import os.path
+import shutil
 import numpy as np
 from collections import defaultdict
 import python.vcftools as vcftools
@@ -109,11 +110,96 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
            'IGNORE_FILTER_STATUS={}'.format(ignore_filter)]
     subprocess.check_call(cmd)
 
-    cmd = ['gunzip', '-f', f'{output_prefix}.genotype_concordance.vcf.gz']
+    fix_vcf_format(f'{output_prefix}.genotype_concordance')
+
+
+def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
+                             comparison_intervals: str,
+                             ref_genome: str,
+                             input_sample: str='NA12878', truth_sample='HG001',
+                             ignore_filter: bool=False):
+    '''Run vcfevalConcordance
+
+    Parameters
+    ----------
+    input_file: str
+        Our variant calls
+    truth_file: str
+        GIAB (or other source truth file)
+    output_prefix: str
+        Output prefix
+    comparison_intervals: str
+        Picard intervals file to make the comparisons on
+    ref_genome: str
+        Fasta reference file
+    input_sample: str
+        Name of the sample in our input_file
+    truth_sample: str
+        Name of the sample in the truth file
+    ignore_filter: bool
+        Ignore status of the variant filter
+    Returns
+    -------
+    None
+    '''
+
+    output_dir = os.path.dirname(output_prefix)
+    SDF_path = os.path.join(output_dir, 'SDF')
+    vcfeval_output_dir = os.path.join(output_dir, 'vcfeval_output')
+
+    if os.path.exists(vcfeval_output_dir) and os.path.isdir(vcfeval_output_dir):
+        shutil.rmtree(vcfeval_output_dir)
+    if os.path.exists(SDF_path) and os.path.isdir(SDF_path):
+        shutil.rmtree(SDF_path)
+
+    ## convert the fasta reference file into SDF file
+    cmd = ['rtg', 'format',
+           '-o', SDF_path, ref_genome]
     print(' '.join(cmd))
     subprocess.check_call(cmd)
-    with open(f'{output_prefix}.genotype_concordance.vcf') as input_file_handle:
-        with open(f'{output_prefix}.genotype_concordance.tmp', 'w') as output_file_handle:
+
+    # filter the vcf to be only in the comparison_intervals.
+    filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
+    intersect_with_intervals(truth_file, comparison_intervals, filtered_truth_file)
+
+
+    # vcfeval calculation
+    cmd = ['rtg', 'vcfeval',
+           '-b', filtered_truth_file,
+           '--calls', input_file,
+           '-o', vcfeval_output_dir,
+           '-t', SDF_path,
+           '-m', 'combine',
+           '--sample', f'{truth_sample},{input_sample}',
+           '--all-records',
+           '--decompose']
+    subprocess.check_call(cmd)
+    # fix the vcf file format
+    fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
+
+    # make the vcfeval output file without weird variants
+    cmd = ['bcftools', 'norm',
+           '-f', ref_genome, '-m+any', '-o', os.path.join(vcfeval_output_dir, 'output.norm.vcf.gz'),
+           '-O', 'z', os.path.join(vcfeval_output_dir, 'output.vcf.gz')
+           ]
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+
+    # move the file to be compatible with the output file of the genotype concordance
+    cmd = ['mv', os.path.join(vcfeval_output_dir, 'output.norm.vcf.gz'), output_prefix + '.vcfeval_concordance.vcf.gz']
+    subprocess.check_call(cmd)
+
+    # generate index file for the vcf.gz file
+    cmd = ['bcftools', 'index', '-t', output_prefix + '.vcfeval_concordance.vcf.gz']
+    subprocess.check_call(cmd)
+
+
+def fix_vcf_format(output_prefix):
+    cmd = ['gunzip', '-f', f'{output_prefix}.vcf.gz']
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+    with open(f'{output_prefix}.vcf') as input_file_handle:
+        with open(f'{output_prefix}.tmp', 'w') as output_file_handle:
             for line in input_file_handle:
                 if line.startswith("##FORMAT=<ID=PS"):
                     output_file_handle.write(line.replace(
@@ -194,12 +280,18 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
                        x.info['CALL'] != 'OUT']
+
+
     concordance_df: pd.DataFrame = pd.DataFrame(concordance)
     concordance_df.columns = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
+    if format == 'VCFEVAL':
+        # make the gt_ground_truth compatible with GC
+        concordance_df['gt_ground_truth'] =\
+            concordance_df['gt_ground_truth'].map(lambda x: (None, None) if x == (None,) else x)
+
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
-
     def classify(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
             return 'fn'
@@ -365,7 +457,9 @@ class FilterWrapper:
     # for fp, we filter out all the low_score points, and color the lower 10% of them
     # in grey and the others in blue
     def filtering_fp(self):
-        do_filtering = 'filter' in self.df.columns
+        do_filtering = 'filter' in self.df.columns \
+                       and 'tree_score' in self.df.columns \
+                       and (pd.to_numeric(self.df['tree_score'], errors='coerce').notnull().all())
         if not do_filtering:
             return pd.Series([True] * self.df.shape[0])
         filter_column = self.df['filter']

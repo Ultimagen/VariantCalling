@@ -26,7 +26,7 @@ ap.add_argument("--hpol_filter_length_dist", nargs=2, type=int, help='Length and
                 default=[10,10])
 ap.add_argument("--ignore_filter_status", help="Ignore variant filter status", default=False, action='store_true')
 ap.add_argument("--output_suffix", help='Add suffix to the output file', required=False, default='', type=str)
-
+ap.add_argument("--concordance_tool", help='The concordance method to use (GC or VCFEVAL)', required=False, default='VCFEVAL', type=str)
 
 args = ap.parse_args()
 
@@ -38,13 +38,15 @@ if args.filter_runs:
                                            args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
                                            args.runs_intervals, args.reference, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix,
-                                           args.ignore_filter_status)
+                                           args.ignore_filter_status,
+                                           args.concordance_tool)
 else:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
                                            args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
                                            None, args.reference, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix,
-                                           args.ignore_filter_status)
+                                           args.ignore_filter_status,
+                                           args.concordance_tool)
 
 if args.find_thresholds:
     concordance = results[0]

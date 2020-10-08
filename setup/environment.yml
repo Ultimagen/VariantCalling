@@ -8,6 +8,7 @@ dependencies:
   - _libgcc_mutex=0.1=main
   - alabaster=0.7.12=py_0
   - ansiwrap=0.8.4=py_0
+  - arrow-cpp=0.11.1=py37h3bd774a_1
   - asn1crypto=0.24.0=py37_1003
   - attrs=19.1.0=py_0
   - autopep8=1.4.4=py_0
@@ -24,35 +25,47 @@ dependencies:
   - blas=1.0=openblas
   - bleach=3.1.0=py_0
   - blosc=1.16.3=he1b5a44_1
+  - bokeh=1.4.0=py37hc8dfbb8_1
+  - boost-cpp=1.68.0=h11c811c_1000
   - boto3=1.9.161=py_0
   - botocore=1.12.161=py_0
   - bowtie2=2.3.4.3=py37he860b03_1
   - bwa=0.7.17=hed695b0_6
   - bzip2=1.0.6=h14c3975_1002
-  - ca-certificates=2020.1.1=0
+  - ca-certificates=2020.6.20=hecda079_0
   - cachetools=2.1.0=py_0
-  - certifi=2020.4.5.1=py37_0
+  - certifi=2020.6.20=py37hc8dfbb8_0
   - cffi=1.12.3=py37h8022711_0
   - cftime=1.0.4.2=py37hdd07704_0
   - cgatcore=0.5.15=py_0
   - chardet=3.0.4=py37_1003
   - click=7.1.2=pyh9f0ad1d_0
+  - cloudpickle=1.6.0=py_0
   - colorama=0.3.9=py_1
   - configargparse=0.14.0=py37_0
   - coreutils=8.31=h14c3975_0
+  - crcmod=1.7=py37hc8dfbb8_1003
   - cryptography=2.7=py37h72c5cf5_0
   - curl=7.64.1=hbc83047_0
   - cycler=0.10.0=py_1
+  - cytoolz=0.11.0=py37h8f50634_0
+  - dask=2.29.0=py_0
+  - dask-core=2.29.0=py_0
   - dbus=1.13.6=h746ee38_0
   - decorator=4.4.0=py_0
   - defusedxml=0.6.0=py_0
+  - distributed=2.29.0=py37hc8dfbb8_0
   - docutils=0.14=py37_1001
   - drmaa=0.7.9=py37_0
+  - dropbox=10.1.1=pyh9f0ad1d_0
   - entrypoints=0.3=py37_1000
   - expat=2.2.6=he6710b0_0
+  - fastparquet=0.4.1=py37h03ebfcd_0
   - flake8=3.7.7=py37_0
+  - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - fontconfig=2.13.0=h9420a91_0
   - freetype=2.9.1=he983fc9_1006
+  - fsspec=0.8.3=py_0
   - ftputil=3.4=py_0
   - future=0.18.2=py37hc8dfbb8_1
   - gatk4=4.1.2.0=1
@@ -76,6 +89,7 @@ dependencies:
   - h5py=2.9.0=nompi_py37hcafd542_1103
   - hdf4=4.2.13=h3ca952b_2
   - hdf5=1.10.4=nompi_h3c11f04_1106
+  - heapdict=1.0.1=py_0
   - htslib=1.9=ha228f0b_7
   - httplib2=0.17.3=pyh9f0ad1d_0
   - icu=58.2=hf484d3e_1000
@@ -83,6 +97,7 @@ dependencies:
   - igv=2.4.17=0
   - imagesize=1.1.0=py_0
   - intel-openmp=2019.4=243
+  - ipdb=0.13.3=pyh9f0ad1d_0
   - ipykernel=5.1.1=py37h5ca1d4c_0
   - ipython=7.8.0=py37h39e3cac_0
   - ipython_genutils=0.2.0=py_1
@@ -93,6 +108,7 @@ dependencies:
   - jinja2=2.10.1=py_0
   - jmespath=0.9.4=py_0
   - joblib=0.14.1=py_0
+  - jpeg=9d=h516909a_0
   - jq=1.6=h14c3975_1000
   - jsonschema=3.0.1=py37_0
   - jupyter=1.0.0=py_2
@@ -111,12 +127,14 @@ dependencies:
   - libcurl=7.64.1=h20c2e04_0
   - libdeflate=1.0=h14c3975_1
   - libedit=3.1.20181209=hc058e9b_0
+  - libevent=2.1.10=hcdb4288_2
   - libffi=3.2.1=he1b5a44_1006
   - libgcc-ng=9.1.0=hdf63c60_0
   - libgfortran-ng=7.3.0=hdf63c60_0
   - libiconv=1.15=h63c8f33_5
   - liblapack=3.8.0=11_openblas
   - liblapacke=3.8.0=11_openblas
+  - libllvm9=9.0.1=he513fc3_1
   - libnetcdf=4.6.1=h11d0813_2
   - libopenblas=0.3.6=h6e990d7_6
   - libpng=1.6.37=hed695b0_0
@@ -130,6 +148,8 @@ dependencies:
   - libxml2=2.9.9=h13577e0_2
   - libxslt=1.1.33=h7d1a2b0_0
   - line_profiler=2.1.2=py37h14c3975_0
+  - llvmlite=0.33.0=py37hc6ec683_1
+  - locket=0.2.0=py_2
   - lxml=4.3.4=py37h7ec2d77_0
   - lz4=2.2.1=py37h7b6447c_0
   - lz4-c=1.8.1.2=0
@@ -153,21 +173,24 @@ dependencies:
   - netcdf4=1.4.2=py37h808af73_0
   - nomkl=3.0=0
   - notebook=5.7.8=py37_1
+  - numba=0.50.1=py37h0573a6f_1
   - numexpr=2.6.9=py37h637b7d7_1000
-  - numpy=1.16.4=py37h99e49ec_0
+  - numpy=1.19.1=py37h7ea13bd_2
   - numpy-base=1.16.4=py37h2f8d375_0
   - olefile=0.46=py_0
   - oniguruma=6.9.3=h516909a_0
   - openblas=0.3.6=h6e990d7_6
   - openjdk=8.0.152=h46b5887_1
-  - openssl=1.1.1g=h7b6447c_0
+  - openssl=1.1.1h=h516909a_0
   - packaging=19.0=py_0
-  - pandas=0.24.2=py37hb3f55d8_0
+  - pandas=1.1.2=py37h3340039_0
   - pandoc=2.2.3.2=0
   - pandocfilters=1.4.2=py_1
   - papermill=1.2.1=py37_0
   - paramiko=2.6.0=py37_0
+  - parquet-cpp=1.5.1=3
   - parso=0.5.0=py_0
+  - partd=1.1.0=py_0
   - patsy=0.5.1=py_0
   - pcre=8.43=he6710b0_0
   - perl=5.26.2=h516909a_1006
@@ -182,6 +205,7 @@ dependencies:
   - psutil=5.6.3=py37h516909a_0
   - pthread-stubs=0.3=h0ce48e5_1
   - ptyprocess=0.6.0=py_1001
+  - pyarrow=0.11.1=py37hbbcf98d_1002
   - pyasn1=0.4.5=py_0
   - pyasn1-modules=0.2.6=py37_0
   - pycodestyle=2.5.0=py_0
@@ -200,6 +224,7 @@ dependencies:
   - pytables=3.5.2=py37ha1aa75f_0
   - python=3.7.3=h5b0a415_0
   - python-dateutil=2.8.0=py_0
+  - python-snappy=0.5.4=py37hee44bf9_1
   - python_abi=3.7=1_cp37m
   - pytz=2019.1=py_0
   - pyyaml=3.13=py37h14c3975_1001
@@ -210,11 +235,12 @@ dependencies:
   - reportlab=3.5.23=py37h7d98c4e_0
   - requests=2.22.0=py37_1
   - rsa=3.4.2=py_1
+  - rtg-tools=3.11=0
   - ruffus=2.8.3=py_0
   - s3transfer=0.2.0=py37_0
   - samtools=1.9=h8571acd_11
   - scikit-learn=0.21.2=py37hcdab131_1
-  - scipy=1.2.1=py37h09a28d5_1
+  - scipy=1.5.2=py37hb14ef9d_0
   - seaborn=0.9.0=py_1
   - send2trash=1.5.0=py_0
   - setuptools=41.0.1=py37_0
@@ -222,8 +248,9 @@ dependencies:
   - sip=4.19.8=py37hf484d3e_1000
   - six=1.12.0=py37_1000
   - snap-aligner=1.0beta.23=0
-  - snappy=1.1.7=he1b5a44_1002
+  - snappy=1.1.8=he1b5a44_3
   - snowballstemmer=1.9.0=py_0
+  - sortedcontainers=2.2.2=pyh9f0ad1d_0
   - sphinx=2.1.2=py_0
   - sphinxcontrib-applehelp=1.0.1=py_0
   - sphinxcontrib-devhelp=1.0.1=py_0
@@ -235,12 +262,16 @@ dependencies:
   - sqlite=3.28.0=h8b20d00_0
   - statsmodels=0.9.0=py37h3010b51_1000
   - tbb=2019.4=h6bb024c_0
+  - tblib=1.6.0=py_0
   - tenacity=6.2.0=py37hc8dfbb8_0
   - terminado=0.8.2=py37_0
   - testpath=0.4.2=py_1001
   - textwrap3=0.9.2=py_0
+  - thrift=0.11.0=py37he1b5a44_1001
+  - thrift-cpp=0.11.0=h02b749d_3
   - time=1.8=h516909a_0
   - tk=8.6.9=hed695b0_1002
+  - toolz=0.11.1=py_0
   - tornado=6.0.3=py37h516909a_0
   - tqdm=4.32.1=py_0
   - traitlets=4.3.2=py37_1000
@@ -258,10 +289,10 @@ dependencies:
   - xz=5.2.4=h14c3975_1001
   - yaml=0.1.7=h14c3975_1001
   - zeromq=4.3.1=hf484d3e_1000
+  - zict=2.0.0=py_0
   - zlib=1.2.11=h516909a_1005
   - zstd=1.3.7=h0a35d5f_1001
   - pip:
     - memory-profiler==0.55.0
     - sklearn-pandas==1.8.0
-prefix: /home/ec2-user/miniconda3/envs/genomics.py3
-
+prefix: /home/ubuntu/miniconda3/envs/genomics.py3
