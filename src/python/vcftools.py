@@ -468,13 +468,17 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
         else : 
             return False
 
-    def get_non_ref(x): 
+    def get_non_ref(x):
         return [ y for y in x if y!=0][0]
+
+    def is_non_polymorphic(x, gt_field):
+        s = set(x[gt_field]) | set([0])
+        return len(s) == 1
 
     if gt_field is None : 
         na_pos = df['indel'] | (df['alleles'].apply(len) > 2) 
     else: 
-        na_pos = df.apply(lambda x: is_multiallelic(x,gt_field), axis=1)
+        na_pos = df['indel'] | df.apply(lambda x: is_multiallelic(x,gt_field), axis=1) | df.apply(lambda x: is_non_polymorphic(x,gt_field), axis=1)
 
     df.loc[na_pos, 'cycleskip_status'] = "NA"
     snp_pos = ~na_pos
