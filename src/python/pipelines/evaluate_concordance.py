@@ -1,4 +1,5 @@
 #!/env/python
+import pathmagic
 import python.variant_filtering_utils as variant_filtering_utils
 import argparse
 import pandas as pd
