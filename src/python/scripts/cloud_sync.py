@@ -1,4 +1,10 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
+# NOTE - this script relies on boto3, which is not installed in the system python by default. The option are either:
+# 1. Add this line to ~/.bashrc and use it to call cloud_sync:
+#  alias cloud_sync="conda run -n genomics.py3 python /home/ubuntu/proj/VariantCalling/src/python/scripts/cloud_sync.py"
+# 2. Use with "python cloud_sync.py" from an env where boto3 is installed
+# 3. Install boto3 in the system python3
+
 
 import argparse
 import os
