@@ -275,7 +275,7 @@ class FilterWrapper:
         return self
 
 
-def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w') -> None:
+def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w', create_gt_diff: bool = True) -> None:
     '''Create a set of bed file tracks that are often used in the
     debugging and the evaluation of the variant calling results
 
@@ -284,9 +284,11 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w') -> Non
     df : pd.DataFrame
         Concordance dataframe
     output_file: str
-        Output file prefix
+        Output file (extension will be split out and the result will serve as output prefix)
     mode: str
         Output file open mode ('w' or 'a')
+    create_gt_diff: bool
+        Create genotype diff files (False for Mutect, True for HC)
 
     Returns
     -------
@@ -303,11 +305,11 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w') -> Non
     snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format().get_df()
 
     # Diff filtering
-    # fp
-    all_fp_diff = FilterWrapper(
-        data).get_fp_diff().BED_format(kind="fp").get_df()
-    # fn
-    all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format().get_df()
+    if create_gt_diff : 
+        # fp
+        all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(kind="fp").get_df()
+        # fn
+        all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format().get_df()
 
     # Hmer filtering
     # 1 to 3
@@ -348,18 +350,19 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w') -> Non
     save_bed_file(snp_fp, basename, "snp_fp", mode)
     save_bed_file(snp_fn, basename, "snp_fn", mode)
 
-    save_bed_file(all_fp_diff, basename, "genotyping_errors_fp", mode)
-    save_bed_file(all_fn_diff, basename, "genotyping_errors_fn", mode)
+    if create_gt_diff : 
+        save_bed_file(all_fp_diff, basename, "genotyping_errors_fp", mode=mode)
+        save_bed_file(all_fn_diff, basename, "genotyping_errors_fn", mode=mode)
 
-    save_bed_file(hmer_fp_1_3, basename, "hmer_fp_1_3", mode)
-    save_bed_file(hmer_fn_1_3, basename, "hmer_fn_1_3", mode)
-    save_bed_file(hmer_fp_4_7, basename, "hmer_fp_4_7", mode)
-    save_bed_file(hmer_fn_4_7, basename, "hmer_fn_4_7", mode)
-    save_bed_file(hmer_fp_8_end, basename, "hmer_fp_8_end", mode)
-    save_bed_file(hmer_fn_8_end, basename, "hmer_fn_8_end", mode)
+    save_bed_file(hmer_fp_1_3, basename, "hmer_fp_1_3", mode=mode)
+    save_bed_file(hmer_fn_1_3, basename, "hmer_fn_1_3", mode=mode)
+    save_bed_file(hmer_fp_4_7, basename, "hmer_fp_4_7", mode=mode)
+    save_bed_file(hmer_fn_4_7, basename, "hmer_fn_4_7", mode=mode)
+    save_bed_file(hmer_fp_8_end, basename, "hmer_fp_8_end", mode=mode)
+    save_bed_file(hmer_fn_8_end, basename, "hmer_fn_8_end", mode=mode)
 
-    save_bed_file(non_hmer_fp, basename, "non_hmer_fp", mode)
-    save_bed_file(non_hmer_fn, basename, "non_hmer_fn", mode)
+    save_bed_file(non_hmer_fp, basename, "non_hmer_fp", mode=mode)
+    save_bed_file(non_hmer_fn, basename, "non_hmer_fn", mode=mode)
 
 
 def isin(pos, interval):
