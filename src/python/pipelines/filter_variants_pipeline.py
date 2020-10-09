@@ -27,6 +27,8 @@ ap.add_argument("--reference_file",
                 help="Indexed reference FASTA file", type=str, required=True)
 ap.add_argument("--output_file", help="Output VCF file",
                 type=str, required=True)
+ap.add_argument("--is_mutect", 
+    help="Is the input a result of mutect", action="store_true", default=False)
 args = ap.parse_args()
 
 try:
@@ -44,6 +46,9 @@ try:
     print("Reading motif info", flush=True, file=sys.stderr)
     df = annotation.get_motif_around(df, 5, args.reference_file)
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+
+    if args.is_mutect: 
+        df['qual'] = df['tlod'].apply(lambda x: max(x))
 
     models_dict = pickle.load(open(args.model_file, "rb"))
     model_name = args.model_name

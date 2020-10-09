@@ -45,6 +45,10 @@ ap.add_argument("--output_suffix", help='Add suffix to the output file',
                 required=False, default='', type=str)
 ap.add_argument("--concordance_tool", help='The concordance method to use (GC or VCFEVAL)',
                 required=False, default='VCFEVAL', type=str)
+ap.add_argument("--disable_reinterpret_variants",
+                help="Should re-interpretation be run", action="store_true", default=False)
+ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
+                action="store_true", default=False)
 
 args = ap.parse_args()
 
@@ -74,11 +78,12 @@ if args.cmp_intervals is not None:
     annotated_concordance = vcf_pipeline_utils.annotate_concordance(
         concordance, args.reference, args.aligned_bam, args.annotate_intervals,
         args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
-    annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-        annotated_concordance, args.reference)
+    if not args.disable_reinterpret_variants:
+        annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
+            annotated_concordance, args.reference)
     annotated_concordance.to_hdf(args.output_file, key="concordance")
     vcftools.bed_files_output(annotated_concordance,
-                              args.output_file, mode='w')
+                              args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
 
 # whole-genome concordance - wlll be saved in dataframe per  chromosome
 else:
@@ -87,6 +92,7 @@ else:
         contigs = [x for x in vf.header.contigs if vf.header.contigs[
             x].length > 100000]
     write_mode = 'w'
+    
     for contig in contigs:
         print(f"Reading {contig}", flush=True, file=sys.stderr)
         concordance = vcf_pipeline_utils.vcf2concordance(
@@ -95,11 +101,13 @@ else:
             concordance, args.reference, args.aligned_bam, args.annotate_intervals,
             args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
 
-        annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-            annotated_concordance, args.reference)
+        if not args.disable_reinterpret_variants:
+            annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
+                annotated_concordance, args.reference)
 
         annotated_concordance.to_hdf(
             args.output_file, key=contig, mode=write_mode)        
         vcftools.bed_files_output(
-            annotated_concordance, args.output_file, mode=write_mode)
+            annotated_concordance, args.output_file, mode=write_mode, 
+            create_gt_diff=(not args.is_mutect))
         write_mode = 'a'
