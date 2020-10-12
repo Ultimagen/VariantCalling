@@ -14,6 +14,7 @@ FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
 
 
 class SingleModel:
+
     def __init__(self, threshold_dict: dict, is_greater_then: dict):
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
@@ -27,6 +28,7 @@ class SingleModel:
 
 
 class SingleRegressionModel:
+
     def __init__(self, threshold_dict: dict, is_greater_then: dict, score_translation: list):
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
@@ -46,6 +48,7 @@ class SingleRegressionModel:
 
 
 class SingleTrivialClassifierModel:
+
     def __init__(self):
         pass
 
@@ -55,6 +58,7 @@ class SingleTrivialClassifierModel:
 
 
 class SingleTrivialRegressorModel:
+
     def __init__(self):
         pass
 
@@ -63,6 +67,7 @@ class SingleTrivialRegressorModel:
 
 
 class MaskedHierarchicalModel:
+
     def __init__(self, _name: str, _group_column: str, _models_dict: dict,
                  transformer: Optional[sklearn_pandas.DataFrameMapper]=None):
         self.name = _name
@@ -96,17 +101,20 @@ class MaskedHierarchicalModel:
         gvecs = [df[self.group_column] == g for g in groups]
         result = pd.Series(['fn'] * df.shape[0], index=df.index)
         for i, g in enumerate(groups):
-            result[(~mask) & (gvecs[i])] = self._predict_by_blocks(self.models[g], apply_df[apply_df[self.group_column] == g])
+            result[(~mask) & (gvecs[i])] = self._predict_by_blocks(
+                self.models[g], apply_df[apply_df[self.group_column] == g])
         return result
 
-    def _predict_by_blocks(self, model, df): 
+    def _predict_by_blocks(self, model, df):
         predictions = []
-        for i in range(0,df.shape[0], 1000000):
-            if self.transformer is not None : 
-                predictions.append(model.predict(self.transformer.fit_transform(df.iloc[i:i+1000000,:])))
+        for i in range(0, df.shape[0], 1000000):
+            if self.transformer is not None:
+                predictions.append(model.predict(
+                    self.transformer.fit_transform(df.iloc[i:i + 1000000, :])))
             else:
-                predictions.append(model.predict(df.iloc[i:i+1000000,:]))
+                predictions.append(model.predict(df.iloc[i:i + 1000000, :]))
         return np.hstack(predictions)
+
 
 def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
         -> Tuple[MaskedHierarchicalModel, MaskedHierarchicalModel, pd.DataFrame]:
@@ -126,8 +134,10 @@ def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'cl
     '''
 
     train_selection_functions = get_training_selection_functions()
-    concordance = add_grouping_column(concordance, train_selection_functions, "group")
-    concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
+    concordance = add_grouping_column(
+        concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(
+        concordance, "group", "test_train_split", classify_column)
     transformer = feature_prepare(output_df=True)
     transformer.fit(concordance)
     groups = set(concordance["group"])
@@ -165,7 +175,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     quals = np.linspace(0, 500, 49)
     sors = np.linspace(0, 10, 49)
 
-    pairs_qual_sor_threshold = [(quals[i], sors[j]) for i in range(len(quals)) for j in range(len(sors))]
+    pairs_qual_sor_threshold = [(quals[i], sors[j])
+                                for i in range(len(quals)) for j in range(len(sors))]
 
     fns = np.array(concordance[gtr_column] == 'fn')
     train_data = concordance[selection & (~fns)][FEATURES]
@@ -180,18 +191,22 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     ss = (train_sor[:, np.newaxis] < sors[np.newaxis, :])
     predictions_tp = (qq[..., np.newaxis] & ss[:, np.newaxis, :])
     tps = (predictions_tp & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
-    fns = ((~predictions_tp) & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
-    fps = (predictions_tp & (~enclabels[:, np.newaxis, np.newaxis])).sum(axis=0)
+    fns = ((~predictions_tp) & enclabels[
+           :, np.newaxis, np.newaxis]).sum(axis=0)
+    fps = (predictions_tp & (
+        ~enclabels[:, np.newaxis, np.newaxis])).sum(axis=0)
 
     recalls = tps / (tps + fns)
     precisions = (tps + 1) / (tps + fps + 1)
     results_df = pd.DataFrame(data=np.vstack((recalls.flat, precisions.flat)).T,
                               index=pairs_qual_sor_threshold, columns=[('recall', 'var'), ('precision', 'var')])
 
-    dist = (results_df[('recall', 'var')] - 1)**2 + (results_df[('precision', 'var')] - 1)**2
+    dist = (results_df[('recall', 'var')] - 1)**2 + \
+        (results_df[('precision', 'var')] - 1)**2
     results_df['dist'] = dist
     best = results_df['dist'].idxmin()
-    classifier = SingleModel(dict(zip(['qual', 'sor'], best)), {'sor': False, 'qual': True})
+    classifier = SingleModel(dict(zip(['qual', 'sor'], best)), {
+                             'sor': False, 'qual': True})
     rsi = get_r_s_i(results_df, 'var')[-1].copy()
     rsi.sort_values(('precision', 'var'), inplace=True)
     rsi['score'] = np.linspace(0, 1, rsi.shape[0])
@@ -200,7 +215,6 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
     return classifier, regression_model
-
 
 
 def get_r_s_i(results: pd.DataFrame, var_type: pd.DataFrame) -> tuple:
@@ -247,7 +261,8 @@ def get_all_precision_recalls(results: pd.DataFrame) -> dict:
     result = {}
     for g in groups:
         tmp = get_r_s_i(results, g)[-1]
-        result[g] = np.array(np.vstack((tmp[('recall', g)], tmp[('precision', g)]))).T
+        result[g] = np.array(
+            np.vstack((tmp[('recall', g)], tmp[('precision', g)]))).T
     return result
 
 
@@ -260,7 +275,8 @@ def calculate_threshold_model(results):
         precision_series = results[('precision', g)]
         qual, sor = ((recall_series - 1)**2 +
                      (precision_series - 1)**2).idxmin()
-        recalls_precisions[g] = recall_series[(qual, sor)], precision_series[(qual, sor)]
+        recalls_precisions[g] = recall_series[
+            (qual, sor)], precision_series[(qual, sor)]
         models[g] = SingleModel({'qual': qual, 'sor': sor}, {
                                 'qual': True, 'sor': False})
     result = MaskedHierarchicalModel("thresholding", 'group', models)
@@ -288,7 +304,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('close_to_hmer_run', None),
                       ('hmer_indel_nuc', preprocessing.LabelEncoder()),
                       (['hmer_indel_length'], default_filler)]
-    transformer = sklearn_pandas.DataFrameMapper(transform_list, df_out=output_df)
+    transformer = sklearn_pandas.DataFrameMapper(
+        transform_list, df_out=output_df)
     return transformer
 
 
@@ -328,7 +345,7 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     return model, model1
 
 
-def get_basic_selection_functions() : 
+def get_basic_selection_functions():
     'Selection between SNPs and INDELs'
     sfs = []
     names = []
@@ -353,13 +370,15 @@ def get_training_selection_functions():
     names.append("h-indel")
     return dict(zip(names, sfs))
 
+
 def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify', sf_generator: Callable = get_training_selection_functions) -> pd.DataFrame:
     quals = np.linspace(0, 2000, 30)
     sors = np.linspace(0, 20, 80)
     results = []
     pairs = []
     selection_functions = sf_generator()
-    concordance = add_grouping_column(concordance, selection_functions, "group")
+    concordance = add_grouping_column(
+        concordance, selection_functions, "group")
     for q in tqdm.tqdm_notebook(quals):
         for s in sors:
             pairs.append((q, s))
@@ -376,9 +395,11 @@ def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify'
 
     for group in set(concordance['group']):
         results_df[('recall', group)] = results_df.get(('tp', group), 0) / \
-            (results_df.get(('tp', group), 0) + results_df.get(('fn', group), 0) + 1)
+            (results_df.get(('tp', group), 0) +
+             results_df.get(('fn', group), 0) + 1)
         results_df[('precision', group)] = results_df.get(('tp', group), 0) / \
-            (results_df.get(('tp', group), 0) + results_df.get(('fp', group), 0) + 1)
+            (results_df.get(('tp', group), 0) +
+             results_df.get(('fp', group), 0) + 1)
         results_df.index = pairs
     return results_df
 
@@ -410,21 +431,20 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
 def get_testing_selection_functions() -> dict:
     sfs = []
     sfs.append(('SNP', lambda x: ~x.indel))
-    #sfs.append(("INDEL", lambda x: x.indel))
-    sfs.append(("Non-hmer INDEL", lambda x: x.indel & (x.hmer_indel_length == 0)))
+    sfs.append(("Non-hmer INDEL", lambda x: x.indel &
+                (x.hmer_indel_length == 0)))
     sfs.append(("HMER indel <= 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
                                                         (x.hmer_indel_length < 5))))
     sfs.append(("HMER indel (4,8)", lambda x: x.indel & (x.hmer_indel_length >= 5) &
                 (x.hmer_indel_length < 8)))
     sfs.append(("HMER indel [8,10]", lambda x: x.indel & (x.hmer_indel_length >= 8) &
-                (x.hmer_indel_length <=10 )))
-    
-    
+                (x.hmer_indel_length <= 10)))
+
     sfs.append(("HMER indel 11,12", lambda x: x.indel & (x.hmer_indel_length >= 11) &
                 (x.hmer_indel_length <= 12)))
-    
-    sfs.append(("HMER indel > 12", lambda x: x.indel & (x.hmer_indel_length > 12)))
-    #sfs.append(("HMER indel", lambda x: x.indel & (x.hmer_indel_length > 0)))
+
+    sfs.append(("HMER indel > 12", lambda x: x.indel &
+                (x.hmer_indel_length > 12)))
 
     return dict(sfs)
 
@@ -465,7 +485,8 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     for g in groups:
         group_vector = (concordance[training_groups_column] == g)
         locations = group_vector.to_numpy().nonzero()[0]
-        assert(group_vector.sum() >= min_test_set), "Group size too small for training"
+        assert(group_vector.sum() >=
+               min_test_set), "Group size too small for training"
         train_set_size = int(min(group_vector.sum() - min_test_set,
                                  max_train_set,
                                  group_vector.sum() * (1 - test_set_fraction)))
@@ -499,8 +520,10 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -
     '''
 
     train_selection_functions = get_training_selection_functions()
-    concordance = add_grouping_column(concordance, train_selection_functions, "group")
-    concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
+    concordance = add_grouping_column(
+        concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(
+        concordance, "group", "test_train_split", classify_column)
     transformer = feature_prepare()
     transformer.fit(concordance)
     groups = set(concordance["group"])
@@ -533,26 +556,30 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
     dict:
         Tuple dictionary - recall/precision for each category
     '''
-    concordance = add_grouping_column(concordance, get_testing_selection_functions(), "group_testing")
+    concordance = add_grouping_column(
+        concordance, get_testing_selection_functions(), "group_testing")
     predictions = model.predict(concordance, classify_column)
 
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
     for g in groups:
         select = (concordance["group_testing"] == g)
-        
+
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
 
-        recall = metrics.recall_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        precision = metrics.precision_score(group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        recall = metrics.recall_score(
+            group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        precision = metrics.precision_score(
+            group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
         recalls_precisions[g] = (recall, precision)
 
     return recalls_precisions
 
 
-def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: MaskedHierarchicalModel,
+def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
+                                             model: MaskedHierarchicalModel,
                                              classify_column: str) -> dict:
     '''Calculate precision/recall curve for the decision tree regressor
 
@@ -570,7 +597,8 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
     dict:
         Tuple dictionary - recall/precision for each category
     '''
-    concordance = add_grouping_column(concordance, get_testing_selection_functions(), "group_testing")
+    concordance = add_grouping_column(
+        concordance, get_testing_selection_functions(), "group_testing")
     predictions = model.predict(concordance, classify_column)
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
@@ -581,7 +609,8 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame, model: M
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
         group_predictions[group_ground_truth == 'fn'] = -1
-        group_ground_truth[group_ground_truth == 'fn'] = 'tp'  # this is a change to calculate recall correctly
+        # this is a change to calculate recall correctly
+        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
 
         curve = utils.precision_recall_curve(np.array(group_ground_truth), np.array(
             group_predictions), pos_label="tp", fn_score=-1)
@@ -612,12 +641,15 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
     '''
 
     selection_functions = get_training_selection_functions()
-    concordance = add_grouping_column(concordance, selection_functions, "group")
+    concordance = add_grouping_column(
+        concordance, selection_functions, "group")
     all_groups = set(concordance['group'])
     models = {}
     for g in all_groups:
         models[g] = SingleModel({}, {})
     result = MaskedHierarchicalModel("unfiltered", 'group', models)
-    concordance['test_train_split'] = np.zeros(concordance.shape[0], dtype=np.bool)
-    recalls_precisions = test_decision_tree_model(concordance, result, classify_column)
+    concordance['test_train_split'] = np.zeros(
+        concordance.shape[0], dtype=np.bool)
+    recalls_precisions = test_decision_tree_model(
+        concordance, result, classify_column)
     return result, recalls_precisions
