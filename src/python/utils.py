@@ -320,3 +320,19 @@ def parse_intervals_file(intervalfile, threshold=0):
         df = df[df['end'] - df['start'] > threshold]
     df.sort_values(['chromosome', 'start'], inplace=True)
     return df
+
+def isin(pos: int, interval: tuple) -> bool:
+    '''Is position inside the [interval)
+
+    Parameters
+    ----------
+    pos: int
+        Position
+    interval: tuple
+        [start,end)
+
+    Returns 
+    -------
+    bool
+    '''
+    return pos >= interval[0] and pos < interval[1]
