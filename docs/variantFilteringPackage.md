@@ -20,7 +20,8 @@
 ```
 5. Install the package 
 ```
-  pip install variantFiltering
+  cd software/variantFiltering
+  pip install .
 ```
 
 ## Running the filtering pipeline
