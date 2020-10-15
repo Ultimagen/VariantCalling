@@ -42,6 +42,37 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
     return concordance_df
 
 
+def add_info_tag_from_df(vcf_input_file: str, vcf_output_file: str,
+                         df: pd.DataFrame, column: str, info_format: tuple):
+    """Adds a value of a dataframe column as an info field in the  VCF file
+
+    Parameters
+    ----------
+    vcf_input_file : str
+        Input file
+    vcf_output_file : str
+        Output file
+    df : pd.DataFrame
+        Input dataframe
+    column : str
+        Column in he dataframe to fetch the data from
+    info_format : tuple
+        Tuple of info format (Tag, # values, format, Description)
+    """
+    with pysam.VariantFile(vcf_input_file) as vcfin:
+        hdr = vcfin.header
+        if info_format[0] not in hdr.info.keys():
+            hdr.info.add(*info_format)
+        with pysam.VariantFile(vcf_output_file, mode="w", header=hdr) as vcfout:
+            for r in vcfin:
+                val = df.loc[[(r.chrom, r.start + 1)]][column].values[0]
+                if val is None or val == '':
+                    vcfout.write(r)
+                else:
+                    r.info[info_format[0]] = val
+                    vcfout.write(r)
+
+
 def get_region_around_variant(
     vpos: int, vlocs: np.ndarray, region_size: int = 100
 ) -> tuple:
