@@ -268,7 +268,7 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     df : pd.DataFrame
         Input dataframe
     flow_order : str
-        Flow order 
+        Flow order
     gt_field: str
         If snps that correspond to a specific genotype are to be considered
 
@@ -311,7 +311,7 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     ref = np.array(snps['ref']).astype(np.string_)
     if gt_field is None:
         alt = np.array(snps['alleles'].apply(
-            lambda x: x[1])).astype(np.string_)
+            lambda x: x[1] if len(x) > 1 else None)).astype(np.string_)
     else:
         nra = snps[gt_field].apply(get_non_ref)
         snps['nra_idx'] = nra
