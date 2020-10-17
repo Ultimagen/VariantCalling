@@ -175,8 +175,10 @@ def compare_two_sets_of_variants(positions_to_test: list,
 
     '''
     chromosome = set(set1_variants['chrom'])
+    if len(chromosome) == 0 : 
+        return [],[]
     assert len(
-        chromosome) == 1, "All variants should belong to a single chromosome"
+        chromosome) <= 1, "All variants should belong to a single chromosome"
     chromosome = chromosome.pop()
 
     interval_starts = [x[0] for x in variant_intervals]
@@ -201,7 +203,6 @@ def compare_two_sets_of_variants(positions_to_test: list,
         # Get all variants in both sets from the region
         variants_set2 = vcftools.get_variants_from_region(
             variant_df=set2_variants, region=select_region)
-
         reference = get_reference_from_region(
             refidx=fasta[chromosome], region=select_region)
 
@@ -478,7 +479,7 @@ def _convert_fns_to_tps(_df: pd.DataFrame) -> pd.DataFrame:
     subdf['qual'] = 300
     subdf['sor'] = 1
     _df.loc[subdf.index, subdf.columns] = subdf
-    _df.loc[np.isnan(_df['qual']), ['sor', 'qual']] = 50
+    _df.loc[pd.isnull(_df['qual']), ['sor', 'qual']] = 50
     return _df
 
 
