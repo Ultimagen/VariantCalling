@@ -29,7 +29,12 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
     print(" ".join(cmd))
     subprocess.check_call(cmd)
-    cmd = ['bcftools', 'index', '-t', output_fname]
+    index_vcf(output_fname)
+
+
+def index_vcf(vcf: str):
+    '''Tabix index on VCF'''
+    cmd = ['bcftools', 'index', '-tf', vcf]
     subprocess.check_call(cmd)
 
 
@@ -53,8 +58,7 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
     cmd = ['bcftools', 'reheader', '-h', new_header, input_file]
     with open(output_file, "wb") as out:
         subprocess.check_call(cmd, stdout=out)
-    cmd = ['bcftools', 'index', '-t', output_file]
-    subprocess.check_call(cmd)
+    index_vcf(output_file)
 
 
 def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:
@@ -80,9 +84,9 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
 
 
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
-                             comparison_intervals: str,
-                             input_sample: str='NA12878', truth_sample='HG001',
-                             ignore_filter: bool=False):
+                             comparison_intervals: Optional[str] = None,
+                             input_sample: str = 'NA12878', truth_sample='HG001',
+                             ignore_filter: bool = False):
     '''Run GenotypeConcordance, correct the bug and reindex
 
     Parameters
@@ -93,8 +97,8 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
         GIAB (or other source truth file)
     output_prefix: str
         Output prefix
-    comparison_intervals: str
-        Picard intervals file to make the comparisons on
+    comparison_intervals: Optional[str]
+        Picard intervals file to make the comparisons on. Default (None - all genome)
     input_sample: str
         Name of the sample in our input_file
     truth_samle: str
@@ -108,20 +112,21 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
 
     cmd = ['picard', 'GenotypeConcordance', 'CALL_VCF={}'.format(input_file),
            'CALL_SAMPLE={}'.format(input_sample), 'O={}'.format(output_prefix),
-           'TRUTH_VCF={}'.format(truth_file), 'INTERVALS={}'.format(
-               comparison_intervals),
+           'TRUTH_VCF={}'.format(truth_file),
            'TRUTH_SAMPLE={}'.format(truth_sample), 'OUTPUT_VCF=true',
            'IGNORE_FILTER_STATUS={}'.format(ignore_filter)]
+    if comparison_intervals is not None:
+        cmd += ['INTERVALS={}'.format(comparison_intervals)]
     subprocess.check_call(cmd)
 
     fix_vcf_format(f'{output_prefix}.genotype_concordance')
 
 
 def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
-                            comparison_intervals: str,
                             ref_genome: str,
-                            input_sample: str='NA12878', truth_sample='HG001',
-                            ignore_filter: bool=False):
+                            comparison_intervals: Optional[str] = None,
+                            input_sample: str = 'NA12878', truth_sample='HG001',
+                            ignore_filter: bool = False):
     '''Run vcfevalConcordance
 
     Parameters
@@ -132,10 +137,10 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
         GIAB (or other source truth file)
     output_prefix: str
         Output prefix
-    comparison_intervals: str
-        Picard intervals file to make the comparisons on
     ref_genome: str
         Fasta reference file
+    comparison_intervals: Optional[str]
+        Picard intervals file to make the comparisons on. Default: None = all genome
     input_sample: str
         Name of the sample in our input_file
     truth_sample: str
@@ -164,8 +169,13 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
     # filter the vcf to be only in the comparison_intervals.
     filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
-    intersect_with_intervals(
-        truth_file, comparison_intervals, filtered_truth_file)
+    if comparison_intervals is not None:
+        intersect_with_intervals(
+            truth_file, comparison_intervals, filtered_truth_file)
+    else:
+        shutil.copy(truth_file, filtered_truth_file)
+        index_vcf(filtered_truth_file)
+
 
     # vcfeval calculation
     cmd = ['rtg', 'vcfeval',
@@ -197,9 +207,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     subprocess.check_call(cmd)
 
     # generate index file for the vcf.gz file
-    cmd = ['bcftools', 'index', '-t',
-           output_prefix + '.vcfeval_concordance.vcf.gz']
-    subprocess.check_call(cmd)
+    index_vcf(output_prefix + '.vcfeval_concordance.vcf.gz')
 
 
 def fix_vcf_format(output_prefix):
@@ -219,8 +227,7 @@ def fix_vcf_format(output_prefix):
     subprocess.check_call(cmd)
     cmd = ['bgzip', input_file_handle.name]
     subprocess.check_call(cmd)
-    cmd = ['bcftools', 'index', '-tf', f'{input_file_handle.name}.gz']
-    subprocess.check_call(cmd)
+    index_vcf(f'{input_file_handle.name}.gz')
 
 
 def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions: str):
@@ -240,14 +247,13 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
     runs_file_name = input_file_calls.replace("vcf.gz", "runs.vcf")
     with open(highconf_file_name, "wb") as highconf_file:
         cmd = ['bedtools', 'intersect', '-a', input_file_calls, '-b', highconf_regions, '-nonamecheck',
-               '-wa', '-header']
+               '-header', '-u']
         subprocess.check_call(cmd, stdout=highconf_file)
 
     cmd = ['bgzip', '-f', highconf_file_name]
     subprocess.check_call(cmd)
     highconf_file_name += '.gz'
-    cmd = ['bcftools', 'index', '-tf', highconf_file_name]
-    subprocess.check_call(cmd)
+    index_vcf(highconf_file_name)
 
     if runs_regions is not None:
         with open(runs_file_name, "wb") as runs_file:
@@ -258,11 +264,10 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         cmd = ['bgzip', '-f', runs_file_name]
         subprocess.check_call(cmd)
         runs_file_name += '.gz'
-        cmd = ['bcftools', 'index', '-tf', runs_file_name]
-        subprocess.check_call(cmd)
+        index_vcf(runs_file_name)
 
 
-def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC') -> pd.DataFrame:
+def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
     '''Generates concordance dataframe
 
     Parameters
@@ -273,13 +278,18 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         GenotypeConcordance file
     format: str
         Either 'GC' or 'VCFEVAL' - format for the concordance_file
-
+    chromosome: str
+        Fetch a specific chromosome (Default - all)
     Returns
     -------
     pd.DataFrame
     '''
 
-    vf = pysam.VariantFile(concordance_file)
+    if chromosome is None:
+        vf = pysam.VariantFile(concordance_file)
+    else:
+        vf = pysam.VariantFile(concordance_file).fetch(chromosome)
+
     if format == 'GC':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
                         0]['GT'], x.samples[1]['GT']) for x in vf]
@@ -288,9 +298,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
                        x.info['CALL'] != 'OUT']
-    concordance_df = pd.DataFrame(concordance)
-    concordance_df.columns = ['chrom', 'pos', 'qual',
+    column_names = ['chrom', 'pos', 'qual',
                               'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
+    concordance_df = pd.DataFrame(concordance, columns=column_names)
     if format == 'VCFEVAL':
         # make the gt_ground_truth compatible with GC
         concordance_df['gt_ground_truth'] =\
@@ -314,8 +324,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                 return 'fp'
             else:
                 return 'fn'
-
-    concordance_df['classify'] = concordance_df.apply(classify, axis=1)
+    concordance_df['classify'] = concordance_df.apply(classify, axis=1, result_type='reduce')
 
     def classify_gt(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
@@ -328,21 +337,23 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'fp'
         else:
             return 'tp'
-    concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1)
+    concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1, result_type='reduce')
 
     concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
         concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
-    vf = pysam.VariantFile(raw_calls_file)
+    if chromosome is None : 
+        vf = pysam.VariantFile(raw_calls_file)
+    else :
+        vf = pysam.VariantFile(raw_calls_file).fetch(chromosome)
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
                                     x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score']
-    original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
-    original.columns = columns
+    original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi], columns=columns)
     original.index = [(x[1]['chrom'], x[1]['pos'])
                       for x in original.iterrows()]
     if format != 'VCFEVAL':
@@ -438,12 +449,12 @@ def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
     fps = df.reset().get_fp().get_df()
     fns = df.reset().get_df().query('classify=="fn"')
     tps = df.reset().get_tp().get_df()
-    gtr = df.reset().get_df()[
+    gtr = df.reset().get_df().loc[
         df.get_df()["gt_ground_truth"].apply(
             lambda x: x != (None, None) and x != (None,))
     ].copy()
     gtr.sort_values("pos", inplace=True)
-    ugi = df.reset().get_df()[df.get_df()["gt_ultima"].apply(
+    ugi = df.reset().get_df().loc[df.get_df()["gt_ultima"].apply(
         lambda x: x != (None, None) and x != (None,))].copy()
     ugi.sort_values("pos", inplace=True)
 

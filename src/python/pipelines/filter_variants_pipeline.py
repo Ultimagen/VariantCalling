@@ -35,7 +35,8 @@ try:
     print("Adding hpol run info", flush=True, file=sys.stderr)
     min_hmer_run_length, max_distance = args.hpol_filter_length_dist
     df = annotation.close_to_hmer_run(df, args.runs_file,
-                                                  min_hmer_run_length=min_hmer_run_length, max_distance=max_distance)
+                                      min_hmer_run_length=min_hmer_run_length,
+                                      max_distance=max_distance)
     print("Classifying indel/SNP", flush=True, file=sys.stderr)
     df = annotation.classify_indel(df)
     print("Classifying hmer/non-hmer indel", flush=True, file=sys.stderr)
