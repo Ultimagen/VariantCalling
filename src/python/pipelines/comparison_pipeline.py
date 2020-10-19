@@ -1,8 +1,6 @@
 from python.pipelines import vcf_pipeline_utils
-from python import variant_filtering_utils
-import pandas as pd
 import shutil
-from typing import Optional, List, Tuple
+from typing import Optional, Tuple
 
 TRUTH_FILE = "/home/ubuntu/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
 CMP_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/interval.list"
@@ -18,7 +16,7 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
              truth_file: str = TRUTH_FILE,
              cmp_intervals: str = CMP_INTERVALS,
              highconf_intervals: str = HIGHCONF_INTERVALS,
-             runs_intervals: Optional[str] = RUNS_INTERVALS,
+             runs_intervals: str = RUNS_INTERVALS,
              ref_genome: str = REFERENCE,
              call_sample: str = CALL_SAMPLE,
              truth_sample: str = TRUTH_SAMPLE,
@@ -37,7 +35,7 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
         Input prefix for the vcf. If the vcf is split into multiple parts, the script
         will look for <input_prefix>.1.vcf, <input_prefix>.2.vcf etc. For the non-split VCF
         will look for <input_prefix>.vcf.gz
-    header : str, Optional
+    header : str, optional
         for backward compatibility - to be able to change the header of the VCF. Default None
     truth_file : str, optional
         Truth calls file
@@ -45,7 +43,7 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
         interval_list file over which to do comparison (e.g. chr9)
     highconf_intervals : str, optional
         high confidence intervals for the ground truth (BED)
-    runs_intervals : Optional[str], optional
+    runs_intervals : str, optional
         Hompolymer runs annotation (BED)
     ref_genome : str, optional
         Reference genome FASTA
@@ -64,8 +62,7 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
 
     Returns
     -------
-    tuple [str,str]
-        (combined calls file, concordance file)
+    Tuple[str, str]
     '''
 
     if not output_suffix:
@@ -81,6 +78,7 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
         reheader_fn = input_prefix + ".rhdr.vcf.gz"
     else:
         reheader_fn = input_prefix + f".{output_suffix}.rhdr.vcf.gz"
+
     if header is not None:
         vcf_pipeline_utils.reheader_vcf(output_fn, header, reheader_fn)
     else:
@@ -115,5 +113,4 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
     if runs_intervals is not None:
         return select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"), output_prefix + ".runs.vcf.gz"
     else:
-        return select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"),output_prefix + ".highconf.vcf.gz"
-
+        return select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"), output_prefix + ".highconf.vcf.gz"

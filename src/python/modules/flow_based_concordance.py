@@ -175,10 +175,10 @@ def compare_two_sets_of_variants(positions_to_test: list,
 
     '''
     chromosome = set(set1_variants['chrom'])
-    if len(chromosome) == 0 : 
-        return [],[]
+    if len(chromosome) == 0:
+        return [], {}
     assert len(
-        chromosome) <= 1, "All variants should belong to a single chromosome"
+        chromosome) == 1, "All variants should belong to a single chromosome"
     chromosome = chromosome.pop()
 
     interval_starts = [x[0] for x in variant_intervals]
@@ -190,7 +190,8 @@ def compare_two_sets_of_variants(positions_to_test: list,
         pos = positions_to_test[i]
 
         # Find the interval in which the position is included
-        select_region = _select_best_region(interval_starts, variant_intervals, pos)
+        select_region = _select_best_region(
+            interval_starts, variant_intervals, pos)
         if select_region is None:
             # there is no interval in which the variant belongs,
             # this means that it should not be corrected. This can happen
@@ -281,7 +282,7 @@ def apply_variants_to_reference(
         mentioned in the genotype_col are used in the haplotypes. (See `include_ref`)
     include_ref : bool
         Should reference allele (0) be added in a addition to the alleles in the `genotype_col`
-    exclude_ref_pos : Optional[int], optional
+    exclude_ref_pos : int, optional
         variant position where reference allele should never be used (when only haplotypes
         with non-reference alleles are required)
 
@@ -303,12 +304,14 @@ def apply_variants_to_reference(
     # remove the reference allele sequence from the beginning of each chunk
     chunks = [chunks[0]] + [x[0][x[1]:] for x in zip(chunks[1:], rls)]
 
-    # generate sets of alleles for each positions according to the genotypes for each position
+    # generate sets of alleles for each positions according to the genotypes
+    # for each position
     alleles = list(variants["alleles"])
     gts = list(variants[genotype_col])
     pos = list(variants.pos)
 
-    # add the reference allele to the alleles tested in addition to the genotype
+    # add the reference allele to the alleles tested in addition to the
+    # genotype
     if include_ref:
         for i in range(len(gts)):
             if 0 in gts[i]:
@@ -549,7 +552,7 @@ def _select_best_region(interval_starts: list, intervals: list, pos: int) -> Opt
     best_distance = None
     best_index = -1
     while pos1 >= 0 and utils.isin(pos, intervals[pos1]):
-        dist = min(pos-intervals[pos1][0], intervals[pos1][1]-pos)
+        dist = min(pos - intervals[pos1][0], intervals[pos1][1] - pos)
         if best_distance is None or dist < best_distance:
             best_distance = dist
             best_index = pos1

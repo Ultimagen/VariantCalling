@@ -99,19 +99,28 @@ def get_region_around_variant(
     initial_region = (max(vpos - region_size // 2, 0), vpos + region_size // 2)
 
     # expand the region to the left
-    while vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs))-1] - initial_region[0] < 10 and  \
-          vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs))-1] - initial_region[0] >= 0:
+    # clip for the cases when the variant is after all the variants and need
+    # to be inserted at len(vlocs)
+    while (
+        vlocs[np.clip(np.searchsorted(
+            vlocs, initial_region[0]), 0, len(vlocs)) - 1] - initial_region[0] < 10
+        and
+        vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs)) - 1] - initial_region[0] >= 0
+    ):
         initial_region = (initial_region[0] - 10, initial_region[1])
 
     initial_region = (max(initial_region[0], 0), initial_region[1])
 
     # expand the region to the right
-    # The second conditions is for the case np.searchsorted(vlocs, initial_region[1]) == 0
+    # The second conditions is for the case np.searchsorted(vlocs,
+    # initial_region[1]) == 0
     while (
         initial_region[1] -
-            vlocs[np.clip(np.searchsorted(vlocs, initial_region[1]), 1, len(vlocs)) - 1] < 10
+            vlocs[np.clip(np.searchsorted(
+                vlocs, initial_region[1]), 1, len(vlocs)) - 1] < 10
             and initial_region[1] -
-            vlocs[np.clip(np.searchsorted(vlocs, initial_region[1]), 1, len(vlocs)) - 1]
+            vlocs[np.clip(np.searchsorted(
+                vlocs, initial_region[1]), 1, len(vlocs)) - 1]
             >= 0
     ):
         initial_region = (initial_region[0], initial_region[1] + 10)
@@ -142,10 +151,10 @@ def get_variants_from_region(variant_df: pd.DataFrame, region: tuple, max_n_vari
     if variants.shape[0] <= max_n_variants:
         return variants
     else:
-        center = (inspoints[1]-inspoints[0])/2
+        center = (inspoints[1] - inspoints[0]) / 2
         distance = np.abs(variants.pos - center)
         take = np.argsort(distance)[:max_n_variants]
-        return variants.iloc[take,:]
+        return variants.iloc[take, :]
 
 
 class FilterWrapper:
@@ -227,8 +236,8 @@ class FilterWrapper:
         tree_score_column = self.df['tree_score']
         if len(tree_score_column) > 0:
             p = np.percentile(tree_score_column, 10)
-        else: 
-            p=0
+        else:
+            p = 0
         # 10% of the points should be grey
         return tree_score_column > p
 
