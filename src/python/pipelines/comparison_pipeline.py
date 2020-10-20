@@ -9,7 +9,6 @@ CMP_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/interval.list"
 HIGHCONF_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/GIAB_highconf.bed"
 RUNS_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190724/runs.bed"
 REFERENCE = "/home/ubuntu/proj/VariantCalling/data/genomes/hg19.fa"
-REFERENCE_SDF = "??????"
 CALL_SAMPLE = "NA12878"
 TRUTH_SAMPLE = "HG001"
 CONCORDANCE_TOOL = "VCFEVAL"
@@ -21,7 +20,6 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
              highconf_intervals: str = HIGHCONF_INTERVALS,
              runs_intervals: Optional[str] = RUNS_INTERVALS,
              ref_genome: str = REFERENCE,
-             ref_genome_sdf: str = REFERENCE_SDF,
              call_sample: str = CALL_SAMPLE,
              truth_sample: str = TRUTH_SAMPLE,
              find_thresholds: bool = True,
@@ -59,7 +57,7 @@ def pipeline(n_parts: int, input_prefix: str, header: str,
 
     if concordance_tool == 'VCFEVAL':
         vcf_pipeline_utils.run_vcfeval_concordance(select_intervals_fn, truth_file, output_prefix,
-                                                    cmp_intervals, ref_genome, ref_genome_sdf, call_sample, truth_sample, ignore_filter)
+                                                    cmp_intervals, ref_genome, call_sample, truth_sample, ignore_filter)
         output_prefix = f'{output_prefix}.vcfeval_concordance'
     else:
         vcf_pipeline_utils.run_genotype_concordance(select_intervals_fn, truth_file, output_prefix,
