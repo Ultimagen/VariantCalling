@@ -25,6 +25,8 @@ ap.add_argument("--annotate_intervals", help='interval files for annotation (mul
                 required=False, type=str, default=None, action='append')
 ap.add_argument("--reference", help='Reference genome',
                 required=True, type=str)
+ap.add_argument("--reference_sdf", help='Reference genome SDF zip',
+                required=True, type=str)
 ap.add_argument("--aligned_bam", help='Aligned bam',
                 required=False, default=None, type=str)
 ap.add_argument("--call_sample_name",
@@ -52,14 +54,14 @@ pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[
 if args.filter_runs:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
                                            args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
-                                           args.runs_intervals, args.reference, args.call_sample_name,
+                                           args.runs_intervals, args.reference, args.reference_sdf, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix,
                                            args.ignore_filter_status,
                                            args.concordance_tool)
 else:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
                                            args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
-                                           None, args.reference, args.call_sample_name,
+                                           None, args.reference, args.reference_sdf, args.call_sample_name,
                                            args.truth_sample_name, args.find_thresholds, args.output_suffix,
                                            args.ignore_filter_status,
                                            args.concordance_tool)
