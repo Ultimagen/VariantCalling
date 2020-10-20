@@ -223,7 +223,7 @@ def fix_vcf_format(output_prefix):
     index_vcf(f'{input_file_handle.name}.gz')
 
 
-def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions: str):
+def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions: Optional[str]):
     '''Looks at concordance only around high confidence areas and not around runs
 
     Parameters
