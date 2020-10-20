@@ -26,9 +26,9 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
         elif len(x['ref']) < max([len(y) for y in x['alleles']]):
             return 'ins'
         return 'del'
-    concordance['indel_classify'] = concordance.apply(classify, axis=1)
+    concordance['indel_classify'] = concordance.apply(classify, axis=1, result_type='reduce')
     concordance['indel_length'] = concordance.apply(lambda x: max(
-        [abs(len(y) - len(x['ref'])) for y in x['alleles']]), axis=1)
+        [abs(len(y) - len(x['ref'])) for y in x['alleles']]), axis=1, result_type='reduce')
     return concordance
 
 
@@ -74,7 +74,7 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
             else:
                 return (len(del_seq) + utils.hmer_length(fasta_idx[rec['chrom']],
                                                          rec['pos'] + len(rec['ref']) - 1), del_seq[0])
-    results = concordance.apply(lambda x: _is_hmer(x, fasta_idx), axis=1)
+    results = concordance.apply(lambda x: _is_hmer(x, fasta_idx), axis=1, result_type='reduce')
     concordance['hmer_indel_length'] = [x[0] for x in results]
     concordance['hmer_indel_nuc'] = [x[1] for x in results]
     return concordance
@@ -124,7 +124,7 @@ def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> 
         else:
             return _get_motif_around_snp(rec, size, faidx)
     faidx = pyfaidx.Fasta(fasta)
-    tmp = concordance.apply(lambda x: _get_motif(x, motif_size, faidx), axis=1)
+    tmp = concordance.apply(lambda x: _get_motif(x, motif_size, faidx), axis=1, result_type='reduce')
     concordance['left_motif'] = [x[0] for x in list(tmp)]
     concordance['right_motif'] = [x[1] for x in list(tmp)]
     return concordance
@@ -155,7 +155,7 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
         seqGC = seq.replace('A', '').replace('T', '')
         return float(len(seqGC)) / len(seq)
     faidx = pyfaidx.Fasta(fasta)
-    tmp = concordance.apply(lambda x: _get_gc(x, window_size, faidx), axis=1)
+    tmp = concordance.apply(lambda x: _get_gc(x, window_size, faidx), axis=1, result_type='reduce')
     concordance['gc_content'] = [x for x in list(tmp)]
     return concordance
 
@@ -254,7 +254,7 @@ def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame:
         df['filter'] = np.nan
     fill_column_locs = pd.isnull(df['filter'])
     is_hpol = df.close_to_hmer_run | df.inside_hmer_run
-    result = np.array(['HPOL_RUN'] * fill_column_locs.sum())
+    result = np.array(['HPOL_RUN'] * fill_column_locs.sum(), dtype=f'<U{len("HPOL_RUN")}')
     result[~is_hpol[fill_column_locs]] = 'PASS'
     df.loc[fill_column_locs, 'filter'] = result
     return df
@@ -301,8 +301,7 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     else:
         na_pos = df['indel'] | df.apply(lambda x: is_multiallelic(
             x, gt_field), axis=1) | df.apply(lambda x: is_non_polymorphic(x, gt_field), axis=1)
-
-    df.loc[na_pos, 'cycleskip_status'] = "NA"
+    df['cycleskip_status'] = "NA"
     snp_pos = ~na_pos
     snps = df.loc[snp_pos].copy()
     left_last = np.array(snps['left_motif']).astype(np.string_)

@@ -99,18 +99,28 @@ def get_region_around_variant(
     initial_region = (max(vpos - region_size // 2, 0), vpos + region_size // 2)
 
     # expand the region to the left
-    while vlocs[np.searchsorted(vlocs, initial_region[0])] - initial_region[0] < 10:
+    # clip for the cases when the variant is after all the variants and need
+    # to be inserted at len(vlocs)
+    while (
+        vlocs[np.clip(np.searchsorted(
+            vlocs, initial_region[0]), 0, len(vlocs)) - 1] - initial_region[0] < 10
+        and
+        vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs)) - 1] - initial_region[0] >= 0
+    ):
         initial_region = (initial_region[0] - 10, initial_region[1])
 
     initial_region = (max(initial_region[0], 0), initial_region[1])
 
     # expand the region to the right
-    # The second conditions is for the case np.searchsorted(vlocs, initial_region[1]) == 0
+    # The second conditions is for the case np.searchsorted(vlocs,
+    # initial_region[1]) == 0
     while (
         initial_region[1] -
-            vlocs[np.searchsorted(vlocs, initial_region[1]) - 1] < 10
+            vlocs[np.clip(np.searchsorted(
+                vlocs, initial_region[1]), 1, len(vlocs)) - 1] < 10
             and initial_region[1] -
-            vlocs[np.searchsorted(vlocs, initial_region[1]) - 1]
+            vlocs[np.clip(np.searchsorted(
+                vlocs, initial_region[1]), 1, len(vlocs)) - 1]
             >= 0
     ):
         initial_region = (initial_region[0], initial_region[1] + 10)
@@ -118,7 +128,7 @@ def get_region_around_variant(
     return initial_region
 
 
-def get_variants_from_region(variant_df: pd.DataFrame, region: tuple) -> pd.DataFrame:
+def get_variants_from_region(variant_df: pd.DataFrame, region: tuple, max_n_variants: int = 10) -> pd.DataFrame:
     """Returns variants from `variant_df` contained in the `region`
 
     Parameters
@@ -127,6 +137,9 @@ def get_variants_from_region(variant_df: pd.DataFrame, region: tuple) -> pd.Data
         Dataframe of the variants
     region : tuple
         (start, end)
+    max_n_variants: int
+        Maximal number of variants to extract from the region (default: 10), 
+        variants further from the center will be removed first
 
     Returns
     -------
@@ -134,7 +147,14 @@ def get_variants_from_region(variant_df: pd.DataFrame, region: tuple) -> pd.Data
         subframe of variants contained in the region
     """
     inspoints = np.searchsorted(variant_df.pos, region)
-    return variant_df.iloc[np.arange(*inspoints), :]
+    variants = variant_df.iloc[np.arange(*inspoints), :]
+    if variants.shape[0] <= max_n_variants:
+        return variants
+    else:
+        center = (inspoints[1] - inspoints[0]) / 2
+        distance = np.abs(variants.pos - center)
+        take = np.argsort(distance)[:max_n_variants]
+        return variants.iloc[take, :]
 
 
 class FilterWrapper:
@@ -214,7 +234,10 @@ class FilterWrapper:
         self.df = self.df[~filter_column.str.contains(
             'LOW_SCORE', regex=False)]
         tree_score_column = self.df['tree_score']
-        p = np.percentile(tree_score_column, 10)
+        if len(tree_score_column) > 0:
+            p = np.percentile(tree_score_column, 10)
+        else:
+            p = 0
         # 10% of the points should be grey
         return tree_score_column > p
 
@@ -253,7 +276,7 @@ class FilterWrapper:
         return self
 
 
-def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
+def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w') -> None:
     '''Create a set of bed file tracks that are often used in the
     debugging and the evaluation of the variant calling results
 
@@ -261,6 +284,10 @@ def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     ----------
     df : pd.DataFrame
         Concordance dataframe
+    output_file: str
+        Output file prefix
+    mode: str
+        Output file open mode ('w' or 'a')
 
     Returns
     -------
@@ -316,24 +343,24 @@ def bed_files_output(data: pd.DataFrame, output_file: str) -> None:
     non_hmer_fn = FilterWrapper(
         data).get_non_h_mer().get_fn().BED_format().get_df()
 
-    def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str) -> None:
-        file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False)
+    def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str, mode: str) -> None:
+        file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False, mode=mode)
 
-    save_bed_file(snp_fp, basename, "snp_fp")
-    save_bed_file(snp_fn, basename, "snp_fn")
+    save_bed_file(snp_fp, basename, "snp_fp", mode)
+    save_bed_file(snp_fn, basename, "snp_fn", mode)
 
-    save_bed_file(all_fp_diff, basename, "genotyping_errors_fp")
-    save_bed_file(all_fn_diff, basename, "genotyping_errors_fn")
+    save_bed_file(all_fp_diff, basename, "genotyping_errors_fp", mode)
+    save_bed_file(all_fn_diff, basename, "genotyping_errors_fn", mode)
 
-    save_bed_file(hmer_fp_1_3, basename, "hmer_fp_1_3")
-    save_bed_file(hmer_fn_1_3, basename, "hmer_fn_1_3")
-    save_bed_file(hmer_fp_4_7, basename, "hmer_fp_4_7")
-    save_bed_file(hmer_fn_4_7, basename, "hmer_fn_4_7")
-    save_bed_file(hmer_fp_8_end, basename, "hmer_fp_8_end")
-    save_bed_file(hmer_fn_8_end, basename, "hmer_fn_8_end")
+    save_bed_file(hmer_fp_1_3, basename, "hmer_fp_1_3", mode)
+    save_bed_file(hmer_fn_1_3, basename, "hmer_fn_1_3", mode)
+    save_bed_file(hmer_fp_4_7, basename, "hmer_fp_4_7", mode)
+    save_bed_file(hmer_fn_4_7, basename, "hmer_fn_4_7", mode)
+    save_bed_file(hmer_fp_8_end, basename, "hmer_fp_8_end", mode)
+    save_bed_file(hmer_fn_8_end, basename, "hmer_fn_8_end", mode)
 
-    save_bed_file(non_hmer_fp, basename, "non_hmer_fp")
-    save_bed_file(non_hmer_fn, basename, "non_hmer_fn")
+    save_bed_file(non_hmer_fp, basename, "non_hmer_fp", mode)
+    save_bed_file(non_hmer_fn, basename, "non_hmer_fn", mode)
 
 
 def isin(pos, interval):
