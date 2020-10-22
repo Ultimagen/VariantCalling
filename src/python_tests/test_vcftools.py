@@ -2,15 +2,6 @@ import pytest
 import src.python.vcftools as vcftools
 import pandas as pd
 
-def maya(x):
-    return x+3
-
-def test_something():
-    assert maya(2) == 5
-
-def test_something1():
-    assert 1
-
 def test_bed_files_output():
     # snp_fp testing
     data = pd.read_hdf('src/python_tests/BC10.chr1.h5', key='concordance')
