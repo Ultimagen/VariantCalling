@@ -13,7 +13,7 @@ def test_something1():
 
 def test_bed_files_output():
     # snp_fp testing
-    data = pd.read_hdf('/home/ubuntu/proj1/VariantCalling/src/python_tests/BC10.chr1.h5', key='concordance')
+    data = pd.read_hdf('src/python_tests/BC10.chr1.h5', key='concordance')
     snp_fp = vcftools.FilterWrapper(data).get_SNP().get_fp().get_df()
     assert all([x == False for x in snp_fp['indel']])
     assert all([x == 'fp' for x in snp_fp['classify']])
