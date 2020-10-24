@@ -37,6 +37,7 @@ def cloud_sync(
     cloud_path_in,
     local_dir_in="/data",
     print_output=False,
+    force_download=False,
     raise_error_is_file_exists=False,
 ):
     if not os.path.isdir(local_dir_in):
@@ -46,7 +47,7 @@ def cloud_sync(
     bucket = cloud_path_in.split("/")[2]
     blob = "/".join(cloud_path_in.split("/")[3:])
     local_path = os.path.join(local_dir_in, "cloud_sync", cloud_service, bucket, blob,)
-    if os.path.isfile(local_path):
+    if not force_download and os.path.isfile(local_path):
         if raise_error_is_file_exists:
             raise FileExistsError(f"target local file {local_path} exists")
         if print_output:
