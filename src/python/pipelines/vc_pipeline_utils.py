@@ -1100,12 +1100,15 @@ def parse_cvg_metrics(metric_file):
             out = next(infile)
 
         res1 = pd.read_csv(infile, sep="\t", nrows=1)
-    with open(metric_file) as infile:
-        out = next(infile)
-        while not out.startswith("## HISTOGRAM\tjava.lang.Integer"):
+    try:
+        with open(metric_file) as infile:
             out = next(infile)
+            while not out.startswith("## HISTOGRAM\tjava.lang.Integer"):
+                out = next(infile)
 
-        res2 = pd.read_csv(infile, sep="\t")
+            res2 = pd.read_csv(infile, sep="\t")
+    except StopIteration:
+        res2 = None
     return res1, res2
 
 
