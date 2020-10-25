@@ -226,6 +226,7 @@ dependencies:
   - python-dateutil=2.8.0=py_0
   - python-snappy=0.5.4=py37hee44bf9_1
   - python_abi=3.7=1_cp37m
+  - pytest=6.1.1=py37hc8dfbb8_1
   - pytz=2019.1=py_0
   - pyyaml=3.13=py37h14c3975_1001
   - pyzmq=18.0.0=py37he6710b0_0
