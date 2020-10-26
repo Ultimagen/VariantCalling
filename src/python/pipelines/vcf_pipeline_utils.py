@@ -9,7 +9,6 @@ from collections import defaultdict
 import python.vcftools as vcftools
 import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
-import tarfile
 from typing import Optional, List
 
 
