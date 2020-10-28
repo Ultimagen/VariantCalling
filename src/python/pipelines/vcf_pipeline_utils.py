@@ -149,7 +149,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
 
     output_dir = os.path.dirname(output_prefix)
-    SDF_path = os.path.join(output_dir, ref_genome + '.sdf')
+    SDF_path = ref_genome + '.sdf'
     vcfeval_output_dir = os.path.join(output_dir, 'vcfeval_output')
 
     if os.path.exists(vcfeval_output_dir) and os.path.isdir(vcfeval_output_dir):
