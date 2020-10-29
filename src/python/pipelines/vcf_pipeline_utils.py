@@ -152,20 +152,13 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     None
     '''
 
+
     output_dir = os.path.dirname(output_prefix)
-    SDF_path = os.path.join(output_dir, 'SDF')
+    SDF_path = ref_genome + '.sdf'
     vcfeval_output_dir = os.path.join(output_dir, 'vcfeval_output')
 
     if os.path.exists(vcfeval_output_dir) and os.path.isdir(vcfeval_output_dir):
         shutil.rmtree(vcfeval_output_dir)
-    if os.path.exists(SDF_path) and os.path.isdir(SDF_path):
-        shutil.rmtree(SDF_path)
-
-    # convert the fasta reference file into SDF file
-    cmd = ['rtg', 'format',
-           '-o', SDF_path, ref_genome]
-    print(' '.join(cmd))
-    subprocess.check_call(cmd)
 
     # filter the vcf to be only in the comparison_intervals.
     filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
