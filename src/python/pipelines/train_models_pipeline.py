@@ -14,9 +14,9 @@ grp.add_argument(
     "--input_fofn", help="Input file containing list of the h5 file names to concatenate", type=str)
 ap.add_argument("--output_file_prefix", help="Output .pkl file with models, .h5 file with results",
                 type=str, required=True)
-ap.add_argument("--mutect", required=False, action="store_true", default=False)
+ap.add_argument("--mutect", required=False, action="store_true")
 ap.add_argument("--evaluate_concordance", help="Should the results of the model be applied to the concordance dataframe",
-                action="store_true", default=False)
+                action="store_true")
 ap.add_argument("--apply_model",
                 help="If evaluate_concordance - which model should be applied", type=str, required=False)
 
