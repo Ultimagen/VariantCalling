@@ -36,19 +36,19 @@ ap.add_argument("--truth_sample_name",
 ap.add_argument("--header_file", help="Desired header",
                 required=False, default=None)
 ap.add_argument("--filter_runs", help='Should variants on hmer runs be filtered out',
-                default=False, action='store_true')
+                action='store_true')
 ap.add_argument("--hpol_filter_length_dist", nargs=2, type=int,
                 help='Length and distance to the hpol run to mark', default=[10, 10])
 ap.add_argument("--ignore_filter_status",
-                help="Ignore variant filter status", default=False, action='store_true')
+                help="Ignore variant filter status", action='store_true')
 ap.add_argument("--output_suffix", help='Add suffix to the output file',
                 required=False, default='', type=str)
 ap.add_argument("--concordance_tool", help='The concordance method to use (GC or VCFEVAL)',
                 required=False, default='VCFEVAL', type=str)
 ap.add_argument("--disable_reinterpretation",
-                help="Should re-interpretation be run", action="store_true", default=False)
+                help="Should re-interpretation be run", action="store_true")
 ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
-                action="store_true", default=False)
+                action="store_true")
 
 args = ap.parse_args()
 
@@ -78,7 +78,8 @@ if args.cmp_intervals is not None:
     annotated_concordance = vcf_pipeline_utils.annotate_concordance(
         concordance, args.reference, args.aligned_bam, args.annotate_intervals,
         args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
-    if not args.disable_reinterpret_variants:
+
+    if not args.disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
             annotated_concordance, args.reference)
     annotated_concordance.to_hdf(args.output_file, key="concordance")

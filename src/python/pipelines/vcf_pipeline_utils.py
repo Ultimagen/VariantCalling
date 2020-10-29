@@ -346,8 +346,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score','tlod','af']
-    original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
-    original.columns = columns
+    original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi], columns=columns)
     original.index = [(x[1]['chrom'], x[1]['pos'])
                       for x in original.iterrows()]
     if format != 'VCFEVAL':
