@@ -223,7 +223,7 @@ def fix_vcf_format(output_prefix):
     index_vcf(f'{input_file_handle.name}.gz')
 
 
-def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions: str):
+def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions: Optional[str]):
     '''Looks at concordance only around high confidence areas and not around runs
 
     Parameters
@@ -345,7 +345,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                     x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
-               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score']
+               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score','tlod','af']
     original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi], columns=columns)
     original.index = [(x[1]['chrom'], x[1]['pos'])
                       for x in original.iterrows()]
