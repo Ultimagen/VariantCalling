@@ -36,3 +36,4 @@ srcvm/
 .ruffus*
 .idea
 *.png
+analysis/
