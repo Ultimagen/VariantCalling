@@ -33,35 +33,23 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
         if not params.rqc_disable_alignment:
             rqc_inputs = params.em_vc_demux_file.split(",")
             rqc_in_len = len(rqc_inputs)
-            if rqc_in_len == 1:
-                aln = vc_pipeline.transform(vc_pipeline_utils.align_minimap_and_filter,
-                                            params.em_vc_demux_file, ruffus.formatter(),
-                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln.bam"),
-                                             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln.log")],
-                                            extras=[params.em_vc_genome, params.em_vc_number_of_cpus,
-                                                    params.rqc_chromosome, params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
-            elif rqc_in_len > 2 or rqc_in_len == 0:
-                raise Exception(f"Input files number can be 1 or 2. Input: {params.em_vc_demux_file}")
+            if rqc_in_len < 1 and rqc_in_len > 2:
+                raise Exception(f"Input files number must be 1 or 2. Input: {params.em_vc_demux_file}")
             else:
-                aln1 = vc_pipeline.transform(vc_pipeline_utils.align_minimap_and_filter,
-                                            rqc_inputs[0], ruffus.formatter(),
-                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln1.bam"),
-                                             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln1.log")],
-                                            extras=[params.em_vc_genome, params.em_vc_number_of_cpus,
-                                                    params.rqc_chromosome, params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
+                aln_bam = vc_pipeline.transform(vc_pipeline_utils.align_minimap_and_filter,
+                                             rqc_inputs, ruffus.formatter(),
+                                             [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln.bam"),
+                                              pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln.log")],
+                                              extras=[params.em_vc_genome, params.em_vc_number_of_cpus,
+                                              params.rqc_chromosome, params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
 
-                aln2 = vc_pipeline.transform(vc_pipeline_utils.align_minimap_and_filter,
-                                             rqc_inputs[1], ruffus.formatter(),
-                                             [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln2.bam"),
-                                              pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln2.log")],
-                                             extras=[params.em_vc_genome, params.em_vc_number_of_cpus,
-                                                     params.rqc_chromosome, params.rqc_cram_reference_file]).follows(md2).jobs_limit(1, 'parallel_task')
-
-                aln = vc_pipeline.transform(vc_pipeline_utils.concatenate,
-                                            [aln1[0], aln2[0]], ruffus.formatter(),
-                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.rqc.aln.bam"),
-                                             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.rqc.aln.log")],
-                                            extras=[params.em_vc_number_of_cpus]).follows(md2)
+            if rqc_in_len > 1:
+                aln = vc_pipeline.merge(vc_pipeline_utils.concatenate, aln_bam,
+                                            [pjoin(params.em_vc_output_dir, f"{params.em_vc_basename}.rqc.aln.cat.bam"),
+                                             pjoin(params.em_vc_output_dir, "logs", f"{params.em_vc_basename}.rqc.aln.cat.log")],
+                                            ).follows(md2)
+            else:
+                aln = aln_bam
 
         else: 
             aln = vc_pipeline.transform(vc_pipeline_utils.select_chromosome, params.em_vc_demux_file, 
@@ -184,3 +172,4 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
         print(*exc_info, file=output_log, flush=True)
         print("RapidQC run: failed", file=output_log, flush=True)
         raise(err)
+
