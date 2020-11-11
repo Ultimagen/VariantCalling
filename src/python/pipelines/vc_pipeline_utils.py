@@ -5,7 +5,7 @@ from os.path import join as pjoin
 from os.path import basename, dirname, splitext
 import python.utils as utils
 import os
-import re
+# import re
 import pandas as pd
 import numpy as np
 import pysam
@@ -392,6 +392,37 @@ def align_and_merge(input_file, output_file, genome_file, nthreads):
     if task3.returncode != 0:
         flag = True
         exception_string += f"MBA failed: rc={task3.returncode}"
+    if flag:
+        raise RuntimeError(exception_string)
+
+
+def concatenate(bam_list, output_file, nthreads):
+    # samtools cat file1.bam file2.bam > output.bam
+    if len(bam_list) != 2:
+        raise Exception(f"Input files number must be 2. Input: {bam_list}")
+    else:
+        bam1, bam2 = bam_list
+    output_bam, output_err = output_file
+    cat_cmd = [
+        "samtools",
+        "cat",
+        "-@%d" % max(1, nthreads),
+        bam1,
+        bam2,
+        # ">",
+        # output_bam
+    ]
+    with open(output_err, "w") as output_err_handle:
+        output_err_handle.write(" ".join(cat_cmd))
+        output_err_handle.flush()
+        task1 = subprocess.Popen(
+            cat_cmd, stdout=(output_bam), stderr=output_err_handle
+        )
+        _ = task1.communicate()
+    time.sleep(30)
+    if task1.returncode != 0:
+        flag = True
+        exception_string = f"cat {bam1} + {bam2} failed: rc={task1.returncode}. stderr= {task1.stderr}"
     if flag:
         raise RuntimeError(exception_string)
 
