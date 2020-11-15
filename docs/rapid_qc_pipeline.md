@@ -67,6 +67,9 @@ rqc_disable_alignment #if no alignment is needed
 
 Optionally, this could be a section in a general config file with header. Note that for this pipeline one needs to use the _unsampled_ BAM. 
 
+To input two crams put the full paths to the crams separated by comma in the parameter `rqc_demux_file`
+
+
 ### Coverage intervals definition
 
 Coverage intervals are defined in the file `rqc_coverage_intervals_table`. This is a tab separated file with the following columns: 
