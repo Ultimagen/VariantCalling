@@ -234,7 +234,7 @@ class FilterWrapper:
             'LOW_SCORE', regex=False)]
         tree_score_column = self.df['tree_score']
         if len(tree_score_column) > 0:
-            p = np.percentile(tree_score_column, 10)
+            p = np.nanpercentile(tree_score_column, 10)
         else:
             p = 0
         # 10% of the points should be grey
