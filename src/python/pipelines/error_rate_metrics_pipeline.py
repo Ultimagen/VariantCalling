@@ -16,6 +16,10 @@ try:
 except FileExistsError:
     pass
 
+crammode = False
+if params.em_vc_demux_file.endswith("cram"):
+    assert params.em_vc_cram_reference_file is not None, "Please supply reference for CRAM file"
+    crammode = True
 
 with open(pjoin(params.em_vc_output_dir, logname), 'w') as output_log:
     logger = ruffus.task.t_stream_logger(output_log)
@@ -32,7 +36,9 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w') as output_log:
                                               [pjoin(params.em_vc_output_dir, "{basename[0]}.head.bam"),
                                                pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.head.log")],
                                               extras=[params.em_vc_number_to_sample,
-                                                      params.em_vc_number_of_cpus]).\
+                                                      params.em_vc_number_of_cpus,
+                                                      params.em_vc_cram_reference_file,
+                                                      crammode]).\
                 follows(md2).jobs_limit(1, 'parallel_task')
 
             aln = vc_pipeline.transform(vc_pipeline_utils.align, head_file,
@@ -43,14 +49,16 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w') as output_log:
                                                 params.em_vc_number_of_cpus]).jobs_limit(1, 'parallel_task')
 
         else:
-
-            aln = vc_pipeline.transform(vc_pipeline_utils.align, params.em_vc_demux_file,
-                                        ruffus.formatter(),
-                                        [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"),
-                                         pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.aln.log")],
-                                        extras=[params.em_vc_genome,
-                                                params.em_vc_number_of_cpus])\
-                .follows(md2).jobs_limit(1, 'parallel_task')
+            if crammode:
+                raise Exception("CRAM file need to be sampled to pass bwa")
+            else:
+                aln = vc_pipeline.transform(vc_pipeline_utils.align, params.em_vc_demux_file,
+                                            ruffus.formatter(),
+                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.aln.bam"),
+                                             pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.aln.log")],
+                                            extras=[params.em_vc_genome,
+                                                    params.em_vc_number_of_cpus])\
+                    .follows(md2).jobs_limit(1, 'parallel_task')
 
         sorted_bam = vc_pipeline.transform(vc_pipeline_utils.sort_file, aln, ruffus.formatter("aln.bam"),
                                            [pjoin(params.em_vc_output_dir, "{basename[0]}.sort.bam"),
