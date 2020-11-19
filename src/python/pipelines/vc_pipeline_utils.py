@@ -43,6 +43,12 @@ def parse_params_file(pipeline_name):
             required=False,
             help="File with the list of chromosomes to test",
         )
+        ap.add(
+            "--em_vc_cram_reference_file",
+            required=False,
+            help="Reference fasta used for CRAM compression (if demux_file is CRAM)",
+            default=None,
+        )
     elif pipeline_name == "rapidqc":
         ap.add("--rqc_demux_file", help="Path to the demultiplexed bam")
         ap.add(
@@ -153,15 +159,29 @@ def extract_total_n_reads(input_file, output_file, nthreads):
         subprocess.check_call(cmd, stderr=err, stdout=out)
 
 
-def head_file(input_file, output_file, number_to_sample, nthreads):
+def head_file(input_file, output_file, number_to_sample, nthreads, cram_reference_fname=None, crammode=False):
     output_bam, output_err = output_file
-    cmd1 = [
-        "samtools",
-        "view",
-        "-@%d" % max(1, int((nthreads - 2) / 2)),
-        "-h",
-        input_file,
-    ]
+    if cram_reference_fname and crammode:
+        cmd1 = [
+            "samtools",
+            "view",
+            "-@%d" % max(1, int((nthreads - 2) / 2)),
+            "-h",
+            "-T",
+            cram_reference_fname,
+            input_file,
+        ]
+    elif not crammode:
+        cmd1 = [
+            "samtools",
+            "view",
+            "-@%d" % max(1, int((nthreads - 2) / 2)),
+            "-h",
+            input_file,
+        ]
+    else:
+        raise Exception("CRAM needs the reference file to be sampled")
+
     cmd2 = ["head", f"-{number_to_sample + 100}"]
     cmd3 = [
         "samtools",
