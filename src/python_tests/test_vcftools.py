@@ -1,6 +1,9 @@
 import pytest
-import src.python.vcftools as vcftools
+import pathmagic
+import python.vcftools as vcftools
 import pandas as pd
+
+
 
 def test_bed_files_output():
     # snp_fp testing
@@ -60,8 +63,6 @@ def test_bed_files_output():
                                              row['filter'] == 'HPOL_RUN;LOW_SCORE') and
                                             (row['filter'] != 'PASS' and row['filter'] != 'HPOL_RUN'))
                 for index, row in non_hmer_fn.iterrows()])
-
-
 
 
 
