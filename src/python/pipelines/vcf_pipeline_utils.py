@@ -260,6 +260,22 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         index_vcf(runs_file_name)
 
 
+def _fix_errors(df):
+    # fix all the places in which vcfeval returns a good result, but the genotype is not adequate
+    # in these cases we change the genotype of the gt to be adequate with the classify function as follow:
+    # (TP,TP), (TP,None) - should put the values of ultima in the gt
+    df.loc[(df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna())), 'gt_ground_truth'] = \
+        df[(df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna()))]['gt_ultima']
+
+    # (None, TP) (None,FN_CA) - remove these rows
+    df.drop(df[(df['call'].isna()) & ((df['base'] == 'TP') | (df['base'] == 'FN_CA'))].index, inplace=True)
+
+    # (FP_CA,FN_CA), (FP_CA,None) - Fake a genotype from ultima such that one of the alleles is the same (and only one)
+    df.loc[(df['call'] == 'FP_CA') & ((df['base'] == 'FN_CA') | (df['base'].isna())), 'gt_ground_truth'] = \
+        df[(df['call'] == 'FP_CA') & ((df['base'] == 'FN_CA') | (df['base'].isna()))]['gt_ultima']. \
+        apply(lambda x: ((x[0], x[0]) if (x[1] == 0) else ((x[1], x[1]) if (x[0] == 0) else (x[0], 0))))
+    return df
+
 def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
     '''Generates concordance dataframe
 
@@ -286,13 +302,17 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     if format == 'GC':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
                         0]['GT'], x.samples[1]['GT']) for x in vf]
+        column_names = ['chrom', 'pos', 'qual',
+                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
 
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
-                        x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
+                        x.samples[1]['GT'], x.samples[0]['GT'],
+                        x.info.get('SYNC',None),x.info.get('CALL',None),x.info.get('BASE',None)) for x in vf if 'CALL' not in x.info.keys() or
                        x.info['CALL'] != 'OUT']
-    column_names = ['chrom', 'pos', 'qual',
-                              'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
+        column_names = ['chrom', 'pos', 'qual',
+                                  'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
+
     concordance_df = pd.DataFrame(concordance, columns=column_names)
     if format == 'VCFEVAL':
         # make the gt_ground_truth compatible with GC
@@ -302,6 +322,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
+
+    if format == 'VCFEVAL':
+        concordance_df = _fix_errors(concordance_df)
 
     def classify(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
