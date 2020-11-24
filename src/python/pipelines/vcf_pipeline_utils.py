@@ -302,14 +302,17 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     if format == 'GC':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
                         0]['GT'], x.samples[1]['GT']) for x in vf]
+        column_names = ['chrom', 'pos', 'qual',
+                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
 
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT'],
                         x.info.get('SYNC',None),x.info.get('CALL',None),x.info.get('BASE',None)) for x in vf if 'CALL' not in x.info.keys() or
                        x.info['CALL'] != 'OUT']
-    column_names = ['chrom', 'pos', 'qual',
-                              'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
+        column_names = ['chrom', 'pos', 'qual',
+                                  'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
+
     concordance_df = pd.DataFrame(concordance, columns=column_names)
     if format == 'VCFEVAL':
         # make the gt_ground_truth compatible with GC
@@ -320,7 +323,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
-    concordance_df = _fix_errors(concordance_df)
+    if format == 'VCFEVAL':
+        concordance_df = _fix_errors(concordance_df)
 
     def classify(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
