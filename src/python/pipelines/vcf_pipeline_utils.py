@@ -303,12 +303,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
                         0]['GT'], x.samples[1]['GT']) for x in vf]
 
-    # elif format == 'VCFEVAL':
-    #     concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
-    #                     x.samples[1]['GT'], x.samples[0]['GT']) for x in vf if 'CALL' not in x.info.keys() or
-    #                    x.info['CALL'] != 'OUT']
-    # column_names = ['chrom', 'pos', 'qual',
-    #                           'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT'],
@@ -325,8 +319,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
-
-
 
     concordance_df = _fix_errors(concordance_df)
 
