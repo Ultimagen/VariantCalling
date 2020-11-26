@@ -5,6 +5,7 @@ from os.path import join as pjoin
 from os import mkdir
 import pandas as pd
 import pathmagic # noqa
+from re import sub
 import vc_pipeline_utils
 
 params = vc_pipeline_utils.parse_params_file("error_metrics")
@@ -32,7 +33,17 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w') as output_log:
         md1 = vc_pipeline.mkdir(params.em_vc_output_dir)
         md2 = vc_pipeline.mkdir(pjoin(params.em_vc_output_dir, "logs"))
         if params.em_vc_number_to_sample >= 0:
-            head_file = vc_pipeline.transform(vc_pipeline_utils.head_file, params.em_vc_demux_file, ruffus.formatter(),
+            em_inputs = params.em_vc_demux_file.split(",")
+            em_in_len = len(em_inputs)
+
+            if em_in_len < 1 and em_in_len > 2:
+                raise Exception(f"Input files number must be 1 or 2. Input: {params.em_vc_demux_file}")
+            elif em_in_len == 1:
+                out_name = ("{basename[0]}.head.bam", "{basename[0]}.head.log")
+            else:
+                out_name = ("{basename[0]}.part.head.bam", "{basename[0]}.part.head.log")
+
+            head_bam = vc_pipeline.transform(vc_pipeline_utils.head_file, em_inputs, ruffus.formatter(),
                                               [pjoin(params.em_vc_output_dir, "{basename[0]}.head.bam"),
                                                pjoin(params.em_vc_output_dir, "logs", "{basename[0]}.head.log")],
                                               extras=[params.em_vc_number_to_sample,
@@ -40,6 +51,15 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w') as output_log:
                                                       params.em_vc_cram_reference_file,
                                                       crammode]).\
                 follows(md2).jobs_limit(1, 'parallel_task')
+
+            if em_in_len > 1:
+                em_vc_basename = sub(r'_(1|2)+', '', params.em_vc_basename)
+                head_file = vc_pipeline.merge(vc_pipeline_utils.concatenate, head_bam,
+                                            [pjoin(params.em_vc_output_dir, f"{em_vc_basename}.head.bam"),
+                                             pjoin(params.em_vc_output_dir, "logs", f"{em_vc_basename}.head.log")],
+                                              ).follows(md2)
+            else:
+                head_file = head_bam
 
             aln = vc_pipeline.transform(vc_pipeline_utils.align, head_file,
                                         ruffus.formatter(),
@@ -132,3 +152,4 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w') as output_log:
         print(*exc_info, file=output_log, flush=True)
         print("Error metrics run: failed", file=output_log, flush=True)
         raise(err)
+
