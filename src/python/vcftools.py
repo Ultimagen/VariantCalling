@@ -220,6 +220,13 @@ class FilterWrapper:
         filter_column = self.df['filter']
         return ~filter_column.str.contains('LOW_SCORE', regex=False)
 
+    def blacklist(self):
+        do_filtering = 'filter' in self.df.columns
+        if not do_filtering:
+            return pd.Series([False] * self.df.shape[0])
+        filter_column = self.df['filter']
+        return filter_column.str.contains('BLACKLIST', regex=False)
+
     # for fp, we filter out all the low_score points, and color the lower 10% of them
     # in grey and the others in blue
     def filtering_fp(self):
@@ -246,8 +253,13 @@ class FilterWrapper:
         if do_filtering:
             if kind == "fp":
                 rgb_color = self.filtering_fp()
+                print(rgb_color.value_counts())
             else:
                 rgb_color = self.filtering()
+            if kind == "fn":
+                blacklist_color = self.blacklist()
+            else:
+                blacklist_color = np.zeros(self.df.shape[0], dtype=np.bool)
 
         hmer_length_column = self.df['hmer_indel_length']
         # end pos
@@ -264,7 +276,9 @@ class FilterWrapper:
         if do_filtering:
 
             rgb_color[rgb_color] = "0,0,255"  # blue
-            rgb_color[rgb_color == False] = "121,121,121"  # grey
+            rgb_color[blacklist_color] = "0,255,0" # green
+            rgb_color[rgb_color==False] = "121,121,121"  # grey
+            rgb_color = list(rgb_color)
             self.df['score'] = 500
             self.df['strand'] = "."
             self.df['thickStart'] = self.df['chromStart']
@@ -272,10 +286,11 @@ class FilterWrapper:
             self.df['itemRgb'] = rgb_color
             self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
                                'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
+        self.df.sort_values(['chrom', 'chromStart'], inplace=True)
         return self
 
 
-def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w', create_gt_diff: bool = True) -> None:
+def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', create_gt_diff: bool = True) -> None:
     '''Create a set of bed file tracks that are often used in the
     debugging and the evaluation of the variant calling results
 
@@ -302,14 +317,14 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w', create
     snp_fp = FilterWrapper(data).get_SNP(
     ).get_fp().BED_format(kind="fp").get_df()
     # fn
-    snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format().get_df()
+    snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format(kind="fn").get_df()
 
     # Diff filtering
     if create_gt_diff : 
         # fp
         all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(kind="fp").get_df()
         # fn
-        all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format().get_df()
+        all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format(kind="fn").get_df()
 
     # Hmer filtering
     # 1 to 3
@@ -318,14 +333,14 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w', create
         val_start=1, val_end=3).get_fp().BED_format(kind="fp").get_df()
     # fn
     hmer_fn_1_3 = FilterWrapper(data).get_h_mer(
-        val_start=1, val_end=3).get_fn().BED_format().get_df()
+        val_start=1, val_end=3).get_fn().BED_format(kind="fn").get_df()
 
     # 4 until 7
     # fp
     hmer_fp_4_7 = FilterWrapper(data).get_h_mer(
         val_start=4, val_end=7).get_fp().BED_format(kind="fp").get_df()
     # fn
-    hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().BED_format(
+    hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().BED_format(kind="fn"
     ).get_df()
 
     # 18 and more
@@ -334,7 +349,7 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w', create
         val_start=8).get_fp().BED_format(kind="fp").get_df()
     # fn
     hmer_fn_8_end = FilterWrapper(data).get_h_mer(
-        val_start=8).get_fn().BED_format().get_df()
+        val_start=8).get_fn().BED_format(kind="fn").get_df()
 
     # non-Hmer filtering
     # fp
@@ -342,10 +357,11 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str='w', create
     ).get_fp().BED_format(kind="fp").get_df()
     # fn
     non_hmer_fn = FilterWrapper(
-        data).get_non_h_mer().get_fn().BED_format().get_df()
+        data).get_non_h_mer().get_fn().BED_format(kind="fn").get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str, mode: str) -> None:
-        file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False, mode=mode)
+        if file.shape[0]>0:
+            file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False, mode=mode)
 
     save_bed_file(snp_fp, basename, "snp_fp", mode)
     save_bed_file(snp_fn, basename, "snp_fn", mode)
