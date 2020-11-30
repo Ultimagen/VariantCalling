@@ -39,7 +39,32 @@ def cloud_sync(
     print_output=False,
     force_download=False,
     raise_error_is_file_exists=False,
+        dry_run=False,
 ):
+    """ Download a file from the cloud to a respective local directory with the same name
+
+    Parameters
+    ----------
+    cloud_path_in: str
+        Path to a file on the cloud (gs / s3), can also be a local file in which case nothing will happen
+    local_dir_in: str, optional
+        Local directory to which files will be downloaded, under subdirectory "cloud_sync"
+    print_output: bool, optional
+        Print log messages
+    force_download: bool, optional
+        If True, download file again even if file with the target name exists (default False)
+    raise_error_is_file_exists: bool, optional
+        If True and local file already exists, raise ValueError (default False)
+    dry_run: bool, optional
+        If True, return local path without downloading (default False)
+    Returns
+        local_path: str
+            Local path to which file was downloaded, if cloud_path_in was an existing local file it is returned as is
+    -------
+
+    """
+    if os.path.isfile(cloud_path_in):
+        return cloud_path_in
     if not os.path.isdir(local_dir_in):
         raise NotADirectoryError(local_dir_in)
     dir_path(cloud_path_in, check_cloud_path=True)
@@ -47,6 +72,8 @@ def cloud_sync(
     bucket = cloud_path_in.split("/")[2]
     blob = "/".join(cloud_path_in.split("/")[3:])
     local_path = os.path.join(local_dir_in, "cloud_sync", cloud_service, bucket, blob,)
+    if dry_run:
+        return local_path
     if not force_download and os.path.isfile(local_path):
         if raise_error_is_file_exists:
             raise FileExistsError(f"target local file {local_path} exists")
