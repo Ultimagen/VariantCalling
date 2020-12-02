@@ -1,5 +1,6 @@
-import pytest
+from os.path import join as pjoin
 import pathmagic
+from pathmagic import PYTHON_TESTS_PATH
 import python.vcftools as vcftools
 import pandas as pd
 
@@ -7,7 +8,7 @@ import pandas as pd
 
 def test_bed_files_output():
     # snp_fp testing
-    data = pd.read_hdf('src/python_tests/BC10.chr1.h5', key='concordance')
+    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, 'BC10.chr1.h5'), key='concordance')
     snp_fp = vcftools.FilterWrapper(data).get_SNP().get_fp().get_df()
     assert all([x == False for x in snp_fp['indel']])
     assert all([x == 'fp' for x in snp_fp['classify']])
