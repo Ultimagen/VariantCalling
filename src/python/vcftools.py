@@ -207,7 +207,14 @@ class FilterWrapper:
 
     def get_non_h_mer(self):
         self.df = self.df[(self.df['hmer_indel_length'] == 0)
-                          & (self.df['indel'] == True)]
+                          & (self.df['indel'] == True) &
+                          (self.df['indel_length']>1)]
+        return self
+
+    def get_h_mer_0(self):
+        self.df = self.df[(self.df['hmer_indel_length'] == 0)
+                          & (self.df['indel'] == True) &
+                          (self.df['indel_length']==1)]
         return self
 
     def get_df(self):
@@ -253,7 +260,6 @@ class FilterWrapper:
         if do_filtering:
             if kind == "fp":
                 rgb_color = self.filtering_fp()
-                print(rgb_color.value_counts())
             else:
                 rgb_color = self.filtering()
             if kind == "fn":
@@ -359,6 +365,12 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
     non_hmer_fn = FilterWrapper(
         data).get_non_h_mer().get_fn().BED_format(kind="fn").get_df()
 
+    hmer_0_fp = FilterWrapper(data).get_h_mer_0(
+    ).get_fp().BED_format(kind="fp").get_df()
+    # fn
+    hmer_0_fn = FilterWrapper(
+        data).get_h_mer_0().get_fn().BED_format().get_df()
+
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str, mode: str) -> None:
         if file.shape[0]>0:
             file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False, mode=mode)
@@ -379,6 +391,9 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
 
     save_bed_file(non_hmer_fp, basename, "non_hmer_fp", mode=mode)
     save_bed_file(non_hmer_fn, basename, "non_hmer_fn", mode=mode)
+
+    save_bed_file(hmer_0_fp, basename, "hmer_0_fp", mode)
+    save_bed_file(hmer_0_fn, basename, "hmer_0_fn", mode)
 
 
 def isin(pos, interval):
