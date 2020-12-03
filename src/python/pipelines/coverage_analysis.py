@@ -23,13 +23,10 @@ def calculate_and_bin_coverage(
     min_read_length: int = 0,
     max_read_length: int = None,
     ref_fasta: str = "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
-    samtools_executable: str = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/samtools",
     n_jobs: int = -1,
     progress_bar: bool = True,
     output_format="parquet",
     stop_on_errors=False,
-    google_application_credentials="/home/ubuntu/.Terra_Project-d2deb59e13de.json",
-    cloudsdk_python="/usr/bin/python2.7",
 ):
     """
 
@@ -62,9 +59,6 @@ def calculate_and_bin_coverage(
     ref_fasta: str
         Reference fasta used for cram file compression, not used for bam inputs
         Default: "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta"
-    samtools_executable:
-        Path to samtools exectuable (output of "which samtools" from genomics.py3 environment).
-        Default: "/home/ubuntu/miniconda3/envs/genomics.py3/bin/samtools"
     n_jobs: int
         Number of processes to run in parallel if f_in is an iterable
         Default -1 (joblib convention - the number of CPUs)
@@ -74,13 +68,6 @@ def calculate_and_bin_coverage(
         File type of dataframe output, allowed values: "parquet" (default), "hdf", "h5", "csv", "tsv"
     stop_on_errors: bool
         If False (default) only warnings are raised
-    google_application_credentials: str
-        Path to json file of google credentials, required for gs storage access
-        Default /home/ubuntu/.Terra_Project-d2deb59e13de.json
-        Tip: Check your ~/.bashrc if you are not sure what this is supposed to be
-    cloudsdk_python: str
-        Path to CLOUDSDK_PYTHON env variable required for cloud (default /usr/bin/python2.7)
-        Tip: Check your ~/.bashrc if you are not sure what this is supposed to be
     -------
 
     Returns
@@ -89,7 +76,6 @@ def calculate_and_bin_coverage(
 
     """
     # check inputs
-    assert os.path.isfile(samtools_executable)
     if output_format not in ["parquet", "hdf", "h5", "csv", "tsv"]:
         raise ValueError(f"Unrecognized output_format {output_format}")
     if region == "all":
@@ -117,13 +103,11 @@ def calculate_and_bin_coverage(
                 min_read_length=min_read_length,
                 max_read_length=max_read_length,
                 ref_fasta=ref_fasta,
-                samtools_executable=samtools_executable,
                 n_jobs=-1
                 if n_jobs == -1
                 else 1,  # sub calls only allowed one process unless we use all processors
                 progress_bar=False,
                 output_format=output_format,
-                google_application_credentials=google_application_credentials,
             )
             for f, fo in tqdm(zip(f_in, f_out), disable=not progress_bar)
         )
@@ -142,13 +126,11 @@ def calculate_and_bin_coverage(
                     min_read_length=min_read_length,
                     max_read_length=max_read_length,
                     ref_fasta=ref_fasta,
-                    samtools_executable=samtools_executable,
                     n_jobs=-1
                     if n_jobs == -1
                     else 1,  # sub calls only allowed one process unless we use all processors
                     progress_bar=False,
                     output_format=output_format,
-                    google_application_credentials=google_application_credentials,
                 )
                 for r in tqdm(region, disable=not progress_bar)
             )
@@ -220,11 +202,9 @@ def calculate_and_bin_coverage(
                             min_read_length=min_read_length,
                             max_read_length=None,
                             ref_fasta=ref_fasta,
-                            samtools_executable=samtools_executable,
                             n_jobs=1,
                             progress_bar=False,
                             output_format=output_format,
-                            google_application_credentials=google_application_credentials,
                         )
                         f_long = calculate_and_bin_coverage(
                             f_in,
@@ -236,11 +216,9 @@ def calculate_and_bin_coverage(
                             min_read_length=max_read_length,
                             max_read_length=None,
                             ref_fasta=ref_fasta,
-                            samtools_executable=samtools_executable,
                             n_jobs=1,
                             progress_bar=False,
                             output_format=output_format,
-                            google_application_credentials=google_application_credentials,
                         )
                         df, _ = _read_dataframe(f_short)
                         df_long, _ = _read_dataframe(f_long)
@@ -253,7 +231,7 @@ def calculate_and_bin_coverage(
 
                     samtools_depth_cmd = " ".join(
                         [
-                            samtools_executable,
+                            "samtools",
                             "depth",
                             "-a",
                             f" --reference {ref_fasta}" if is_cram else "",
@@ -273,8 +251,8 @@ def calculate_and_bin_coverage(
                                     gcs_token_cmd.split(),
                                     cwd="/tmp",
                                     env={
-                                        "GOOGLE_APPLICATION_CREDENTIALS": google_application_credentials,
-                                        "CLOUDSDK_PYTHON": cloudsdk_python,
+                                        "GOOGLE_APPLICATION_CREDENTIALS": os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
+                                        "CLOUDSDK_PYTHON": os.environ["CLOUDSDK_PYTHON"],
                                     },
                                 ).decode()
                             else:
@@ -286,7 +264,7 @@ def calculate_and_bin_coverage(
                                 cmd,
                                 shell=True,
                                 cwd="/tmp",
-                                env={"GCS_OAUTH_TOKEN": token},
+                                env={"GCS_OAUTH_TOKEN": token, "PATH": os.environ["PATH"]},
                             ).communicate()
                         except:
                             if "stdout" in locals():
@@ -584,7 +562,6 @@ def call_calculate_and_bin_coverage(args_in):
         min_read_length=args_in.l,
         max_read_length=args_in.L,
         ref_fasta=args_in.reference,
-        samtools_executable=args_in.samtools,
         n_jobs=args_in.jobs,
         progress_bar=not args_in.no_progress_bar,
         output_format=args_in.output_format,
@@ -692,12 +669,6 @@ Can be an Iterable of file names if INPUT is an Iterable""",
         type=str,
         default="gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
         help="Reference fasta used for cram file compression, not used for bam inputs",
-    )
-    parser_calculate.add_argument(
-        "--samtools",
-        type=str,
-        default="/home/ubuntu/miniconda3/envs/genomics.py3/bin/samtools",
-        help="""Path to samtools exectuable (output of "which samtools" from genomics.py3 environment).""",
     )
     parser_calculate.add_argument(
         "-j",
