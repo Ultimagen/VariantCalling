@@ -76,6 +76,11 @@ def calculate_and_bin_coverage(
 
     """
     # check inputs
+    try:
+        out = subprocess.call(['samtools', '--version'])
+    except FileNotFoundError:
+        raise ValueError("samtools executable not found in enrivonment")
+
     if output_format not in ["parquet", "hdf", "h5", "csv", "tsv"]:
         raise ValueError(f"Unrecognized output_format {output_format}")
     if region == "all":
@@ -246,6 +251,9 @@ def calculate_and_bin_coverage(
 
                     if not os.path.isfile(f_tmp):
                         try:
+                            for var in ['GOOGLE_APPLICATION_CREDENTIALS', 'CLOUDSDK_PYTHON']:
+                                if var not in os.environ:
+                                    raise ValueError(f"{var} not in environment")
                             if f_in.startswith("gs://"):
                                 token = subprocess.check_output(
                                     gcs_token_cmd.split(),
