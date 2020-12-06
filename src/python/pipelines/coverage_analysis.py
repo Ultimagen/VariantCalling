@@ -196,7 +196,7 @@ def calculate_and_bin_coverage(
                         raise ValueError(
                             f"max_read_length (got {max_read_length}) must be larger than min_read_length (got {min_read_length})"
                         )
-                    with TemporaryDirectory(prefix=dirname(f_out)) as tmpdir:
+                    with TemporaryDirectory(prefix=pjoin(dirname(f_out), 'tmp_')) as tmpdir:
                         f_short = calculate_and_bin_coverage(
                             f_in,
                             f_out=tmpdir,
