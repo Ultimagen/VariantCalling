@@ -8,6 +8,7 @@ from pathmagic import PYTHON_TESTS_PATH
 from python.pipelines.coverage_analysis import (
     calculate_and_bin_coverage,
     create_coverage_annotations,
+    COVERAGE
 )
 
 
@@ -65,7 +66,7 @@ def _assert_fout(f_out_, j):
     else:
         assert isfile(f_out_[j])
         assert np.allclose(
-            pd.read_parquet(f_out_[j]).sum()["name"], expected_outputs[j]
+            pd.read_parquet(f_out_[j]).sum()[COVERAGE], expected_outputs[j]
         )
 
 

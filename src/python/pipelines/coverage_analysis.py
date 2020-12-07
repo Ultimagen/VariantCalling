@@ -13,6 +13,22 @@ import argparse
 import pathmagic
 from python.auxiliary.cloud_sync import cloud_sync
 
+CHROM = "chrom"
+CHROM_START = "chromStart"
+CHROM_END = "chromEnd"
+COVERAGE = "coverage"
+PARQUET = "parquet"
+HDF = "hdf"
+H5 = "h5" 
+CSV = "csv" 
+TSV = "tsv"
+ALL_BUT_X = "all_but_x"
+ALL = "all"
+CHROM_NUM = "chrom_num"
+MERGED_REGIONS = "merged_regions"
+BAM_EXT = ".bam"
+CRAM_EXT = ".cram"
+
 
 def calculate_and_bin_coverage(
     f_in: str,
@@ -27,7 +43,7 @@ def calculate_and_bin_coverage(
     ref_fasta: str = "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
     n_jobs: int = -1,
     progress_bar: bool = True,
-    output_format="parquet",
+    output_format=PARQUET,
     stop_on_errors=False,
 ):
     """
@@ -69,7 +85,7 @@ def calculate_and_bin_coverage(
     progress_bar: bool
         Display progress bar for iterable f_in
     output_format: str
-        File type of dataframe output, allowed values: "parquet" (default), "hdf", "h5", "csv", "tsv"
+        File type of dataframe output, allowed values: PARQUET (default), "hdf", "h5", "csv", "tsv"
     stop_on_errors: bool
         If False (default) only warnings are raised
     -------
@@ -85,16 +101,16 @@ def calculate_and_bin_coverage(
     except FileNotFoundError:
         raise ValueError("samtools executable not found in enrivonment")
 
-    if output_format not in ["parquet", "hdf", "h5", "csv", "tsv"]:
+    if output_format not in [PARQUET, HDF, H5, CSV, TSV]:
         raise ValueError(f"Unrecognized output_format {output_format}")
-    if region == "all":
+    if region == ALL:
         region = [f"chr{x}" for x in list(range(1, 23)) + ["X"]]
-    elif region == "all_but_x" or region == "all_but_X":
+    elif region == ALL_BUT_X or region == "all_but_X":
         region = [f"chr{x}" for x in range(1, 23)]
     multiple_inputs = not isinstance(f_in, str) and isinstance(f_in, Iterable)
     if multiple_inputs:  # loop over inputs
         if any(
-            [x.endswith(".cram") for x in f_in]
+            [x.endswith(CRAM_EXT) for x in f_in]
         ):  # download reference here if needed
             ref_fasta = cloud_sync(ref_fasta)
         if isinstance(f_out, str):
@@ -153,10 +169,10 @@ def calculate_and_bin_coverage(
                         x = 100  # > 22
                     return x
 
-                df_merged["chrom_num"] = df_merged["chrom"].apply(_f)
+                df_merged[CHROM_NUM] = df_merged[CHROM].apply(_f)
                 df_merged = (
-                    df_merged.sort_values(["chrom_num", "chromStart"])
-                    .drop(columns=["chrom_num"])
+                    df_merged.sort_values([CHROM_NUM, CHROM_START])
+                    .drop(columns=[CHROM_NUM])
                     .reset_index(drop=True)
                 )
                 f_out = _get_output_file_name(
@@ -166,7 +182,7 @@ def calculate_and_bin_coverage(
                     min_mapq=min_mapq,
                     min_read_length=min_read_length,
                     max_read_length=max_read_length,
-                    region="merged_regions",
+                    region=MERGED_REGIONS,
                     window=window,
                     output_format=output_format,
                 )
@@ -179,7 +195,7 @@ def calculate_and_bin_coverage(
                 return f_out_list
         else:
             try:
-                assert f_in.endswith(".bam") or f_in.endswith(".cram")
+                assert f_in.endswith(BAM_EXT) or f_in.endswith(CRAM_EXT)
                 f_out = _get_output_file_name(
                     f_in=f_in,
                     f_out=f_out,
@@ -235,10 +251,10 @@ def calculate_and_bin_coverage(
                         )
                         df, _ = _read_dataframe(f_short)
                         df_long, _ = _read_dataframe(f_long)
-                        df = df[["chrom", "chromStart", "chromEnd", "name"]]
-                        df["name"] = df["name"] - df_long["name"]
+                        df = df[[CHROM, CHROM_START, CHROM_END, COVERAGE]]
+                        df[COVERAGE] = df[COVERAGE] - df_long[COVERAGE]
                 else:  # this clause is the actual implementation
-                    is_cram = f_in.endswith(".cram")
+                    is_cram = f_in.endswith(CRAM_EXT)
                     ref_fasta = cloud_sync(ref_fasta)
                     gcs_token_cmd = "gcloud auth application-default print-access-token"
 
@@ -300,22 +316,22 @@ def calculate_and_bin_coverage(
                             raise
                     try:
                         df = pd.read_csv(f_tmp, sep="\t", header=None)
-                        df.columns = ["chrom", "chromStart", "name"]
-                        df = df.astype({"chrom": "category"})
-                        df["name"] = (
-                            df["name"]
+                        df.columns = [CHROM, CHROM_START, COVERAGE]
+                        df = df.astype({CHROM: "category"})
+                        df[COVERAGE] = (
+                            df[COVERAGE]
                             .rolling(window=window, center=False, min_periods=1)
                             .mean()
                         )
                         df = df.iloc[:-1:window, :].reset_index()
-                        df["chromEnd"] = df["chromStart"] + window - 1
+                        df[CHROM_END] = df[CHROM_START] + window - 1
                     except pd.errors.EmptyDataError:
                         if stop_on_errors:
                             raise
                         warnings.warn(f"Pandas parsing error on file {f_tmp}")
                 # save output
                 if "df" in locals():
-                    df = df[["chrom", "chromStart", "chromEnd", "name"]]
+                    df = df[[CHROM, CHROM_START, CHROM_END, COVERAGE]]
                     _save_datframe(df, f_out, output_format)
             finally:
                 if "f_tmp" in locals() and os.path.isfile(f_tmp):
@@ -360,35 +376,35 @@ def _read_dataframe(input_dataframe_file):
     # read coverage_dataframe
     if input_dataframe_file.endswith(".parquet"):
         df = pd.read_parquet(input_dataframe_file)
-        input_format = "parquet"
+        input_format = PARQUET
     elif input_dataframe_file.endswith(".h5") or input_dataframe_file.endswith(".hdf"):
         df = pd.read_hdf(input_dataframe_file)
-        input_format = "h5"
+        input_format = H5
     elif input_dataframe_file.endswith(".csv"):
         df = pd.read_csv(input_dataframe_file)
-        input_format = "csv"
+        input_format = CSV
     elif input_dataframe_file.endswith(".tsv"):
         df = pd.read_csv(input_dataframe_file, sep="\t")
-        input_format = "tsv"
+        input_format = TSV
     else:
         raise ValueError(
             f"""Could not interpret extension of {input_dataframe_file}\n
-Should be one of "parquet", "hdf", "h5", "csv", "tsv" """
+Should be one of {PARQUET}, {HDF}, {H5}, {CSV}, {TSV} """
         )
     return df, input_format
 
 
 def _save_datframe(df, f_out, output_format):
-    if output_format == "parquet":
+    if output_format == PARQUET:
         df.to_parquet(f_out)
-    elif output_format == "hdf" or output_format == "h5":
+    elif output_format == HDF or output_format == H5:
         df.to_hdf(f_out, "data")
-    elif output_format == "csv" or output_format == "tsv":
-        df.to_csv(f_out, sep="," if output_format == "csv" else "\t")
+    elif output_format == CSV or output_format == TSV:
+        df.to_csv(f_out, sep="," if output_format == CSV else "\t")
     else:
         raise ValueError(
             f"""Could not interpret output_format {output_format}\n
-Should be one of "parquet", "hdf", "h5", "csv", "tsv" """
+Should be one of {PARQUET}, {HDF}, {H5}, {CSV}, {TSV} """
         )
 
 
@@ -432,7 +448,7 @@ def create_coverage_annotations(
     -------
 
     """
-    if output_format not in [None, "parquet", "hdf", "h5", "csv", "tsv"]:
+    if output_format not in [None, PARQUET, HDF, H5, CSV, TSV]:
         raise ValueError(f"Unrecognized output_format {output_format}")
     multiple_inputs = not isinstance(coverage_dataframe, str) and isinstance(
         coverage_dataframe, Iterable
@@ -462,7 +478,7 @@ def create_coverage_annotations(
         )
     else:
         df, input_format = _read_dataframe(coverage_dataframe)
-        df = df.set_index(["chrom", "chromStart", "chromEnd"])
+        df = df.set_index([CHROM, CHROM_START, CHROM_END])
         if output_format is None:
             output_format = input_format
         # set output file name
@@ -569,13 +585,13 @@ def _read_intersected_bed(intersected_bed, category_name):
         df = (
             pd.read_csv(intersected_bed, sep="\t", header=None,)
             .assign(**{category_name: True})
-            .rename(columns={0: "chrom", 1: "chromStart", 2: "chromEnd"})
-            .set_index(["chrom", "chromStart", "chromEnd"])
+            .rename(columns={0: CHROM, 1: CHROM_START, 2: CHROM_END})
+            .set_index([CHROM, CHROM_START, CHROM_END])
         )
     except pd.errors.EmptyDataError:
         df = (
-            pd.DataFrame(columns=["chrom", "chromStart", "chromEnd"])
-            .set_index(["chrom", "chromStart", "chromEnd"])
+            pd.DataFrame(columns=[CHROM, CHROM_START, CHROM_END])
+            .set_index([CHROM, CHROM_START, CHROM_END])
             .assign(**{category_name: False})
         )
     return df
@@ -721,8 +737,8 @@ Can be an Iterable of file names if INPUT is an Iterable""",
         "-f",
         "--output_format",
         type=str,
-        default="parquet",
-        help="""File type of dataframe output, allowed values: "parquet" (default), "hdf", "h5", "csv", "tsv" """,
+        default=PARQUET,
+        help=f"""File type of dataframe output, allowed values: {PARQUET} (default), {HDF}, {H5}, {CSV}, {TSV} """,
     )
     parser_calculate.add_argument(
         "--raise_errors",
@@ -781,8 +797,8 @@ Note - when a window intersect an annotation interval partially it is counted Tr
         "-f",
         "--output_format",
         type=str,
-        default="parquet",
-        help="""File type of dataframe output, allowed values: "parquet" (default), "hdf", "h5", "csv", "tsv" """,
+        default=PARQUET,
+        help=f"""File type of dataframe output, allowed values: {PARQUET} (default), {HDF}, {H5}, {CSV}, {TSV} """,
     )
     parser_annotate.set_defaults(func=call_create_coverage_annotations)
 
