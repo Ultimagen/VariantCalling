@@ -4,6 +4,7 @@ import sys
 from os.path import join as pjoin, basename, dirname
 from tempfile import TemporaryDirectory
 import subprocess
+from multiprocessing import cpu_count
 from collections.abc import Iterable
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -97,6 +98,9 @@ def calculate_and_bin_coverage(
             f_out = [f_out] * len(f_in)  # yield f_out to sub functions
         elif f_out is None:
             f_out = [None] * len(f_in)  # yield None to sub functions
+        # set number of jobs - we don't want to exceed total jobs in recursive calls
+        n_jobs_actual = n_jobs if n_jobs > 0 else cpu_count() + n_jobs
+        n_sub_jobs = -1 if n_jobs == -1 else max(1, n_jobs_actual // len(f_in))
         return Parallel(n_jobs=n_jobs)(
             delayed(calculate_and_bin_coverage)(
                 f,
@@ -109,9 +113,7 @@ def calculate_and_bin_coverage(
                 min_read_length=min_read_length,
                 max_read_length=max_read_length,
                 ref_fasta=ref_fasta,
-                n_jobs=-1
-                if n_jobs == -1
-                else 1,  # sub calls only allowed one process unless we use all processors
+                n_jobs=n_sub_jobs,
                 progress_bar=False,
                 output_format=output_format,
             )
