@@ -21,6 +21,7 @@ f_in = [
         "170201-BC10.chr9_1000000_2001000.aligned.unsorted.duplicates_marked.bam",
     ),
 ]
+f_annotations_sum = pjoin(PYTHON_TESTS_PATH, "coverage_annotations_sum.h5")
 f_in_gs = "gs://runs-data/cromwell-execution/JukeboxVC/523a5c47-d720-49ea-8e2f-0d2a779bd63a/call-MarkDuplicatesSpark/cacheCopy/170201-BC23.aligned.unsorted.duplicates_marked.bam"
 regions = ["chr9:1000000-1001000", "chr9:2000000-2001000"]
 region_large = "chr9:1000000-2000000"
@@ -220,4 +221,6 @@ def test_create_coverage_annotations():
         )
         create_coverage_annotations(f_out[8])
         assert isfile(f_out_annot)
-        # todo check the actual output
+        df = pd.read_parquet(f_out_annot)
+        annotations_sum = pd.read_hdf(f_annotations_sum)
+        assert np.all(annotations_sum == df.sum())
