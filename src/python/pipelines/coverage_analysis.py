@@ -132,9 +132,7 @@ def calculate_and_bin_coverage(
                     min_read_length=min_read_length,
                     max_read_length=max_read_length,
                     ref_fasta=ref_fasta,
-                    n_jobs=-1
-                    if n_jobs == -1
-                    else 1,  # sub calls only allowed one process unless we use all processors
+                    n_jobs=1,
                     progress_bar=False,
                     output_format=output_format,
                 )
