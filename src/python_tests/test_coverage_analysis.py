@@ -221,6 +221,6 @@ def test_create_coverage_annotations():
         )
         create_coverage_annotations(f_out[8])
         assert isfile(f_out_annot)
-        df = pd.read_parquet(f_out_annot)
+        df = pd.read_parquet(f_out_annot).set_index(["chrom", "chromStart", "chromEnd"])
         annotations_sum = pd.read_hdf(f_annotations_sum)
         assert np.all(annotations_sum == df.sum())
