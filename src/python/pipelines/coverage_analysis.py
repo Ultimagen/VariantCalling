@@ -526,6 +526,7 @@ def create_coverage_annotations(
                     ].values[0],
                 )
             ]
+        df_annotations = df_annotations.reset_index()
         # save
         _save_datframe(df_annotations, output_annotations_file, output_format)
         return output_annotations_file
