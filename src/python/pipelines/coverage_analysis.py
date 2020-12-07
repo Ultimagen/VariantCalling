@@ -77,7 +77,7 @@ def calculate_and_bin_coverage(
     """
     # check inputs
     try:
-        out = subprocess.call(['samtools', '--version'])
+        out = subprocess.call(["samtools", "--version"])
     except FileNotFoundError:
         raise ValueError("samtools executable not found in enrivonment")
 
@@ -102,6 +102,7 @@ def calculate_and_bin_coverage(
                 f,
                 f_out=fo,
                 region=region,
+                merge_regions=merge_regions,
                 window=window,
                 min_bq=min_bq,
                 min_mapq=min_mapq,
@@ -196,11 +197,14 @@ def calculate_and_bin_coverage(
                         raise ValueError(
                             f"max_read_length (got {max_read_length}) must be larger than min_read_length (got {min_read_length})"
                         )
-                    with TemporaryDirectory(prefix=pjoin(dirname(f_out), 'tmp_')) as tmpdir:
+                    with TemporaryDirectory(
+                        prefix=pjoin(dirname(f_out), "tmp_")
+                    ) as tmpdir:
                         f_short = calculate_and_bin_coverage(
                             f_in,
                             f_out=tmpdir,
                             region=region,
+                            merge_regions=merge_regions,
                             window=window,
                             min_bq=min_bq,
                             min_mapq=min_mapq,
@@ -215,6 +219,7 @@ def calculate_and_bin_coverage(
                             f_in,
                             f_out=tmpdir,
                             region=region,
+                            merge_regions=merge_regions,
                             window=window,
                             min_bq=min_bq,
                             min_mapq=min_mapq,
@@ -251,7 +256,10 @@ def calculate_and_bin_coverage(
 
                     if not os.path.isfile(f_tmp):
                         try:
-                            for var in ['GOOGLE_APPLICATION_CREDENTIALS', 'CLOUDSDK_PYTHON']:
+                            for var in [
+                                "GOOGLE_APPLICATION_CREDENTIALS",
+                                "CLOUDSDK_PYTHON",
+                            ]:
                                 if var not in os.environ:
                                     raise ValueError(f"{var} not in environment")
                             if f_in.startswith("gs://"):
@@ -259,8 +267,12 @@ def calculate_and_bin_coverage(
                                     gcs_token_cmd.split(),
                                     cwd="/tmp",
                                     env={
-                                        "GOOGLE_APPLICATION_CREDENTIALS": os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
-                                        "CLOUDSDK_PYTHON": os.environ["CLOUDSDK_PYTHON"],
+                                        "GOOGLE_APPLICATION_CREDENTIALS": os.environ[
+                                            "GOOGLE_APPLICATION_CREDENTIALS"
+                                        ],
+                                        "CLOUDSDK_PYTHON": os.environ[
+                                            "CLOUDSDK_PYTHON"
+                                        ],
                                     },
                                 ).decode()
                             else:
@@ -272,7 +284,10 @@ def calculate_and_bin_coverage(
                                 cmd,
                                 shell=True,
                                 cwd="/tmp",
-                                env={"GCS_OAUTH_TOKEN": token, "PATH": os.environ["PATH"]},
+                                env={
+                                    "GCS_OAUTH_TOKEN": token,
+                                    "PATH": os.environ["PATH"],
+                                },
                             ).communicate()
                         except:
                             if "stdout" in locals():
