@@ -4,15 +4,24 @@ from os.path import join as pjoin, isfile
 from tempfile import TemporaryDirectory
 from collections.abc import Iterable
 import pathmagic
+from pathmagic import PYTHON_TESTS_PATH
 from python.pipelines.coverage_analysis import (
     calculate_and_bin_coverage,
     create_coverage_annotations,
 )
 
+
 f_in = [
-    "gs://runs-data/cromwell-execution/JukeboxVC/523a5c47-d720-49ea-8e2f-0d2a779bd63a/call-MarkDuplicatesSpark/cacheCopy/170201-BC23.aligned.unsorted.duplicates_marked.bam",
-    "gs://runs-data/cromwell-execution/JukeboxVC/2800f763-5443-4c16-849f-bccc5163465b/call-MarkDuplicatesSpark/cacheCopy/170201-BC10.aligned.unsorted.duplicates_marked.bam",
+    pjoin(
+        PYTHON_TESTS_PATH,
+        "170201-BC23.chr9_1000000_2001000.aligned.unsorted.duplicates_marked.bam",
+    ),
+    pjoin(
+        PYTHON_TESTS_PATH,
+        "170201-BC10.chr9_1000000_2001000.aligned.unsorted.duplicates_marked.bam",
+    ),
 ]
+f_in_gs = "gs://runs-data/cromwell-execution/JukeboxVC/523a5c47-d720-49ea-8e2f-0d2a779bd63a/call-MarkDuplicatesSpark/cacheCopy/170201-BC23.aligned.unsorted.duplicates_marked.bam"
 regions = ["chr9:1000000-1001000", "chr9:2000000-2001000"]
 region_large = "chr9:1000000-2000000"
 window = 100
@@ -182,6 +191,17 @@ def test_coverage_analysis_max_length():
             n_jobs=1,
         )
         j = 7
+        assert output == f_out[j]
+        _assert_fout(f_out, j)
+
+
+def test_coverage_analysis_with_gs_access():
+    with TemporaryDirectory() as tmpdir:
+        f_out = _get_fout(tmpdir)
+        output = calculate_and_bin_coverage(
+            f_in_gs, f_out=tmpdir, region=regions[0], window=window, n_jobs=1
+        )
+        j = 0
         assert output == f_out[j]
         _assert_fout(f_out, j)
 
