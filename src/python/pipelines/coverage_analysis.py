@@ -107,8 +107,145 @@ def calculate_and_bin_coverage(
         region = [f"chr{x}" for x in list(range(1, 23)) + ["X"]]
     elif region == ALL_BUT_X or region == "all_but_X":
         region = [f"chr{x}" for x in range(1, 23)]
-    multiple_inputs = not isinstance(f_in, str) and isinstance(f_in, Iterable)
-    if multiple_inputs:  # loop over inputs
+
+    # the code below has a few options - either it got a single input file and a single region and max_read_length is
+    # None and then the actual work is done and one output file is created, or it calls itself recursively according to
+    # the following logic:
+    # 1. If there are multiple input files, run recursively with a single call per input
+    # 2. Otherwise, if a single input file but multiple regions are given, regions are called recursively
+    # Additionally, if a single file and region were given but max_read_length is not None, then two calls with
+    # different min_read_length thresholds are executed (samtools only has a minimal length option) and the outputs are
+    # substracted.
+    # The logic is executed below
+    is_multiple_inputs = not isinstance(f_in, str) and isinstance(f_in, Iterable)
+    is_multiple_regions = not isinstance(region, str) and isinstance(region, Iterable)
+    is_max_length_set = max_read_length is not None
+    is_single_input_file_and_region = not is_multiple_inputs and not is_multiple_regions
+
+    if is_single_input_file_and_region:
+        assert f_in.endswith(BAM_EXT) or f_in.endswith(CRAM_EXT)
+        f_out = _get_output_file_name(
+            f_in=f_in,
+            f_out=f_out,
+            min_bq=min_bq,
+            min_mapq=min_mapq,
+            min_read_length=min_read_length,
+            max_read_length=max_read_length,
+            region=region,
+            window=window,
+            output_format=output_format,
+        )
+        f_tmp = f_out + ".tmp"
+        os.makedirs(dirname(f_out), exist_ok=True)
+        if os.path.isfile(f_out):
+            return f_out
+
+        if not is_max_length_set:  # this clause is the actual implementation
+            try:
+                is_cram = f_in.endswith(CRAM_EXT)
+                ref_fasta = cloud_sync(ref_fasta)
+                gcs_token_cmd = "gcloud auth application-default print-access-token"
+
+                samtools_depth_cmd = " ".join(
+                    [
+                        "samtools",
+                        "depth",
+                        "-a",
+                        f" --reference {ref_fasta}" if is_cram else "",
+                        f"-r {region}" if region is not None else "",
+                        f"-q {min_bq}",
+                        f"-Q {min_mapq}",
+                        f"-l {min_read_length}",
+                        f_in,
+                    ]
+                )
+                cmd = f"{samtools_depth_cmd} > {f_tmp}"
+                try:
+                    if GCS_OAUTH_TOKEN not in os.environ:
+                        raise ValueError(
+                            f"Environment variable {GCS_OAUTH_TOKEN} must be set in order to access google storage files"
+                        )
+                    out = subprocess.check_output(
+                        cmd,
+                        shell=True,
+                        env={
+                            "PATH": os.environ["PATH"],
+                            GCS_OAUTH_TOKEN: os.environ[GCS_OAUTH_TOKEN],
+                        },
+                    )
+                except subprocess.CalledProcessError:
+                    warnings.warn(
+                        f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
+                    )
+                    if "out" in locals():
+                        sys.stderr.write(f"{out}")
+                    raise
+                try:
+                    df = pd.read_csv(f_tmp, sep="\t", header=None)
+                    df.columns = [CHROM, CHROM_START, COVERAGE]
+                    df = df.astype({CHROM: "category"})
+                    df[COVERAGE] = (
+                        df[COVERAGE]
+                        .rolling(window=window, center=False, min_periods=1)
+                        .mean()
+                    )
+                    df = df.iloc[:-1:window, :].reset_index()
+                    df[CHROM_END] = df[CHROM_START] + window - 1
+                except pd.errors.EmptyDataError:
+                    if stop_on_errors:
+                        raise
+                    warnings.warn(f"Pandas parsing error on file {f_tmp}")
+
+            finally:
+                if "f_tmp" in locals() and os.path.isfile(f_tmp):
+                    os.remove(f_tmp)
+        else:  # max length mode - run recursively with two lower length thresholds and substract
+            if max_read_length <= min_read_length:
+                raise ValueError(
+                    f"max_read_length (got {max_read_length}) must be larger than min_read_length (got {min_read_length})"
+                )
+            with TemporaryDirectory(prefix=pjoin(dirname(f_out), "tmp_")) as tmpdir:
+                f_short = calculate_and_bin_coverage(
+                    f_in,
+                    f_out=tmpdir,
+                    region=region,
+                    merge_regions=merge_regions,
+                    window=window,
+                    min_bq=min_bq,
+                    min_mapq=min_mapq,
+                    min_read_length=min_read_length,
+                    max_read_length=None,
+                    ref_fasta=ref_fasta,
+                    n_jobs=1,
+                    progress_bar=False,
+                    output_format=output_format,
+                )
+                f_long = calculate_and_bin_coverage(
+                    f_in,
+                    f_out=tmpdir,
+                    region=region,
+                    merge_regions=merge_regions,
+                    window=window,
+                    min_bq=min_bq,
+                    min_mapq=min_mapq,
+                    min_read_length=max_read_length,
+                    max_read_length=None,
+                    ref_fasta=ref_fasta,
+                    n_jobs=1,
+                    progress_bar=False,
+                    output_format=output_format,
+                )
+                df, _ = _read_dataframe(f_short)
+                df_long, _ = _read_dataframe(f_long)
+                df = df[[CHROM, CHROM_START, CHROM_END, COVERAGE]]
+                df[COVERAGE] = df[COVERAGE] - df_long[COVERAGE]
+
+        # save output
+        if "df" in locals():
+            df = df[[CHROM, CHROM_START, CHROM_END, COVERAGE]]
+            _save_datframe(df, f_out, output_format)
+        return f_out
+    elif is_multiple_inputs:
         if any(
             [x.endswith(CRAM_EXT) for x in f_in]
         ):  # download reference here if needed
@@ -142,183 +279,60 @@ def calculate_and_bin_coverage(
             )
             for f, fo in tqdm(zip(f_in, f_out), disable=not progress_bar)
         )
-    else:
-        if not isinstance(region, str) and isinstance(
-            region, Iterable
-        ):  # loop over regions
-            f_out_list = Parallel(n_jobs=n_jobs)(
-                delayed(calculate_and_bin_coverage)(
-                    f_in,
-                    f_out=f_out,
-                    region=r,
-                    window=window,
-                    min_bq=min_bq,
-                    min_mapq=min_mapq,
-                    min_read_length=min_read_length,
-                    max_read_length=max_read_length,
-                    ref_fasta=ref_fasta,
-                    n_jobs=1,
-                    progress_bar=False,
-                    output_format=output_format,
-                )
-                for r in tqdm(region, disable=not progress_bar)
+    elif is_multiple_regions:
+        f_out_list = Parallel(n_jobs=n_jobs)(
+            delayed(calculate_and_bin_coverage)(
+                f_in,
+                f_out=f_out,
+                region=r,
+                window=window,
+                min_bq=min_bq,
+                min_mapq=min_mapq,
+                min_read_length=min_read_length,
+                max_read_length=max_read_length,
+                ref_fasta=ref_fasta,
+                n_jobs=1,
+                progress_bar=False,
+                output_format=output_format,
             )
-            if merge_regions:
-                df_merged = pd.concat((_read_dataframe(f)[0] for f in f_out_list))
+            for r in tqdm(region, disable=not progress_bar)
+        )
+        if merge_regions:
+            df_merged = pd.concat((_read_dataframe(f)[0] for f in f_out_list))
 
-                def _f(x):
-                    try:
-                        x = int(x.replace("chr", ""))
-                    except ValueError:
-                        x = 100  # > 22
-                    return x
+            def _f(x):
+                try:
+                    x = int(x.replace("chr", ""))
+                except ValueError:
+                    x = 100  # > 22
+                return x
 
-                df_merged[CHROM_NUM] = df_merged[CHROM].apply(_f)
-                df_merged = (
-                    df_merged.sort_values([CHROM_NUM, CHROM_START])
-                    .drop(columns=[CHROM_NUM])
-                    .reset_index(drop=True)
-                )
-                f_out = _get_output_file_name(
-                    f_in=f_in,
-                    f_out=f_out,
-                    min_bq=min_bq,
-                    min_mapq=min_mapq,
-                    min_read_length=min_read_length,
-                    max_read_length=max_read_length,
-                    region=MERGED_REGIONS,
-                    window=window,
-                    output_format=output_format,
-                )
-                _save_datframe(df_merged, f_out, output_format)
-                for f in f_out_list:
-                    if os.path.isfile(f):
-                        os.remove(f)
-                return f_out
-            else:
-                return f_out_list
-        else:
-            try:
-                assert f_in.endswith(BAM_EXT) or f_in.endswith(CRAM_EXT)
-                f_out = _get_output_file_name(
-                    f_in=f_in,
-                    f_out=f_out,
-                    min_bq=min_bq,
-                    min_mapq=min_mapq,
-                    min_read_length=min_read_length,
-                    max_read_length=max_read_length,
-                    region=region,
-                    window=window,
-                    output_format=output_format,
-                )
-                f_tmp = f_out + ".tmp"
-                os.makedirs(dirname(f_out), exist_ok=True)
-                if os.path.isfile(f_out):
-                    return f_out
-                elif max_read_length is not None:
-                    if max_read_length <= min_read_length:
-                        raise ValueError(
-                            f"max_read_length (got {max_read_length}) must be larger than min_read_length (got {min_read_length})"
-                        )
-                    with TemporaryDirectory(
-                        prefix=pjoin(dirname(f_out), "tmp_")
-                    ) as tmpdir:
-                        f_short = calculate_and_bin_coverage(
-                            f_in,
-                            f_out=tmpdir,
-                            region=region,
-                            merge_regions=merge_regions,
-                            window=window,
-                            min_bq=min_bq,
-                            min_mapq=min_mapq,
-                            min_read_length=min_read_length,
-                            max_read_length=None,
-                            ref_fasta=ref_fasta,
-                            n_jobs=1,
-                            progress_bar=False,
-                            output_format=output_format,
-                        )
-                        f_long = calculate_and_bin_coverage(
-                            f_in,
-                            f_out=tmpdir,
-                            region=region,
-                            merge_regions=merge_regions,
-                            window=window,
-                            min_bq=min_bq,
-                            min_mapq=min_mapq,
-                            min_read_length=max_read_length,
-                            max_read_length=None,
-                            ref_fasta=ref_fasta,
-                            n_jobs=1,
-                            progress_bar=False,
-                            output_format=output_format,
-                        )
-                        df, _ = _read_dataframe(f_short)
-                        df_long, _ = _read_dataframe(f_long)
-                        df = df[[CHROM, CHROM_START, CHROM_END, COVERAGE]]
-                        df[COVERAGE] = df[COVERAGE] - df_long[COVERAGE]
-                else:  # this clause is the actual implementation
-                    is_cram = f_in.endswith(CRAM_EXT)
-                    ref_fasta = cloud_sync(ref_fasta)
-                    gcs_token_cmd = "gcloud auth application-default print-access-token"
-
-                    samtools_depth_cmd = " ".join(
-                        [
-                            "samtools",
-                            "depth",
-                            "-a",
-                            f" --reference {ref_fasta}" if is_cram else "",
-                            f"-r {region}" if region is not None else "",
-                            f"-q {min_bq}",
-                            f"-Q {min_mapq}",
-                            f"-l {min_read_length}",
-                            f_in,
-                        ]
-                    )
-                    cmd = f"{samtools_depth_cmd} > {f_tmp}"
-                    try:
-                        if GCS_OAUTH_TOKEN not in os.environ:
-                            raise ValueError(
-                                f"Environment variable {GCS_OAUTH_TOKEN} must be set in order to access google storage files"
-                            )
-                        out = subprocess.check_output(
-                            cmd,
-                            shell=True,
-                            env={
-                                "PATH": os.environ["PATH"],
-                                GCS_OAUTH_TOKEN: os.environ[GCS_OAUTH_TOKEN],
-                            },
-                        )
-                    except subprocess.CalledProcessError:
-                        warnings.warn(
-                            f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
-                        )
-                        if "out" in locals():
-                            sys.stderr.write(f"{out}")
-                        raise
-                    try:
-                        df = pd.read_csv(f_tmp, sep="\t", header=None)
-                        df.columns = [CHROM, CHROM_START, COVERAGE]
-                        df = df.astype({CHROM: "category"})
-                        df[COVERAGE] = (
-                            df[COVERAGE]
-                            .rolling(window=window, center=False, min_periods=1)
-                            .mean()
-                        )
-                        df = df.iloc[:-1:window, :].reset_index()
-                        df[CHROM_END] = df[CHROM_START] + window - 1
-                    except pd.errors.EmptyDataError:
-                        if stop_on_errors:
-                            raise
-                        warnings.warn(f"Pandas parsing error on file {f_tmp}")
-                # save output
-                if "df" in locals():
-                    df = df[[CHROM, CHROM_START, CHROM_END, COVERAGE]]
-                    _save_datframe(df, f_out, output_format)
-            finally:
-                if "f_tmp" in locals() and os.path.isfile(f_tmp):
-                    os.remove(f_tmp)
+            df_merged[CHROM_NUM] = df_merged[CHROM].apply(_f)
+            df_merged = (
+                df_merged.sort_values([CHROM_NUM, CHROM_START])
+                .drop(columns=[CHROM_NUM])
+                .reset_index(drop=True)
+            )
+            f_out = _get_output_file_name(
+                f_in=f_in,
+                f_out=f_out,
+                min_bq=min_bq,
+                min_mapq=min_mapq,
+                min_read_length=min_read_length,
+                max_read_length=max_read_length,
+                region=MERGED_REGIONS,
+                window=window,
+                output_format=output_format,
+            )
+            _save_datframe(df_merged, f_out, output_format)
+            for f in f_out_list:
+                if os.path.isfile(f):
+                    os.remove(f)
             return f_out
+        else:
+            return f_out_list
+    else:
+        raise ValueError("Internal error - the code is never supposed to reach here")
 
 
 def _get_output_file_name(
