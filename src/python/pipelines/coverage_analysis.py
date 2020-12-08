@@ -513,7 +513,6 @@ def create_coverage_annotations(
                 # if df_tmp.shape[0] == 0:
                 #     continue
                 df_annotations = df_annotations.join(df_tmp, how="outer")
-            df_annotations = df_annotations[sorted(df_annotations.columns)]
             df_annotations = df_annotations[~df_annotations.index.duplicated()]
             df_annotations = df_annotations.reindex(df.index).fillna(False)
             df_annotations = df_annotations[
