@@ -8,7 +8,7 @@ from pathmagic import PYTHON_TESTS_PATH
 from python.pipelines.coverage_analysis import (
     calculate_and_bin_coverage,
     create_coverage_annotations,
-    COVERAGE
+    COVERAGE,
 )
 
 
@@ -225,3 +225,26 @@ def test_create_coverage_annotations():
         df = pd.read_parquet(f_out_annot).set_index(["chrom", "chromStart", "chromEnd"])
         annotations_sum = pd.read_hdf(f_annotations_sum)
         assert np.all(annotations_sum == df.sum())
+
+
+def test_create_coverage_annotations_dict_input():
+    d = {
+        "GC 80-90": pjoin(PYTHON_TESTS_PATH, "chr9.gc.80.hg38.interval_list"),
+        "GC 90-100": pjoin(PYTHON_TESTS_PATH, "chr9.gc.90.hg38.interval_list"),
+    }
+    with TemporaryDirectory() as tmpdir:
+        f_out = _get_fout(tmpdir)
+        output = calculate_and_bin_coverage(
+            f_in[0], f_out=tmpdir, region=region_large, window=window, n_jobs=1
+        )
+        j = 8
+        assert output == f_out[j]
+        _assert_fout(f_out, j)
+        f_out_annot = pjoin(
+            tmpdir, f"annotations.170201-BC23.chr9_1000000-2000000.w{window}.parquet"
+        )
+        create_coverage_annotations(f_out[8], coverage_intervals_dict=d)
+        assert isfile(f_out_annot)
+        df = pd.read_parquet(f_out_annot).set_index(["chrom", "chromStart", "chromEnd"])
+        annotations_sum = pd.read_hdf(f_annotations_sum)
+        assert np.all(annotations_sum[d.keys()] == df.sum())
