@@ -117,6 +117,10 @@ def calculate_and_bin_coverage(
             f_out = [f_out] * len(f_in)  # yield f_out to sub functions
         elif f_out is None:
             f_out = [None] * len(f_in)  # yield None to sub functions
+        if not len(f_in) == len(f_out):
+            raise ValueError(
+                f"Number of input files and output paths must be equal, got len(f_in)={len(f_in)}, len(f_out)={len(f_out)}"
+            )
         # set number of jobs - we don't want to exceed total jobs in recursive calls
         n_jobs_actual = n_jobs if n_jobs > 0 else cpu_count() + n_jobs
         n_sub_jobs = -1 if n_jobs == -1 else max(1, n_jobs_actual // len(f_in))
