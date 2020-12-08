@@ -103,9 +103,12 @@ def calculate_and_bin_coverage(
 
     if output_format not in [PARQUET, HDF, H5, CSV, TSV]:
         raise ValueError(f"Unrecognized output_format {output_format}")
+    region_name = "merged_regions"  # only used if merge_regions is True
     if region == ALL:
+        region_name = ALL
         region = [f"chr{x}" for x in list(range(1, 23)) + ["X"]]
     elif region == ALL_BUT_X or region == "all_but_X":
+        region_name = ALL_BUT_X
         region = [f"chr{x}" for x in range(1, 23)]
 
     # the code below has a few options - either it got a single input file and a single region and max_read_length is
@@ -280,6 +283,20 @@ def calculate_and_bin_coverage(
             for f, fo in tqdm(zip(f_in, f_out), disable=not progress_bar)
         )
     elif is_multiple_regions:
+        if merge_regions:
+            f_out_merged = _get_output_file_name(
+                f_in=f_in,
+                f_out=f_out,
+                min_bq=min_bq,
+                min_mapq=min_mapq,
+                min_read_length=min_read_length,
+                max_read_length=max_read_length,
+                region=region_name,
+                window=window,
+                output_format=output_format,
+            )
+            if os.path.isfile(f_out_merged):  # merged file already exists here so we do nothing
+                return f_out_merged
         f_out_list = Parallel(n_jobs=n_jobs)(
             delayed(calculate_and_bin_coverage)(
                 f_in,
@@ -298,6 +315,7 @@ def calculate_and_bin_coverage(
             for r in tqdm(region, disable=not progress_bar)
         )
         if merge_regions:
+            f_out = f_out_merged
             df_merged = pd.concat((_read_dataframe(f)[0] for f in f_out_list))
 
             def _f(x):
@@ -313,17 +331,7 @@ def calculate_and_bin_coverage(
                 .drop(columns=[CHROM_NUM])
                 .reset_index(drop=True)
             )
-            f_out = _get_output_file_name(
-                f_in=f_in,
-                f_out=f_out,
-                min_bq=min_bq,
-                min_mapq=min_mapq,
-                min_read_length=min_read_length,
-                max_read_length=max_read_length,
-                region=MERGED_REGIONS,
-                window=window,
-                output_format=output_format,
-            )
+
             _save_datframe(df_merged, f_out, output_format)
             for f in f_out_list:
                 if os.path.isfile(f):
