@@ -10,7 +10,6 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import warnings
 import argparse
-import pathmagic
 from python.auxiliary.cloud_sync import cloud_sync
 
 CHROM = "chrom"
@@ -19,8 +18,8 @@ CHROM_END = "chromEnd"
 COVERAGE = "coverage"
 PARQUET = "parquet"
 HDF = "hdf"
-H5 = "h5" 
-CSV = "csv" 
+H5 = "h5"
+CSV = "csv"
 TSV = "tsv"
 ALL_BUT_X = "all_but_x"
 ALL = "all"
@@ -28,6 +27,7 @@ CHROM_NUM = "chrom_num"
 MERGED_REGIONS = "merged_regions"
 BAM_EXT = ".bam"
 CRAM_EXT = ".cram"
+GCS_OAUTH_TOKEN = "GCS_OAUTH_TOKEN"
 
 
 def calculate_and_bin_coverage(
@@ -97,7 +97,7 @@ def calculate_and_bin_coverage(
     """
     # check inputs
     try:
-        out = subprocess.call(["samtools", "--version"])
+        out = subprocess.check_output(["samtools", "--version"])
     except FileNotFoundError:
         raise ValueError("samtools executable not found in enrivonment")
 
@@ -272,48 +272,26 @@ def calculate_and_bin_coverage(
                         ]
                     )
                     cmd = f"{samtools_depth_cmd} > {f_tmp}"
-
-                    if not os.path.isfile(f_tmp):
-                        try:
-                            for var in [
-                                "GOOGLE_APPLICATION_CREDENTIALS",
-                                "CLOUDSDK_PYTHON",
-                            ]:
-                                if var not in os.environ:
-                                    raise ValueError(f"{var} not in environment")
-                            if f_in.startswith("gs://"):
-                                token = subprocess.check_output(
-                                    gcs_token_cmd.split(),
-                                    cwd="/tmp",
-                                    env={
-                                        "GOOGLE_APPLICATION_CREDENTIALS": os.environ[
-                                            "GOOGLE_APPLICATION_CREDENTIALS"
-                                        ],
-                                        "CLOUDSDK_PYTHON": os.environ[
-                                            "CLOUDSDK_PYTHON"
-                                        ],
-                                    },
-                                ).decode()
-                            else:
-                                token = ""
-                        except subprocess.CalledProcessError:
-                            raise ValueError("Error getting google storage token")
-                        try:
-                            stdout, stderr = subprocess.Popen(
-                                cmd,
-                                shell=True,
-                                cwd="/tmp",
-                                env={
-                                    "GCS_OAUTH_TOKEN": token,
-                                    "PATH": os.environ["PATH"],
-                                },
-                            ).communicate()
-                        except:
-                            if "stdout" in locals():
-                                sys.stderr.write(
-                                    f"Error running the command:\n{cmd}\n\nstdout:\n{stdout}\n\nstderr:\n{stderr}\n"
-                                )
-                            raise
+                    try:
+                        if GCS_OAUTH_TOKEN not in os.environ:
+                            raise ValueError(
+                                f"Environment variable {GCS_OAUTH_TOKEN} must be set in order to access google storage files"
+                            )
+                        out = subprocess.check_output(
+                            cmd,
+                            shell=True,
+                            env={
+                                "PATH": os.environ["PATH"],
+                                GCS_OAUTH_TOKEN: os.environ[GCS_OAUTH_TOKEN],
+                            },
+                        )
+                    except subprocess.CalledProcessError:
+                        warnings.warn(
+                            f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
+                        )
+                        if "out" in locals():
+                            sys.stderr.write(f"{out}")
+                        raise
                     try:
                         df = pd.read_csv(f_tmp, sep="\t", header=None)
                         df.columns = [CHROM, CHROM_START, COVERAGE]
@@ -627,7 +605,6 @@ def call_calculate_and_bin_coverage(args_in):
 def call_create_coverage_annotations(args_in):
     if args_in.input is None:
         raise ValueError("No input provided")
-    print(args)
     output = create_coverage_annotations(
         coverage_dataframe=args_in.input,
         output_annotations_file=args_in.output,
