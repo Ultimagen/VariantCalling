@@ -407,7 +407,8 @@ Should be one of {PARQUET}, {HDF}, {H5}, {CSV}, {TSV} """
 def create_coverage_annotations(
     coverage_dataframe: str,
     output_annotations_file: str = None,
-    coverage_intervals_dict: str = "s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_rapidQC_intervals.tsv",
+    coverage_intervals_dict: str
+    or dict = "s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_rapidQC_intervals.tsv",
     n_jobs: int = -1,
     progress_bar: bool = True,
     output_format: str = None,
@@ -427,8 +428,13 @@ def create_coverage_annotations(
     output_annotations_file: str
         Output file to which annotations dataframe will be written, if None (default) will be created in the same
         directory as coverage_dataframe
-    coverage_intervals_dict: str
-        tsv file pointing to a dataframe detailing the various intervals, currently the only instances are:
+    coverage_intervals_dict: str or dict
+        Collection of Picard format intervals to use. Can be one of two formats:
+        1. Dictionary with annotaion names for keys (will be used for column names in the output dataframe) and interval
+        files (local or cloud) as values
+        2. tsv file with column 'category' (name of annotation), 'file' (see below), and optionally 'order' (int)
+        if tsv, the file name is assumed to start with "./" followed by a path relative to the tsv file
+        currently the existing instances are:
         default "s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_rapidQC_intervals.tsv"
         alternative "s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_and_whole_exome_intervals.tsv"
     n_jobs: int
@@ -446,10 +452,10 @@ def create_coverage_annotations(
     """
     if output_format not in [None, PARQUET, HDF, H5, CSV, TSV]:
         raise ValueError(f"Unrecognized output_format {output_format}")
-    multiple_inputs = not isinstance(coverage_dataframe, str) and isinstance(
+    is_multiple_inputs = not isinstance(coverage_dataframe, str) and isinstance(
         coverage_dataframe, Iterable
     )
-    if multiple_inputs:  # loop over inputs
+    if is_multiple_inputs:  # loop over inputs
         if isinstance(output_annotations_file, str):
             output_annotations_file = [output_annotations_file] * len(
                 coverage_dataframe
@@ -486,14 +492,10 @@ def create_coverage_annotations(
         os.makedirs(dirname(output_annotations_file), exist_ok=True)
 
         # fetch intervals
-        coverage_intervals_dict = cloud_sync(coverage_intervals_dict)
-        df_coverage_intervals = pd.read_csv(coverage_intervals_dict, sep="\t")
-        df_coverage_intervals["file"] = df_coverage_intervals.apply(
-            lambda x: cloud_sync(
-                pjoin(dirname(coverage_intervals_dict), x["file"][2:])
-            ),
-            axis=1,
+        df_coverage_intervals = _create_coverage_intervals_dataframe(
+            coverage_intervals_dict
         )
+
         # start work
         with TemporaryDirectory() as tmpfile:
             # write regions bed file
@@ -541,6 +543,43 @@ def create_coverage_annotations(
         # save
         _save_datframe(df_annotations, output_annotations_file, output_format)
         return output_annotations_file
+
+
+def _create_coverage_intervals_dataframe(coverage_intervals_dict):
+    if isinstance(coverage_intervals_dict, str):
+        if coverage_intervals_dict.endswith(TSV):
+            sep = "\t"
+        elif coverage_intervals_dict.endswith(CSV):
+            sep = ","
+        else:
+            raise ValueError(
+                f"""Unknown extension for input intervals dict file {coverage_intervals_dict}
+Expected {TSV}/{CSV}"""
+            )
+        coverage_intervals_dict = cloud_sync(coverage_intervals_dict)
+        df_coverage_intervals = pd.read_csv(coverage_intervals_dict, sep=sep)
+        df_coverage_intervals["file"] = df_coverage_intervals.apply(
+            lambda x: cloud_sync(
+                pjoin(dirname(coverage_intervals_dict), x["file"][2:])
+            ),
+            axis=1,
+        )
+    elif isinstance(coverage_intervals_dict, dict):
+        df_coverage_intervals = pd.DataFrame.from_dict(
+            coverage_intervals_dict, orient="index"
+        ).reset_index()
+        df_coverage_intervals.columns = ["category", "file"]
+        df_coverage_intervals["file"] = df_coverage_intervals.apply(
+            lambda x: cloud_sync(x["file"]), axis=1,
+        )
+    else:
+        raise ValueError(f"Invalid input {coverage_intervals_dict}")
+
+    if "order" not in df_coverage_intervals:
+        df_coverage_intervals = df_coverage_intervals.assign(
+            order=range(df_coverage_intervals.shape[0])
+        )
+    return df_coverage_intervals
 
 
 def _intersect_intervals(interval_file, regions_file, outdir=None):
