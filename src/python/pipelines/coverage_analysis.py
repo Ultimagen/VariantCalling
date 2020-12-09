@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 import sys
 from os.path import join as pjoin, basename, dirname
@@ -10,7 +11,21 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import warnings
 import argparse
+import logging
 from python.auxiliary.cloud_sync import cloud_sync
+
+# create logger
+logger = logging.getLogger("coverage_analysis")
+logger.setLevel(logging.DEBUG)
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+# create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# add formatter to ch
+ch.setFormatter(formatter)
+# add ch to logger
+logger.addHandler(ch)
 
 CHROM = "chrom"
 CHROM_START = "chromStart"
@@ -295,7 +310,9 @@ def calculate_and_bin_coverage(
                 window=window,
                 output_format=output_format,
             )
-            if os.path.isfile(f_out_merged):  # merged file already exists here so we do nothing
+            if os.path.isfile(
+                f_out_merged
+            ):  # merged file already exists here so we do nothing
                 return f_out_merged
         f_out_list = Parallel(n_jobs=n_jobs)(
             delayed(calculate_and_bin_coverage)(
@@ -487,8 +504,10 @@ def create_coverage_annotations(
             )
         )
     else:
+        logger.debug(f"reading coverage dataframe {coverage_dataframe}")
         df, input_format = _read_dataframe(coverage_dataframe)
-        df = df.set_index([CHROM, CHROM_START, CHROM_END])
+        logger.debug(f"coverage dataframe shape {df.shape}")
+
         if output_format is None:
             output_format = input_format
         # set output file name
@@ -505,13 +524,27 @@ def create_coverage_annotations(
         )
 
         # start work
-        with TemporaryDirectory() as tmpfile:
+
+        with TemporaryDirectory(
+            prefix="/data/tmp/tmp" if os.path.isdir("/data/") else None
+        ) as tmpfile:
+            logger.debug(f"working in temporary directory {tmpfile}")
             # write regions bed file
             bed_file = pjoin(
                 tmpfile,
                 f"regions.{'.'.join(basename(coverage_dataframe).split('.')[:-1])}.bed",
             )
-            df[[]].to_csv(bed_file, sep="\t", index=True)
+            logger.debug(f"saving data to {bed_file}")
+            ixs = np.array_split(df.index, 100)
+            for ix, subset in tqdm(enumerate(ixs), desc="Saving bed file"):
+                df.loc[subset][[CHROM, CHROM_START, CHROM_END]].to_csv(
+                    bed_file,
+                    sep="\t",
+                    index=False,
+                    mode="w" if ix == 0 else "a",
+                    header=True if ix == 0 else None,
+                )
+            logger.debug(f"running bed file intersections")
             # create bed file per annotation
             out_intersected_beds = Parallel(n_jobs=n_jobs)(
                 delayed(_intersect_intervals)(interval, bed_file)
@@ -521,13 +554,16 @@ def create_coverage_annotations(
                     disable=not progress_bar,
                 )
             )
+            logger.debug(f"bed file intersections done")
             df_coverage_intervals["out_intersected_bed"] = out_intersected_beds
             # read annotation bed files
+            logger.debug(f"reading annotation bed files")
             df_list = [
                 _read_intersected_bed(row["out_intersected_bed"], row["category"])
                 for _, row in df_coverage_intervals.iterrows()
             ]
             # merge
+            logger.debug(f"merging annotation bed dataframes")
             df_annotations = df_list[0]
             for df_tmp in tqdm(
                 df_list[1:],
@@ -537,8 +573,9 @@ def create_coverage_annotations(
                 # if df_tmp.shape[0] == 0:
                 #     continue
                 df_annotations = df_annotations.join(df_tmp, how="outer")
+            logger.debug(f"setting index and sorting columns")
             df_annotations = df_annotations[~df_annotations.index.duplicated()]
-            df_annotations = df_annotations.reindex(df.index).fillna(False)
+            df_annotations = df_annotations.reindex(df.set_index([CHROM, CHROM_START, CHROM_END]).index).fillna(False)
             df_annotations = df_annotations[
                 sorted(
                     df_annotations.columns,
@@ -549,6 +586,7 @@ def create_coverage_annotations(
             ]
         df_annotations = df_annotations.reset_index()
         # save
+        logger.debug(f"saving annotations dataframe to {output_annotations_file}")
         _save_datframe(df_annotations, output_annotations_file, output_format)
         return output_annotations_file
 
@@ -609,6 +647,7 @@ def _intersect_intervals(interval_file, regions_file, outdir=None):
     cmd_intersect = f"bedtools intersect -wa -a {regions_file} -b {out_interval_bed} > {out_intersected_bed}"
     if not os.path.isfile(out_interval_bed):
         subprocess.call(cmd_create_bed, shell=True)
+    logger.debug(f"Running intersect command: {cmd_intersect}")
     if not os.path.isfile(out_intersected_bed):
         subprocess.Popen(
             cmd_intersect,
@@ -619,6 +658,8 @@ def _intersect_intervals(interval_file, regions_file, outdir=None):
             },
             shell=True,
         ).communicate()
+    logger.debug(f"Finished executing intersect command: {cmd_intersect}")
+
     return out_intersected_bed
 
 
