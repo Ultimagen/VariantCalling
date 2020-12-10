@@ -12,7 +12,9 @@ from tqdm import tqdm
 import warnings
 import argparse
 import logging
+import google
 from python.auxiliary.cloud_sync import cloud_sync
+from python.auxiliary.cloud_auth import get_gcs_token
 
 # create logger
 logger = logging.getLogger("coverage_analysis")
@@ -179,16 +181,14 @@ def calculate_and_bin_coverage(
                 )
                 cmd = f"{samtools_depth_cmd} > {f_tmp}"
                 try:
-                    if GCS_OAUTH_TOKEN not in os.environ:
-                        raise ValueError(
-                            f"Environment variable {GCS_OAUTH_TOKEN} must be set in order to access google storage files"
-                        )
+                    token = get_gcs_token()
+
                     out = subprocess.check_output(
                         cmd,
                         shell=True,
                         env={
                             "PATH": os.environ["PATH"],
-                            GCS_OAUTH_TOKEN: os.environ[GCS_OAUTH_TOKEN],
+                            GCS_OAUTH_TOKEN: token,
                         },
                     )
                 except subprocess.CalledProcessError:
