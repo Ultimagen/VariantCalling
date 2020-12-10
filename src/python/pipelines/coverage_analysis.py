@@ -113,6 +113,8 @@ def calculate_and_bin_coverage(
 
     """
     # check inputs
+    if not window > 0:
+        raise ValueError(f"invalid windows size {window}")
     try:
         out = subprocess.check_output(["samtools", "--version"])
     except FileNotFoundError:
@@ -164,7 +166,6 @@ def calculate_and_bin_coverage(
             try:
                 is_cram = f_in.endswith(CRAM_EXT)
                 ref_fasta = cloud_sync(ref_fasta)
-                gcs_token_cmd = "gcloud auth application-default print-access-token"
 
                 samtools_depth_cmd = " ".join(
                     [
@@ -181,15 +182,14 @@ def calculate_and_bin_coverage(
                 )
                 cmd = f"{samtools_depth_cmd} > {f_tmp}"
                 try:
-                    token = get_gcs_token()
+                    token = (
+                        get_gcs_token() if f_in.startswith("gs://") else ""
+                    )  # only generate token if f_in is on gs
 
                     out = subprocess.check_output(
                         cmd,
                         shell=True,
-                        env={
-                            "PATH": os.environ["PATH"],
-                            GCS_OAUTH_TOKEN: token,
-                        },
+                        env={"PATH": os.environ["PATH"], GCS_OAUTH_TOKEN: token,},
                     )
                 except subprocess.CalledProcessError:
                     warnings.warn(
