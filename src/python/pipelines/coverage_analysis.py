@@ -12,7 +12,6 @@ from tqdm import tqdm
 import warnings
 import argparse
 import logging
-import google
 from python.auxiliary.cloud_sync import cloud_sync
 from python.auxiliary.cloud_auth import get_gcs_token
 
@@ -186,11 +185,15 @@ def calculate_and_bin_coverage(
                         get_gcs_token() if f_in.startswith("gs://") else ""
                     )  # only generate token if f_in is on gs
 
-                    out = subprocess.check_output(
-                        cmd,
-                        shell=True,
-                        env={"PATH": os.environ["PATH"], GCS_OAUTH_TOKEN: token,},
-                    )
+                    with TemporaryDirectory(
+                            prefix="/data/tmp/tmp" if os.path.isdir("/data/") else None
+                    ) as tmpdir:
+                        out = subprocess.check_output(
+                            cmd,
+                            shell=True,
+                            cwd=tmpdir,
+                            env={"PATH": os.environ["PATH"], GCS_OAUTH_TOKEN: token,},
+                        )
                 except subprocess.CalledProcessError:
                     warnings.warn(
                         f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
