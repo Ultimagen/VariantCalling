@@ -535,8 +535,11 @@ def create_coverage_annotations(
                 f"regions.{'.'.join(basename(coverage_dataframe).split('.')[:-1])}.bed",
             )
             logger.debug(f"saving data to {bed_file}")
-            ixs = np.array_split(df.index, 100)
-            for ix, subset in tqdm(enumerate(ixs), desc="Saving bed file"):
+            n_chunks = 100
+            ixs = np.array_split(df.index, n_chunks)
+            for ix, subset in tqdm(
+                enumerate(ixs), desc="Saving bed file", total=n_chunks
+            ):
                 df.loc[subset][[CHROM, CHROM_START, CHROM_END]].to_csv(
                     bed_file,
                     sep="\t",
@@ -575,7 +578,9 @@ def create_coverage_annotations(
                 df_annotations = df_annotations.join(df_tmp, how="outer")
             logger.debug(f"setting index and sorting columns")
             df_annotations = df_annotations[~df_annotations.index.duplicated()]
-            df_annotations = df_annotations.reindex(df.set_index([CHROM, CHROM_START, CHROM_END]).index).fillna(False)
+            df_annotations = df_annotations.reindex(
+                df.set_index([CHROM, CHROM_START, CHROM_END]).index
+            ).fillna(False)
             df_annotations = df_annotations[
                 sorted(
                     df_annotations.columns,
