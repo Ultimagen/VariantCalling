@@ -8,6 +8,7 @@ from pathmagic import PYTHON_TESTS_PATH
 from python.pipelines.coverage_analysis import (
     calculate_and_bin_coverage,
     create_coverage_annotations,
+    generate_stats_and_plots,
     COVERAGE,
 )
 
@@ -248,3 +249,31 @@ def test_create_coverage_annotations_dict_input():
         df = pd.read_parquet(f_out_annot).set_index(["chrom", "chromStart", "chromEnd"])
         annotations_sum = pd.read_hdf(f_annotations_sum)
         assert np.all(annotations_sum[d.keys()] == df.sum())
+
+
+def test_generate_stats_and_plots():
+    with TemporaryDirectory() as tmpdir:
+        f_out = _get_fout(tmpdir)
+        output = calculate_and_bin_coverage(
+            f_in[0], f_out=tmpdir, region=region_large, window=window, n_jobs=1
+        )
+        j = 8
+        assert output == f_out[j]
+        _assert_fout(f_out, j)
+        f_out_annot = pjoin(
+            tmpdir, f"annotations.170201-BC23.chr9_1000000-2000000.w{window}.parquet"
+        )
+        create_coverage_annotations(f_out[8])
+        assert isfile(f_out_annot)
+        df = pd.read_parquet(f_out_annot).set_index(["chrom", "chromStart", "chromEnd"])
+        annotations_sum = pd.read_hdf(f_annotations_sum)
+        assert np.all(annotations_sum == df.sum())
+
+        coverage_stats_dataframes, coverage_plot = generate_stats_and_plots(
+            pd.read_parquet(output),
+            df,
+            out_path=tmpdir,
+        )
+        assert isfile(coverage_stats_dataframes)
+        assert isfile(coverage_plot)
+        assert pd.read_hdf(coverage_stats_dataframes, 'stats').loc['median coverage (normalized to median genome coverage)'].filter(regex='Genome').values[0] == 1
