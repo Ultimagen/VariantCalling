@@ -12,9 +12,11 @@ from tqdm import tqdm
 import warnings
 import argparse
 import logging
+import matplotlib.pyplot as plt
 from python.auxiliary.cloud_sync import cloud_sync
 from python.auxiliary.cloud_auth import get_gcs_token
 
+# init logging
 # create logger
 logger = logging.getLogger("coverage_analysis")
 logger.setLevel(logging.DEBUG)
@@ -28,6 +30,24 @@ ch.setFormatter(formatter)
 # add ch to logger
 logger.addHandler(ch)
 
+# display defaults
+SMALL_SIZE = 12
+MEDIUM_SIZE = 18
+BIGGER_SIZE = 26
+TITLE_SIZE = 36
+FIGSIZE = (16, 8)
+GRID = True
+plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
+plt.rc("axes", titlesize=TITLE_SIZE)  # fontsize of the axes title
+plt.rc("axes", labelsize=BIGGER_SIZE)  # fontsize of the x and y labels
+plt.rc("axes", grid=GRID)  # is grid on
+plt.rc("xtick", labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+plt.rc("ytick", labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+plt.rc("legend", fontsize=MEDIUM_SIZE)  # legend fontsize
+plt.rc("figure", titlesize=TITLE_SIZE)  # fontsize of the figure title
+plt.rc("figure", figsize=FIGSIZE)  # size of the figure
+
+# string constants
 CHROM = "chrom"
 CHROM_START = "chromStart"
 CHROM_END = "chromEnd"
@@ -186,7 +206,7 @@ def calculate_and_bin_coverage(
                     )  # only generate token if f_in is on gs
 
                     with TemporaryDirectory(
-                            prefix="/data/tmp/tmp" if os.path.isdir("/data/") else None
+                        prefix="/data/tmp/tmp" if os.path.isdir("/data/") else None
                     ) as tmpdir:
                         out = subprocess.check_output(
                             cmd,
@@ -686,6 +706,213 @@ def _read_intersected_bed(intersected_bed, category_name):
             .assign(**{category_name: False})
         )
     return df
+
+
+def generate_stats_and_plots(
+    df,
+    df_annotations,
+    out_path=None,
+    max_coverage=1000,
+    intervals_tsv="s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_rapidQC_intervals.tsv",
+):
+    logger.debug("generate_stats_and_plots started")
+    annotation_precentage = pd.concat(
+        (
+            df[df_annotations[annotation].values][["coverage"]].sum().rename(annotation)
+            for annotation in df_annotations.columns
+        ),
+        axis=1,
+    )
+    annotation_precentage = (
+        annotation_precentage / annotation_precentage["Genome"].values[0]
+    )
+    annotation_precentage.index.name = "annotation_precentage"
+    annotation_precentage = annotation_precentage.T
+    annotation_precentage[annotation_precentage > 1] = np.nan
+    logger.debug(
+        f"annotation_precentage generated:\n{annotation_precentage.to_string()}"
+    )
+
+    val_count = pd.concat(
+        (
+            df[df_annotations[annotation].values]["coverage"]
+            .round()
+            .value_counts(normalize=True)
+            .reindex(range(max_coverage + 1))
+            .fillna(0)
+            .rename(
+                f"{annotation} ({annotation_precentage.loc[annotation].values[0]:.0%})"
+            )
+            for annotation in df_annotations.columns
+        ),
+        axis=1,
+    )
+    val_count.index.name = "coverage"
+    logger.debug(f"Histogram generated")
+
+    q = np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95])
+    df_precentiles = pd.concat(
+        (
+            val_count.apply(lambda x: np.interp(q, np.cumsum(x), val_count.index)),
+            val_count.apply(
+                lambda x: np.average(val_count.index, weights=x)
+                if x.sum() > 0
+                else np.nan
+            )
+            .to_frame()
+            .T,
+        ),
+        sort=False,
+    )
+    df_precentiles.index = pd.Index(
+        data=[f"Q{int(qq * 100)}" for qq in q] + ["mean"], name="statistic"
+    )
+
+    df_precentiles_norm = (
+        df_precentiles / df_precentiles.loc["Q50"].filter(regex="Genome").values[0]
+    )
+
+    color_group = pd.read_csv(cloud_sync(intervals_tsv), sep="\t",)["color_group"]
+    color_list = [
+        "#3274a1",
+        "#e1812c",
+        "#3a923a",
+        "#c03d3e",
+        "#9372b2",
+        "blue",
+        "orange",
+        "green",
+        "red",
+        "purple",
+    ]
+
+    bxp = [
+        {**v, **{"label": k}}
+        for k, v in df_precentiles_norm.rename(
+            {"Q50": "med", "Q25": "q1", "Q75": "q3", "Q5": "whislo", "Q95": "whishi"}
+        )
+        .to_dict()
+        .items()
+    ]
+
+    logger.debug(f"Generating boxplot")
+    plt.figure(figsize=(20, 8))
+    fig = plt.gcf()
+    ax = plt.gca()
+
+    patches = ax.bxp(
+        bxp, widths=0.7, showfliers=False, showmeans=True, patch_artist=True
+    )
+
+    for j, bx in enumerate(bxp):
+        plt.text(
+            j + 1,
+            bx["med"] + 0.03,
+            f"{bx['med']:.2f}",
+            horizontalalignment="center",
+            fontsize=12,
+        )
+        plt.text(
+            j + 1,
+            bx["whislo"] - 0.06,
+            f"{bx['whislo']:.2f}",
+            horizontalalignment="center",
+            fontsize=12,
+        )
+
+    _ = plt.xticks(rotation=90)
+    xticks = ax.get_xticklabels()
+    plt.ylim(-0.1, 2)
+    plt.grid(axis="x")
+    label = plt.ylabel("Coverage relative to median")
+    text = plt.text(
+        1,
+        1.7,
+        """Boxplot shows coverage percentiles
+(25th/50th/75/th - box, 5th/95th - whiskers)
+Mean in triangle marker
+Numbers shown for median and 5th percentile""",
+        fontsize=12,
+        bbox=dict(facecolor="none", edgecolor="black", boxstyle="round,pad=1"),
+    )
+
+    for j, b in enumerate(patches["boxes"]):
+        b.set(color=color_list[color_group[j]])
+        b.set_edgecolor("k")
+        b.set_linewidth(2)
+
+    for c in patches["caps"] + patches["medians"]:
+        c.set_linewidth(2)
+        c.set_color("k")
+
+    for c in patches["means"]:
+        c.set_linewidth(2)
+        c.set_markerfacecolor("k")
+        c.set_markeredgecolor("k")
+        c.set_alpha(0.3)
+    plt.tight_layout()
+
+    logger.debug(f"Generating statistics")
+    genome_median = df_precentiles.loc["Q50"].filter(regex="Genome").values[0]
+    selected_percentiles = (
+        df_precentiles.loc[[f"Q{q}" for q in [5, 10, 50]]]
+        .rename(index={"Q50": "median coverage"})
+        .rename(index={f"Q{q}": f"{q}th percentile" for q in [5, 10, 50]})
+    )
+    selected_percentiles.loc[
+        "median coverage (normalized to median genome coverage)"
+    ] = (selected_percentiles.loc["median coverage"] / genome_median)
+    df_stats = pd.concat(
+        (
+            selected_percentiles,
+            pd.concat(
+                (
+                    (val_count.loc[(genome_median * 0.5).round().astype(int) :] * 100)
+                    .sum()
+                    .rename("% > 0.5 median of the genome")
+                    .to_frame()
+                    .T,
+                    (val_count.loc[(genome_median * 0.25).round().astype(int) :] * 100)
+                    .sum()
+                    .rename("% > 0.25 median of the genome")
+                    .to_frame()
+                    .T,
+                    (val_count.loc[10:] * 100)
+                    .sum()
+                    .rename("% bases with coverage >= 10x")
+                    .to_frame()
+                    .T,
+                    (val_count.loc[20:] * 100)
+                    .sum()
+                    .rename("% bases with coverage >= 20x")
+                    .to_frame()
+                    .T,
+                )
+            ),
+        )
+    )
+    logger.debug(f"Generated stats:\n{df_stats.iloc[:, :10].to_string()}")
+
+    if out_path is None:
+        return fig, df_stats, df_precentiles, val_count
+    else:
+        os.makedirs(out_path, exist_ok=True)
+        logger.debug(f"Saving data")
+        coverage_stats_dataframes = pjoin(out_path, "coverage_stats.h5")
+        logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
+        df_stats.to_hdf(coverage_stats_dataframes, key="stats")
+        df_precentiles.to_hdf(coverage_stats_dataframes, key="percentiles")
+        val_count.to_hdf(coverage_stats_dataframes, key="histogram")
+
+        coverage_plot = pjoin(out_path, "coverage_boxplot.png")
+        fig.savefig(
+            coverage_plot,
+            dpi=300,
+            bbox_extra_artists=xticks + [label, text],
+            bbox_inches="tight",
+        )
+        plt.close()
+        return coverage_stats_dataframes, coverage_plot
 
 
 def call_calculate_and_bin_coverage(args_in):
