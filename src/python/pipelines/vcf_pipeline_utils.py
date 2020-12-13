@@ -152,10 +152,9 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     None
     '''
 
-
     output_dir = os.path.dirname(output_prefix)
     SDF_path = ref_genome + '.sdf'
-    vcfeval_output_dir = os.path.join(output_dir, 'vcfeval_output')
+    vcfeval_output_dir = os.path.join(output_dir, os.path.basename(output_prefix) + '.vcfeval_output')
 
     if os.path.exists(vcfeval_output_dir) and os.path.isdir(vcfeval_output_dir):
         shutil.rmtree(vcfeval_output_dir)
@@ -169,7 +168,6 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
         shutil.copy(truth_file, filtered_truth_file)
         index_vcf(filtered_truth_file)
 
-
     # vcfeval calculation
     cmd = ['rtg', 'vcfeval',
            '-b', filtered_truth_file,
@@ -178,8 +176,10 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
            '-t', SDF_path,
            '-m', 'combine',
            '--sample', f'{truth_sample},{input_sample}',
-           '--all-records',
            '--decompose']
+    if ignore_filter:
+        cmd += ['--all-records']
+
     subprocess.check_call(cmd)
     # fix the vcf file format
     fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
