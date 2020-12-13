@@ -874,11 +874,10 @@ def generate_stats_and_plots(
     label = plt.ylabel("Coverage relative to median")
     text = plt.text(
         1,
-        1.7,
-        """Boxplot shows coverage percentiles
-(25th/50th/75/th - box, 5th/95th - whiskers)
-Mean in triangle marker
-Numbers shown for median and 5th percentile""",
+        1.65,
+        """Boxplot shows coverage percentiles (25th/50th/75/th - box, 5th/95th - whiskers)
+Mean shown in triangle marker and numbers shown for median and 5th percentile
+Calculated on chr9 unless noted otherwise (WG - Whole Genome)""",
         fontsize=12,
         bbox=dict(facecolor="none", edgecolor="black", boxstyle="round,pad=1"),
     )
