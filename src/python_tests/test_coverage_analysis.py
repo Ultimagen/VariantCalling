@@ -270,10 +270,14 @@ def test_generate_stats_and_plots():
         assert np.all(annotations_sum == df.sum())
 
         coverage_stats_dataframes, coverage_plot = generate_stats_and_plots(
-            pd.read_parquet(output),
-            df,
-            out_path=tmpdir,
+            pd.read_parquet(output), df, out_path=tmpdir,
         )
         assert isfile(coverage_stats_dataframes)
         assert isfile(coverage_plot)
-        assert pd.read_hdf(coverage_stats_dataframes, 'stats').loc['median coverage (normalized to median genome coverage)'].filter(regex='Genome').values[0] == 1
+        assert (
+            pd.read_hdf(coverage_stats_dataframes, "stats")
+            .loc["median coverage (normalized to median genome coverage)"]
+            .filter(regex="Genome")
+            .values[0]
+            == 1
+        )
