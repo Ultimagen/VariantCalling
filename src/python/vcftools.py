@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import numpy as np
 from collections import defaultdict
-
+from enum import Enum
 
 def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
     '''Reads VCF file into dataframe, re
@@ -156,8 +156,14 @@ def get_variants_from_region(variant_df: pd.DataFrame, region: tuple, max_n_vari
         return variants.iloc[take, :]
 
 
-class FilterWrapper:
+# Colors of the Bed
+class FilteringColors (Enum):
+    BLACKLIST = "0,255,0"
+    BORDERLINE = "121,121,121"
+    CLEAR = "255,0,0"
 
+
+class FilterWrapper:
     def __init__(self, df: pd.DataFrame):
         self.orig_df = df
         self.df = df
@@ -205,6 +211,10 @@ class FilterWrapper:
         self.df = self.df[(self.df['hmer_indel_length'] <= val_end)]
         return self
 
+    # we distinguish here two cases: insertion of a single 
+    # hmer (i.e. TG -> TCG), whcih is hmer indel but 0->1
+    # and longer (i.e. TG -> TCAG) which is two errors and will be 
+    # called non-hmer indel
     def get_non_h_mer(self):
         self.df = self.df[(self.df['hmer_indel_length'] == 0)
                           & (self.df['indel'] == True) &
@@ -280,10 +290,9 @@ class FilterWrapper:
 
         # decide the color by filter column
         if do_filtering:
-
-            rgb_color[rgb_color] = "0,0,255"  # blue
-            rgb_color[blacklist_color] = "0,255,0" # green
-            rgb_color[rgb_color==False] = "121,121,121"  # grey
+            rgb_color[rgb_color] = FilteringColors.CLEAR  
+            rgb_color[blacklist_color] = FilteringColors.BLACKLIST 
+            rgb_color[rgb_color == False] = FilteringColors.BORDERLINE 
             rgb_color = list(rgb_color)
             self.df['score'] = 500
             self.df['strand'] = "."
@@ -369,7 +378,7 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
     ).get_fp().BED_format(kind="fp").get_df()
     # fn
     hmer_0_fn = FilterWrapper(
-        data).get_h_mer_0().get_fn().BED_format().get_df()
+        data).get_h_mer_0().get_fn().BED_format(kind="fn").get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str, mode: str) -> None:
         if file.shape[0]>0:

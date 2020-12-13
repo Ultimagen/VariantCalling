@@ -253,7 +253,12 @@ def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame:
     if 'filter' not in df.columns:
         df['filter'] = np.nan
     fill_column_locs = pd.isnull(df['filter'])
-    is_hpol = df.close_to_hmer_run | df.inside_hmer_run
+    # if there were run intervals
+    if 'close_to_hmer_run' in df.columns:
+        is_hpol = df.close_to_hmer_run | df.inside_hmer_run
+    else:
+        is_hpol = np.zeros(fill_column_locs.shape[0], dtype=np.bool)
+
     result = np.array(['HPOL_RUN'] * fill_column_locs.sum(), dtype=f'<U{len("HPOL_RUN")}')
     result[~is_hpol[fill_column_locs]] = 'PASS'
     df.loc[fill_column_locs, 'filter'] = result

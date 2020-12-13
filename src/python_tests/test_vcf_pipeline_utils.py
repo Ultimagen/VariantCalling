@@ -3,6 +3,8 @@ import pathmagic
 from pathmagic import PYTHON_TESTS_PATH
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import pandas as pd
+from os.path import join as pjoin
+from os.path import dirname
 
 
 def test_fix_errors():
