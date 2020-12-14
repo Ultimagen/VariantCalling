@@ -152,6 +152,7 @@ def calculate_and_bin_coverage(
     elif region == ALL_BUT_X or region == "all_but_X":
         region_name = ALL_BUT_X
         region = [f"chr{x}" for x in range(1, 23)]
+    logger.debug(f"Calculating coverage for file/s:\n{f_in}\n\nRegion/s:\n{region}")
 
     # the code below has a few options - either it got a single input file and a single region and max_read_length is
     # None and then the actual work is done and one output file is created, or it calls itself recursively according to
@@ -180,6 +181,7 @@ def calculate_and_bin_coverage(
             window=window,
             output_format=output_format,
         )
+
         f_tmp = f_out + ".tmp"
         os.makedirs(dirname(f_out), exist_ok=True)
         if os.path.isfile(f_out):
@@ -212,12 +214,14 @@ def calculate_and_bin_coverage(
                     with TemporaryDirectory(
                         prefix="/data/tmp/tmp" if os.path.isdir("/data/") else None
                     ) as tmpdir:
+                        logger.debug(f"Running command: {cmd}")
                         out = subprocess.check_output(
                             cmd,
                             shell=True,
                             cwd=tmpdir,
                             env={"PATH": os.environ["PATH"], GCS_OAUTH_TOKEN: token,},
                         )
+                        logger.debug(f"Finished Running command: {cmd}")
                 except subprocess.CalledProcessError:
                     warnings.warn(
                         f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
@@ -226,6 +230,7 @@ def calculate_and_bin_coverage(
                         sys.stderr.write(f"{out}")
                     raise
                 try:
+                    logger.debug(f"Converting coverage tsv to dataframe")
                     df = pd.read_csv(f_tmp, sep="\t", header=None)
                     df.columns = [CHROM, CHROM_START, COVERAGE]
                     df = df.astype({CHROM: "category"})
@@ -360,8 +365,14 @@ def calculate_and_bin_coverage(
         )
         if merge_regions:
             f_out = f_out_merged
-            df_merged = pd.concat((_read_dataframe(f)[0] for f in f_out_list))
-
+            logger.debug(f"Merging coverage dataframes")
+            df_merged = pd.concat(
+                (
+                    _read_dataframe(f)[0]
+                    for f in tqdm(f_out_list, total=len(f_out_list), desc="Merging dataframes")
+                )
+            )
+            logger.debug(f"Merging of coverage dataframes done")
             def _f(x):
                 try:
                     x = int(x.replace("chr", ""))
@@ -375,7 +386,7 @@ def calculate_and_bin_coverage(
                 .drop(columns=[CHROM_NUM])
                 .reset_index(drop=True)
             )
-
+            logger.debug(f"Saving coverage dataframe to {f_out}")
             _save_datframe(df_merged, f_out, output_format)
             for f in f_out_list:
                 if os.path.isfile(f):
