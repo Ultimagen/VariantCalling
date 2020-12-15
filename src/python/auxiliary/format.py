@@ -8,8 +8,11 @@ from os.path import join as pjoin, dirname
 from multiprocessing import cpu_count
 import tempfile
 from .utils import run_shell_command, get_tagged_output_file
+from pandas.api.types import CategoricalDtype
 
-# todo add logging and change print statements
+CHROM_DTYPE = CategoricalDtype(
+    categories=[f"chr{j}" for j in range(1, 23)] + ["chrX"], ordered=True
+)
 
 
 def _alt_or_ref_colname(c):

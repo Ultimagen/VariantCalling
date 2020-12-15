@@ -19,6 +19,7 @@ if path not in sys.path:
     sys.path.append(path)
 from python.auxiliary.cloud_sync import cloud_sync
 from python.auxiliary.cloud_auth import get_gcs_token
+from python.auxiliary.format import CHROM_DTYPE
 
 # init logging
 # create logger
@@ -541,6 +542,7 @@ def create_coverage_annotations(
             for f, fo in tqdm(
                 zip(coverage_dataframe, output_annotations_file),
                 disable=not progress_bar,
+                desc="Generating coverage annotations"
             )
         )
     else:
@@ -578,7 +580,7 @@ def create_coverage_annotations(
             n_chunks = 100
             ixs = np.array_split(df.index, n_chunks)
             for ix, subset in tqdm(
-                enumerate(ixs), desc="Saving bed files", total=n_chunks
+                enumerate(ixs), desc="Saving regions bed file", total=n_chunks, disable=not progress_bar,
             ):
                 df.loc[subset][[CHROM, CHROM_START, CHROM_END]].to_csv(
                     bed_file,
@@ -602,7 +604,9 @@ def create_coverage_annotations(
             # read annotation bed files
             logger.debug(f"reading annotation bed files")
             df_list = [
-                _read_intersected_bed(row["out_intersected_bed"], row["category"])
+                _read_intersected_bed(
+                    row["out_intersected_bed"], row["category"]
+                ).reset_index(level=CHROM_END)
                 for _, row in df_coverage_intervals.iterrows()
             ]
             # merge
@@ -615,9 +619,15 @@ def create_coverage_annotations(
             ):
                 # if df_tmp.shape[0] == 0:
                 #     continue
-                df_annotations = df_annotations.join(df_tmp, how="outer")
+                df_annotations = df_annotations.join(
+                    df_tmp.drop(columns=[CHROM_END]), how="outer"
+                )
             logger.debug(f"setting index and sorting columns")
-            df_annotations = df_annotations[~df_annotations.index.duplicated()]
+            df_annotations = (
+                df_annotations[~df_annotations.index.duplicated()]
+                .reset_index()
+                .set_index([CHROM, CHROM_START, CHROM_END])
+            )
             df_annotations = df_annotations.reindex(
                 df.set_index([CHROM, CHROM_START, CHROM_END]).index
             ).fillna(False)
@@ -714,6 +724,7 @@ def _read_intersected_bed(intersected_bed, category_name):
             pd.read_csv(intersected_bed, sep="\t", header=None,)
             .assign(**{category_name: True})
             .rename(columns={0: CHROM, 1: CHROM_START, 2: CHROM_END})
+            .astype({CHROM: CHROM_DTYPE, CHROM_START: int, CHROM_END: int})
             .set_index([CHROM, CHROM_START, CHROM_END])
         )
     except pd.errors.EmptyDataError:
@@ -1047,8 +1058,11 @@ def run_full_coverage_analysis(
 ):
     if region == "chr9":
         if n_jobs < 0:
-            n_jobs = cpu_count() + 1 + n_jobs
-        n = np.linspace(0, 138_394_717 + 1, n_jobs).astype(int)
+            n_jobs_ = cpu_count() + 1 + n_jobs
+        else:
+            n_jobs_ = n_jobs
+        CHR9_LENGTH = 138_394_717
+        n = np.linspace(0, CHR9_LENGTH + 1, n_jobs_).astype(int)
         region = [f"chr9:{n[j] + 1}-{n[j + 1]}" for j in range(len(n) - 1)]
     elif region == "all_but_x":
         pass
