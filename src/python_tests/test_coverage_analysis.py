@@ -221,7 +221,7 @@ def test_create_coverage_annotations():
         f_out_annot = pjoin(
             tmpdir, f"annotations.170201-BC23.chr9_1000000-2000000.w{window}.parquet"
         )
-        create_coverage_annotations(f_out[8])
+        create_coverage_annotations(f_out[8], coverage_intervals_dict="s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_rapidQC_intervals.tsv")
         assert isfile(f_out_annot)
         df = pd.read_parquet(f_out_annot).set_index(["chrom", "chromStart", "chromEnd"])
         annotations_sum = pd.read_hdf(f_annotations_sum)
@@ -263,7 +263,7 @@ def test_generate_stats_and_plots():
         f_out_annot = pjoin(
             tmpdir, f"annotations.170201-BC23.chr9_1000000-2000000.w{window}.parquet"
         )
-        create_coverage_annotations(f_out[8])
+        create_coverage_annotations(f_out[8], coverage_intervals_dict="s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_rapidQC_intervals.tsv")
         assert isfile(f_out_annot)
         df = pd.read_parquet(f_out_annot).set_index(["chrom", "chromStart", "chromEnd"])
         annotations_sum = pd.read_hdf(f_annotations_sum)
