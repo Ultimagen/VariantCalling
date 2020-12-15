@@ -542,7 +542,8 @@ def create_coverage_annotations(
             for f, fo in tqdm(
                 zip(coverage_dataframe, output_annotations_file),
                 disable=not progress_bar,
-                desc="Generating coverage annotations"
+                total=min(len(coverage_dataframe), len(output_annotations_file)),
+                desc="Generating coverage annotations",
             )
         )
     else:
@@ -558,91 +559,96 @@ def create_coverage_annotations(
                 dirname(coverage_dataframe),
                 ".".join(["annotations"] + basename(coverage_dataframe).split(".")),
             )
-        os.makedirs(dirname(output_annotations_file), exist_ok=True)
+        if os.path.isfile(output_annotations_file):
+            logger.debug(f"{output_annotations_file} already exists")
+        else:
+            os.makedirs(dirname(output_annotations_file), exist_ok=True)
 
-        # fetch intervals
-        df_coverage_intervals = _create_coverage_intervals_dataframe(
-            coverage_intervals_dict
-        )
-
-        # start work
-
-        with TemporaryDirectory(
-            prefix="/data/tmp/tmp" if os.path.isdir("/data/tmp/") else None
-        ) as tmpfile:
-            logger.debug(f"working in temporary directory {tmpfile}")
-            # write regions bed file
-            bed_file = pjoin(
-                tmpfile,
-                f"regions.{'.'.join(basename(coverage_dataframe).split('.')[:-1])}.bed",
+            # fetch intervals
+            df_coverage_intervals = _create_coverage_intervals_dataframe(
+                coverage_intervals_dict
             )
-            logger.debug(f"saving data to {bed_file}")
-            n_chunks = 100
-            ixs = np.array_split(df.index, n_chunks)
-            for ix, subset in tqdm(
-                enumerate(ixs), desc="Saving regions bed file", total=n_chunks, disable=not progress_bar,
-            ):
-                df.loc[subset][[CHROM, CHROM_START, CHROM_END]].to_csv(
-                    bed_file,
-                    sep="\t",
-                    index=False,
-                    mode="w" if ix == 0 else "a",
-                    header=True if ix == 0 else None,
+
+            # start work
+            with TemporaryDirectory(
+                prefix="/data/tmp/tmp" if os.path.isdir("/data/tmp/") else None
+            ) as tmpfile:
+                logger.debug(f"working in temporary directory {tmpfile}")
+                # write regions bed file
+                bed_file = pjoin(
+                    tmpfile,
+                    f"regions.{'.'.join(basename(coverage_dataframe).split('.')[:-1])}.bed",
                 )
-            logger.debug(f"running bed file intersections")
-            # create bed file per annotation
-            out_intersected_beds = Parallel(n_jobs=n_jobs)(
-                delayed(_intersect_intervals)(interval, bed_file)
-                for interval in tqdm(
-                    df_coverage_intervals["file"].values,
-                    desc="Generating annotation bed files",
+                logger.debug(f"saving data to {bed_file}")
+                n_chunks = 100
+                ixs = np.array_split(df.index, n_chunks)
+                for ix, subset in tqdm(
+                    enumerate(ixs),
+                    desc="Saving regions bed file",
+                    total=n_chunks,
                     disable=not progress_bar,
+                ):
+                    df.loc[subset][[CHROM, CHROM_START, CHROM_END]].to_csv(
+                        bed_file,
+                        sep="\t",
+                        index=False,
+                        mode="w" if ix == 0 else "a",
+                        header=True if ix == 0 else None,
+                    )
+                logger.debug(f"running bed file intersections")
+                # create bed file per annotation
+                out_intersected_beds = Parallel(n_jobs=n_jobs)(
+                    delayed(_intersect_intervals)(interval, bed_file)
+                    for interval in tqdm(
+                        df_coverage_intervals["file"].values,
+                        desc="Generating annotation bed files",
+                        disable=not progress_bar,
+                    )
                 )
-            )
-            logger.debug(f"bed file intersections done")
-            df_coverage_intervals["out_intersected_bed"] = out_intersected_beds
-            # read annotation bed files
-            logger.debug(f"reading annotation bed files")
-            df_list = [
-                _read_intersected_bed(
-                    row["out_intersected_bed"], row["category"]
-                ).reset_index(level=CHROM_END)
-                for _, row in df_coverage_intervals.iterrows()
-            ]
-            # merge
-            logger.debug(f"merging annotation bed dataframes")
-            df_annotations = df_list[0]
-            for df_tmp in tqdm(
-                df_list[1:],
-                desc="Merging intervals to single dataframe",
-                disable=not progress_bar,
-            ):
-                # if df_tmp.shape[0] == 0:
-                #     continue
-                df_annotations = df_annotations.join(
-                    df_tmp.drop(columns=[CHROM_END]), how="outer"
+                logger.debug(f"bed file intersections done")
+                df_coverage_intervals["out_intersected_bed"] = out_intersected_beds
+                # read annotation bed files
+                logger.debug(f"reading annotation bed files")
+                df_list = [
+                    _read_intersected_bed(
+                        row["out_intersected_bed"], row["category"]
+                    ).reset_index(level=CHROM_END)
+                    for _, row in df_coverage_intervals.iterrows()
+                ]
+                # merge
+                logger.debug(f"merging annotation bed dataframes")
+                df_annotations = df_list[0]
+                for df_tmp in tqdm(
+                    df_list[1:],
+                    desc="Merging intervals to single dataframe",
+                    disable=not progress_bar,
+                ):
+                    # if df_tmp.shape[0] == 0:
+                    #     continue
+                    df_annotations = df_annotations.join(
+                        df_tmp.drop(columns=[CHROM_END]), how="outer"
+                    )
+                logger.debug(f"setting index and sorting columns")
+                df_annotations = (
+                    df_annotations[~df_annotations.index.duplicated()]
+                    .reset_index()
+                    .set_index([CHROM, CHROM_START, CHROM_END])
                 )
-            logger.debug(f"setting index and sorting columns")
-            df_annotations = (
-                df_annotations[~df_annotations.index.duplicated()]
-                .reset_index()
-                .set_index([CHROM, CHROM_START, CHROM_END])
-            )
-            df_annotations = df_annotations.reindex(
-                df.set_index([CHROM, CHROM_START, CHROM_END]).index
-            ).fillna(False)
-            df_annotations = df_annotations[
-                sorted(
-                    df_annotations.columns,
-                    key=lambda x: df_coverage_intervals.query(f"category=='{x}'")[
-                        "order"
-                    ].values[0],
-                )
-            ]
-        df_annotations = df_annotations.reset_index()
-        # save
-        logger.debug(f"saving annotations dataframe to {output_annotations_file}")
-        _save_datframe(df_annotations, output_annotations_file, output_format)
+                df_annotations = df_annotations.reindex(
+                    df.set_index([CHROM, CHROM_START, CHROM_END]).index
+                ).fillna(False)
+                df_annotations = df_annotations[
+                    sorted(
+                        df_annotations.columns,
+                        key=lambda x: df_coverage_intervals.query(f"category=='{x}'")[
+                            "order"
+                        ].values[0],
+                    )
+                ]
+            df_annotations = df_annotations.reset_index()
+            # save
+            logger.debug(f"saving annotations dataframe to {output_annotations_file}")
+            _save_datframe(df_annotations, output_annotations_file, output_format)
         return output_annotations_file
 
 
@@ -736,12 +742,37 @@ def _read_intersected_bed(intersected_bed, category_name):
     return df
 
 
+def _annotate_histogram_with_annotation_precentage(val_count):
+    annotation_precentage = val_count.sum()
+    annotation_precentage = annotation_precentage / annotation_precentage["Genome"]
+    annotation_precentage.index.name = "annotation_precentage"
+    annotation_precentage = annotation_precentage.T
+    annotation_precentage[annotation_precentage > 1] = np.nan
+
+    val_count = val_count.rename(
+        columns={
+            c: f"{c} ({annotation_precentage.loc[c]:.0%})"
+            for c in annotation_precentage.index
+        }
+    )
+
+    logger.debug(
+        f"annotation_precentage generated:\n{annotation_precentage.to_string()}"
+    )
+
+    return val_count
+
+
 def generate_histogram(
     df_coverage: str,
     df_annotations: str,
     out_path: str = None,
     max_coverage: int = 1000,
+    normalize=True,
+    annotate_columns_names=True,
+    verbose=True
 ):
+
     if isinstance(df_coverage, str):
         df_coverage = _read_dataframe(df_coverage)[0]
     if isinstance(df_annotations, str):
@@ -749,55 +780,42 @@ def generate_histogram(
             [CHROM, CHROM_START, CHROM_END]
         )
 
-    logger.debug("generate_histogram started")
-    annotation_precentage = pd.concat(
-        (
-            df_coverage[df_annotations[annotation].values][["coverage"]]
-            .sum()
-            .rename(annotation)
-            for annotation in df_annotations.columns
-        ),
-        axis=1,
-    )
-    annotation_precentage = (
-        annotation_precentage / annotation_precentage["Genome"].values[0]
-    )
-    annotation_precentage.index.name = "annotation_precentage"
-    annotation_precentage = annotation_precentage.T
-    annotation_precentage[annotation_precentage > 1] = np.nan
-    logger.debug(
-        f"annotation_precentage generated:\n{annotation_precentage.to_string()}"
-    )
+    if verbose:
+        logger.debug("generate_histogram started")
 
     val_count = pd.concat(
         (
             df_coverage[df_annotations[annotation].values]["coverage"]
             .round()
-            .value_counts(normalize=True)
+            .value_counts(normalize=normalize)
             .reindex(range(max_coverage + 1))
             .fillna(0)
-            .rename(
-                f"{annotation} ({annotation_precentage.loc[annotation].values[0]:.0%})"
-            )
+            .rename(annotation)
             for annotation in df_annotations.columns
         ),
         axis=1,
     )
     val_count.index.name = "coverage"
-    logger.debug(f"Histogram generated")
+    if annotate_columns_names:
+        val_count = _annotate_histogram_with_annotation_precentage(val_count)
+    if verbose:
+        logger.debug(f"Histogram generated")
+
     if out_path is None:
         return val_count
     else:
         os.makedirs(out_path, exist_ok=True)
-        logger.debug(f"Saving data")
+        if verbose:
+            logger.debug(f"Saving data")
         coverage_stats_dataframes = pjoin(out_path, "coverage_stats.h5")
-        logger.debug(f"Saving histogram dataframe to {coverage_stats_dataframes}")
+        if verbose:
+            logger.debug(f"Saving histogram dataframe to {coverage_stats_dataframes}")
         val_count.to_hdf(coverage_stats_dataframes, key="histogram", mode="a")
         return coverage_stats_dataframes
 
 
 def generate_stats_from_histogram(
-    val_count, q=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]), out_path=None
+    val_count, q=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]), out_path=None, verbose=True
 ):
     if isinstance(val_count, str) and os.path.isfile(val_count):
         val_count = pd.read_hdf(val_count, key="histogram")
@@ -856,7 +874,8 @@ def generate_stats_from_histogram(
             ),
         )
     )
-    logger.debug(f"Generated stats:\n{df_stats.iloc[:, :10].to_string()}")
+    if verbose:
+        logger.debug(f"Generated stats:\n{df_stats.iloc[:, :10].to_string()}")
 
     if out_path is not None:
         os.makedirs(out_path, exist_ok=True)
@@ -865,7 +884,8 @@ def generate_stats_from_histogram(
             coverage_stats_dataframes = out_path
         else:
             coverage_stats_dataframes = pjoin(out_path, "coverage_stats.h5")
-        logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
+        if verbose:
+            logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
         df_stats.to_hdf(coverage_stats_dataframes, key="stats", mode="a")
         df_precentiles.to_hdf(coverage_stats_dataframes, key="percentiles", mode="a")
         return coverage_stats_dataframes
@@ -873,7 +893,7 @@ def generate_stats_from_histogram(
     return df_precentiles, df_stats
 
 
-def generate_coverage_boxplot(df_percentiles, color_group=None, out_path=None):
+def generate_coverage_boxplot(df_percentiles, color_group=None, out_path=None, title=""):
     if isinstance(df_percentiles, str) and os.path.isfile(df_percentiles):
         df_percentiles = pd.read_hdf(df_percentiles, key="percentiles")
     df_percentiles_norm = (
@@ -916,6 +936,7 @@ def generate_coverage_boxplot(df_percentiles, color_group=None, out_path=None):
     patches = ax.bxp(
         bxp, widths=0.7, showfliers=False, showmeans=True, patch_artist=True
     )
+    ax.set_title(title)
 
     for j, bx in enumerate(bxp):
         plt.text(
@@ -1056,6 +1077,13 @@ def run_full_coverage_analysis(
     output_format=PARQUET,
     stop_on_errors=False,
 ):
+    if (
+        isinstance(f_in, Iterable)
+        and isinstance(f_in[0], Iterable)
+        and len(f_in) == 1
+    ):
+        f_in = f_in[0]
+
     if region == "chr9":
         if n_jobs < 0:
             n_jobs_ = cpu_count() + 1 + n_jobs
@@ -1084,7 +1112,6 @@ def run_full_coverage_analysis(
         output_format=output_format,
         stop_on_errors=stop_on_errors,
     )
-
     coverage_annotations = create_coverage_annotations(
         coverage_dataframes,
         coverage_intervals_dict=coverage_intervals_dict,
@@ -1093,18 +1120,26 @@ def run_full_coverage_analysis(
         output_format=output_format,
     )
 
-    val_count = np.array(
-        [
-            generate_histogram(
-                df_coverage=coverage_dataframe,
-                df_annotations=coverage_annotation,
-                out_path=None,
-            )
-            for coverage_dataframe, coverage_annotation in zip(
-                coverage_dataframes, coverage_annotations
-            )
-        ]
-    ).sum()
+    val_counts = [
+        generate_histogram(
+            df_coverage=coverage_dataframe,
+            df_annotations=coverage_annotation,
+            out_path=None,
+            normalize=False,
+            annotate_columns_names=False,
+            verbose=False
+        )
+        for coverage_dataframe, coverage_annotation in tqdm(
+            zip(coverage_dataframes, coverage_annotations),
+            desc="Calculating stats",
+            total=len(coverage_dataframes),
+        )
+    ]
+    val_count = val_counts[0]
+    for v in val_counts[1:]:
+        val_count += v
+    val_count = _annotate_histogram_with_annotation_precentage(val_count)
+    val_count = (val_count / val_count.sum()).fillna(0)
 
     coverage_stats_dataframes = generate_stats_from_histogram(
         val_count, out_path=out_path
@@ -1113,7 +1148,7 @@ def run_full_coverage_analysis(
     df_percentiles = pd.read_hdf(coverage_stats_dataframes, key="percentiles")
 
     generate_coverage_boxplot(
-        df_percentiles, color_group=coverage_intervals_dict, out_path=out_path
+        df_percentiles, color_group=coverage_intervals_dict, out_path=out_path, title=basename(f_in).split(".")[0]
     )
 
 
