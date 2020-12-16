@@ -53,6 +53,7 @@ plt.rc("figure", titlesize=TITLE_SIZE)  # fontsize of the figure title
 plt.rc("figure", figsize=FIGSIZE)  # size of the figure
 
 # string constants
+TMPDIR_PREFIX = "/data/tmp/tmp" if os.path.isdir("/data/tmp/") else None
 DEFAULT_INTERVALS = "s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_extended_intervals.tsv"
 CHROM = "chrom"
 CHROM_START = "chromStart"
@@ -213,7 +214,7 @@ def calculate_and_bin_coverage(
                     )  # only generate token if f_in is on gs
 
                     with TemporaryDirectory(
-                        prefix="/data/tmp/tmp" if os.path.isdir("/data/") else None
+                        prefix=TMPDIR_PREFIX
                     ) as tmpdir:
                         logger.debug(f"Running command: {cmd}")
                         out = subprocess.check_output(
@@ -255,7 +256,7 @@ def calculate_and_bin_coverage(
                 raise ValueError(
                     f"max_read_length (got {max_read_length}) must be larger than min_read_length (got {min_read_length})"
                 )
-            with TemporaryDirectory(prefix=pjoin(dirname(f_out), "tmp_")) as tmpdir:
+            with TemporaryDirectory(prefix=TMPDIR_PREFIX) as tmpdir:
                 f_short = calculate_and_bin_coverage(
                     f_in,
                     f_out=tmpdir,
