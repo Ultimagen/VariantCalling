@@ -664,8 +664,8 @@ def _create_coverage_intervals_dataframe(coverage_intervals_dict,):
                 f"""Unknown extension for input intervals dict file {coverage_intervals_dict}
 Expected {TSV}/{CSV}"""
             )
-        coverage_intervals_dict = cloud_sync(coverage_intervals_dict)
-        df_coverage_intervals = pd.read_csv(coverage_intervals_dict, sep=sep)
+        coverage_intervals_dict_local = cloud_sync(coverage_intervals_dict)
+        df_coverage_intervals = pd.read_csv(coverage_intervals_dict_local, sep=sep)
         df_coverage_intervals["file"] = df_coverage_intervals.apply(
             lambda x: cloud_sync(
                 pjoin(dirname(coverage_intervals_dict), x["file"][2:])
