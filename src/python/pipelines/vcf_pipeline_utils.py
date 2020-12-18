@@ -154,16 +154,17 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
     output_dir = os.path.dirname(output_prefix)
     SDF_path = ref_genome + '.sdf'
-    vcfeval_output_dir = os.path.join(output_dir, os.path.basename(output_prefix) + '.vcfeval_output')
+    vcfeval_output_dir = os.path.join(
+        output_dir, os.path.basename(output_prefix) + '.vcfeval_output')
 
     if os.path.exists(vcfeval_output_dir) and os.path.isdir(vcfeval_output_dir):
         shutil.rmtree(vcfeval_output_dir)
 
     # filter the vcf to be only in the comparison_intervals.
     filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
+    filtered_truth_file = os.path.join(output_dir, os.path.basename(filtered_truth_file))
     if comparison_intervals is not None:
-        intersect_with_intervals(
-            truth_file, comparison_intervals, filtered_truth_file)
+        intersect_with_intervals(truth_file, comparison_intervals, filtered_truth_file)
     else:
         shutil.copy(truth_file, filtered_truth_file)
         index_vcf(filtered_truth_file)
@@ -265,16 +266,20 @@ def _fix_errors(df):
     # in these cases we change the genotype of the gt to be adequate with the classify function as follow:
     # (TP,TP), (TP,None) - should put the values of ultima in the gt
     df.loc[(df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna())), 'gt_ground_truth'] = \
-        df[(df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna()))]['gt_ultima']
+        df[(df['call'] == 'TP') & ((df['base'] == 'TP')
+                                   | (df['base'].isna()))]['gt_ultima']
 
     # (None, TP) (None,FN_CA) - remove these rows
-    df.drop(df[(df['call'].isna()) & ((df['base'] == 'TP') | (df['base'] == 'FN_CA'))].index, inplace=True)
+    df.drop(df[(df['call'].isna()) & ((df['base'] == 'TP')
+                                      | (df['base'] == 'FN_CA'))].index, inplace=True)
 
     # (FP_CA,FN_CA), (FP_CA,None) - Fake a genotype from ultima such that one of the alleles is the same (and only one)
     df.loc[(df['call'] == 'FP_CA') & ((df['base'] == 'FN_CA') | (df['base'].isna())), 'gt_ground_truth'] = \
         df[(df['call'] == 'FP_CA') & ((df['base'] == 'FN_CA') | (df['base'].isna()))]['gt_ultima']. \
-        apply(lambda x: ((x[0], x[0]) if (x[1] == 0) else ((x[1], x[1]) if (x[0] == 0) else (x[0], 0))))
+        apply(lambda x: ((x[0], x[0]) if (x[1] == 0) else (
+            (x[1], x[1]) if (x[0] == 0) else (x[0], 0))))
     return df
+
 
 def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
     '''Generates concordance dataframe
@@ -308,10 +313,11 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     elif format == 'VCFEVAL':
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT'],
-                        x.info.get('SYNC',None),x.info.get('CALL',None),x.info.get('BASE',None)) for x in vf if 'CALL' not in x.info.keys() or
-                       x.info['CALL'] != 'OUT']
+                        x.info.get('SYNC', None), x.info.get('CALL', None), x.info.get('BASE', None))
+                       for x in vf if 'CALL' not in x.info.keys() or
+                       ((x.info['CALL'] != 'OUT') and (x.info['CALL'] != 'IGN'))]
         column_names = ['chrom', 'pos', 'qual',
-                                  'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
+                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
 
     concordance_df = pd.DataFrame(concordance, columns=column_names)
     if format == 'VCFEVAL':
@@ -340,7 +346,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                 return 'fp'
             else:
                 return 'fn'
-    concordance_df['classify'] = concordance_df.apply(classify, axis=1, result_type='reduce')
+    concordance_df['classify'] = concordance_df.apply(
+        classify, axis=1, result_type='reduce')
 
     def classify_gt(x):
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
@@ -353,23 +360,25 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'fp'
         else:
             return 'tp'
-    concordance_df['classify_gt'] = concordance_df.apply(classify_gt, axis=1, result_type='reduce')
+    concordance_df['classify_gt'] = concordance_df.apply(
+        classify_gt, axis=1, result_type='reduce')
 
     concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
         concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
-    if chromosome is None : 
+    if chromosome is None:
         vf = pysam.VariantFile(raw_calls_file)
-    else :
+    else:
         vf = pysam.VariantFile(raw_calls_file).fetch(chromosome)
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
                                     x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
-               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score','tlod','af']
-    original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi], columns=columns)
+               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score', 'tlod', 'af']
+    original = pd.DataFrame([[x[y.upper()] for y in columns]
+                             for x in vfi], columns=columns)
     original.index = [(x[1]['chrom'], x[1]['pos'])
                       for x in original.iterrows()]
     if format != 'VCFEVAL':
