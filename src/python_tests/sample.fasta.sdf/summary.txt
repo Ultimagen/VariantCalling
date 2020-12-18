@@ -1,0 +1,18 @@
+
+Input Data
+Files              : sample.fasta
+Format             : FASTA
+Type               : DNA
+Number of sequences: 1
+Total residues     : 100000
+Minimum length     : 100000
+Mean length        : 100000
+Maximum length     : 100000
+
+Output Data
+SDF-ID             : 2e018d3a-883c-4508-91e4-3426cee4b779
+Number of sequences: 1
+Total residues     : 100000
+Minimum length     : 100000
+Mean length        : 100000
+Maximum length     : 100000

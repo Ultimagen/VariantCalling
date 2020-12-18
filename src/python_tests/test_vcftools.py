@@ -70,15 +70,17 @@ def test_bed_files_output():
                 for index, row in non_hmer_fn.iterrows()])
 
 
-def test_bed_output_when_no_tree_score():# testing the case when there is no tree_score and there is blacklist
+def test_bed_output_when_no_tree_score():  # testing the case when there is no tree_score and there is blacklist
     data = pd.read_hdf(pjoin(dirname(__file__), 'exome.h5'), key='concordance')
     df = vcftools.FilterWrapper(data)
     result = dict(df.get_fn().BED_format(kind="fn").get_df()['itemRgb'].value_counts())
-    expected_result = {vcftools.FilteringColors.BLACKLIST: 169, 
-                        vcftools.FilteringColors.CLEAR: 89, vcftools.FilteringColors.BORDERLINE: 39}
+    expected_result = {vcftools.FilteringColors.BLACKLIST: 169,
+                       vcftools.FilteringColors.CLEAR: 89, vcftools.FilteringColors.BORDERLINE: 39}
     for k in result:
         assert result[k] == expected_result[k]
+
     df = vcftools.FilterWrapper(data)
     # since there is no tree_score all false positives should be the same color
     result = dict(df.get_fp().BED_format(kind="fp").get_df()['itemRgb'].value_counts())
+
     assert len(result.keys()) == 1
