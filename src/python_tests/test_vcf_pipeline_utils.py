@@ -1,10 +1,11 @@
 from os.path import join as pjoin
 import pathmagic
 from pathmagic import PYTHON_TESTS_PATH
+from os.path import dirname
+from os.path import join as pjoin
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import pandas as pd
-from os.path import join as pjoin
-from os.path import dirname, exists
+from os.path import exists
 import pysam
 from collections import Counter
 
@@ -25,7 +26,6 @@ def test_fix_errors():
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][1]) & (x['gt_ultima'][0] != x['gt_ground_truth'][0])) |
                              ((x['gt_ultima'][0] == x['gt_ground_truth'][1]) & (x['gt_ultima'][1] != x['gt_ground_truth'][0])) |
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis=1))
-
 
 class TestVCFevalRun:
     ref_genome = pjoin(dirname(__file__), "sample.fasta")

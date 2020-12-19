@@ -1,5 +1,5 @@
 import pathmagic
-import python.variant_filtering_utils as variant_filtering_utils
+import python.pipelines.variant_filtering_utils as variant_filtering_utils
 import python.modules.variant_annotation as annotation
 import python.vcftools as vcftools
 import argparse
@@ -24,8 +24,8 @@ ap.add_argument("--hpol_filter_length_dist", nargs=2, type=int, help='Length and
 ap.add_argument("--runs_file", help="Homopolymer runs file",
                 type=str, required=True)
 ap.add_argument("--blacklist", help="Blacklist file", type=str, required=False)
-ap.add_argument("--blacklist_cg_insertions", help="Should CCG/GGC insertions be filtered out?", 
-    action="store_true",)
+ap.add_argument("--blacklist_cg_insertions", help="Should CCG/GGC insertions be filtered out?",
+                action="store_true",)
 ap.add_argument("--reference_file",
                 help="Indexed reference FASTA file", type=str, required=True)
 ap.add_argument("--output_file", help="Output VCF file",
