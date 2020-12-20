@@ -75,16 +75,23 @@ else:
 if args.cmp_intervals is not None:
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], args.concordance_tool)
+    print('after vcf2concordance')
     annotated_concordance = vcf_pipeline_utils.annotate_concordance(
         concordance, args.reference, args.aligned_bam, args.annotate_intervals,
         args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
 
+    print('after annotations')
+    import time
+    start_time = time.time()
     if not args.disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
             annotated_concordance, args.reference)
+    print("11--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     annotated_concordance.to_hdf(args.output_file, key="concordance")
     vcftools.bed_files_output(annotated_concordance,
                               args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
+    print("12--- %s seconds ---" % (time.time() - start_time))
 
 # whole-genome concordance - wlll be saved in dataframe per  chromosome
 else:

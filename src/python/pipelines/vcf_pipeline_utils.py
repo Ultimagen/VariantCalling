@@ -10,7 +10,7 @@ import python.vcftools as vcftools
 import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
-
+import time
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
@@ -78,6 +78,7 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     None
         Writes output_fn file
     '''
+
     cmd = ['gatk', 'SelectVariants', '-V', input_fn,
            '-L', intervals_fn, '-O', output_fn]
     subprocess.check_call(cmd)
@@ -153,6 +154,8 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     '''
 
 
+    start_time = time.time()
+
     output_dir = os.path.dirname(output_prefix)
     SDF_path = ref_genome + '.sdf'
     vcfeval_output_dir = os.path.join(output_dir, 'vcfeval_output')
@@ -168,8 +171,8 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     else:
         shutil.copy(truth_file, filtered_truth_file)
         index_vcf(filtered_truth_file)
-
-
+    print("1--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     # vcfeval calculation
     cmd = ['rtg', 'vcfeval',
            '-b', filtered_truth_file,
@@ -181,10 +184,13 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
            '--all-records',
            '--decompose']
     subprocess.check_call(cmd)
+    print("2--- %s seconds ---" % (time.time() - start_time))
     # fix the vcf file format
+    start_time = time.time()
     fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
-
-    # make the vcfeval output file without weird variants
+    print("3--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
+    #make the vcfeval output file without weird variants
     cmd = ['bcftools', 'norm',
            '-f', ref_genome, '-m+any', '-o', os.path.join(
                vcfeval_output_dir, 'output.norm.vcf.gz'),
@@ -192,16 +198,57 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
            ]
     print(' '.join(cmd))
     subprocess.check_call(cmd)
+    print("4--- %s seconds ---" % (time.time() - start_time))
 
-    # move the file to be compatible with the output file of the genotype
-    # concordance
+    # # cmd = ["for sample in `bcftools query -l",os.path.join(vcfeval_output_dir, "output.vcf.gz`"),"; do bcftools",
+    # #         "view -Oz -s $sample -o",os.path.join(vcfeval_output_dir, 'output_$sample.vcf.gz'),os.path.join(vcfeval_output_dir, "output.vcf.gz; bcftools"),
+    # #         "index -t", os.path.join(vcfeval_output_dir, 'output_$sample.vcf.gz; done')]
+    # # print(' '.join(cmd))
+    # # subprocess.check_call(cmd)
+    #
+    # cmd = ["sample=CALLS; bcftools","view -Oz -s $sample -o",os.path.join(vcfeval_output_dir, "output_$sample.vcf.gz"),os.path.join(vcfeval_output_dir, "output.vcf.gz;"),
+    #          "bcftools","index -t", os.path.join(vcfeval_output_dir, 'output_$sample.vcf.gz')]
+    # #print(' '.join(cmd))
+    # #subprocess.check_call(cmd)
+    #
+    # cmd = ["sample=BASELINE; bcftools", "view -Oz -s $sample -o", os.path.join(vcfeval_output_dir, "output_$sample.vcf.gz"),
+    #        os.path.join(vcfeval_output_dir, "output.vcf.gz; bcftools"),
+    #        "index -t", os.path.join(vcfeval_output_dir, 'output_$sample.vcf.gz')]
+    # #print(' '.join(cmd))
+    # #subprocess.check_call(' '.join(cmd))
+    #
+    # # rename the samples to be the same
+    # cmd = ["echo samplename >",os.path.join(vcfeval_output_dir,"samplename")]
+    # #print(' '.join(cmd))## look at the doc
+    # #subprocess.check_call(cmd)
+    #
+    # cmd = ["for sample in `bcftools query -l",os.path.join(vcfeval_output_dir, "output.vcf.gz`"),"; do\nbcftools",
+    #        "reheader", os.path.join(vcfeval_output_dir, 'output_$sample.vcf.gz'),
+    #        "--samples",os.path.join(vcfeval_output_dir,"samplename"),"-o ",os.path.join(vcfeval_output_dir, 'output_$sample_reheader.vcf.gz\nbcftools'),
+    #        "index -t",os.path.join(vcfeval_output_dir, 'output_$sample_reheader.vcf.gz\ndone')]
+    # #print(' '.join(cmd))
+    # #subprocess.check_call(cmd)
+    # # merge the vcfs into one
+    #
+    # cmd = ["bcftools merge --force-samples -Oz", os.path.join(vcfeval_output_dir, 'output.CALLS.vcf.gz'),
+    #        os.path.join(vcfeval_output_dir, 'output.CALLS.vcf.gz'),
+    #        "-o", os.path.join(vcfeval_output_dir,"output.BASELINE_CALLS.vcf.gz")]
+    # #print(' '.join(cmd))
+    # #subprocess.check_call(cmd)
+    # # move the file to be compatible with the output file of the genotype
+    # # concordance
+    # cmd = ['mv', os.path.join(vcfeval_output_dir, 'output.BASELINE_CALLS.vcf.gz'),
+    #        output_prefix + '.vcfeval_concordance.vcf.gz']
+    # #print(' '.join(cmd))
+    start_time = time.time()
     cmd = ['mv', os.path.join(vcfeval_output_dir, 'output.norm.vcf.gz'),
            output_prefix + '.vcfeval_concordance.vcf.gz']
+    print(' '.join(cmd))
     subprocess.check_call(cmd)
 
     # generate index file for the vcf.gz file
     index_vcf(output_prefix + '.vcfeval_concordance.vcf.gz')
-
+    print("5--- %s seconds ---" % (time.time() - start_time))
 
 def fix_vcf_format(output_prefix):
     cmd = ['gunzip', '-f', f'{output_prefix}.vcf.gz']
@@ -235,6 +282,7 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
     runs_regions: str or None
         Runs
     '''
+    start_time = time.time()
 
     highconf_file_name = input_file_calls.replace("vcf.gz", "highconf.vcf")
     runs_file_name = input_file_calls.replace("vcf.gz", "runs.vcf")
@@ -258,12 +306,13 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         subprocess.check_call(cmd)
         runs_file_name += '.gz'
         index_vcf(runs_file_name)
-
+    print("6--- %s seconds ---" % (time.time() - start_time))
 
 def _fix_errors(df):
     # fix all the places in which vcfeval returns a good result, but the genotype is not adequate
     # in these cases we change the genotype of the gt to be adequate with the classify function as follow:
     # (TP,TP), (TP,None) - should put the values of ultima in the gt
+
     df.loc[(df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna())), 'gt_ground_truth'] = \
         df[(df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna()))]['gt_ultima']
 
@@ -274,6 +323,7 @@ def _fix_errors(df):
     df.loc[(df['call'] == 'FP_CA') & ((df['base'] == 'FN_CA') | (df['base'].isna())), 'gt_ground_truth'] = \
         df[(df['call'] == 'FP_CA') & ((df['base'] == 'FN_CA') | (df['base'].isna()))]['gt_ultima']. \
         apply(lambda x: ((x[0], x[0]) if (x[1] == 0) else ((x[1], x[1]) if (x[0] == 0) else (x[0], 0))))
+
     return df
 
 def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
@@ -293,7 +343,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     -------
     pd.DataFrame
     '''
-
+    start_time = time.time()
     if chromosome is None:
         vf = pysam.VariantFile(concordance_file)
     else:
@@ -306,6 +356,15 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                         'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
 
     elif format == 'VCFEVAL':
+
+        vf0 = pysam.VariantFile(concordance_file)
+        concordance_0 = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
+                        x.samples[1]['GT'], x.samples[0]['GT'],
+                        x.info.get('SYNC',None),x.info.get('CALL',None),x.info.get('BASE',None)) for x in vf0 if ('CALL' not in x.info.keys() or
+                       x.info['CALL'] != 'OUT') and (x.pos <= 687492 and x.pos >= 687452 and x.chrom == 'chr19')]
+        print('first')
+        print(concordance_0)
+
         concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
                         x.samples[1]['GT'], x.samples[0]['GT'],
                         x.info.get('SYNC',None),x.info.get('CALL',None),x.info.get('BASE',None)) for x in vf if 'CALL' not in x.info.keys() or
@@ -314,14 +373,22 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                   'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
 
     concordance_df = pd.DataFrame(concordance, columns=column_names)
+    print('before vcf2concordance')
+    print("7--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     if format == 'VCFEVAL':
         # make the gt_ground_truth compatible with GC
         concordance_df['gt_ground_truth'] =\
             concordance_df['gt_ground_truth'].map(
                 lambda x: (None, None) if x == (None,) else x)
 
+    concordance_df = pd.DataFrame(concordance, columns=column_names)
+    print('after gt_ground_truth')
+
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
+
+    print('after alleles')
 
     if format == 'VCFEVAL':
         concordance_df = _fix_errors(concordance_df)
@@ -357,28 +424,46 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
         concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
-
+    print('after classify')
+    print("8--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
+    start_time = time.time()
     if chromosome is None : 
         vf = pysam.VariantFile(raw_calls_file)
     else :
         vf = pysam.VariantFile(raw_calls_file).fetch(chromosome)
+    print("8.1--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
                                     x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score','tlod','af']
+    print("8.2--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     original = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi], columns=columns)
-    original.index = [(x[1]['chrom'], x[1]['pos'])
-                      for x in original.iterrows()]
+    print("8.3--- %s seconds ---" % (time.time() - start_time))
+    original.to_hdf("maya_original.hdf",key="maya")
+    start_time = time.time()
+    original.index = list(zip(original.chrom, original.pos))
+    print("8.4--- %s seconds ---" % (time.time() - start_time))
+    print('after origin concat')
+    print("8--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
     only_ref = concordance.alleles.apply(len) == 1
+    print('before ref 1')
+
     concordance = concordance[~only_ref]
+
+    print('after ref 1')
+    print("9--- %s seconds ---" % (time.time() - start_time))
     return concordance
 
 
@@ -411,22 +496,41 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         Annotated dataframe
 
     '''
-
+    start_time = time.time()
     df = annotation.classify_indel(df)
+    print("10.1--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     df = annotation.is_hmer_indel(df, fasta)
+    print("10.2--- %s seconds ---" % (time.time() - start_time))
+    df.to_hdf("maya_motif.hdf", key="maya")
+    start_time = time.time()
     df = annotation.get_motif_around(df, 5, fasta)
+    print("10.3--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     df = annotation.get_gc_content(df, 10, fasta)
+    print("10.4--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     if alnfile is not None:
         df = annotation.get_coverage(df, alnfile, 10)
+    print("10.5--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     if runfile is not None:
         length, dist = hmer_run_length_dist
         df = annotation.close_to_hmer_run(
             df, runfile, min_hmer_run_length=length, max_distance=dist)
+    print("10.6--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:
             df = annotation.annotate_intervals(df, annotation_file)
+    print("10.7--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     df = annotation.fill_filter_column(df)
+    print("10.8--- %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
     df = annotation.annotate_cycle_skip(df, flow_order="TACG")
+    print("10.9--- %s seconds ---" % (time.time() - start_time))
+    print("10--- %s seconds ---" % (time.time() - start_time))
     return df
 
 
