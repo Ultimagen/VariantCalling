@@ -71,7 +71,7 @@ def test_bed_files_output():
 
 
 def test_bed_output_when_no_tree_score():  # testing the case when there is no tree_score and there is blacklist
-    data = pd.read_hdf(pjoin(dirname(__file__), 'exome.h5'), key='concordance')
+    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, 'exome.h5'), key='concordance')
     df = vcftools.FilterWrapper(data)
     result = dict(df.get_fn().BED_format(kind="fn").get_df()['itemRgb'].value_counts())
     expected_result = {vcftools.FilteringColors.BLACKLIST: 169,
