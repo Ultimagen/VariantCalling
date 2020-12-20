@@ -206,24 +206,24 @@ def calculate_and_bin_coverage(
                         f"-l {min_read_length}",
                         f_in,
                     ]
-                )
-                cmd = f"{samtools_depth_cmd} > {f_tmp}"
+                ).split()
                 try:
                     token = (
                         get_gcs_token() if f_in.startswith("gs://") else ""
                     )  # only generate token if f_in is on gs
 
-                    with TemporaryDirectory(
-                        prefix=TMPDIR_PREFIX
-                    ) as tmpdir:
-                        logger.debug(f"Running command: {cmd}")
-                        out = subprocess.check_output(
-                            cmd,
-                            shell=True,
-                            cwd=tmpdir,
-                            env={"PATH": os.environ["PATH"], GCS_OAUTH_TOKEN: token,},
+                    with TemporaryDirectory(prefix=TMPDIR_PREFIX) as tmpdir:
+                        logger.debug(f"Running command: {' '.join(samtools_depth_cmd)}")
+                        with open(f_tmp, "w") as f:
+                            out = subprocess.call(
+                                samtools_depth_cmd,
+                                stdout=f,
+                                env={**os.environ, **{GCS_OAUTH_TOKEN: token}},
+                                cwd=tmpdir,
+                            )
+                        logger.debug(
+                            f"Finished Running command: {' '.join(samtools_depth_cmd)}"
                         )
-                        logger.debug(f"Finished Running command: {cmd}")
                 except subprocess.CalledProcessError:
                     warnings.warn(
                         f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
@@ -700,23 +700,16 @@ def _intersect_intervals(interval_file, regions_file, outdir=None):
         outdir,
         ".".join(["regions"] + basename(interval_file).split(".")[:-1] + ["bed"]),
     )
-    cmd_create_bed = (
-        f"picard IntervalListToBed INPUT={interval_file} OUTPUT={out_interval_bed}"
+    cmd_create_bed = f"picard IntervalListToBed INPUT={interval_file} OUTPUT={out_interval_bed}".split()
+    cmd_intersect = (
+        f"bedtools intersect -wa -a {regions_file} -b {out_interval_bed}".split()
     )
-    cmd_intersect = f"bedtools intersect -wa -a {regions_file} -b {out_interval_bed} > {out_intersected_bed}"
     if not os.path.isfile(out_interval_bed):
-        subprocess.call(cmd_create_bed.split())
+        subprocess.call(cmd_create_bed)
     logger.debug(f"Running intersect command: {cmd_intersect}")
     if not os.path.isfile(out_intersected_bed):
-        subprocess.Popen(
-            cmd_intersect,
-            env={
-                "PATH": "/home/ubuntu/miniconda3/envs/genomics.py3/bin"
-                + ":"
-                + os.environ["PATH"]
-            },
-            shell=True,
-        ).communicate()
+        with open(out_intersected_bed, "w") as f:
+            subprocess.call(cmd_intersect, stdout=f)
     logger.debug(f"Finished executing intersect command: {cmd_intersect}")
 
     return out_intersected_bed
@@ -768,7 +761,7 @@ def generate_histogram(
     max_coverage: int = 1000,
     normalize=True,
     annotate_columns_names=True,
-    verbose=True
+    verbose=True,
 ):
 
     if isinstance(df_coverage, str):
@@ -813,7 +806,10 @@ def generate_histogram(
 
 
 def generate_stats_from_histogram(
-    val_count, q=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]), out_path=None, verbose=True
+    val_count,
+    q=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]),
+    out_path=None,
+    verbose=True,
 ):
     if isinstance(val_count, str) and os.path.isfile(val_count):
         val_count = pd.read_hdf(val_count, key="histogram")
@@ -891,7 +887,9 @@ def generate_stats_from_histogram(
     return df_precentiles, df_stats
 
 
-def generate_coverage_boxplot(df_percentiles, color_group=None, out_path=None, title=""):
+def generate_coverage_boxplot(
+    df_percentiles, color_group=None, out_path=None, title=""
+):
     if isinstance(df_percentiles, str) and os.path.isfile(df_percentiles):
         df_percentiles = pd.read_hdf(df_percentiles, key="percentiles")
     df_percentiles_norm = (
@@ -1075,11 +1073,7 @@ def run_full_coverage_analysis(
     output_format=PARQUET,
     stop_on_errors=False,
 ):
-    if (
-        isinstance(f_in, Iterable)
-        and isinstance(f_in[0], Iterable)
-        and len(f_in) == 1
-    ):
+    if isinstance(f_in, Iterable) and isinstance(f_in[0], Iterable) and len(f_in) == 1:
         f_in = f_in[0]
 
     if region == "chr9":
@@ -1125,7 +1119,7 @@ def run_full_coverage_analysis(
             out_path=None,
             normalize=False,
             annotate_columns_names=False,
-            verbose=False
+            verbose=False,
         )
         for coverage_dataframe, coverage_annotation in tqdm(
             zip(coverage_dataframes, coverage_annotations),
@@ -1146,7 +1140,10 @@ def run_full_coverage_analysis(
     df_percentiles = pd.read_hdf(coverage_stats_dataframes, key="percentiles")
 
     generate_coverage_boxplot(
-        df_percentiles, color_group=coverage_intervals_dict, out_path=out_path, title=basename(f_in).split(".")[0]
+        df_percentiles,
+        color_group=coverage_intervals_dict,
+        out_path=out_path,
+        title=basename(f_in).split(".")[0],
     )
 
 
