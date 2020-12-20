@@ -71,51 +71,60 @@ def reinterpret_variants(concordance_df: pd.DataFrame, input: dict, fasta: pyfai
 
 
     """
-
+    import time
+    start_time = time.time()
     # Generate region that spans variants around each false positive variant
     variant_intervals = [vcftools.get_region_around_variant(x, input['pos_gtr'])
                          for x in input['pos_fps']]
-
+    print("11.1--- %s seconds ---" % (time.time() - start_time))
     # compare haplotypes containing each false positive variant with all haplotypes
     # that the ground truth variants around it can generate
     # Find two haplotypes that are the closest in flow space
+    start_time = time.time()
     corrections_fps, best_pairs = \
         compare_two_sets_of_variants(input['pos_fps'],
                                      input['ugi'], input['gtr'],
                                      fasta, 'gt_ultima', 'gt_ground_truth',
                                      variant_intervals)
-
+    print("11.2--- %s seconds ---" % (time.time() - start_time))
     # Convert false positives for which there is a difference of a single
     # flow to hmer indels
+    start_time = time.time()
     concordance_df = _apply_corrections(concordance_df, input[
                                         'fps'].index, corrections_fps)
-
+    print("11.3--- %s seconds ---" % (time.time() - start_time))
     # compare haplotypes containing each false negative variant with all haplotypes
     # that the calls around it can generate
     # Find two haplotypes that are the closest in flow space
+    start_time = time.time()
     corrections_fns, _ = \
         compare_two_sets_of_variants(input['pos_fns'],
                                      input['gtr'], input['ugi'],
                                      fasta, 'gt_ground_truth', 'gt_ultima',
                                      variant_intervals,
                                      best_pairs)
-
+    print("11.4--- %s seconds ---" % (time.time() - start_time))
     # Convert false negatives for which there is a difference of a single
     # flow to hmer indels.
+    start_time = time.time()
     concordance_df = _apply_corrections(concordance_df, input[
                                         'fns'].index, corrections_fns)
-
+    print("11.5--- %s seconds ---" % (time.time() - start_time))
     # we classify 1->0 deletions as non-hmer indels and thus we need to
     # fix their hmer indel length to 0
+    start_time = time.time()
     concordance_df = _fix_zero_mer_indels(concordance_df)
-
+    print("11.6--- %s seconds ---" % (time.time() - start_time))
     # copy correction fields to hmer_indel_length field
+    start_time = time.time()
     concordance_df = _mark_hmer_indels(concordance_df)
-
+    print("11.7--- %s seconds ---" % (time.time() - start_time))
     # If the corresponding pair of
     # haplotypes was counted in false positives - convert the false negative
     # to the true positive. (For these cases corrections_fns=(-1,-1))
+    start_time = time.time()
     concordance_df = _convert_fns_to_tps(concordance_df)
+    print("11.8--- %s seconds ---" % (time.time() - start_time))
     return concordance_df
 
 
@@ -174,21 +183,26 @@ def compare_two_sets_of_variants(positions_to_test: list,
 
 
     '''
+    import time
+    start_time = time.time()
     chromosome = set(set1_variants['chrom'])
     if len(chromosome) == 0:
         return [], {}
     assert len(
         chromosome) == 1, "All variants should belong to a single chromosome"
     chromosome = chromosome.pop()
+    print("11.2.1--- %s seconds ---" % (time.time() - start_time))
 
+    start_time = time.time()
     interval_starts = [x[0] for x in variant_intervals]
     corrections: List[Tuple[int, Any]] = []
     haplotype_results: List[tuple] = []
-
+    print("11.2.2--- %s seconds ---" % (time.time() - start_time))
     # Go over all positions
+    first=True
     for i in range(len(positions_to_test)):
         pos = positions_to_test[i]
-
+        start_time = time.time()
         # Find the interval in which the position is included
         select_region = _select_best_region(
             interval_starts, variant_intervals, pos)
@@ -200,14 +214,21 @@ def compare_two_sets_of_variants(positions_to_test: list,
 
             corrections.append((100, None))
             continue
-
+        if first:
+            print("11.2.3--- %s seconds ---" % (time.time() - start_time))
         # Get all variants in both sets from the region
+        start_time = time.time()
         variants_set2 = vcftools.get_variants_from_region(
             variant_df=set2_variants, region=select_region)
+        if first:
+            print("11.2.4--- %s seconds ---" % (time.time() - start_time))
+        start_time = time.time()
         reference = get_reference_from_region(
             refidx=fasta[chromosome], region=select_region)
-
+        if first:
+            print("11.2.5--- %s seconds ---" % (time.time() - start_time))
         # Geerate sets of haplotypes
+        start_time = time.time()
         haplotypes_set2 = apply_variants_to_reference(
             reference,
             variants_set2,
@@ -217,13 +238,20 @@ def compare_two_sets_of_variants(positions_to_test: list,
             exclude_ref_pos=None,
         )
 
+        if first:
+            print("11.2.6--- %s seconds ---" % (time.time() - start_time))
         # Convert haplotypes to flows
+        start_time = time.time()
         flows_set2 = [utils.generateKeyFromSequence(
             x, DEFAULT_FLOW_ORDER) for x in haplotypes_set2]
-
+        if first:
+            print("11.2.7--- %s seconds ---" % (time.time() - start_time))
+        start_time = time.time()
         variants_set1 = vcftools.get_variants_from_region(
             variant_df=set1_variants, region=select_region)
-
+        if first:
+            print("11.2.8--- %s seconds ---" % (time.time() - start_time))
+        start_time = time.time()
         haplotypes_set1 = apply_variants_to_reference(
             reference,
             variants_set1,
@@ -232,28 +260,39 @@ def compare_two_sets_of_variants(positions_to_test: list,
             include_ref=False,
             exclude_ref_pos=positions_to_test[i],
         )
-
+        if first:
+            print("11.2.9--- %s seconds ---" % (time.time() - start_time))
+        start_time = time.time()
         flows_set1 = [utils.generateKeyFromSequence(
             x, DEFAULT_FLOW_ORDER) for x in haplotypes_set1]
-
+        if first:
+            print("11.2.10--- %s seconds ---" % (time.time() - start_time))
         # find the minimal distance between pair of haplotypes
+        start_time = time.time()
         correction = compare_haplotypes(flows_set2, flows_set1)
-
+        if first:
+            print("11.2.11--- %s seconds ---" % (time.time() - start_time))
         # Find all haplotype pairs that have this distance
+        start_time = time.time()
         best_haplotypes = find_best_pairs_of_haplotypes(
             flows_set2, flows_set1, correction)
-
+        if first:
+            print("11.2.12--- %s seconds ---" % (time.time() - start_time))
         # check if this pair of haplotypes was already encountered
         # if so - we already counted this error (report (-1,-1))
+        start_time = time.time()
         haplotype_results += best_haplotypes
         for r in best_haplotypes:
             if r in given_haplotype_pairs:
                 correction = (-1, -1)
             break
-
+        if first:
+            print("11.2.13--- %s seconds ---" % (time.time() - start_time))
         corrections.append(correction)
-
+        first=False
+    start_time = time.time()
     haplotype_results_set = set(haplotype_results)
+    print("11.2.14--- %s seconds ---" % (time.time() - start_time))
     return corrections, haplotype_results_set
 
 
