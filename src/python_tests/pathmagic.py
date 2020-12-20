@@ -1,4 +1,9 @@
-from os.path import dirname
-from os.path import join as pjoin
+from os.path import dirname, join as pjoin
 import sys
-sys.path.append(pjoin(dirname(__file__), ".."))
+
+path = dirname(dirname(__file__))
+if path not in sys.path:
+    sys.path.append(path)
+
+
+PYTHON_TESTS_PATH = pjoin(dirname(__file__), "data")
