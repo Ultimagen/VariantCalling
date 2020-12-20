@@ -701,14 +701,11 @@ def _intersect_intervals(interval_file, regions_file, outdir=None):
         ".".join(["regions"] + basename(interval_file).split(".")[:-1] + ["bed"]),
     )
     cmd_create_bed = (
-        "echo "
-        + f"\"chrom\\tchromStart\\tchromEnd\" > {out_interval_bed} && grep -v '^@' {interval_file} | sed 's/|/ /' "
-        + ' | awk \'{print $1 "\\t" $2 "\\t" $3}\' '
-        + f" >> {out_interval_bed}"
+        f"picard IntervalListToBed INPUT={interval_file} OUTPUT={out_interval_bed}"
     )
     cmd_intersect = f"bedtools intersect -wa -a {regions_file} -b {out_interval_bed} > {out_intersected_bed}"
     if not os.path.isfile(out_interval_bed):
-        subprocess.call(cmd_create_bed, shell=True)
+        subprocess.call(cmd_create_bed.split())
     logger.debug(f"Running intersect command: {cmd_intersect}")
     if not os.path.isfile(out_intersected_bed):
         subprocess.Popen(
