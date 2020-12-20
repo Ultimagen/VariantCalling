@@ -1,7 +1,5 @@
 import pathmagic
-import python.pipelines.variant_filtering_utils as variant_filtering_utils
-import python.modules.variant_annotation as annotation
-import python.vcftools as vcftools
+import logging
 import argparse
 import pysam
 import numpy as np
@@ -10,7 +8,11 @@ import tqdm
 import subprocess
 import pandas as pd
 import re
-import dill as pickle
+import pickle
+
+import python.modules.variant_annotation as annotation
+import python.pipelines.variant_filtering_utils as variant_filtering_utils
+import python.vcftools as vcftools
 
 ap = argparse.ArgumentParser(
     prog="filter_variants_pipeline.py", description="Filter VCF")
@@ -31,22 +33,25 @@ ap.add_argument("--reference_file",
 ap.add_argument("--output_file", help="Output VCF file",
                 type=str, required=True)
 ap.add_argument("--is_mutect",
-                help="Is the input a result of mutect", action="store_true", default=False)
+                help="Is the input a result of mutect", action="store_true")
 args = ap.parse_args()
 
 try:
-    print("Reading VCF", flush=True, file=sys.stderr)
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    logger.info("Reading VCF")
     df = vcftools.get_vcf_df(args.input_file)
-    print("Adding hpol run info", flush=True, file=sys.stderr)
+    logger.info("Adding hpol run info")
     min_hmer_run_length, max_distance = args.hpol_filter_length_dist
     df = annotation.close_to_hmer_run(df, args.runs_file,
                                       min_hmer_run_length=min_hmer_run_length,
                                       max_distance=max_distance)
-    print("Classifying indel/SNP", flush=True, file=sys.stderr)
+    logger.info("Classifying indel/SNP")
     df = annotation.classify_indel(df)
-    print("Classifying hmer/non-hmer indel", flush=True, file=sys.stderr)
+    logger.info("Classifying hmer/non-hmer indel")
     df = annotation.is_hmer_indel(df, args.reference_file)
-    print("Reading motif info", flush=True, file=sys.stderr)
+    logger.info("Reading motif info")
     df = annotation.get_motif_around(df, 5, args.reference_file)
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
@@ -54,7 +59,8 @@ try:
         df['qual'] = df['tlod'].apply(lambda x: max(x))
 
     df.loc[df['gt'] == (1, 1), 'sor'] = 0.5
-    models_dict = pickle.load(open(args.model_file, "rb"))
+    with open(args.model_file, "rb") as mf:
+        models_dict = pickle.load(mf)
     model_name = args.model_name
     models = models_dict[model_name]
 
@@ -66,13 +72,14 @@ try:
         model_clsf = models
         is_decision_tree = False
 
-    print("Applying classifier", flush=True, file=sys.stderr)
+    logger.info("Applying classifier")
     df = variant_filtering_utils.add_grouping_column(df,
                                                      variant_filtering_utils.get_training_selection_functions(),
                                                      "group")
 
     if args.blacklist is not None:
-        blacklists = pickle.load(open(args.blacklist, "rb"))
+        with open(args.blacklist, "rb") as blf:
+            blacklists = pickle.load(blf)
         blacklist_app = [x.apply(df) for x in blacklists]
         blacklist = variant_filtering_utils.merge_blacklists(blacklist_app)
     else:
@@ -84,16 +91,15 @@ try:
         blacklist = variant_filtering_utils.merge_blacklists([cg_blacklist, blacklist])
 
     predictions = model_clsf.predict(df)
-    print("Applying regressor", flush=True, file=sys.stderr)
-
-    predictions_score = model_scor.predict(df)
-
     predictions = np.array(predictions)
-    predictions_score = np.array(predictions_score)
+    if is_decision_tree:
+        logger.info("Applying regressor")
+        predictions_score = model_scor.predict(df)
+        predictions_score = np.array(predictions_score)
 
     hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
 
-    print("Writing", flush=True)
+    logger.info("Writing")
     skipped_records = 0
     with pysam.VariantFile(args.input_file) as infile:
         hdr = infile.header
@@ -137,10 +143,10 @@ try:
 
     cmd = ['bcftools', 'index', '-t', args.output_file]
     subprocess.check_call(cmd)
-    print(f"Removed {skipped_records} malformed records", file=sys.stderr, flush=True)
-    print("Variant filtering run: success", file=sys.stderr, flush=True)
+    logger.info(f"Removed {skipped_records} malformed records")
+    logger.info("Variant filtering run: success")
 except Exception as err:
     exc_info = sys.exc_info()
-    print(*exc_info, file=sys.stderr, flush=True)
-    print("Variant filtering run: failed", file=sys.stderr, flush=True)
+    logger.error(*exc_info)
+    logger.error("Variant filtering run: failed")
     raise(err)
