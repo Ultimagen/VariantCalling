@@ -1,12 +1,12 @@
-import pytest
+from os.path import join as pjoin
 import pathmagic
+from pathmagic import PYTHON_TESTS_PATH
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import pandas as pd
 
 
-
 def test_fix_errors():
-    data = pd.read_hdf('src/python_tests/h5_file_unitest.h5', key='concordance')
+    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, 'h5_file_unitest.h5'), key='concordance')
     #(TP, TP), (TP, None)
     df = vcf_pipeline_utils._fix_errors(data)
     assert all(df[((df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna())))]['gt_ground_truth'].
