@@ -8,9 +8,10 @@ import pandas as pd
 from os.path import exists
 import pysam
 from collections import Counter
+CLASS_PATH = "vcf_pipeline_utils"
 
 def test_fix_errors():
-    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, 'h5_file_unitest.h5'), key='concordance')
+    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'h5_file_unitest.h5'), key='concordance')
     #(TP, TP), (TP, None)
     df = vcf_pipeline_utils._fix_errors(data)
     assert all(df[((df['call'] == 'TP') & ((df['base'] == 'TP') | (df['base'].isna())))]['gt_ground_truth'].
@@ -28,10 +29,10 @@ def test_fix_errors():
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis=1))
 
 class TestVCFevalRun:
-    ref_genome = pjoin(PYTHON_TESTS_PATH, "sample.fasta")
-    sample_calls = pjoin(PYTHON_TESTS_PATH, "sample.sd.vcf.gz")
-    truth_calls = pjoin(PYTHON_TESTS_PATH, "gtr.sample.sd.vcf.gz")
-    high_conf = pjoin(PYTHON_TESTS_PATH, "highconf.interval_list")
+    ref_genome = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.fasta")
+    sample_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.sd.vcf.gz")
+    truth_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "gtr.sample.sd.vcf.gz")
+    high_conf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "highconf.interval_list")
 
     def test_vcfeval_run_ignore_filter(self, tmp_path):
         vcf_pipeline_utils.run_vcfeval_concordance(input_file=self.sample_calls,

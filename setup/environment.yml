@@ -1,7 +1,7 @@
 name: genomics.py3
 channels:
-  - bioconda
   - anaconda
+  - bioconda
   - conda-forge
   - defaults
 dependencies:

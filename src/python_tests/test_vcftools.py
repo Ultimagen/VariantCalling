@@ -5,10 +5,11 @@ import python.vcftools as vcftools
 import pandas as pd
 from os.path import dirname
 from os.path import join as pjoin
+CLASS_PATH = "vcftools"
 
 def test_bed_files_output():
     # snp_fp testing
-    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, 'BC10.chr1.h5'), key='concordance')
+    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'BC10.chr1.h5'), key='concordance')
     snp_fp = vcftools.FilterWrapper(data).get_SNP().get_fp().get_df()
     assert all([x == False for x in snp_fp['indel']])
     assert all([x == 'fp' for x in snp_fp['classify']])
@@ -71,7 +72,7 @@ def test_bed_files_output():
 
 
 def test_bed_output_when_no_tree_score():  # testing the case when there is no tree_score and there is blacklist
-    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, 'exome.h5'), key='concordance')
+    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'exome.h5'), key='concordance')
     df = vcftools.FilterWrapper(data)
     result = dict(df.get_fn().BED_format(kind="fn").get_df()['itemRgb'].value_counts())
     expected_result = {vcftools.FilteringColors.BLACKLIST: 169,
