@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import tqdm
 from typing import Optional, Tuple, Callable
+from enum import Enum
 import python.utils as utils
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
@@ -701,9 +702,13 @@ class Blacklist(object):
         result.loc[common_with_blacklist] = self.annotation
         return result
 
+    def __str__(self):
+        return f"{self.annotation}: {self.description} with {len(self.blacklist)} elements"
+
 
 def merge_blacklists(blacklists: list) -> pd.Series:
-    """Combines blacklist annotations from multiple blacklists
+    """Combines blacklist annotations from multiple blacklists. Note that the merge
+    does not make annotations unique and does not remove PASS from failed annotations
 
     Parameters
     ----------
@@ -722,11 +727,11 @@ def merge_blacklists(blacklists: list) -> pd.Series:
 
     concat = blacklists[0].str.cat(blacklists[1:], sep=";", na_rep="PASS")
 
-    return concat#.str.replace("", "PASS")
+    return concat
 
 
 def blacklist_cg_insertions(df: pd.DataFrame) -> pd.Series:
-    """Removes CG insertions from calls 
+    """Removes CG insertions from calls
 
     Parameters
     ----------
@@ -737,7 +742,13 @@ def blacklist_cg_insertions(df: pd.DataFrame) -> pd.Series:
     -------
     pd.Series
     """
-    ggc_filter = df['alleles'].apply(lambda x : 'GGC' in x or 'CCG' in x )
+    ggc_filter = df['alleles'].apply(lambda x: 'GGC' in x or 'CCG' in x)
     blank = pd.Series("PASS", dtype=str, index=df.index)
     blank = blank.where(~ggc_filter, "CG_NON_HMER_INDEL")
     return blank
+
+
+class VariantSelectionFunctions (Enum):
+    """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
+    def ALL(df:pd.DataFrame) -> np.ndarray : return np.ones(df.shape[0], dtype=np.bool)
+    def HMER_INDEL(df:pd.DataFrame) -> np.ndarray : return np.array(df.hmer_indel_length > 0)
