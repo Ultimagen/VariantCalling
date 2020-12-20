@@ -13,6 +13,7 @@ import warnings
 import argparse
 import logging
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 path = dirname(dirname(dirname(__file__)))
 if path not in sys.path:
@@ -890,6 +891,8 @@ def generate_stats_from_histogram(
 def generate_coverage_boxplot(
     df_percentiles, color_group=None, out_path=None, title=""
 ):
+    if out_path is not None:
+        mpl.use("Agg")
     if isinstance(df_percentiles, str) and os.path.isfile(df_percentiles):
         df_percentiles = pd.read_hdf(df_percentiles, key="percentiles")
     df_percentiles_norm = (
