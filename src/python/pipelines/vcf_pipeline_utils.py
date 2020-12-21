@@ -427,8 +427,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     print('after classify')
     print("8--- %s seconds ---" % (time.time() - start_time))
     start_time = time.time()
-    concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
-                            for x in concordance_df.iterrows()]
+    concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
     start_time = time.time()
     if chromosome is None : 
         vf = pysam.VariantFile(raw_calls_file)
