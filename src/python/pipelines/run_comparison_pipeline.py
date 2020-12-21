@@ -6,6 +6,8 @@ import argparse
 import pandas as pd
 import pysam
 import sys
+import os
+from joblib import Parallel, delayed
 
 ap = argparse.ArgumentParser(
     prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
@@ -99,23 +101,37 @@ else:
         # we filter out short contigs to prevent huge files
         contigs = [x for x in vf.header.contigs if vf.header.contigs[
             x].length > 100000]
+
+
     write_mode = 'w'
-    
-    for contig in contigs:
+    if os.path.isfile(args.output_file):
+        os.remove(args.output_file)
+
+    hdfStore = pd.HDFStore(args.output_file)
+    def contig_function(results,contig,reference,aligned_bam,annotate_intervals,runs_intervals,hpol_filter_length_dist,hdfStore):
         print(f"Reading {contig}", flush=True, file=sys.stderr)
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool, contig)
         annotated_concordance = vcf_pipeline_utils.annotate_concordance(
-            concordance, args.reference, args.aligned_bam, args.annotate_intervals,
-            args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
+            concordance, reference, aligned_bam, annotate_intervals,
+            runs_intervals, hmer_run_length_dist=hpol_filter_length_dist)
 
         if not args.disable_reinterpretation:
             annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-                annotated_concordance, args.reference)
+                annotated_concordance, reference)
 
-        annotated_concordance.to_hdf(
-            args.output_file, key=contig, mode=write_mode)        
+        hdfStore.put(contig,annotated_concordance)
+
+    Parallel(n_jobs=-1, require='sharedmem')(
+        delayed(contig_function)(
+            results, contig, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals,
+                            args.hpol_filter_length_dist,hdfStore
+        )
+        for contig in contigs)
+
+
+    for contig in contigs:
+        annotated_concordance = hdfStore.get(contig)
         vcftools.bed_files_output(
-            annotated_concordance, args.output_file, mode=write_mode, 
+            annotated_concordance, args.output_file, mode=write_mode,
             create_gt_diff=(not args.is_mutect))
-        write_mode = 'a'
