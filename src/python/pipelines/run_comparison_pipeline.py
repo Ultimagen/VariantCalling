@@ -56,8 +56,8 @@ args = ap.parse_args()
 
 pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[
     0]).to_hdf(args.output_file, key="input_args")
-
-
+import time
+total_start_time = time.time()
 if args.filter_runs:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
                                            args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
@@ -135,3 +135,4 @@ else:
         vcftools.bed_files_output(
             annotated_concordance, args.output_file, mode=write_mode,
             create_gt_diff=(not args.is_mutect))
+print("total--- %s seconds ---" % (time.time() - total_start_time))
