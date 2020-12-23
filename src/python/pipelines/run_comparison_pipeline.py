@@ -112,15 +112,12 @@ else:
         annotated_concordance.to_hdf(base_name_outputfile + contig + '.h5', key = contig)
 
 
-    import time
-    star_time = time.time()
     base_name_outputfile = os.path.splitext(args.output_file)[0]
     Parallel(n_jobs=args.n_jobs,max_nbytes=None)(
         delayed(contig_function)
         (results, contig, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals,
                         args.hpol_filter_length_dist, base_name_outputfile)
         for contig in contigs)
-    print("parallel--- %s seconds ---" % (time.time() - star_time))
     # merge temp h5 files
     hdfStore = pd.HDFStore(args.output_file, mode = 'w')
     for contig in contigs:
