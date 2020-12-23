@@ -39,7 +39,7 @@ def cloud_sync(
     print_output=False,
     force_download=False,
     raise_error_is_file_exists=False,
-        dry_run=False,
+    dry_run=False,
 ):
     """ Download a file from the cloud to a respective local directory with the same name
 
@@ -80,14 +80,22 @@ def cloud_sync(
         if print_output:
             sys.stdout.write(f"Local file {local_path} already exists, skipping...")
     else:
-        if print_output:
-            sys.stdout.write(f"Downloading to {local_path}")
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-        if cloud_service == "gs":
-            download_from_gs(bucket, blob, local_path)
-        elif cloud_service == "s3":
-            download_from_s3(bucket, blob, local_path)
-        else:
-            raise NotImplementedError()
+        try:
+            if print_output:
+                sys.stdout.write(f"Downloading to {local_path}\n")
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            if cloud_service == "gs":
+                download_from_gs(bucket, blob, local_path)
+            elif cloud_service == "s3":
+                download_from_s3(bucket, blob, local_path)
+            else:
+                raise NotImplementedError()
+        except KeyboardInterrupt:
+            if os.path.isfile(local_path):
+                sys.stdout.write(
+                    f"Keyboard Interrupt - removing incomplete file {local_path}\n"
+                )
+                os.remove(local_path)
+            raise
 
     return local_path
