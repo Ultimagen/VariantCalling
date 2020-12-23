@@ -51,13 +51,15 @@ ap.add_argument("--disable_reinterpretation",
                 help="Should re-interpretation be run", action="store_true")
 ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
                 action="store_true")
+ap.add_argument("--n_jobs", help="n_jobs of parallel on contigs",
+                default=-1)
 
 args = ap.parse_args()
 
 pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[
     0]).to_hdf(args.output_file, key="input_args")
-import time
-total_start_time = time.time()
+
+
 if args.filter_runs:
     results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
                                            args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
@@ -77,38 +79,25 @@ else:
 if args.cmp_intervals is not None:
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], args.concordance_tool)
-    print('after vcf2concordance')
     annotated_concordance = vcf_pipeline_utils.annotate_concordance(
         concordance, args.reference, args.aligned_bam, args.annotate_intervals,
         args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
 
-    print('after annotations')
-    import time
-    start_time = time.time()
     if not args.disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
             annotated_concordance, args.reference)
-    print("11--- %s seconds ---" % (time.time() - start_time))
-    start_time = time.time()
     annotated_concordance.to_hdf(args.output_file, key="concordance")
     vcftools.bed_files_output(annotated_concordance,
                               args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
-    print("12--- %s seconds ---" % (time.time() - start_time))
 
-# whole-genome concordance - wlll be saved in dataframe per  chromosome
+# whole-genome concordance - will be saved in dataframe per chromosome
 else:
     with pysam.VariantFile(results[0]) as vf:
         # we filter out short contigs to prevent huge files
         contigs = [x for x in vf.header.contigs if vf.header.contigs[
             x].length > 100000]
-
-
     write_mode = 'w'
-    if os.path.isfile(args.output_file):
-        os.remove(args.output_file)
-
-    hdfStore = pd.HDFStore(args.output_file)
-    def contig_function(results,contig,reference,aligned_bam,annotate_intervals,runs_intervals,hpol_filter_length_dist,hdfStore):
+    def contig_function(results,contig,reference,aligned_bam,annotate_intervals,runs_intervals,hpol_filter_length_dist, base_name_outputfile):
         print(f"Reading {contig}", flush=True, file=sys.stderr)
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool, contig)
@@ -120,19 +109,27 @@ else:
             annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
                 annotated_concordance, reference)
 
-        hdfStore.put(contig,annotated_concordance)
+        annotated_concordance.to_hdf(base_name_outputfile + contig + '.h5', key = contig)
 
-    Parallel(n_jobs=-1, require='sharedmem')(
-        delayed(contig_function)(
-            results, contig, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals,
-                            args.hpol_filter_length_dist,hdfStore
-        )
+
+    import time
+    star_time = time.time()
+    base_name_outputfile = os.path.splitext(args.output_file)[0]
+    Parallel(n_jobs=args.n_jobs,max_nbytes=None)(
+        delayed(contig_function)
+        (results, contig, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals,
+                        args.hpol_filter_length_dist, base_name_outputfile)
         for contig in contigs)
-
+    print("parallel--- %s seconds ---" % (time.time() - star_time))
+    # merge temp h5 files
+    hdfStore = pd.HDFStore(args.output_file, mode = 'w')
+    for contig in contigs:
+        h5_temp = pd.read_hdf(base_name_outputfile + contig + '.h5', key = contig)
+        hdfStore.put(contig, h5_temp)
+        os.remove(base_name_outputfile + contig + '.h5')
 
     for contig in contigs:
         annotated_concordance = hdfStore.get(contig)
         vcftools.bed_files_output(
             annotated_concordance, args.output_file, mode=write_mode,
             create_gt_diff=(not args.is_mutect))
-print("total--- %s seconds ---" % (time.time() - total_start_time))
