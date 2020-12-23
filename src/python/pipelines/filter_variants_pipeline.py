@@ -47,8 +47,8 @@ try:
     df = annotation.get_motif_around(df, 5, args.reference_file)
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
-    if args.is_mutect: 
-        df['qual'] = df['tlod'].apply(lambda x: max(x))
+    if args.is_mutect:
+        df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
 
     models_dict = pickle.load(open(args.model_file, "rb"))
     model_name = args.model_name
