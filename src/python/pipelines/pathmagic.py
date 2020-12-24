@@ -1,4 +1,6 @@
 from os.path import dirname
-from os.path import join as pjoin
 import sys
-sys.path.append(pjoin(dirname(__file__), "..", ".."))
+
+path = dirname(dirname(dirname(__file__)))
+if path not in sys.path:
+    sys.path.append(path)
