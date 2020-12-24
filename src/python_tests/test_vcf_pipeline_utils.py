@@ -1,6 +1,8 @@
 import pytest
+import mock
 import pathmagic
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
+import python.modules.variant_annotation as annotation
 import pandas as pd
 
 
@@ -20,3 +22,10 @@ def test_fix_errors():
             ((x['gt_ultima'][1] == x['gt_ground_truth'][1]) & (x['gt_ultima'][0] != x['gt_ground_truth'][0]))|
             ((x['gt_ultima'][0] == x['gt_ground_truth'][1]) & (x['gt_ultima'][1] != x['gt_ground_truth'][0]))|
             ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis = 1))
+
+
+def test_annotate_concordance(mocker):
+    spy = mocker.spy(annotation, 'classify_indel')
+    data = pd.read_hdf('src/python_tests/h5_file_unitest.h5', key='concordance')
+    vcf_pipeline_utils.annotate_concordance(data, '')
+    spy.assert_called_once_with(data)
