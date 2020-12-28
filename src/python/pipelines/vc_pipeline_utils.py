@@ -1073,7 +1073,7 @@ def combine_coverage_metrics(
     convert_dictionary = dict(zip(intervals, classes))
 
     total_file = [x for x in input_files if splitext(basename(intervals[0]))[0] in x][0]
-    all_stats, all_histogram = parse_cvg_metrics(total_file)
+    all_stats, all_metrics_class, all_histogram = parse_cvg_metrics(total_file)
     all_stats = all_stats.T.loc[["MEAN_COVERAGE", "MEDIAN_COVERAGE", "PCT_20X"]]
     all_median_coverage = float(all_stats.loc["MEDIAN_COVERAGE", 0])
     class_counts = []
@@ -1083,7 +1083,7 @@ def combine_coverage_metrics(
         assert len(idx) <= 1, "Non-unique possible source"
         idx = idx[0]
 
-        stats, histogram = parse_cvg_metrics(fn)
+        stats, metrics_class, histogram = parse_cvg_metrics(fn)
         class_counts.append(
             (convert_dictionary[idx], histogram["high_quality_coverage_count"].sum())
         )
