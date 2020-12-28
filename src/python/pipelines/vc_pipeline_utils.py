@@ -1128,16 +1128,17 @@ def parse_cvg_metrics(metric_file):
             out = next(infile)
 
         res1 = pd.read_csv(infile, sep="\t", nrows=1)
+        res2=out.strip().split('\t')[1].split('.')[-1]
     try:
         with open(metric_file) as infile:
             out = next(infile)
             while not out.startswith("## HISTOGRAM\tjava.lang.Integer"):
                 out = next(infile)
 
-            res2 = pd.read_csv(infile, sep="\t")
+            res3 = pd.read_csv(infile, sep="\t")
     except StopIteration:
-        res2 = None
-    return res1, res2
+        res3 = None
+    return res1, res2, res3
 
 
 def parse_alignment_metrics(alignment_file):
