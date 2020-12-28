@@ -163,7 +163,7 @@ with open(pjoin(params.em_vc_output_dir, logname), 'w', buffering=1) as output_l
             x) for x in cvg_metrics_files]
 
         outputs = [vc_pipeline_utils.generate_rqc_output(
-            md_metric, x[0], x[1], total_n_reads) for x in cvg_metrics]
+            md_metric, x[0], x[1],x[2], total_n_reads) for x in cvg_metrics]
         summary_df = pd.concat([x[0] for x in outputs], axis=1)
         summary_df.columns = [x[0] for x in evaluation_intervals]
         summary_df.to_hdf(output_hdf_file, key="cvg_metrics")
