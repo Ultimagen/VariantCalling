@@ -1073,7 +1073,7 @@ def combine_coverage_metrics(
     convert_dictionary = dict(zip(intervals, classes))
 
     total_file = [x for x in input_files if splitext(basename(intervals[0]))[0] in x][0]
-    all_stats, all_histogram = parse_cvg_metrics(total_file)
+    all_stats, all_metrics_class, all_histogram = parse_cvg_metrics(total_file)
     all_stats = all_stats.T.loc[["MEAN_COVERAGE", "MEDIAN_COVERAGE", "PCT_20X"]]
     all_median_coverage = float(all_stats.loc["MEDIAN_COVERAGE", 0])
     class_counts = []
@@ -1083,7 +1083,7 @@ def combine_coverage_metrics(
         assert len(idx) <= 1, "Non-unique possible source"
         idx = idx[0]
 
-        stats, histogram = parse_cvg_metrics(fn)
+        stats, metrics_class, histogram = parse_cvg_metrics(fn)
         class_counts.append(
             (convert_dictionary[idx], histogram["high_quality_coverage_count"].sum())
         )
@@ -1121,23 +1121,39 @@ def parse_md_file(md_file):
 
 
 def parse_cvg_metrics(metric_file):
-    """Parses Picard WGScoverage metrics file"""
+    """Parses Picard WGScoverage metrics file 
+    
+    Parameters
+    ----------
+    metric_file : str
+        Picard metric file 
+    
+    Returns
+    -------
+    res1 : pd.DataFrame
+        Picard metrics table 
+    res2 : str
+        Picard File Class
+    res3 : pd.DataFrame
+        Picard Histogram output 
+    """
     with open(metric_file) as infile:
         out = next(infile)
         while not out.startswith("## METRICS CLASS"):
             out = next(infile)
 
         res1 = pd.read_csv(infile, sep="\t", nrows=1)
+        res2=out.strip().split('\t')[1].split('.')[-1]
     try:
         with open(metric_file) as infile:
             out = next(infile)
             while not out.startswith("## HISTOGRAM\tjava.lang.Integer"):
                 out = next(infile)
 
-            res2 = pd.read_csv(infile, sep="\t")
+            res3 = pd.read_csv(infile, sep="\t")
     except StopIteration:
-        res2 = None
-    return res1, res2
+        res3 = None
+    return res1, res2, res3
 
 
 def parse_alignment_metrics(alignment_file):
