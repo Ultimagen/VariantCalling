@@ -193,14 +193,17 @@ def calculate_and_bin_coverage(
         if not is_max_length_set:  # this clause is the actual implementation
             try:
                 is_cram = f_in.endswith(CRAM_EXT)
-                ref_fasta = cloud_sync(ref_fasta)
+                ref_str = ""
+                if is_cram:
+                    ref_fasta = cloud_sync(ref_fasta)
+                    ref_str = f"--reference {ref_fasta}"
 
                 samtools_depth_cmd = " ".join(
                     [
                         "samtools",
                         "depth",
                         "-a",
-                        f" --reference {ref_fasta}" if is_cram else "",
+                        ref_str,
                         f"-r {region}" if region is not None else "",
                         f"-q {min_bq}",
                         f"-Q {min_mapq}",
