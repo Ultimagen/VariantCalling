@@ -452,7 +452,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     return df
 
 
-def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> pd.DataFrame:
+def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str, 
+    ignore_low_quality_fps: bool = False) -> pd.DataFrame:
     '''Reinterprets the variants by comparing the variant to the ground truth in flow space
 
     Parameters
@@ -461,6 +462,8 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> 
         Input dataframe
     reference_fasta: str
         Indexed FASTA
+    ignore_low_quality_fps: bool
+        Shoud the low quality false positives be ignored in reinterpretation (True for mutect, default False)
 
     Returns
     -------
@@ -475,18 +478,29 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> 
     fasta = pyfaidx.Fasta(reference_fasta)
     for contig in concordance_df['chrom'].unique():
         concordance_df_contig = concordance_df.loc[concordance_df['chrom'] == contig]
-        input_dict = _get_locations_to_work_on(concordance_df_contig)
+        input_dict = _get_locations_to_work_on(concordance_df_contig, ignore_low_quality_fps)
         concordance_df_contig = fbc.reinterpret_variants(
             concordance_df_contig, input_dict, fasta)
         concordance_df_result = pd.concat([concordance_df_result,concordance_df_contig])
     return concordance_df_result
 
 
-def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
+def _get_locations_to_work_on(_df: pd.DataFrame, ignore_low_quality_fps: bool = False) -> dict:
     '''Dictionary of service locatoins
+
+    Parameters
+    ----------
+    _df: pd.DataFrame
+        Input
+    ignore_low_quality_fps: bool
+        Should we ignore the low quality false positives
+
     '''
     df = vcftools.FilterWrapper(_df)
     fps = df.reset().get_fp().get_df()
+    if 'tree_score' in fps.columns and fps['tree_score'].dtype==np.float64 and ignore_low_quality_fps:
+        cutoff = fps.tree_score.quantile(.80)
+        fps = fps.query(f"tree_score > {cutoff}")
     fns = df.reset().get_df().query('classify=="fn"')
     tps = df.reset().get_tp().get_df()
     gtr = df.reset().get_df().loc[
