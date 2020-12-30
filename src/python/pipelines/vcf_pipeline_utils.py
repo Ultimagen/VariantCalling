@@ -10,7 +10,20 @@ import python.vcftools as vcftools
 import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
+from python.auxiliary.format import CHROM_DTYPE
+import logging
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+# create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# add formatter to ch
+ch.setFormatter(formatter)
+# add ch to logger
+logger.addHandler(ch)
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
@@ -27,7 +40,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
         [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
     input_files = [x for x in input_files if os.path.exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
-    print(" ".join(cmd))
+    logger.debug(" ".join(cmd))
     subprocess.check_call(cmd)
     index_vcf(output_fname)
 
@@ -155,9 +168,10 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
     output_dir = os.path.dirname(output_prefix)
     SDF_path = ref_genome + '.sdf'
-    vcfeval_output_dir = os.path.join(output_dir, 'vcfeval_output')
+    vcfeval_output_dir = os.path.join(
+        output_dir, os.path.basename(output_prefix) + '.vcfeval_output')
 
-    if os.path.exists(vcfeval_output_dir) and os.path.isdir(vcfeval_output_dir):
+    if os.path.isdir(vcfeval_output_dir):
         shutil.rmtree(vcfeval_output_dir)
 
     # filter the vcf to be only in the comparison_intervals.
@@ -191,7 +205,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
                vcfeval_output_dir, 'output.norm.vcf.gz'),
            '-O', 'z', os.path.join(vcfeval_output_dir, 'output.vcf.gz')
            ]
-    print(' '.join(cmd))
+    logger.debug(" ".join(cmd))
     subprocess.check_call(cmd)
 
     # move the file to be compatible with the output file of the genotype
@@ -206,7 +220,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
 def fix_vcf_format(output_prefix):
     cmd = ['gunzip', '-f', f'{output_prefix}.vcf.gz']
-    print(' '.join(cmd))
+    logger.debug(" ".join(cmd))
     subprocess.check_call(cmd)
     with open(f'{output_prefix}.vcf') as input_file_handle:
         with open(f'{output_prefix}.tmp', 'w') as output_file_handle:
@@ -217,7 +231,7 @@ def fix_vcf_format(output_prefix):
                 else:
                     output_file_handle.write(line)
     cmd = ['mv', output_file_handle.name, input_file_handle.name]
-    print(' '.join(cmd))
+    logger.debug(" ".join(cmd))
     subprocess.check_call(cmd)
     cmd = ['bgzip', input_file_handle.name]
     subprocess.check_call(cmd)
@@ -367,6 +381,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
+
     if chromosome is None:
         vf = pysam.VariantFile(raw_calls_file)
     else:
@@ -456,13 +471,15 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> 
     --------
     `flow_based_concordance.py`
     '''
-
-    input_dict = _get_locations_to_work_on(concordance_df)
+    concordance_df_result = pd.DataFrame()
     fasta = pyfaidx.Fasta(reference_fasta)
-    concordance_df = fbc.reinterpret_variants(
-        concordance_df, input_dict, fasta)
-
-    return concordance_df
+    for contig in concordance_df['chrom'].unique():
+        concordance_df_contig = concordance_df.loc[concordance_df['chrom'] == contig]
+        input_dict = _get_locations_to_work_on(concordance_df_contig)
+        concordance_df_contig = fbc.reinterpret_variants(
+            concordance_df_contig, input_dict, fasta)
+        concordance_df_result = pd.concat([concordance_df_result,concordance_df_contig])
+    return concordance_df_result
 
 
 def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
