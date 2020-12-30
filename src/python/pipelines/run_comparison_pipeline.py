@@ -26,7 +26,7 @@ logger.addHandler(ch)
 
 def _contig_concordance_annotate_reinterpretation(results, contig, reference, aligned_bam, annotate_intervals,
                                                  runs_intervals, hpol_filter_length_dist, base_name_outputfile,
-                                                 concordance_tool, disable_reinterpretation):
+                                                 concordance_tool, disable_reinterpretation, ignore_low_quality_fps):
     logger.debug(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], concordance_tool, contig)
@@ -36,7 +36,7 @@ def _contig_concordance_annotate_reinterpretation(results, contig, reference, al
 
     if not disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-            annotated_concordance, reference)
+            annotated_concordance, reference, ignore_low_quality_fps)
 
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
         if not args.disable_reinterpretation:
             annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-                annotated_concordance, args.reference)
+                annotated_concordance, args.reference, ignore_low_quality_fps = args.is_mutect)
         annotated_concordance.to_hdf(args.output_file, key="concordance")
         vcftools.bed_files_output(annotated_concordance,
                                   args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
@@ -136,7 +136,8 @@ if __name__ == "__main__":
         Parallel(n_jobs=args.n_jobs,max_nbytes=None)(
             delayed(_contig_concordance_annotate_reinterpretation)
             (results, contig, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals,
-                            args.hpol_filter_length_dist, base_name_outputfile, args.concordance_tool, args.disable_reinterpretation)
+                            args.hpol_filter_length_dist, base_name_outputfile, args.concordance_tool, 
+                            args.disable_reinterpretation, args.is_mutect)
             for contig in tqdm(contigs))
         # merge temp h5 files
         hdfStore = pd.HDFStore(args.output_file, mode = 'w')
