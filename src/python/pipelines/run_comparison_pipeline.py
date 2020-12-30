@@ -18,7 +18,8 @@ logger.setLevel(logging.INFO)
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
 # create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # add formatter to ch
 ch.setFormatter(formatter)
 # add ch to logger
@@ -26,20 +27,22 @@ logger.addHandler(ch)
 
 
 def _contig_concordance_annotate_reinterpretation(results, contig, reference, aligned_bam, annotate_intervals,
-                                                 runs_intervals, hpol_filter_length_dist, base_name_outputfile,
-                                                 concordance_tool, disable_reinterpretation, ignore_low_quality_fps):
+                                                  runs_intervals, hpol_filter_length_dist, flow_order,
+                                                  base_name_outputfile, concordance_tool, disable_reinterpretation,
+                                                  ignore_low_quality_fps):
     logger.info(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], concordance_tool, contig)
     annotated_concordance = vcf_pipeline_utils.annotate_concordance(
         concordance, reference, aligned_bam, annotate_intervals,
-        runs_intervals, hmer_run_length_dist=hpol_filter_length_dist)
+        runs_intervals, hmer_run_length_dist=hpol_filter_length_dist, flow_order=flow_order)
 
     if not disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
             annotated_concordance, reference, ignore_low_quality_fps)
 
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
@@ -76,6 +79,8 @@ if __name__ == "__main__":
                     help='Length and distance to the hpol run to mark', default=[10, 10])
     ap.add_argument("--ignore_filter_status",
                     help="Ignore variant filter status", action='store_true')
+    ap.add_argument("--flow_order", type=str,
+                    help='Sequencing flow order (4 cycle)', required=False, default="TACG")
     ap.add_argument("--output_suffix", help='Add suffix to the output file',
                     required=False, default='', type=str)
     ap.add_argument("--concordance_tool", help='The concordance method to use (GC or VCFEVAL)',
@@ -92,17 +97,18 @@ if __name__ == "__main__":
     pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[
         0]).to_hdf(args.output_file, key="input_args")
 
-
     if args.filter_runs:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                               args.header_file, args.gtr_vcf, args.cmp_intervals,
+                                               args.highconf_intervals,
                                                args.runs_intervals, args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
                                                args.ignore_filter_status,
                                                args.concordance_tool)
     else:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                               args.header_file, args.gtr_vcf, args.cmp_intervals,
+                                               args.highconf_intervals,
                                                None, args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
                                                args.ignore_filter_status,
@@ -112,14 +118,16 @@ if __name__ == "__main__":
     if args.cmp_intervals is not None:
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool)
-        concordance.to_hdf("annotate_concordance_h5_input.hdf",key='concordance')
+        concordance.to_hdf(
+            "annotate_concordance_h5_input.hdf", key='concordance')
         annotated_concordance = vcf_pipeline_utils.annotate_concordance(
             concordance, args.reference, args.aligned_bam, args.annotate_intervals,
-            args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist)
+            args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist,
+            flow_order=args.flow_order)
 
         if not args.disable_reinterpretation:
             annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-                annotated_concordance, args.reference, ignore_low_quality_fps = args.is_mutect)
+                annotated_concordance, args.reference, ignore_low_quality_fps=args.is_mutect)
         annotated_concordance.to_hdf(args.output_file, key="concordance")
         vcftools.bed_files_output(annotated_concordance,
                                   args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
@@ -133,16 +141,16 @@ if __name__ == "__main__":
         write_mode = 'w'
 
         base_name_outputfile = os.path.splitext(args.output_file)[0]
-        Parallel(n_jobs=args.n_jobs,max_nbytes=None)(
+        Parallel(n_jobs=args.n_jobs, max_nbytes=None)(
             delayed(_contig_concordance_annotate_reinterpretation)
             (results, contig, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals,
-                            args.hpol_filter_length_dist, base_name_outputfile, args.concordance_tool, 
-                            args.disable_reinterpretation, args.is_mutect)
+             args.hpol_filter_length_dist, args.flow_order, base_name_outputfile, args.concordance_tool,
+             args.disable_reinterpretation, args.is_mutect)
             for contig in tqdm(contigs))
         # merge temp h5 files
-        hdfStore = pd.HDFStore(args.output_file, mode = 'w')
+        hdfStore = pd.HDFStore(args.output_file, mode='w')
         for contig in contigs:
-            h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key = contig)
+            h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             hdfStore.put(contig, h5_temp)
             os.remove(f"{base_name_outputfile}{contig}.h5")
 
