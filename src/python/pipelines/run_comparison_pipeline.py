@@ -131,7 +131,6 @@ if __name__ == "__main__":
                 x].length > MAX_CONTIG_LENGTH]
         write_mode = 'w'
 
-
         base_name_outputfile = os.path.splitext(args.output_file)[0]
         Parallel(n_jobs=args.n_jobs,max_nbytes=None)(
             delayed(_contig_concordance_annotate_reinterpretation)
