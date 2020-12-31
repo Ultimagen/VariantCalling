@@ -14,10 +14,7 @@ from python.auxiliary.format import CHROM_DTYPE
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-# create console handler and set level to debug
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
 # create formatter
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # add formatter to ch
@@ -40,7 +37,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
         [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
     input_files = [x for x in input_files if os.path.exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
-    logger.debug(" ".join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     index_vcf(output_fname)
 
@@ -205,7 +202,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
                vcfeval_output_dir, 'output.norm.vcf.gz'),
            '-O', 'z', os.path.join(vcfeval_output_dir, 'output.vcf.gz')
            ]
-    logger.debug(" ".join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
 
     # move the file to be compatible with the output file of the genotype
@@ -220,7 +217,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
 def fix_vcf_format(output_prefix):
     cmd = ['gunzip', '-f', f'{output_prefix}.vcf.gz']
-    logger.debug(" ".join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     with open(f'{output_prefix}.vcf') as input_file_handle:
         with open(f'{output_prefix}.tmp', 'w') as output_file_handle:
@@ -231,7 +228,7 @@ def fix_vcf_format(output_prefix):
                 else:
                     output_file_handle.write(line)
     cmd = ['mv', output_file_handle.name, input_file_handle.name]
-    logger.debug(" ".join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     cmd = ['bgzip', input_file_handle.name]
     subprocess.check_call(cmd)
