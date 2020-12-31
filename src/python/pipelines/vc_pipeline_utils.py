@@ -5,7 +5,7 @@ from os.path import join as pjoin
 from os.path import basename, dirname, splitext
 import python.utils as utils
 import os
-# import re
+import re
 import pandas as pd
 import numpy as np
 import pysam
@@ -416,36 +416,8 @@ def align_and_merge(input_file, output_file, genome_file, nthreads):
         raise RuntimeError(exception_string)
 
 
-def concatenate(bam_list, output_file):
-    # samtools cat file1.bam file2.bam > output.bam
-    if len(bam_list) != 2:
-        raise Exception(f"Input files number must be 2. Input: {bam_list}")
-    else:
-        bam1, bam2 = bam_list
-    output_bam, output_err = output_file
-    cat_cmd = [
-        "samtools",
-        "cat",
-        bam1[0],
-        bam2[0],
-        "-o",
-        output_bam
-    ]
-    with open(output_err, "w") as output_err_handle:
-        output_err_handle.write(" ".join(cat_cmd))
-        output_err_handle.flush()
-        task1 = subprocess.Popen(
-            cat_cmd, stdout=(subprocess.PIPE), stderr=output_err_handle
-        )
-        _ = task1.communicate()
-    time.sleep(30)
-    if task1.returncode != 0:
-        exception_string = f"cat {bam1} + {bam2} failed: rc={task1.returncode}. stderr= {task1.stderr}"
-        raise RuntimeError(exception_string)
-
-
 def select_chromosome(
-        input_file, output_files, nthreads, the_chromosome, cram_reference_fname=None
+    input_file, output_files, nthreads, the_chromosome, cram_reference_fname=None
 ):
     output_bam, output_err = output_files
     input_file = input_file
@@ -525,12 +497,12 @@ def select_chromosome(
 
 
 def align_minimap_and_filter(
-        input_file,
-        output_files,
-        genome_file,
-        nthreads,
-        the_chromosome,
-        cram_reference_fname=None,
+    input_file,
+    output_files,
+    genome_file,
+    nthreads,
+    the_chromosome,
+    cram_reference_fname=None,
 ):
     output_bam, output_err = output_files
     input_file = input_file
@@ -1001,14 +973,14 @@ def collect_metrics(input_file: str) -> pd.DataFrame:
 
 
 def generate_comparison_intervals(
-        intervals_file: str, genome_file: str, output_dir: str
+    intervals_file: str, genome_file: str, output_dir: str
 ) -> list:
     bed_files_to_convert = []
     genome_dict_file = ".".join((splitext(genome_file)[0], "dict"))
     with open(intervals_file) as chromosomes:
         for chrom in map(lambda x: x.strip().split(), chromosomes):
             with open(
-                    pjoin(output_dir, ".".join(("chr" + chrom[0], "intervals", "bed"))), "w"
+                pjoin(output_dir, ".".join(("chr" + chrom[0], "intervals", "bed"))), "w"
             ) as outfile:
                 bed_files_to_convert.append(outfile.name)
                 outfile.write("\t".join(chrom) + "\n")
@@ -1055,7 +1027,7 @@ def mark_duplicates(input_file: list, output_files: list):
 
 
 def coverage_stats(
-        input_files: list, output_files: list, genome_file: str, intervals: str
+    input_files: list, output_files: list, genome_file: str, intervals: str
 ):
     if intervals is None:
         intervals = input_files[1]
@@ -1085,7 +1057,7 @@ def coverage_stats(
 
 
 def combine_coverage_metrics(
-        input_files: list, output_file: str, coverage_interval_df: pd.DataFrame
+    input_files: list, output_file: str, coverage_interval_df: pd.DataFrame
 ) -> None:
     input_files = [x[0] for x in input_files]
     intervals = list(coverage_interval_df["file"])
@@ -1181,7 +1153,7 @@ def parse_alignment_metrics(alignment_file):
     with open(alignment_file) as infile:
         out = next(infile)
         while not out.startswith(
-                "## METRICS CLASS\tpicard.analysis.AlignmentSummaryMetrics"
+            "## METRICS CLASS\tpicard.analysis.AlignmentSummaryMetrics"
         ):
             out = next(infile)
 
@@ -1191,7 +1163,7 @@ def parse_alignment_metrics(alignment_file):
 
 
 def generate_rqc_output(
-        dup_ratio: float, metrics: pd.DataFrame, histogram: pd.DataFrame, total_reads: int
+    dup_ratio: float, metrics: pd.DataFrame, histogram: pd.DataFrame, total_reads: int
 ) -> tuple:
     parameters = metrics.T.loc[["MEAN_COVERAGE", "MEDIAN_COVERAGE", "PCT_20X"]]
     parameters.loc[("PCT_20X", 0)] = parameters.loc[("PCT_20X", 0)] * 100
@@ -1199,8 +1171,8 @@ def generate_rqc_output(
     parameters.loc["% duplicated"] = dup_ratio
     parameters.loc["input reads"] = total_reads
     histogram["cum_cov"] = (
-            histogram["high_quality_coverage_count"].cumsum()
-            / histogram["high_quality_coverage_count"].cumsum().max()
+        histogram["high_quality_coverage_count"].cumsum()
+        / histogram["high_quality_coverage_count"].cumsum().max()
     )
     covs = histogram["coverage"].loc[
         np.searchsorted(histogram["cum_cov"], [0.05, 0.1, 0.2, 0.5])
