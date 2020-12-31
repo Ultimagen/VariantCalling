@@ -1151,7 +1151,7 @@ def parse_cvg_metrics(metric_file):
     Returns
     -------
     res1 : str
-        Picard File Clas
+        Picard file metrics class
     res2 : pd.DataFrame
         Picard metrics table
     res3 : pd.DataFrame
