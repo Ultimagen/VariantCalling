@@ -12,10 +12,8 @@ import logging
 MAX_CONTIG_LENGTH = 100000
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-# create console handler and set level to debug
+
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
 # create formatter
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # add formatter to ch
@@ -27,7 +25,7 @@ logger.addHandler(ch)
 def _contig_concordance_annotate_reinterpretation(results, contig, reference, aligned_bam, annotate_intervals,
                                                  runs_intervals, hpol_filter_length_dist, base_name_outputfile,
                                                  concordance_tool, disable_reinterpretation, ignore_low_quality_fps):
-    logger.debug(f"Reading {contig}")
+    logger.info(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], concordance_tool, contig)
     annotated_concordance = vcf_pipeline_utils.annotate_concordance(
