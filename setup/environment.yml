@@ -277,6 +277,7 @@ dependencies:
   - pytables=3.6.1=py37h71ec239_0
   - pytest=6.2.1=py37h06a4308_0
   - pytest-forked=1.3.0=py_0
+  - pytest-mock=3.4.0=pyhd8ed1ab_0
   - pytest-xdist=2.2.0=pyhd3eb1b0_0
   - python=3.7.8=h8bdb77d_2_cpython
   - python-dateutil=2.8.1=py_0
