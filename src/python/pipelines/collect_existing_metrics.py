@@ -6,6 +6,7 @@ import h5py as h5
 from os.path import join as pjoin
 import os
 import json
+
 home = os.environ['HOME']
 sys.path.append(pjoin(home, 'proj/BioinfoResearch/VariantCalling/src/'))
 sys.path.append(pjoin(home, 'proj/Base-calling/ContextResearch/'))
@@ -16,7 +17,6 @@ ap = argparse.ArgumentParser(
     prog="collect_existing_picard_metrics.py", description="Collect picard metrics in h5 file")
 
 ap.add_argument('--metric_files', nargs='+',help="comma seperated list of picard metric files")
-                #required=True, type=str)
 ap.add_argument("--coverage_h5", help='Coverage h5 File',
                 required=True, type=str)
 ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
