@@ -445,7 +445,7 @@ def concatenate(bam_list, output_file):
 
 
 def select_chromosome(
-    input_file, output_files, nthreads, the_chromosome, cram_reference_fname=None
+        input_file, output_files, nthreads, the_chromosome, cram_reference_fname=None
 ):
     output_bam, output_err = output_files
     input_file = input_file
@@ -525,12 +525,12 @@ def select_chromosome(
 
 
 def align_minimap_and_filter(
-    input_file,
-    output_files,
-    genome_file,
-    nthreads,
-    the_chromosome,
-    cram_reference_fname=None,
+        input_file,
+        output_files,
+        genome_file,
+        nthreads,
+        the_chromosome,
+        cram_reference_fname=None,
 ):
     output_bam, output_err = output_files
     input_file = input_file
@@ -1001,14 +1001,14 @@ def collect_metrics(input_file: str) -> pd.DataFrame:
 
 
 def generate_comparison_intervals(
-    intervals_file: str, genome_file: str, output_dir: str
+        intervals_file: str, genome_file: str, output_dir: str
 ) -> list:
     bed_files_to_convert = []
     genome_dict_file = ".".join((splitext(genome_file)[0], "dict"))
     with open(intervals_file) as chromosomes:
         for chrom in map(lambda x: x.strip().split(), chromosomes):
             with open(
-                pjoin(output_dir, ".".join(("chr" + chrom[0], "intervals", "bed"))), "w"
+                    pjoin(output_dir, ".".join(("chr" + chrom[0], "intervals", "bed"))), "w"
             ) as outfile:
                 bed_files_to_convert.append(outfile.name)
                 outfile.write("\t".join(chrom) + "\n")
@@ -1055,7 +1055,7 @@ def mark_duplicates(input_file: list, output_files: list):
 
 
 def coverage_stats(
-    input_files: list, output_files: list, genome_file: str, intervals: str
+        input_files: list, output_files: list, genome_file: str, intervals: str
 ):
     if intervals is None:
         intervals = input_files[1]
@@ -1085,7 +1085,7 @@ def coverage_stats(
 
 
 def combine_coverage_metrics(
-    input_files: list, output_file: str, coverage_interval_df: pd.DataFrame
+        input_files: list, output_file: str, coverage_interval_df: pd.DataFrame
 ) -> None:
     input_files = [x[0] for x in input_files]
     intervals = list(coverage_interval_df["file"])
@@ -1093,7 +1093,7 @@ def combine_coverage_metrics(
     convert_dictionary = dict(zip(intervals, classes))
 
     total_file = [x for x in input_files if splitext(basename(intervals[0]))[0] in x][0]
-    all_stats, all_metrics_class, all_histogram = parse_cvg_metrics(total_file)
+    all_metrics_class, all_stats, all_histogram = parse_cvg_metrics(total_file)
     all_stats = all_stats.T.loc[["MEAN_COVERAGE", "MEDIAN_COVERAGE", "PCT_20X"]]
     all_median_coverage = float(all_stats.loc["MEDIAN_COVERAGE", 0])
     class_counts = []
@@ -1103,7 +1103,7 @@ def combine_coverage_metrics(
         assert len(idx) <= 1, "Non-unique possible source"
         idx = idx[0]
 
-        stats, metrics_class, histogram = parse_cvg_metrics(fn)
+        metrics_class, stats, histogram = parse_cvg_metrics(fn)
         class_counts.append(
             (convert_dictionary[idx], histogram["high_quality_coverage_count"].sum())
         )
@@ -1141,29 +1141,29 @@ def parse_md_file(md_file):
 
 
 def parse_cvg_metrics(metric_file):
-    """Parses Picard WGScoverage metrics file 
-    
+    """Parses Picard WGScoverage metrics file
+
     Parameters
     ----------
     metric_file : str
-        Picard metric file 
-    
+        Picard metric file
+
     Returns
     -------
-    res1 : pd.DataFrame
-        Picard metrics table 
-    res2 : str
-        Picard File Class
+    res1 : str
+        Picard File Clas
+    res2 : pd.DataFrame
+        Picard metrics table
     res3 : pd.DataFrame
-        Picard Histogram output 
+        Picard Histogram output
     """
     with open(metric_file) as infile:
         out = next(infile)
         while not out.startswith("## METRICS CLASS"):
             out = next(infile)
 
-        res1 = pd.read_csv(infile, sep="\t", nrows=1)
-        res2=out.strip().split('\t')[1].split('.')[-1]
+        res1 = out.strip().split('\t')[1].split('.')[-1]
+        res2 = pd.read_csv(infile, sep="\t", nrows=1)
     try:
         with open(metric_file) as infile:
             out = next(infile)
@@ -1181,7 +1181,7 @@ def parse_alignment_metrics(alignment_file):
     with open(alignment_file) as infile:
         out = next(infile)
         while not out.startswith(
-            "## METRICS CLASS\tpicard.analysis.AlignmentSummaryMetrics"
+                "## METRICS CLASS\tpicard.analysis.AlignmentSummaryMetrics"
         ):
             out = next(infile)
 
@@ -1191,7 +1191,7 @@ def parse_alignment_metrics(alignment_file):
 
 
 def generate_rqc_output(
-    dup_ratio: float, metrics: pd.DataFrame, histogram: pd.DataFrame, total_reads: int
+        dup_ratio: float, metrics: pd.DataFrame, histogram: pd.DataFrame, total_reads: int
 ) -> tuple:
     parameters = metrics.T.loc[["MEAN_COVERAGE", "MEDIAN_COVERAGE", "PCT_20X"]]
     parameters.loc[("PCT_20X", 0)] = parameters.loc[("PCT_20X", 0)] * 100
@@ -1199,8 +1199,8 @@ def generate_rqc_output(
     parameters.loc["% duplicated"] = dup_ratio
     parameters.loc["input reads"] = total_reads
     histogram["cum_cov"] = (
-        histogram["high_quality_coverage_count"].cumsum()
-        / histogram["high_quality_coverage_count"].cumsum().max()
+            histogram["high_quality_coverage_count"].cumsum()
+            / histogram["high_quality_coverage_count"].cumsum().max()
     )
     covs = histogram["coverage"].loc[
         np.searchsorted(histogram["cum_cov"], [0.05, 0.1, 0.2, 0.5])
