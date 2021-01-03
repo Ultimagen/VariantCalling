@@ -14,13 +14,19 @@ from python.auxiliary.format import CHROM_DTYPE
 import logging
 
 logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+# create console handler and set level to debug
 ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
 # create formatter
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # add formatter to ch
 ch.setFormatter(formatter)
 # add ch to logger
 logger.addHandler(ch)
+
+logger.info("Hi")
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     '''Combines VCF in parts from GATK and indices the result
@@ -38,6 +44,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
     input_files = [x for x in input_files if os.path.exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
     logger.info(" ".join(cmd))
+    print('maya')
     subprocess.check_call(cmd)
     index_vcf(output_fname)
 
@@ -203,6 +210,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
            '-O', 'z', os.path.join(vcfeval_output_dir, 'output.vcf.gz')
            ]
     logger.info(" ".join(cmd))
+    print('maya')
     subprocess.check_call(cmd)
 
     # move the file to be compatible with the output file of the genotype
@@ -218,6 +226,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 def fix_vcf_format(output_prefix):
     cmd = ['gunzip', '-f', f'{output_prefix}.vcf.gz']
     logger.info(" ".join(cmd))
+    print('maya')
     subprocess.check_call(cmd)
     with open(f'{output_prefix}.vcf') as input_file_handle:
         with open(f'{output_prefix}.tmp', 'w') as output_file_handle:
@@ -229,6 +238,7 @@ def fix_vcf_format(output_prefix):
                     output_file_handle.write(line)
     cmd = ['mv', output_file_handle.name, input_file_handle.name]
     logger.info(" ".join(cmd))
+    print('maya')
     subprocess.check_call(cmd)
     cmd = ['bgzip', input_file_handle.name]
     subprocess.check_call(cmd)
