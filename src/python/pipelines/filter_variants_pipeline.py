@@ -55,8 +55,8 @@ try:
     df = annotation.get_motif_around(df, 5, args.reference_file)
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
-    if args.is_mutect:
-        df['qual'] = df['tlod'].apply(lambda x: max(x))
+    if args.is_mutect: 
+        df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
 
     df.loc[df['gt'] == (1, 1), 'sor'] = 0.5
     with open(args.model_file, "rb") as mf:
