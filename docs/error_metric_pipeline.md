@@ -31,7 +31,7 @@ em_vc_number_of_cpus=12
 If the input is a cram file a parameter with the reference file must be added:
 
 ```
-em_vc_basename=/data/utils/genomes/ultima-references/HS+ecoli+templates.fa
+em_vc_cram_reference_file=/data/utils/genomes/ultima-references/HS+ecoli+templates.fa
 ```
 
 To input two crams put the full paths to the crams separated by comma in the parameter `em_vc_demux_file`
