@@ -10,6 +10,21 @@ import python.vcftools as vcftools
 import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
+from python.auxiliary.format import CHROM_DTYPE
+import logging
+
+logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# add formatter to ch
+ch.setFormatter(formatter)
+# add ch to logger
+logger.addHandler(ch)
 
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
@@ -27,7 +42,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
         [f'{input_prefix}.{x}.vcf.gz' for x in range(1, n_parts + 1)]
     input_files = [x for x in input_files if os.path.exists(x)]
     cmd = ['bcftools', 'concat', '-o', output_fname, '-O', 'z'] + input_files
-    print(" ".join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     index_vcf(output_fname)
 
@@ -152,19 +167,20 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     None
     '''
 
+
     output_dir = os.path.dirname(output_prefix)
     SDF_path = ref_genome + '.sdf'
     vcfeval_output_dir = os.path.join(
         output_dir, os.path.basename(output_prefix) + '.vcfeval_output')
 
-    if os.path.exists(vcfeval_output_dir) and os.path.isdir(vcfeval_output_dir):
+    if os.path.isdir(vcfeval_output_dir):
         shutil.rmtree(vcfeval_output_dir)
 
     # filter the vcf to be only in the comparison_intervals.
     filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
-    filtered_truth_file = os.path.join(output_dir, os.path.basename(filtered_truth_file))
     if comparison_intervals is not None:
-        intersect_with_intervals(truth_file, comparison_intervals, filtered_truth_file)
+        intersect_with_intervals(
+            truth_file, comparison_intervals, filtered_truth_file)
     else:
         shutil.copy(truth_file, filtered_truth_file)
         index_vcf(filtered_truth_file)
@@ -191,7 +207,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
                vcfeval_output_dir, 'output.norm.vcf.gz'),
            '-O', 'z', os.path.join(vcfeval_output_dir, 'output.vcf.gz')
            ]
-    print(' '.join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
 
     # move the file to be compatible with the output file of the genotype
@@ -206,7 +222,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
 
 def fix_vcf_format(output_prefix):
     cmd = ['gunzip', '-f', f'{output_prefix}.vcf.gz']
-    print(' '.join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     with open(f'{output_prefix}.vcf') as input_file_handle:
         with open(f'{output_prefix}.tmp', 'w') as output_file_handle:
@@ -217,7 +233,7 @@ def fix_vcf_format(output_prefix):
                 else:
                     output_file_handle.write(line)
     cmd = ['mv', output_file_handle.name, input_file_handle.name]
-    print(' '.join(cmd))
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     cmd = ['bgzip', input_file_handle.name]
     subprocess.check_call(cmd)
@@ -366,8 +382,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
         concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
-    concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
-                            for x in concordance_df.iterrows()]
+    concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
+
     if chromosome is None:
         vf = pysam.VariantFile(raw_calls_file)
     else:
@@ -379,8 +395,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score', 'tlod', 'af']
     original = pd.DataFrame([[x[y.upper()] for y in columns]
                              for x in vfi], columns=columns)
-    original.index = [(x[1]['chrom'], x[1]['pos'])
-                      for x in original.iterrows()]
+    original.index = list(zip(original.chrom, original.pos))
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
@@ -439,7 +454,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     return df
 
 
-def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> pd.DataFrame:
+def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str, 
+    ignore_low_quality_fps: bool = False) -> pd.DataFrame:
     '''Reinterprets the variants by comparing the variant to the ground truth in flow space
 
     Parameters
@@ -448,6 +464,8 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> 
         Input dataframe
     reference_fasta: str
         Indexed FASTA
+    ignore_low_quality_fps: bool
+        Shoud the low quality false positives be ignored in reinterpretation (True for mutect, default False)
 
     Returns
     -------
@@ -458,20 +476,33 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str) -> 
     --------
     `flow_based_concordance.py`
     '''
-
-    input_dict = _get_locations_to_work_on(concordance_df)
+    concordance_df_result = pd.DataFrame()
     fasta = pyfaidx.Fasta(reference_fasta)
-    concordance_df = fbc.reinterpret_variants(
-        concordance_df, input_dict, fasta)
+    for contig in concordance_df['chrom'].unique():
+        concordance_df_contig = concordance_df.loc[concordance_df['chrom'] == contig]
+        input_dict = _get_locations_to_work_on(concordance_df_contig, ignore_low_quality_fps)
+        concordance_df_contig = fbc.reinterpret_variants(
+            concordance_df_contig, input_dict, fasta)
+        concordance_df_result = pd.concat([concordance_df_result,concordance_df_contig])
+    return concordance_df_result
 
-    return concordance_df
 
-
-def _get_locations_to_work_on(_df: pd.DataFrame) -> dict:
+def _get_locations_to_work_on(_df: pd.DataFrame, ignore_low_quality_fps: bool = False) -> dict:
     '''Dictionary of service locatoins
+
+    Parameters
+    ----------
+    _df: pd.DataFrame
+        Input
+    ignore_low_quality_fps: bool
+        Should we ignore the low quality false positives
+
     '''
     df = vcftools.FilterWrapper(_df)
     fps = df.reset().get_fp().get_df()
+    if 'tree_score' in fps.columns and fps['tree_score'].dtype==np.float64 and ignore_low_quality_fps:
+        cutoff = fps.tree_score.quantile(.80)
+        fps = fps.query(f"tree_score > {cutoff}")
     fns = df.reset().get_df().query('classify=="fn"')
     tps = df.reset().get_tp().get_df()
     gtr = df.reset().get_df().loc[
