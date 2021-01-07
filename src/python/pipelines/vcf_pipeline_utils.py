@@ -10,21 +10,9 @@ import python.vcftools as vcftools
 import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
-from python.auxiliary.format import CHROM_DTYPE
 import logging
 
 logger = logging.getLogger(__name__)
-
-logger.setLevel(logging.INFO)
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-# create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-# add formatter to ch
-ch.setFormatter(formatter)
-# add ch to logger
-logger.addHandler(ch)
 
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
@@ -167,7 +155,6 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     None
     '''
 
-
     output_dir = os.path.dirname(output_prefix)
     SDF_path = ref_genome + '.sdf'
     vcfeval_output_dir = os.path.join(
@@ -177,7 +164,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
         shutil.rmtree(vcfeval_output_dir)
 
     # filter the vcf to be only in the comparison_intervals.
-    filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
+    filtered_truth_file = os.path.join(output_dir, '.'.join((os.path.basename(truth_file), 'filtered', 'vcf.gz')))
     if comparison_intervals is not None:
         intersect_with_intervals(
             truth_file, comparison_intervals, filtered_truth_file)
@@ -392,7 +379,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                     x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
-               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 
+               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad',
                'tree_score', 'tlod', 'af']
     original = pd.DataFrame([[x[y.upper()] for y in columns]
                              for x in vfi], columns=columns)
@@ -405,7 +392,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
     only_ref = concordance['alleles'].apply(len) == 1
     concordance = concordance[~only_ref]
-
 
     return concordance
 
