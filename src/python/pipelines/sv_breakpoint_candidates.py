@@ -2,9 +2,25 @@ import pandas as pd
 import re
 import numpy as np
 import os
+import argparse
+import logging
+
+logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+# create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# add formatter to ch
+ch.setFormatter(formatter)
+# add ch to logger
+logger.addHandler(ch)
 
 
-def SV_junction_detection(csv_filename):
+def SV_breakpoint_candidates(csv_filename, output_file_basename):
+    logger.info(f"Reading {csv_filename}")
     df = pd.read_csv(csv_filename, sep='\t')
     df.columns = ['read_id', 'flag', 'chr', 'pos', 'mapQ', 'cigar', 'SA_info']  ## TODO
 
@@ -37,6 +53,7 @@ def SV_junction_detection(csv_filename):
             cur_softclip_length = (cur_softclip_length[1], cur_softclip_length[0])
         return cur_align_bases, cur_softclip_length[0], cur_softclip_length[1]
 
+    logger.info(f"cigar parsing")
     df_temp = df.apply(lambda x: row_function(x.cigar, x.isreverse), axis=1).apply(pd.Series)
     df_temp.columns = ['align_bases', 'start_softclip', 'end_softclip']
     df = df.join(df_temp)
@@ -47,6 +64,7 @@ def SV_junction_detection(csv_filename):
     df['SA_isreverse'] = df['SA_strand'] == '-'
     df['SA_chr_id'] = df['SA_chr'].apply(lambda x: x[5:])
 
+    logger.info(f"cigar parsing SA")
     df_temp = df.apply(lambda x: row_function(x.SA_cigar, x.SA_isreverse), axis=1).apply(pd.Series)
     df_temp.columns = ['SA_align_bases', 'SA_start_softclip', 'SA_end_softclip']
     df = df.join(df_temp)
@@ -107,22 +125,30 @@ def SV_junction_detection(csv_filename):
     final_res['cntf'] = gb.apply(lambda x: x[x['firstpart'] == 1]['firstpart'].count())[None]
     final_res['cntr'] = gb.apply(lambda x: x[x['firstpart'] == 2]['firstpart'].count())[None]
 
-    basename_file = os.path.splitext(csv_filename)
-
     tmpfinal_res = final_res.loc[final_res[['cntf', 'cntr']].min(axis=1) > minappearance]
 
     final_res_bed = pd.concat([tmpfinal_res['chr'], tmpfinal_res['junction_pos'], tmpfinal_res['junction_pos'] + 10,
                                tmpfinal_res['SA_junction_pos']], axis=1)
 
-    final_res_bed.to_csv(basename_file[0] + ".JunctionsSV.bed", sep='\t', header=False, index=False)
+    logger.info(f"csv file writing {output_file_basename}.JunctionsSV.bed")
+    final_res_bed.to_csv(f"{output_file_basename}.JunctionsSV.bed", sep='\t', header=False, index=False)
 
     tmpfinal_res.columns = ['chr_id', 'junction_chr_pos', 'SA_chr_id', 'SA_junction_chr_pos', 'mean_MQ', 'SA_mean_MQ',
                             'mean_align_bases', 'SA_mean_align_bases', 'F_read_cnt', 'R_read_cnt']
     tmpfinal_res = tmpfinal_res[
         ['chr_id', 'junction_chr_pos', 'SA_chr_id', 'SA_junction_chr_pos', 'F_read_cnt', 'R_read_cnt', 'mean_MQ',
          'SA_mean_MQ', 'mean_align_bases', 'SA_mean_align_bases']]
-    tmpfinal_res.to_csv(basename_file[0] + ".JunctionsSV.csv", sep='\t', index=False)
+    logger.info(f"bed file writing {output_file_basename}.JunctionsSV.bed")
+    tmpfinal_res.to_csv(f"{output_file_basename}.JunctionsSV.csv", sep='\t', index=False)
 
 
-#csv_filename = '/data/201220_structure_variants_omer_code/150300-BC03.aligned.sorted.duplicates_marked.bam.SA.csv'
-#SV_junction_detection(csv_filename)
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(
+        prog="sv_breakpoint_candidates.py", description="SV breakpoint candidates")
+    ap.add_argument("--input_file", help="Name of the input csv file",
+                    type=str, required=True)
+    ap.add_argument("--output_file_basename", help="Output file basename",
+                    type=str, required=True)
+    args = ap.parse_args()
+
+    SV_breakpoint_candidates(args.input_file, args.output_file_basename)
