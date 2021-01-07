@@ -6,12 +6,8 @@ import h5py as h5
 from os.path import join as pjoin
 import os
 import json
-
-home = os.environ['HOME']
-sys.path.append(pjoin(home, 'proj/BioinfoResearch/VariantCalling/src/'))
-sys.path.append(pjoin(home, 'proj/Base-calling/ContextResearch/'))
+import pathmagic 
 from python.pipelines import vc_pipeline_utils
-workdir = pjoin(home, "proj/BioinfoResearch/work/")
 import argparse
 
 ap = argparse.ArgumentParser(
