@@ -603,6 +603,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     predictions = model.predict(concordance, classify_column)
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
+    tree_score_fpr = {}
 
     for g in groups:
         select = (concordance["group_testing"] == g) & \
@@ -618,11 +619,12 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
-        precision, recall = curve
+        precision, recall, fpr, group_predictions_filtered = curve
 
         recalls_precisions[g] = np.vstack((recall, precision)).T
+        tree_score_fpr[g] = np.vstack((group_predictions_filtered, fpr)).T
 
-    return recalls_precisions
+    return recalls_precisions, tree_score_fpr
 
 
 def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
