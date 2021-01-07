@@ -5,7 +5,7 @@ from os.path import join as pjoin
 from os.path import basename, dirname, splitext
 import python.utils as utils
 import os
-# import re
+import re
 import pandas as pd
 import numpy as np
 import pysam
@@ -147,6 +147,34 @@ def parse_params_file(pipeline_name):
     else:
         args.em_vc_basename = basename(args.em_vc_demux_file)
     return args
+
+
+def concatenate(bam_list, output_file):
+    # samtools cat file1.bam file2.bam > output.bam
+    if len(bam_list) != 2:
+        raise Exception(f"Input files number must be 2. Input: {bam_list}")
+    else:
+        bam1, bam2 = bam_list
+    output_bam, output_err = output_file
+    cat_cmd = [
+        "samtools",
+        "cat",
+        bam1[0],
+        bam2[0],
+        "-o",
+        output_bam
+    ]
+    with open(output_err, "w") as output_err_handle:
+        output_err_handle.write(" ".join(cat_cmd))
+        output_err_handle.flush()
+        task1 = subprocess.Popen(
+            cat_cmd, stdout=(subprocess.PIPE), stderr=output_err_handle
+        )
+        _ = task1.communicate()
+    time.sleep(30)
+    if task1.returncode != 0:
+        exception_string = f"cat {bam1} + {bam2} failed: rc={task1.returncode}. stderr= {task1.stderr}"
+        raise RuntimeError(exception_string)
 
 
 def extract_total_n_reads(input_file, output_file, nthreads):
@@ -413,34 +441,6 @@ def align_and_merge(input_file, output_file, genome_file, nthreads):
         flag = True
         exception_string += f"MBA failed: rc={task3.returncode}"
     if flag:
-        raise RuntimeError(exception_string)
-
-
-def concatenate(bam_list, output_file):
-    # samtools cat file1.bam file2.bam > output.bam
-    if len(bam_list) != 2:
-        raise Exception(f"Input files number must be 2. Input: {bam_list}")
-    else:
-        bam1, bam2 = bam_list
-    output_bam, output_err = output_file
-    cat_cmd = [
-        "samtools",
-        "cat",
-        bam1[0],
-        bam2[0],
-        "-o",
-        output_bam
-    ]
-    with open(output_err, "w") as output_err_handle:
-        output_err_handle.write(" ".join(cat_cmd))
-        output_err_handle.flush()
-        task1 = subprocess.Popen(
-            cat_cmd, stdout=(subprocess.PIPE), stderr=output_err_handle
-        )
-        _ = task1.communicate()
-    time.sleep(30)
-    if task1.returncode != 0:
-        exception_string = f"cat {bam1} + {bam2} failed: rc={task1.returncode}. stderr= {task1.stderr}"
         raise RuntimeError(exception_string)
 
 
@@ -1093,7 +1093,7 @@ def combine_coverage_metrics(
     convert_dictionary = dict(zip(intervals, classes))
 
     total_file = [x for x in input_files if splitext(basename(intervals[0]))[0] in x][0]
-    all_stats, all_metrics_class, all_histogram = parse_cvg_metrics(total_file)
+    all_metrics_class, all_stats, all_histogram = parse_cvg_metrics(total_file)
     all_stats = all_stats.T.loc[["MEAN_COVERAGE", "MEDIAN_COVERAGE", "PCT_20X"]]
     all_median_coverage = float(all_stats.loc["MEDIAN_COVERAGE", 0])
     class_counts = []
@@ -1103,7 +1103,7 @@ def combine_coverage_metrics(
         assert len(idx) <= 1, "Non-unique possible source"
         idx = idx[0]
 
-        stats, metrics_class, histogram = parse_cvg_metrics(fn)
+        metrics_class, stats, histogram = parse_cvg_metrics(fn)
         class_counts.append(
             (convert_dictionary[idx], histogram["high_quality_coverage_count"].sum())
         )
@@ -1141,29 +1141,29 @@ def parse_md_file(md_file):
 
 
 def parse_cvg_metrics(metric_file):
-    """Parses Picard WGScoverage metrics file 
-    
+    """Parses Picard WGScoverage metrics file
+
     Parameters
     ----------
     metric_file : str
-        Picard metric file 
-    
+        Picard metric file
+
     Returns
     -------
-    res1 : pd.DataFrame
-        Picard metrics table 
-    res2 : str
-        Picard File Class
+    res1 : str
+        Picard file metrics class
+    res2 : pd.DataFrame
+        Picard metrics table
     res3 : pd.DataFrame
-        Picard Histogram output 
+        Picard Histogram output
     """
     with open(metric_file) as infile:
         out = next(infile)
         while not out.startswith("## METRICS CLASS"):
             out = next(infile)
 
-        res1 = pd.read_csv(infile, sep="\t", nrows=1)
-        res2=out.strip().split('\t')[1].split('.')[-1]
+        res1 = out.strip().split('\t')[1].split('.')[-1]
+        res2 = pd.read_csv(infile, sep="\t", nrows=1)
     try:
         with open(metric_file) as infile:
             out = next(infile)
