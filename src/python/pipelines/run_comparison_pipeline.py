@@ -9,21 +9,7 @@ import os
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import logging
-MAX_CONTIG_LENGTH = 100000
-
-logger = logging.getLogger(__name__)
-
-logger.setLevel(logging.INFO)
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-# create formatter
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-# add formatter to ch
-ch.setFormatter(formatter)
-# add ch to logger
-logger.addHandler(ch)
+MIN_CONTIG_LENGTH = 100000
 
 
 def _contig_concordance_annotate_reinterpretation(results, contig, reference, aligned_bam, annotate_intervals,
@@ -40,7 +26,7 @@ def _contig_concordance_annotate_reinterpretation(results, contig, reference, al
     if not disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
             annotated_concordance, reference, ignore_low_quality_fps)
-
+    logger.debug(f"{contig}: {annotated_concordance.shape}")
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
 
 
@@ -89,13 +75,30 @@ if __name__ == "__main__":
                     help="Should re-interpretation be run", action="store_true")
     ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
                     action="store_true")
-    ap.add_argument("--n_jobs", help="n_jobs of parallel on contigs",
+    ap.add_argument("--n_jobs", help="n_jobs of parallel on contigs",type=int,
                     default=-1)
+    ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
     args = ap.parse_args()
 
-    pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[
-        0]).to_hdf(args.output_file, key="input_args")
+    logger = logging.getLogger("run_comparison_pipeline")
+
+    logger.setLevel(args.verbosity)
+
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(args.verbosity)
+    # create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    # add formatter to ch
+    ch.setFormatter(formatter)
+    # add ch to logger
+    logger.addHandler(ch)
+
+    pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[0])\
+                        .to_hdf(args.output_file, key="input_args")
+
 
     if args.filter_runs:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
@@ -137,8 +140,7 @@ if __name__ == "__main__":
         with pysam.VariantFile(results[0]) as vf:
             # we filter out short contigs to prevent huge files
             contigs = [x for x in vf.header.contigs if vf.header.contigs[
-                x].length > MAX_CONTIG_LENGTH]
-        write_mode = 'w'
+                x].length > MIN_CONTIG_LENGTH]
 
         base_name_outputfile = os.path.splitext(args.output_file)[0]
         Parallel(n_jobs=args.n_jobs, max_nbytes=None)(
@@ -147,16 +149,31 @@ if __name__ == "__main__":
              args.hpol_filter_length_dist, args.flow_order, base_name_outputfile, args.concordance_tool,
              args.disable_reinterpretation, args.is_mutect)
             for contig in tqdm(contigs))
+
         # merge temp h5 files
-        hdfStore = pd.HDFStore(args.output_file, mode='w')
+        write_mode = 'w'
+
+        #find columns and set the same header for empty dataframes
         for contig in contigs:
             h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
-            hdfStore.put(contig, h5_temp)
-            os.remove(f"{base_name_outputfile}{contig}.h5")
+            if h5_temp.shape == (0, 0):  # empty dataframes are dropped to save space
+                continue
+            else:
+                df_columns = pd.DataFrame(columns=h5_temp.columns)
+                break
 
         for contig in contigs:
-            annotated_concordance = hdfStore.get(contig)
+            h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
+            if h5_temp.shape == (0, 0):  # empty dataframes get default columns
+                h5_temp = pd.concat((h5_temp, df_columns), axis=1)
+            h5_temp.to_hdf(args.output_file, mode=write_mode, key=contig)
+            write_mode = 'a'
+            os.remove(f"{base_name_outputfile}{contig}.h5")
+
+        write_mode = 'w'
+        for contig in contigs:
+            annotated_concordance = pd.read_hdf(args.output_file, key=contig)
             vcftools.bed_files_output(
                 annotated_concordance, args.output_file, mode=write_mode,
                 create_gt_diff=(not args.is_mutect))
-        hdfStore.close()
+            write_mode = 'a'
