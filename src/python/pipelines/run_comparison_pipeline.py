@@ -153,7 +153,7 @@ if __name__ == "__main__":
         # merge temp h5 files
         write_mode = 'w'
 
-        #find columns and set the same header for empty dataframes
+        # find columns and set the same header for empty dataframes
         for contig in contigs:
             h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             if h5_temp.shape == (0, 0):  # empty dataframes are dropped to save space
