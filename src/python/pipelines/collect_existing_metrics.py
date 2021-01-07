@@ -13,9 +13,9 @@ sys.path.append(pjoin(home, 'proj/Base-calling/ContextResearch/'))
 from python.pipelines import vc_pipeline_utils
 workdir = pjoin(home, "proj/BioinfoResearch/work/")
 import argparse
+
 ap = argparse.ArgumentParser(
     prog="collect_existing_picard_metrics.py", description="Collect picard metrics in h5 file")
-
 ap.add_argument('--metric_files', nargs='+',help="comma seperated list of picard metric files")
 ap.add_argument("--coverage_h5", help='Coverage h5 File',
                 required=True, type=str)
@@ -24,7 +24,7 @@ ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
 
 args = ap.parse_args()
 
-for metric_file in args.metric_files: #glob.glob(pjoin(workdir,"*metrics")):
+for metric_file in args.metric_files:
     if os.path.getsize(metric_file) > 0:
          metric_class,stats,histogram = vc_pipeline_utils.parse_cvg_metrics(metric_file)
          metric_class = metric_class[metric_class.find("$")+1:]
