@@ -75,8 +75,8 @@ def test_bed_output_when_no_tree_score():  # testing the case when there is no t
     data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'exome.h5'), key='concordance')
     df = vcftools.FilterWrapper(data)
     result = dict(df.get_fn().BED_format(kind="fn").get_df()['itemRgb'].value_counts())
-    expected_result = {vcftools.FilteringColors.BLACKLIST: 169,
-                       vcftools.FilteringColors.CLEAR: 89, vcftools.FilteringColors.BORDERLINE: 39}
+    expected_result = {vcftools.FilteringColors.BLACKLIST.value: 169,
+                       vcftools.FilteringColors.CLEAR.value: 89, vcftools.FilteringColors.BORDERLINE.value: 39}
     for k in result:
         assert result[k] == expected_result[k]
 

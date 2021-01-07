@@ -104,7 +104,7 @@ try:
     with pysam.VariantFile(args.input_file) as infile:
         hdr = infile.header
         hdr.info.add("HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
-
+        hdr.filters.add("LOW_SCORE", None, None, "Low decision tree score")
         for b in blacklists:
             hdr.filters.add(b.annotation, None, None, b.description)
 
@@ -118,6 +118,9 @@ try:
                 pass_flag = True
                 if hmer_run[i]:
                     rec.info["HPOL_RUN"] = True
+                if predictions[i] == 'fp':
+                    rec.filter.add("LOW_SCORE")
+                    pass_flag = False
                 if blacklist[i] != "PASS":
                     for v in blacklist[i].split(";"):
                         if v != "PASS":
