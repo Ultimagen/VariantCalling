@@ -12,7 +12,8 @@ import argparse
 
 ap = argparse.ArgumentParser(
     prog="collect_existing_picard_metrics.py", description="Collect picard metrics in h5 file")
-ap.add_argument('--metric_files', nargs='+',help="comma seperated list of picard metric files")
+ap.add_argument('--metric_files', nargs='+',help="comma seperated list of picard metric files",
+		required=True)
 ap.add_argument("--coverage_h5", help='Coverage h5 File',
                 required=True, type=str)
 ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
