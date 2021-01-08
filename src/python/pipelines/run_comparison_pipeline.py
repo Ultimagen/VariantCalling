@@ -81,20 +81,8 @@ if __name__ == "__main__":
 
     args = ap.parse_args()
 
+    logging.basicConfig(level=getattr(logging, args.verbosity), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger("run_comparison_pipeline")
-
-    logger.setLevel(args.verbosity)
-
-    # create console handler and set level to debug
-    ch = logging.StreamHandler()
-    ch.setLevel(args.verbosity)
-    # create formatter
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    # add formatter to ch
-    ch.setFormatter(formatter)
-    # add ch to logger
-    logger.addHandler(ch)
 
     pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[0])\
                         .to_hdf(args.output_file, key="input_args")
