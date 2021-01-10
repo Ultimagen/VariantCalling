@@ -69,12 +69,16 @@ class SingleTrivialRegressorModel:
 
 class MaskedHierarchicalModel:
 
+
+
     def __init__(self, _name: str, _group_column: str, _models_dict: dict,
                  transformer: Optional[sklearn_pandas.DataFrameMapper]=None):
         self.name = _name
         self.group_column = _group_column
         self.models = _models_dict
         self.transformer = transformer
+        self.tree_score_fpr = None
+
 
     def predict(self, df: pd.DataFrame,
                 mask_column: Optional[str]=None) -> pd.Series:
@@ -115,6 +119,7 @@ class MaskedHierarchicalModel:
             else:
                 predictions.append(model.predict(df.iloc[i:i + 1000000, :]))
         return np.hstack(predictions)
+
 
 
 def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
@@ -428,6 +433,41 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
         df.loc[selection_functions[k](df), column_name] = k
     return df
 
+def add_fpr_column(prediction_score: pd.Series,df: pd.DataFrame, tree_score_fpr: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    '''Add a column for frp value from the tree_score and the tree score fpr mapping
+
+        Parameters
+        ----------
+        df: pd.DataFrame
+            concordance dataframe
+        tree_score_fpr: pd.DataFrame
+            2 columns of tree score and its corresponding fpr
+        column_name: str
+            Name of the column to contain fpr
+
+        Returns
+        -------
+        pd.DataFrame
+            df with column_name added to it that is filled with the fpr value according
+            to the tree score fpr mapping
+        '''
+
+    def _find_neighbours(value, tree_score_fpr, colname):
+        exactmatch = tree_score_fpr[tree_score_fpr[colname] == value]
+        if not exactmatch.empty:
+            return exactmatch.index
+        else:
+            lowerneighbour_ind = tree_score_fpr[tree_score_fpr.iloc[:, 0] < value].iloc[:, 0].idxmax()
+            upperneighbour_ind = tree_score_fpr[tree_score_fpr.iloc[:, 0] > value].iloc[:, 0].idxmin()
+            final_ind = lowerneighbour_ind if abs(tree_score_fpr.iloc[lowerneighbour_ind, 0] - value) < abs(tree_score_fpr[upperneighbour_ind, 0] - value) else upperneighbour_ind
+            return tree_score_fpr.iloc[final_ind, 1]
+            #return [lowerneighbour_ind, upperneighbour_ind]
+
+    fpr_values = np.zeros(len(prediction_score))
+    for group in df['group'].unique():
+        select = np.where(df['group'] == group)
+        fpr_values[select] = prediction_score.iloc[select].apply(lambda value:_find_neighbours(value, tree_score_fpr[group], 'tree_score_fpr_tree_score_value'))
+    return df
 
 def get_testing_selection_functions() -> dict:
     sfs = []
