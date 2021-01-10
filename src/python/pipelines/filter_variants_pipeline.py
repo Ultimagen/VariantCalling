@@ -77,6 +77,12 @@ try:
                                                      variant_filtering_utils.get_training_selection_functions(),
                                                      "group")
 
+    # df.to_hdf("/data/mutect2/data_simulation/df.hdf", key="df")
+    # import pickle
+    # with open('/data/mutect2/data_simulation/filename.pickle', 'wb') as handle:
+    #     pickle.dump(model_clsf.tree_score_fpr, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
     if args.blacklist is not None:
         with open(args.blacklist, "rb") as blf:
             blacklists = pickle.load(blf)
@@ -96,6 +102,12 @@ try:
         logger.info("Applying regressor")
         predictions_score = model_scor.predict(df)
         predictions_score = np.array(predictions_score)
+        # df.to_hdf("/data/mutect2/data_simulation/df.hdf", key="df")
+        #predictions_score.to_hdf("/data/mutect2/data_simulation/predictions_score.hdf", key="df")
+        FPR_scores = variant_filtering_utils.add_fpr_column(predictions_score,df,
+                                                                 model_clsf.tree_score_fpr,
+                                                                 'model_clsf_fpr')
+
 
     hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
 
@@ -127,6 +139,7 @@ try:
                     rec.filter.add("PASS")
                 if is_decision_tree:
                     rec.info["TREE_SCORE"] = predictions_score[i]
+
 
                 # fix the alleles of form <1> that our GATK adds
                 rec.ref = rec.ref if re.match(
