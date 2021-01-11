@@ -348,6 +348,9 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     model1 = DecisionTreeRegressor(max_depth=7)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
+    tree_scores = model1.predict(train_data)
+    # enclabels - fn/fp -> fpr
+    # return as another param
     return model, model1
 
 
