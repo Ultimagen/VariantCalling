@@ -36,7 +36,8 @@ def SV_breakpoint_candidates(csv_filename, output_file_basename):
         'SA_chr_start': int,
         'SA_strand': 'category',
         'SA_chr': 'category',
-        'SA_MQ': int
+        'SA_MQ': int,
+        'flag': int
     })
 
     MQ_th = 20
