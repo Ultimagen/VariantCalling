@@ -82,7 +82,7 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.verbosity), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    logger = logging.getLogger("run_comparison_pipeline")
+    logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
 
     pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[0])\
                         .to_hdf(args.output_file, key="input_args")
