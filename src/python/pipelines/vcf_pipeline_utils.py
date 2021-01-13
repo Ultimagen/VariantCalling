@@ -75,27 +75,75 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
         subprocess.check_call(cmd, stdout=out)
     index_vcf(output_file)
 
+class IntervalFile:
+    def __init__(self,interval_file_name: str, ref_dict: str):
+        # determine the file type and create the other temporary copy
+        if interval_file_name.endswith('.interval_list'):
+            self._interval_list_file_name = interval_file_name
+            # create the interval bed file
+            cmd = ["picard", "IntervalListToBed",
+                   f"I={interval_file_name}",
+                   f"O={os.path.splitext(interval_file_name)[0]}.bed"]
+            subprocess.check_call(cmd)
 
-def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:
-    '''Intersects VCF with intervalList
+        elif interval_file_name.endswith('.bed'):
+            self._bed_file_name = interval_file_name
+            # create the interval list file
+            cmd = ["picard", "BedToIntervalList",
+                   f"I={interval_file_name}",
+                   f"O={os.path.splitext(interval_file_name)[0]}.interval_list",
+                   f"SD={ref_dict}"]
+            subprocess.check_call(cmd)
+        else:
+            logger.error("the cmp_intervals should be of type interval list or bed")
+    def as_bed_file(self):
+        return self._bed_file_name
+    def as_interval_list_file(self):
+        return self._interval_list_file_name
+
+def bed_intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> None:
+    '''Intersects bed files
 
     Parameters
     ----------
-    input_fn: str
-        Input file
-            intervals_fn: str
-        Interval_list filename
-    output_fn: str
-        Output file
+    input_bed1: str
+        Input Bed file
+    input_bed2: str
+        Input Bed file
+    bed_output: str
+        Output bed intersected file
 
     Return
     ------
     None
         Writes output_fn file
     '''
-    cmd = ['gatk', 'SelectVariants', '-V', input_fn,
-           '-L', intervals_fn, '-O', output_fn]
-    subprocess.check_call(cmd)
+    cmd = ['bedtools', 'intersect', '-a', input_bed1,
+           '-b', input_bed2]
+    subprocess.check_call(cmd, stdout=bed_output)
+
+def bed_file_length(input_bed: str) -> int:
+    '''Calc the number of bases in a bed file
+
+    Parameters
+    ----------
+    input_bed: str
+        Input Bed file
+
+    Return
+    ------
+    int
+        number of bases in a bed file
+    '''
+    cmd1 = ['cat', input_bed]
+    task1 = subprocess.Popen(
+        cmd1, stdout=subprocess.PIPE)
+    cmd2 = ["awk - F'\t' 'BEGIN{SUM=0}{ SUM+=$3-$2+1 }END{print SUM}"]
+    task2 = subprocess.check_output(cmd2)
+    # out, err = task2.communicate()
+    # task2.stdout.close()
+    task1.stdout.close()
+    return task2
 
 
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
