@@ -1,7 +1,7 @@
 import numpy as np
 import itertools
 import pandas as pd
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
