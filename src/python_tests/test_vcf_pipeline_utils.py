@@ -1,7 +1,5 @@
-from os.path import join as pjoin
 import pathmagic
 from pathmagic import PYTHON_TESTS_PATH
-from os.path import dirname
 from os.path import join as pjoin
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.modules.variant_annotation as annotation
