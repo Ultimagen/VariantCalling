@@ -6,6 +6,7 @@ import numpy as np
 from collections import defaultdict
 from enum import Enum
 
+
 def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
     '''Reads VCF file into dataframe, re
 
@@ -29,7 +30,7 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
     columns = ['chrom', 'pos', 'qual',
                'ref', 'alleles', 'gt', 'pl',
                'dp', 'ad', 'mq', 'sor', 'af', 'filter',
-               'dp_r','dp_f','ad_r','ad_f', 'tlod', 'strandq']
+               'dp_r', 'dp_f', 'ad_r', 'ad_f', 'tlod', 'strandq']
     concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     concordance_df.columns = columns
 
@@ -38,6 +39,8 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
 
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
+
+
     return concordance_df
 
 
@@ -252,10 +255,13 @@ class FilterWrapper:
                        and (pd.to_numeric(self.df['tree_score'], errors='coerce').notnull().all())
         if not do_filtering:
             return pd.Series([True] * self.df.shape[0])
+
+        # in the new VCF format, the low_score is a separate column rather then a filter 
         filter_column = self.df['filter']
         # remove low score points
         self.df = self.df[~filter_column.str.contains(
             'LOW_SCORE', regex=False)]
+
         tree_score_column = self.df['tree_score']
         if len(tree_score_column) > 0:
             p = np.nanpercentile(tree_score_column, 10)
@@ -290,9 +296,9 @@ class FilterWrapper:
 
         # decide the color by filter column
         if do_filtering:
-            rgb_color[rgb_color] = FilteringColors.CLEAR  
-            rgb_color[blacklist_color] = FilteringColors.BLACKLIST 
-            rgb_color[rgb_color == False] = FilteringColors.BORDERLINE 
+            rgb_color[rgb_color] = FilteringColors.CLEAR.value
+            rgb_color[blacklist_color] = FilteringColors.BLACKLIST.value
+            rgb_color[rgb_color == False] = FilteringColors.BORDERLINE.value
             rgb_color = list(rgb_color)
             self.df['score'] = 500
             self.df['strand'] = "."
@@ -335,7 +341,7 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
     snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format(kind="fn").get_df()
 
     # Diff filtering
-    if create_gt_diff : 
+    if create_gt_diff:
         # fp
         all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(kind="fp").get_df()
         # fn
