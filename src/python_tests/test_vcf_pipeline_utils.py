@@ -28,7 +28,7 @@ def test_fix_errors():
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis=1))
 
 class TestVCFevalRun:
-    ref_genome = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.fasta")
+    ref_genome = pjoin(PYTHON_TESTS_PATH, "common", "sample.fasta")
     sample_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.sd.vcf.gz")
     truth_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "gtr.sample.sd.vcf.gz")
     high_conf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "highconf.interval_list")
@@ -65,7 +65,7 @@ class TestVCFevalRun:
 
 def test_annotate_concordance(mocker):
 
-    ref_genome = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.fasta")
+    ref_genome = pjoin(PYTHON_TESTS_PATH, "common", "sample.fasta")
     data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'annotate_concordance_h5_input.hdf'), key='concordance')
 
     spy_classify_indel = mocker.spy(annotation, 'classify_indel')
