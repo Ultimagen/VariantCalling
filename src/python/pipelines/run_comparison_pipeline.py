@@ -52,11 +52,11 @@ if __name__ == "__main__":
                     required=True, type=str)
     ap.add_argument("--gtr_vcf", help='Ground truth VCF file',
                     required=True, type=str)
-    ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison',
+    ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison (bed/interval_list)',
                     required=False, type=str, default=None)
     ap.add_argument("--highconf_intervals",
-                    help='High confidence intervals', required=True, type=str)
-    ap.add_argument("--runs_intervals", help='Runs intervals',
+                    help='High confidence intervals (bed)', required=True, type=str)
+    ap.add_argument("--runs_intervals", help='Runs intervals (bed)',
                     required=False, type=str, default=None)
     ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                     type=str, default=None, action='append')
@@ -89,20 +89,27 @@ if __name__ == "__main__":
 
     args = ap.parse_args()
 
-    pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[
+
+    args_dict = {k: str(vars(args)[k]) for k in vars(args)}
+    interval_obj = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference)
+
+    interval_length = vcf_pipeline_utils.get_interval_length(interval_obj.as_bed_file(), args.highconf_intervals)
+    logger.info(f"Interval_length is {interval_length}")
+    args_dict['interval_size'] = interval_length
+    pd.DataFrame(args_dict, index=[
         0]).to_hdf(args.output_file, key="input_args")
 
 
     if args.filter_runs:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                               args.header_file, args.gtr_vcf, interval_obj.as_bed_file(), args.highconf_intervals,
                                                args.runs_intervals, args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
                                                args.ignore_filter_status,
                                                args.concordance_tool)
     else:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, args.cmp_intervals, args.highconf_intervals,
+                                               args.header_file, args.gtr_vcf, interval_obj.as_bed_file(), args.highconf_intervals,
                                                None, args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
                                                args.ignore_filter_status,
