@@ -52,7 +52,7 @@ if __name__ == "__main__":
     ap.add_argument("--reference", help='Reference genome',
                     required=True, type=str)
     ap.add_argument("--aligned_bam", help='Aligned bam',
-                    required=False, default=None, type=str)
+                    required=False, default=None, type=str, action='append')
     ap.add_argument("--call_sample_name",
                     help='Name of the call sample', required=True, default='sm1')
     ap.add_argument("--truth_sample_name",
