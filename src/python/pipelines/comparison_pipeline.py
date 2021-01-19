@@ -3,10 +3,10 @@ import shutil
 from typing import Optional, Tuple
 
 TRUTH_FILE = "/home/ubuntu/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
+CMP_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/interval.list"
 HIGHCONF_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/GIAB_highconf.bed"
 RUNS_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190724/runs.bed"
 REFERENCE = "/home/ubuntu/proj/VariantCalling/data/genomes/hg19.fa"
-CMP_INTERVALS = vcf_pipeline_utils.IntervalFile("/home/ubuntu/proj/VariantCalling/work/190614/interval.list",REFERENCE)
 CALL_SAMPLE = "NA12878"
 TRUTH_SAMPLE = "HG001"
 CONCORDANCE_TOOL = "VCFEVAL"
@@ -14,7 +14,7 @@ CONCORDANCE_TOOL = "VCFEVAL"
 
 def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
              truth_file: str = TRUTH_FILE,
-             cmp_intervals: vcf_pipeline_utils.IntervalFile = CMP_INTERVALS,
+             cmp_intervals: str = CMP_INTERVALS,
              highconf_intervals: str = HIGHCONF_INTERVALS,
              runs_intervals: Optional[str] = RUNS_INTERVALS,
              ref_genome: str = REFERENCE,

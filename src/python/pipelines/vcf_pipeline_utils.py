@@ -166,7 +166,7 @@ def get_interval_length(cmp_intervals: str, highconf_intervals: str)->int:
     bed_intersect_bed_files(cmp_intervals, highconf_intervals, temp_file_path)
     bed_length = bed_file_length(temp_file_path)
     fp.close()
-    return bed_length;
+    return bed_length
 
 
 def bed_file_length(input_bed: str) -> int:
@@ -187,15 +187,6 @@ def bed_file_length(input_bed: str) -> int:
     df = df.iloc[:,[0,1,2]]
     df.columns = ['chr', 'pos_start', 'pos_end']
     return np.sum(df['pos_end']-df['pos_start']+1)
-    # cmd1 = ['cat', input_bed]
-    # task1 = subprocess.Popen(
-    #     cmd1, stdout=subprocess.PIPE)
-    # cmd2 = ["awk -F'\t' 'BEGIN{SUM=0}{ SUM+=$3-$2 }END{print SUM}'"]
-    # task2 = subprocess.Popen(cmd2,shell =True, stdin=task1.stdout)
-    # out, err = task2.communicate()
-    # task2.stdout.close()
-    # task1.stdout.close()
-    # task2
     return task2
 
 def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:

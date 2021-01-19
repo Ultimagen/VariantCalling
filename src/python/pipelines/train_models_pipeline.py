@@ -25,8 +25,11 @@ args = ap.parse_args()
 try:
     if 'input_file' in args:
         concordance = pd.read_hdf(args.input_file, "concordance")
+        input_args = pd.read_hdf(args.input_file, "input_args")
     else:
         concordance = pd.concat([pd.read_hdf(x.strip(), "concordance")
+                                 for x in open(args.input_fofn)])
+        input_args = pd.concat([pd.read_hdf(x.strip(), "input_args")
                                  for x in open(args.input_fofn)])
 
     if args.mutect: 
@@ -35,7 +38,7 @@ try:
         pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
     concordance_clean = concordance[
         (~concordance.close_to_hmer_run) & (~concordance.inside_hmer_run)].copy()
-
+    interval_size = input_args['interval_size'][0]
     # Unfiltered data
     model_no_gt, recall_precision_no_gt = variant_filtering_utils.calculate_unfiltered_model(
         concordance.copy(), "classify")
@@ -65,13 +68,12 @@ try:
     # Thresholding model
     models_thr_no_gt, models_reg_thr_no_gt, concordance_tmp = \
         variant_filtering_utils.train_threshold_models(
-            concordance.copy(), classify_column='classify')
+            concordance.copy(), interval_size, classify_column='classify')
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_tmp, models_thr_no_gt, "classify")
-    recall_precision_curve_no_gt, tree_score_fpr_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_tmp, models_reg_thr_no_gt, "classify")
-    models_thr_no_gt.tree_score_fpr = tree_score_fpr_no_gt
-    models_reg_thr_no_gt.tree_score_fpr = tree_score_fpr_no_gt
+
     results_dict[
         'threshold_model_ignore_gt_incl_hpol_runs'] = models_thr_no_gt, models_reg_thr_no_gt
     results_dict[
@@ -81,14 +83,12 @@ try:
 
     models_thr_gt, models_reg_thr_gt, concordance_tmp = \
         variant_filtering_utils.train_threshold_models(
-            concordance.copy(), classify_column='classify_gt')
-
+            concordance.copy(), interval_size, classify_column='classify_gt')
     recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_tmp, models_thr_gt, "classify_gt")
-    recall_precision_curve_gt, tree_score_fpr_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_tmp, models_reg_thr_gt, "classify_gt")
-    models_thr_gt.tree_score_fpr = tree_score_fpr_gt
-    models_reg_thr_gt.tree_score_fpr = tree_score_fpr_gt
+
     results_dict[
         'threshold_model_include_gt_incl_hpol_runs'] = models_thr_gt, models_reg_thr_gt
     results_dict[
@@ -98,13 +98,12 @@ try:
 
     models_thr_no_gt, models_reg_thr_no_gt, concordance_clean_tmp = \
         variant_filtering_utils.train_threshold_models(
-            concordance_clean.copy(), classify_column='classify')
+            concordance_clean.copy(), interval_size, classify_column='classify')
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_clean_tmp, models_thr_no_gt, "classify")
-    recall_precision_curve_no_gt, tree_score_fpr_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_clean_tmp, models_reg_thr_no_gt, "classify")
-    models_thr_no_gt.tree_score_fpr = tree_score_fpr_no_gt
-    models_reg_thr_no_gt.tree_score_fpr = tree_score_fpr_no_gt
+
     results_dict[
         'threshold_model_ignore_gt_excl_hpol_runs'] = models_thr_no_gt, models_reg_thr_no_gt
     results_dict[
@@ -113,14 +112,12 @@ try:
         'threshold_model_recall_precision_curve_ignore_gt_excl_hpol_runs'] = recall_precision_curve_no_gt
     models_thr_gt, models_reg_thr_gt, concordance_clean_tmp = \
         variant_filtering_utils.train_threshold_models(
-            concordance_clean.copy(), classify_column='classify_gt')
-
+            concordance_clean.copy(), interval_size, classify_column='classify_gt')
     recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_clean_tmp, models_thr_gt, "classify_gt")
-    recall_precision_curve_gt, tree_score_fpr_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_clean_tmp, models_reg_thr_gt, "classify_gt")
-    models_thr_gt.tree_score_fpr = tree_score_fpr_gt
-    models_reg_thr_gt.tree_score_fpr = tree_score_fpr_gt
+
     results_dict[
         'threshold_model_include_gt_excl_hpol_runs'] = models_thr_gt, models_reg_thr_gt
     results_dict[
@@ -131,14 +128,12 @@ try:
     # Decision tree models
     models_dt_no_gt, models_reg_dt_no_gt, concordance_tmp = \
         variant_filtering_utils.train_decision_tree_model(concordance.copy(),
-                                                          classify_column='classify')
-
+                                                          classify_column='classify', interval_size=interval_size)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_tmp, models_dt_no_gt, "classify")
-    recall_precision_curve_no_gt, tree_score_fpr_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_tmp, models_reg_dt_no_gt, "classify")
-    models_dt_no_gt.tree_score_fpr = tree_score_fpr_no_gt
-    models_reg_dt_no_gt.tree_score_fpr = tree_score_fpr_no_gt
+
     results_dict[
         'dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
     results_dict[
@@ -148,14 +143,12 @@ try:
 
     models_dt_gt, models_reg_dt_gt, concordance_tmp = \
         variant_filtering_utils.train_decision_tree_model(concordance.copy(),
-                                                          classify_column='classify_gt')
-
+                                                          classify_column='classify_gt', interval_size=interval_size)
     recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_tmp, models_dt_gt, "classify_gt")
-    recall_precision_curve_gt, tree_score_fpr_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_tmp, models_reg_dt_gt, "classify_gt")
-    models_dt_gt.tree_score_fpr = tree_score_fpr_gt
-    models_reg_dt_gt.tree_score_fpr = tree_score_fpr_gt
+
     results_dict[
         'dt_model_include_gt_incl_hpol_runs'] = models_dt_gt, models_reg_dt_gt
     results_dict[
@@ -165,14 +158,12 @@ try:
 
     models_dt_no_gt, models_reg_dt_no_gt, concordance_clean_tmp = \
         variant_filtering_utils.train_decision_tree_model(concordance_clean.copy(),
-                                                          classify_column='classify')
-
+                                                          classify_column='classify', interval_size=interval_size)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_clean_tmp, models_dt_no_gt, "classify")
-    recall_precision_curve_no_gt, tree_score_fpr_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_clean_tmp, models_reg_dt_no_gt, "classify")
-    models_dt_no_gt.tree_score_fpr = tree_score_fpr_no_gt
-    models_reg_dt_no_gt.tree_score_fpr = tree_score_fpr_no_gt
+
     results_dict[
         'dt_model_ignore_gt_excl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
     results_dict[
@@ -182,14 +173,11 @@ try:
 
     models_dt_gt, models_reg_dt_gt, concordance_clean_tmp = \
         variant_filtering_utils.train_decision_tree_model(concordance_clean.copy(),
-                                                          classify_column='classify_gt')
-
+                                                          classify_column='classify_gt', interval_size=interval_size)
     recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
         concordance_clean_tmp, models_dt_gt, "classify_gt")
-    recall_precision_curve_gt, tree_score_fpr_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         concordance_clean_tmp, models_reg_dt_gt, "classify_gt")
-    models_dt_gt.tree_score_fpr = tree_score_fpr_gt
-    models_reg_dt_gt.tree_score_fpr = tree_score_fpr_gt
     results_dict[
         'dt_model_include_gt_excl_hpol_runs'] = models_dt_gt, models_reg_dt_gt
     results_dict[
