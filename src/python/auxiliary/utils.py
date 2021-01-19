@@ -3,18 +3,12 @@ import subprocess
 import os
 from os.path import join as pjoin
 from google.cloud import storage
-import pandas as pd
 
 
 def count_lines_in_vcf(vcf_file):
     with pysam.VariantFile(vcf_file) as f_out:
         n_lines = sum((1 for _ in f_out))
     return n_lines
-
-def count_length_of_interval_list(interval_list_path):
-    with pd.read_csv(interval_list_path, comment='@', sep = '\t') as f_interval_list:
-        sum_linterval = sum(f_interval_list.iloc[:,2]-f_interval_list.iloc[:,1])
-    return sum_linterval
 
 
 def run_shell_command(cmd, print_output=True):

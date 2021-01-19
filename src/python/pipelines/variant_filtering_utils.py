@@ -69,15 +69,13 @@ class SingleTrivialRegressorModel:
 
 class MaskedHierarchicalModel:
 
-
-
     def __init__(self, _name: str, _group_column: str, _models_dict: dict,
-                 transformer: Optional[sklearn_pandas.DataFrameMapper]=None):
+                 transformer: Optional[sklearn_pandas.DataFrameMapper]=None, tree_score_fpr = None):
         self.name = _name
         self.group_column = _group_column
         self.models = _models_dict
         self.transformer = transformer
-        self.tree_score_fpr = None
+        self.tree_score_fpr = tree_score_fpr
 
 
     def predict(self, df: pd.DataFrame,
@@ -121,8 +119,7 @@ class MaskedHierarchicalModel:
         return np.hstack(predictions)
 
 
-
-def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
+def train_threshold_models(concordance: pd.DataFrame,interval_size: int, classify_column: str = 'classify')\
         -> Tuple[MaskedHierarchicalModel, MaskedHierarchicalModel, pd.DataFrame]:
     '''Trains threshold classifier and regressor
 
@@ -149,19 +146,22 @@ def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'cl
     groups = set(concordance["group"])
     classifier_models = {}
     regressor_models = {}
+    fpr_values = {}
     for g in groups:
-        classifier_models[g], regressor_models[g] = \
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
             train_threshold_model(concordance, concordance['test_train_split'],
-                                  concordance['group'] == g, classify_column, transformer)
+                                  concordance['group'] == g, classify_column, transformer, interval_size)
 
     return MaskedHierarchicalModel("Threshold classifier", "group", classifier_models, transformer=transformer), \
-        MaskedHierarchicalModel("Threshold regressor", "group", regressor_models, transformer=transformer), \
+        MaskedHierarchicalModel("Threshold regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
         concordance
 
 
 def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series,
                           selection: pd.Series, gtr_column: str,
-                          transformer: sklearn_pandas.DataFrameMapper) -> tuple:
+                          transformer: sklearn_pandas.DataFrameMapper,
+                          interval_size: int) -> tuple:
     '''Trains threshold regressor and classifier models
 
     Parameters
@@ -220,7 +220,9 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                               'sor': np.array([x[1] for x in rsi.index])},
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
-    return classifier, regression_model
+    tree_scores = regression_model.predict(train_data)
+    fpr_values = _fpr_calc(tree_scores, labels, test_train_split, interval_size)
+    return classifier, regression_model, pd.concat([pd.Series(tree_scores), fpr_values], axis=1)
 
 
 def get_r_s_i(results: pd.DataFrame, var_type: pd.DataFrame) -> tuple:
@@ -317,7 +319,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
 
 def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 selection: pd.Series, gtr_column: str,
-                transformer: sklearn_pandas.DataFrameMapper) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor]:
+                transformer: sklearn_pandas.DataFrameMapper,
+                interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor]:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -349,10 +352,21 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
     tree_scores = model1.predict(train_data)
+    fpr_values = _fpr_calc(tree_scores, labels, test_train_split, interval_size)
     # enclabels - fn/fp -> fpr
     # return as another param
-    return model, model1
+    return model, model1, pd.concat([pd.Series(tree_scores),fpr_values], axis=1,)
 
+def _fpr_calc(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
+    train_part = sum(test_train_split)/len(test_train_split)
+    tree_scores_sorted_inds = np.argsort(tree_scores)
+    cur_fpr = 0
+    fpr = []
+    for cur_ind in tree_scores_sorted_inds:
+        if labels[cur_ind] =='fp':
+            cur_fpr = cur_fpr+1
+        fpr.append((cur_fpr/train_part) / interval_size)
+    return pd.Series(fpr) * 10**6
 
 def get_basic_selection_functions():
     'Selection between SNPs and INDELs'
@@ -436,13 +450,15 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
         df.loc[selection_functions[k](df), column_name] = k
     return df
 
-def add_fpr_column(prediction_score: pd.Series,df: pd.DataFrame, tree_score_fpr: pd.DataFrame, column_name: str) -> pd.DataFrame:
-    '''Add a column for frp value from the tree_score and the tree score fpr mapping
+def score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: pd.DataFrame) -> pd.DataFrame:
+    '''Deduce frp value from the tree_score and the tree score fpr mapping
 
         Parameters
         ----------
         df: pd.DataFrame
             concordance dataframe
+        prediction_score: pd.Series
+
         tree_score_fpr: pd.DataFrame
             2 columns of tree score and its corresponding fpr
         column_name: str
@@ -455,22 +471,31 @@ def add_fpr_column(prediction_score: pd.Series,df: pd.DataFrame, tree_score_fpr:
             to the tree score fpr mapping
         '''
 
-    def _find_neighbours(value, tree_score_fpr, colname):
-        exactmatch = tree_score_fpr[tree_score_fpr[colname] == value]
-        if not exactmatch.empty:
-            return exactmatch.index
-        else:
-            lowerneighbour_ind = tree_score_fpr[tree_score_fpr.iloc[:, 0] < value].iloc[:, 0].idxmax()
-            upperneighbour_ind = tree_score_fpr[tree_score_fpr.iloc[:, 0] > value].iloc[:, 0].idxmin()
-            final_ind = lowerneighbour_ind if abs(tree_score_fpr.iloc[lowerneighbour_ind, 0] - value) < abs(tree_score_fpr[upperneighbour_ind, 0] - value) else upperneighbour_ind
-            return tree_score_fpr.iloc[final_ind, 1]
+    def _find_neighbours(value, tree_score_fpr_group):
+        exactmatch = tree_score_fpr_group[tree_score_fpr_group.iloc[:,0] == value]
+        idx = (np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin()
+        return tree_score_fpr_group.iloc[idx, 1]
+        # if not exactmatch.empty:
+        #     return tree_score_fpr_group.iloc[exactmatch.index, 1]
+        # else:
+        #     if all(tree_score_fpr_group.iloc[:, 0] < value):
+        #         lowerneighbour_ind = tree_score_fpr_group.iloc[:, 0].idxmax()
+        #     else:
+        #         lowerneighbour_ind = tree_score_fpr_group[tree_score_fpr_group.iloc[:, 0] < value].iloc[:, 0].idxmax()
+        #
+        #     if all(tree_score_fpr_group.iloc[:, 0] > value):
+        #         upperneighbour_ind = tree_score_fpr_group.iloc[:, 0].idxmin()
+        #     else:
+        #         upperneighbour_ind = tree_score_fpr_group[tree_score_fpr_group.iloc[:, 0] > value].iloc[:, 0].idxmin()
+        #     final_ind = lowerneighbour_ind if abs(tree_score_fpr_group.iloc[lowerneighbour_ind, 0] - value) < abs(tree_score_fpr_group.iloc[upperneighbour_ind, 0] - value) else upperneighbour_ind
+        #     return tree_score_fpr_group.iloc[final_ind, 1]
             #return [lowerneighbour_ind, upperneighbour_ind]
 
-    fpr_values = np.zeros(len(prediction_score))
+    fpr_values = pd.Series(np.zeros(len(prediction_score)))
     for group in df['group'].unique():
         select = np.where(df['group'] == group)
-        fpr_values[select] = prediction_score.iloc[select].apply(lambda value:_find_neighbours(value, tree_score_fpr[group], 'tree_score_fpr_tree_score_value'))
-    return df
+        fpr_values[select] = prediction_score.iloc[select].apply(lambda value:_find_neighbours(value, tree_score_fpr[group]))
+    return fpr_values
 
 def get_testing_selection_functions() -> dict:
     sfs = []
@@ -547,7 +572,7 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     return concordance
 
 
-def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
+def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
     '''Train a decision tree model on the dataframe
 
     Parameters
@@ -573,13 +598,15 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -
     groups = set(concordance["group"])
     classifier_models = {}
     regressor_models = {}
+    fpr_values = {}
     for g in groups:
-        classifier_models[g], regressor_models[g] = \
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
             train_model(concordance, concordance['test_train_split'],
-                        concordance['group'] == g, classify_column, transformer)
+                        concordance['group'] == g, classify_column, transformer, interval_size)
 
     return MaskedHierarchicalModel("Decision tree classifier", "group", classifier_models, transformer=transformer), \
-        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer), \
+        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
         concordance
 
 
@@ -646,7 +673,6 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     predictions = model.predict(concordance, classify_column)
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
-    tree_score_fpr = {}
 
     for g in groups:
         select = (concordance["group_testing"] == g) & \
@@ -662,12 +688,11 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
-        precision, recall, fpr, group_predictions_filtered = curve
+        precision, recall = curve
 
         recalls_precisions[g] = np.vstack((recall, precision)).T
-        tree_score_fpr[g] = np.vstack((group_predictions_filtered, fpr)).T
 
-    return recalls_precisions, tree_score_fpr
+    return recalls_precisions
 
 
 def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
