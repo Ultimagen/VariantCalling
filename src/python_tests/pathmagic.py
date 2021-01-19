@@ -7,3 +7,4 @@ if path not in sys.path:
 
 
 PYTHON_TESTS_PATH = pjoin(dirname(__file__), "data")
+COMMON = 'common'

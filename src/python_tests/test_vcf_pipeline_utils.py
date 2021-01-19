@@ -1,7 +1,5 @@
-from os.path import join as pjoin
 import pathmagic
-from pathmagic import PYTHON_TESTS_PATH
-from os.path import dirname
+from pathmagic import PYTHON_TESTS_PATH, COMMON
 from os.path import join as pjoin
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.modules.variant_annotation as annotation
@@ -30,7 +28,7 @@ def test_fix_errors():
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis=1))
 
 class TestVCFevalRun:
-    ref_genome = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.fasta")
+    ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
     sample_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.sd.vcf.gz")
     truth_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "gtr.sample.sd.vcf.gz")
     high_conf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "highconf.interval_list")
@@ -65,9 +63,10 @@ class TestVCFevalRun:
             calls = Counter([x.info['CALL'] for x in vcf])
         assert calls == {'FP': 91, 'TP': 1, 'IGN': 8}
 
+
 def test_annotate_concordance(mocker):
 
-    ref_genome = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.fasta")
+    ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
     data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'annotate_concordance_h5_input.hdf'), key='concordance')
 
     spy_classify_indel = mocker.spy(annotation, 'classify_indel')
