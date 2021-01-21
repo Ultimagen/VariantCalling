@@ -106,6 +106,16 @@ if __name__ == "__main__":
                                                args.concordance_tool)
 
     # single interval-file concordance - will be saved in a single dataframe
+    if args.cmp_intervals is "chr9":
+        concordance = vcf_pipeline_utils.vcf2concordance(
+        results[0], results[1], args.concordance_tool)
+        concordance.to_hdf(
+            "annotate_concordance_h5_input.hdf", key = 'concordance')
+        annotated_concordance = vcf_pipeline_utils.annotate_concordance(
+            concordance, args.reference, args.aligned_bam, args.annotate_intervals,
+            args.runs_intervals, hmer_run_length_dist = args.hpol_filter_length_dist,
+            flow_order = args.flow_order)
+
     if args.cmp_intervals is not None:
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool)
