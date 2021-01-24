@@ -3,9 +3,11 @@ from pathmagic import PYTHON_TESTS_PATH, COMMON
 from os.path import join as pjoin
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.modules.variant_annotation as annotation
+import subprocess
 import pandas as pd
 from os.path import exists
 import pysam
+import os
 from collections import Counter
 CLASS_PATH = "vcf_pipeline_utils"
 
@@ -64,30 +66,72 @@ class TestVCFevalRun:
         assert calls == {'FP': 91, 'TP': 1, 'IGN': 8}
 
 
-def test_annotate_concordance(mocker):
+def test_intersect_bed_files(mocker, tmp_path):
+    bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
+    bed2 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed2.bed")
+    output_path = pjoin(tmp_path, "output.bed")
 
+    spy_subprocess = mocker.spy(subprocess, 'call')
+    vcf_pipeline_utils.intersect_bed_files(bed1, bed2, output_path)
+    spy_subprocess.assert_called_once_with(['bedtools', 'intersect', '-a', bed1,'-b',bed2], stdout = mocker.ANY)
+
+    assert exists(output_path)
+
+
+def test_get_interval_length(mocker, tmp_path):
+    bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
+    bed2 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed2.bed")
+
+    spy_intersect = mocker.spy(vcf_pipeline_utils, 'intersect_bed_files')
+    spy_length = mocker.spy(vcf_pipeline_utils, 'bed_file_length')
+
+    intersect_length = vcf_pipeline_utils.get_interval_length(bed1, bed2)
+    assert intersect_length == 2705
+
+    spy_intersect.assert_called_once_with(bed1, bed2, mocker.ANY)
+    temp_file = spy_intersect.call_args[0][2]
+    spy_length.assert_called_once_with(temp_file)
+
+def test_bed_file_length():
+    bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
+    result = vcf_pipeline_utils.bed_file_length(bed1)
+    assert result == 3026
+
+def test_IntervalFile_init_bed_input(mocker):
+    bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
     ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
-    data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'annotate_concordance_h5_input.hdf'), key='concordance')
+    interval_list_path = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.interval_list")
+    spy_subprocess = mocker.spy(subprocess, 'check_call')
 
-    spy_classify_indel = mocker.spy(annotation, 'classify_indel')
-    spy_is_hmer_indel = mocker.spy(annotation, 'is_hmer_indel')
-    spy_get_motif_around = mocker.spy(annotation, 'get_motif_around')
-    spy_get_gc_content = mocker.spy(annotation, 'get_gc_content')
-    spy_get_coverage = mocker.spy(annotation, 'get_coverage')
-    spy_close_to_hmer_run = mocker.spy(annotation, 'close_to_hmer_run')
-    spy_annotate_intervals = mocker.spy(annotation, 'annotate_intervals')
-    spy_fill_filter_column = mocker.spy(annotation, 'fill_filter_column')
-    spy_annotate_cycle_skip = mocker.spy(annotation, 'annotate_cycle_skip')
+    intervalFile = vcf_pipeline_utils.IntervalFile(bed1, ref_genome)
 
-    vcf_pipeline_utils.annotate_concordance(data, ref_genome)
+    assert intervalFile.as_bed_file() == bed1
+    assert intervalFile.as_interval_list_file() == interval_list_path
+    assert exists(interval_list_path)
+    assert not intervalFile.is_none()
+    spy_subprocess.assert_called_once_with(['picard', 'BedToIntervalList',f'I={bed1}', f'O={interval_list_path}', f'SD={ref_genome}.dict'])
+    os.remove(interval_list_path)
 
-    spy_classify_indel.assert_called_once_with(data)
-    spy_is_hmer_indel.assert_called_once_with(data, ref_genome)
-    spy_get_motif_around.assert_called_once_with(data, 5, ref_genome)
-    spy_get_gc_content.assert_called_once_with(data, 10, ref_genome)
-    spy_get_coverage.assert_not_called()
-    spy_close_to_hmer_run.assert_not_called()
-    spy_annotate_intervals.assert_not_called()
-    spy_fill_filter_column.assert_called_once_with(data)
-    spy_annotate_cycle_skip.assert_called_once_with(data,"TACG")
+def test_IntervalFile_init_interval_list_input(mocker):
+    interval_list = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "interval_list1.interval_list")
+    ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
+    bed_path = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "interval_list1.bed")
+    spy_subprocess = mocker.spy(subprocess, 'check_call')
+
+    intervalFile = vcf_pipeline_utils.IntervalFile(interval_list, ref_genome)
+
+    assert intervalFile.as_bed_file() == bed_path
+    assert intervalFile.as_interval_list_file() == interval_list
+    assert exists(bed_path)
+    assert not intervalFile.is_none()
+    spy_subprocess.assert_called_once_with(['picard', 'IntervalListToBed',f'I={interval_list}', f'O={bed_path}'])
+    os.remove(bed_path)
+
+
+def test_IntervalFile_init_error():
+    ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
+    intervalFile = vcf_pipeline_utils.IntervalFile(ref_genome, ref_genome)
+    assert intervalFile.as_bed_file() is None
+    assert intervalFile.as_interval_list_file() is None
+    assert intervalFile.is_none()
 
