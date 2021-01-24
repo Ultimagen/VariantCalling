@@ -10,6 +10,7 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import logging
 MIN_CONTIG_LENGTH = 100000
+WHOLE_GENOME_LENGTH = 3088286401
 
 
 def _contig_concordance_annotate_reinterpretation(results, contig, reference, aligned_bam, annotate_intervals,
@@ -87,8 +88,12 @@ if __name__ == "__main__":
 
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     interval_obj = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference)
+    if interval_obj.is_none():
+        interval_length = WHOLE_GENOME_LENGTH
+    else:
+        interval_length = vcf_pipeline_utils.get_interval_length(interval_obj.as_bed_file(), args.highconf_intervals)
 
-    interval_length = vcf_pipeline_utils.get_interval_length(interval_obj.as_bed_file(), args.highconf_intervals)
+
     logger.info(f"Interval_length is {interval_length}")
     args_dict['interval_size'] = interval_length
     pd.DataFrame(args_dict, index=[
