@@ -115,6 +115,7 @@ try:
 
         if is_decision_tree:
             hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
+            hdr.info.add("FPR", 1, "Float", "False Positive rate")
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
                 pass_flag = True
@@ -132,7 +133,7 @@ try:
                     rec.filter.add("PASS")
                 if is_decision_tree:
                     rec.info["TREE_SCORE"] = predictions_score[i]
-                    rec.info["FPR_SCORE"] = prediction_fpr[i]
+                    rec.info["FPR"] = prediction_fpr[i]
 
                 # fix the alleles of form <1> that our GATK adds
                 rec.ref = rec.ref if re.match(

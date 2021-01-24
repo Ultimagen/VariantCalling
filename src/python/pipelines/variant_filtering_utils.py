@@ -221,7 +221,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
     tree_scores = regression_model.predict(train_data)
-    fpr_values = _fpr_calc(tree_scores, labels, test_train_split, interval_size)
+    fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
     return classifier, regression_model, pd.concat([pd.Series(tree_scores), fpr_values], axis=1)
 
 
@@ -352,12 +352,30 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
     tree_scores = model1.predict(train_data)
-    fpr_values = _fpr_calc(tree_scores, labels, test_train_split, interval_size)
+    fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
     # enclabels - fn/fp -> fpr
     # return as another param
     return model, model1, pd.concat([pd.Series(tree_scores),fpr_values], axis=1,)
 
-def _fpr_calc(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
+def fpr_calc(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
+    '''Clclulate False Positive Rate for each variant
+    '' Order the variants by incresinng order and clculate the number of false positives that we have per mega
+
+        Parameters
+        ----------
+        tree_scores: pd.Series
+            tree_scores values of the variants
+        labels: pd.Series
+            labels of tp fp fn for each variant
+        test_train_split: pd.Series
+            Boolean series that points to train/ test data selected for the model (true is train)
+        interval_size: int
+            The length of the interval that we run on
+        Returns
+        -------
+        pd.Series:
+            FPR value for each variant
+        '''
     train_part = sum(test_train_split)/len(test_train_split)
     tree_scores_sorted_inds = np.argsort(tree_scores)
     cur_fpr = 0
@@ -459,8 +477,10 @@ def score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: 
             concordance dataframe
         prediction_score: pd.Series
 
-        tree_score_fpr: pd.DataFrame
+        tree_score_fpr: dict -> pd.DataFrame
+            dictionary of group -> df were the df is
             2 columns of tree score and its corresponding fpr
+            and the group key is snp, h-indel, non-h-indel
         column_name: str
             Name of the column to contain fpr
 
@@ -471,30 +491,12 @@ def score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: 
             to the tree score fpr mapping
         '''
 
-    def _find_neighbours(value, tree_score_fpr_group):
-        exactmatch = tree_score_fpr_group[tree_score_fpr_group.iloc[:,0] == value]
-        idx = (np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin()
-        return tree_score_fpr_group.iloc[idx, 1]
-        # if not exactmatch.empty:
-        #     return tree_score_fpr_group.iloc[exactmatch.index, 1]
-        # else:
-        #     if all(tree_score_fpr_group.iloc[:, 0] < value):
-        #         lowerneighbour_ind = tree_score_fpr_group.iloc[:, 0].idxmax()
-        #     else:
-        #         lowerneighbour_ind = tree_score_fpr_group[tree_score_fpr_group.iloc[:, 0] < value].iloc[:, 0].idxmax()
-        #
-        #     if all(tree_score_fpr_group.iloc[:, 0] > value):
-        #         upperneighbour_ind = tree_score_fpr_group.iloc[:, 0].idxmin()
-        #     else:
-        #         upperneighbour_ind = tree_score_fpr_group[tree_score_fpr_group.iloc[:, 0] > value].iloc[:, 0].idxmin()
-        #     final_ind = lowerneighbour_ind if abs(tree_score_fpr_group.iloc[lowerneighbour_ind, 0] - value) < abs(tree_score_fpr_group.iloc[upperneighbour_ind, 0] - value) else upperneighbour_ind
-        #     return tree_score_fpr_group.iloc[final_ind, 1]
-            #return [lowerneighbour_ind, upperneighbour_ind]
-
     fpr_values = pd.Series(np.zeros(len(prediction_score)))
+    fpr_values.index = prediction_score.index
     for group in df['group'].unique():
-        select = np.where(df['group'] == group)
-        fpr_values[select] = prediction_score.iloc[select].apply(lambda value:_find_neighbours(value, tree_score_fpr[group]))
+        select = df['group'] == group
+        tree_score_fpr_group = tree_score_fpr[group]
+        fpr_values.iloc[np.where(select)] = prediction_score.iloc[np.where(select)].apply(lambda value:tree_score_fpr_group.iloc[(np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin(), 1])
     return fpr_values
 
 def get_testing_selection_functions() -> dict:

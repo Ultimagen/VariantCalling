@@ -88,7 +88,7 @@ class IntervalFile:
         elif cmp_intervals.endswith('.bed'):
             self._bed_file_name = cmp_intervals
             # deduce ref_dict
-            ref_dict = f"{os.path.splitext(ref)[0]}.dict"
+            ref_dict = f"{ref}.dict"
             if not os.path.isfile(ref_dict):
                 logger.error(f"dict file does not exist: {ref_dict}")
 
@@ -113,7 +113,7 @@ class IntervalFile:
     def is_none(self):
         return self._is_none
 
-def bed_intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> None:
+def intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> None:
     '''Intersects bed files
 
     Parameters
@@ -154,7 +154,7 @@ def get_interval_length(cmp_intervals: str, highconf_intervals: str)->int:
 
     fp = NamedTemporaryFile()
     temp_file_path = fp.name
-    bed_intersect_bed_files(cmp_intervals, highconf_intervals, temp_file_path)
+    intersect_bed_files(cmp_intervals, highconf_intervals, temp_file_path)
     bed_length = bed_file_length(temp_file_path)
     fp.close()
     return bed_length
@@ -178,7 +178,6 @@ def bed_file_length(input_bed: str) -> int:
     df = df.iloc[:,[0,1,2]]
     df.columns = ['chr', 'pos_start', 'pos_end']
     return np.sum(df['pos_end']-df['pos_start']+1)
-    return task2
 
 def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:
     '''Intersects VCF with intervalList
