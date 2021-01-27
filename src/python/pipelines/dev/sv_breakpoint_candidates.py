@@ -175,6 +175,7 @@ def SV_breakpoint_candidates(csv_filename, output_file_prefix):
         all_filenames = [i for i in glob.glob(f"{output_dir}/*.{extension}")]
         combined_csv = pd.concat([pd.read_csv(f,sep='\t', header=('infer' if (extension == 'csv') else None)) for f in all_filenames])
         # export to csv
+        logger.info(f"{extension} file writing {output_file_prefix}.{extension}")
         combined_csv.to_csv(f"{output_file_prefix}.{extension}", header=(extension == 'csv'),sep='\t', index=False)
 
 if __name__ == "__main__":

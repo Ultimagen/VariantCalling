@@ -1,6 +1,6 @@
 from pathmagic import PYTHON_TESTS_PATH
 from os.path import join as pjoin
-import python.pipelines.sv_breakpoint_candidates as sv_breakpoint_candidates
+import python.pipelines.dev.sv_breakpoint_candidates as sv_breakpoint_candidates
 from os.path import exists
 import pandas as pd
 from collections import Counter
@@ -12,16 +12,16 @@ def test_SV_breakpoint_candidates(tmp_path):
     output_file_basename = str(tmp_path / "temp_output")
     sv_breakpoint_candidates.SV_breakpoint_candidates(csv_filename, output_file_basename)
 
-    assert exists(str(tmp_path / "temp_output.JunctionsSV.csv"))
-    assert exists(str(tmp_path / "temp_output.JunctionsSV.bed"))
+    assert exists(str(tmp_path / "temp_output.csv"))
+    assert exists(str(tmp_path / "temp_output.bed"))
 
-    csv = pd.read_csv(str(tmp_path / "temp_output.JunctionsSV.csv"), sep='\t')
+    csv = pd.read_csv(str(tmp_path / "temp_output.csv"), sep='\t')
     assert csv.shape[1] == 10
     assert len((csv['chr_id']).unique()) == 1
     assert min(csv['F_read_cnt']) > 5
     assert min(csv['R_read_cnt']) > 5
 
-    bed = pd.read_csv(tmp_path / "temp_output.JunctionsSV.bed", sep='\t', header=None)
+    bed = pd.read_csv(tmp_path / "temp_output.bed", sep='\t', header=None)
     assert bed.shape[1] == 4
     assert len((bed.iloc[:, 0]).unique()) == 1
     assert len((bed.iloc[:,0]).unique()) == 1
