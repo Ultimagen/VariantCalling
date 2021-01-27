@@ -221,8 +221,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
     tree_scores = regression_model.predict(train_data)
-    fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
-    return classifier, regression_model, pd.concat([pd.Series(tree_scores), fpr_values], axis=1)
+    tree_scores_sorted, fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
+    return classifier, regression_model, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1)
 
 
 def get_r_s_i(results: pd.DataFrame, var_type: pd.DataFrame) -> tuple:
@@ -352,10 +352,10 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
     tree_scores = model1.predict(train_data)
-    fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
+    tree_scores_sorted, fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
     # enclabels - fn/fp -> fpr
     # return as another param
-    return model, model1, pd.concat([pd.Series(tree_scores),fpr_values], axis=1,)
+    return model, model1, pd.concat([pd.Series(tree_scores_sorted),fpr_values], axis=1,)
 
 def fpr_calc(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
     '''Clclulate False Positive Rate for each variant
@@ -384,7 +384,7 @@ def fpr_calc(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Se
         if labels[cur_ind] =='fp':
             cur_fpr = cur_fpr+1
         fpr.append((cur_fpr/train_part) / interval_size)
-    return pd.Series(fpr) * 10**6
+    return tree_scores[tree_scores_sorted_inds], pd.Series(fpr) * 10**6
 
 def get_basic_selection_functions():
     'Selection between SNPs and INDELs'
