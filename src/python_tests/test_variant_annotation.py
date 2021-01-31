@@ -28,6 +28,17 @@ class TestVariantAnnotation:
         assert np.all(result['coverage'] == 2*expected_total)
         assert np.all(result['well_mapped_coverage'] == 2*expected_well_mapped)
 
+    def test_get_coverage_empty_dataframe(self, tmpdir): 
+        temp_bam_name1 = self._create_temp_bam(tmpdir, "test1.bam")
+        temp_bam_name2 = self._create_temp_bam(tmpdir, "test2.bam")
+        df = self._create_test_df_for_coverage().iloc[:0,:]
+
+        result = variant_annotation.get_coverage(
+            df.copy(), [temp_bam_name1, temp_bam_name2], 20, True)
+        assert result.shape == (df.shape[0], df.shape[1] + 3)
+
+
+
     # Temporary bam contains read that starts on each location, every second read is duplicate (should be discarded)
     # Every third read is of low mapping quality. _create_expected_coverage generates the expected coverage profile
     def _create_temp_bam(self, tmpdir, name):

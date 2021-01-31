@@ -197,7 +197,7 @@ def get_coverage(df: pd.DataFrame, alnfiles: List[str], min_quality: int, filter
                         count_well += 1
                     count_total += 1
                 results.append((count_total, count_well))
-            all_results.append(np.array(results))
+            all_results.append(np.array(results).reshape(-1, 2))
     all_results_array = np.sum(all_results, axis=0)
     df['coverage'] = all_results_array[:, 0]
     df['well_mapped_coverage'] = all_results_array[:, 1]
