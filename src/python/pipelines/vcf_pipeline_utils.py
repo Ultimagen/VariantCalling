@@ -123,7 +123,7 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
            'IGNORE_FILTER_STATUS={}'.format(ignore_filter)]
     if comparison_intervals is not None:
         cmd += ['INTERVALS={}'.format(comparison_intervals)]
-    logger.info(" ".join(cmd))    
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     fix_vcf_format(f'{output_prefix}.genotype_concordance')
 
@@ -167,7 +167,8 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
         shutil.rmtree(vcfeval_output_dir)
 
     # filter the vcf to be only in the comparison_intervals.
-    filtered_truth_file = os.path.join(output_dir, '.'.join((os.path.basename(truth_file), 'filtered', 'vcf.gz')))
+    filtered_truth_file = os.path.join(output_dir, '.'.join(
+        (os.path.basename(truth_file), 'filtered', 'vcf.gz')))
     if comparison_intervals is not None:
         intersect_with_intervals(
             truth_file, comparison_intervals, filtered_truth_file)
@@ -362,16 +363,22 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         classify, axis=1, result_type='reduce')
 
     def classify_gt(x):
+        n_ref_gtr = len([y for y in x['gt_ground_truth'] if y == 0])
+        n_ref_ultima = len([y for y in x['gt_ultima'] if y == 0])
+
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
             return 'fn'
         elif x['gt_ground_truth'] == (None, None) or x['gt_ground_truth'] == (None,):
             return 'fp'
-        elif (x['gt_ultima'] == (0, 1) or x['gt_ultima'] == (1, 0)) and x['gt_ground_truth'] == (1, 1):
+        elif n_ref_gtr < n_ref_ultima:
             return 'fn'
-        elif (x['gt_ground_truth'] == (0, 1) or x['gt_ground_truth'] == (1, 0)) and x['gt_ultima'] == (1, 1):
+        elif n_ref_gtr > n_ref_ultima:
+            return 'fp'
+        elif x['gt_ultima'] != x['gt_ground_truth']:
             return 'fp'
         else:
             return 'tp'
+            
     concordance_df['classify_gt'] = concordance_df.apply(
         classify_gt, axis=1, result_type='reduce')
 
@@ -455,7 +462,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         for annotation_file in annotate_intervals:
             logger.info("Annotating intervals")
             df = annotation.annotate_intervals(df, annotation_file)
-    logger.debug("Filling filter column") # debug since not interesting step
+    logger.debug("Filling filter column")  # debug since not interesting step
     df = annotation.fill_filter_column(df)
 
     logger.info("Filling filter column")
@@ -463,8 +470,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     return df
 
 
-def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str, 
-    ignore_low_quality_fps: bool = False) -> pd.DataFrame:
+def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str,
+                         ignore_low_quality_fps: bool = False) -> pd.DataFrame:
     '''Reinterprets the variants by comparing the variant to the ground truth in flow space
 
     Parameters
@@ -488,11 +495,14 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str,
     concordance_df_result = pd.DataFrame()
     fasta = pyfaidx.Fasta(reference_fasta)
     for contig in concordance_df['chrom'].unique():
-        concordance_df_contig = concordance_df.loc[concordance_df['chrom'] == contig]
-        input_dict = _get_locations_to_work_on(concordance_df_contig, ignore_low_quality_fps)
+        concordance_df_contig = concordance_df.loc[
+            concordance_df['chrom'] == contig]
+        input_dict = _get_locations_to_work_on(
+            concordance_df_contig, ignore_low_quality_fps)
         concordance_df_contig = fbc.reinterpret_variants(
             concordance_df_contig, input_dict, fasta)
-        concordance_df_result = pd.concat([concordance_df_result,concordance_df_contig])
+        concordance_df_result = pd.concat(
+            [concordance_df_result, concordance_df_contig])
     return concordance_df_result
 
 
@@ -509,7 +519,7 @@ def _get_locations_to_work_on(_df: pd.DataFrame, ignore_low_quality_fps: bool = 
     '''
     df = vcftools.FilterWrapper(_df)
     fps = df.reset().get_fp().get_df()
-    if 'tree_score' in fps.columns and fps['tree_score'].dtype==np.float64 and ignore_low_quality_fps:
+    if 'tree_score' in fps.columns and fps['tree_score'].dtype == np.float64 and ignore_low_quality_fps:
         cutoff = fps.tree_score.quantile(.80)
         fps = fps.query(f"tree_score > {cutoff}")
     fns = df.reset().get_df().query('classify=="fn"')
