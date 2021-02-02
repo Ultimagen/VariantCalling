@@ -49,8 +49,8 @@ def test_fpr_calc():
     interval_size = 10**6
 
     sorted_ts, fpr = variant_filtering_utils.fpr_calc(tree_scores,labels,test_train_split,interval_size)
-    assert all(fpr==(pd.Series([0,2, 2, 4, 4, 6,6,6, 8])))
-    assert all(sorted_ts==np.arange(0.01,0.1,0.01))
+    assert all(fpr==(pd.Series([2,2, 2, 4, 4, 6,6,8, 8])))
+    assert all(sorted_ts==np.arange(0.01,0.1,0.01)[::-1])
 
 def test_score_to_fpr():
     df = pd.DataFrame({'group': np.repeat('snp', 10)})
