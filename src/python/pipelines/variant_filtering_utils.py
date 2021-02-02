@@ -169,7 +169,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     concordance: pd.DataFrame
         Concordance dataframe
     test_train_split: np.ndarray
-        Test train split column. NOTE: currently ignored!
+        Test train split column.
     selection : pd.Series
         Boolean - rows of concordance that belong to the group being trained
     gtr_column: str
@@ -185,10 +185,10 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                 for i in range(len(quals)) for j in range(len(sors))]
 
     fns = np.array(concordance[gtr_column] == 'fn')
-    train_data = concordance[selection & (~fns)][FEATURES]
+    train_data = concordance[selection & (~fns) & test_train_split][FEATURES]
 
     train_data = transformer.transform(train_data)
-    labels = concordance[selection & (~fns)][gtr_column]
+    labels = concordance[selection & (~fns) & test_train_split][gtr_column]
     enclabels = np.array(labels == 'tp')
     train_qual = train_data['qual']
     train_sor = train_data['sor']
@@ -377,7 +377,7 @@ def fpr_calc(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Se
             FPR value for each variant
         '''
     train_part = sum(test_train_split)/len(test_train_split)
-    tree_scores_sorted_inds = np.argsort(tree_scores)
+    tree_scores_sorted_inds = np.argsort(tree_scores)[::-1]
     cur_fpr = 0
     fpr = []
     for cur_ind in tree_scores_sorted_inds:
@@ -595,6 +595,7 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, i
         concordance, train_selection_functions, "group")
     concordance = add_testing_train_split_column(
         concordance, "group", "test_train_split", classify_column)
+    print(concordance["test_train_split"].value_counts())
     transformer = feature_prepare()
     transformer.fit(concordance)
     groups = set(concordance["group"])
