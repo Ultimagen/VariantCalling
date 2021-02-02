@@ -9,6 +9,8 @@ import os
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import logging
+from tempfile import NamedTemporaryFile
+from shutil import copyfile
 MIN_CONTIG_LENGTH = 100000
 
 
@@ -38,6 +40,8 @@ if __name__ == "__main__":
     ap.add_argument("--input_prefix", help="Prefix of the input file",
                     required=True, type=str)
     ap.add_argument("--output_file", help='Output h5 file',
+                    required=True, type=str)
+    ap.add_argument("--output_interval", help='Output bed file of intersected intervals',
                     required=True, type=str)
     ap.add_argument("--gtr_vcf", help='Ground truth VCF file',
                     required=True, type=str)
@@ -75,6 +79,8 @@ if __name__ == "__main__":
                     help="Should re-interpretation be run", action="store_true")
     ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
                     action="store_true")
+    ap.add_argument("--chr9_interval", help='Chr9 interval (bed)', # hack for supporting the pipeline report
+                    required=False, type=str, default=None)
     ap.add_argument("--n_jobs", help="n_jobs of parallel on contigs",type=int,
                     default=-1)
     ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
@@ -87,14 +93,22 @@ if __name__ == "__main__":
 
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     interval_obj = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference)
-    if interval_obj.is_none():
-        interval_length = vcf_pipeline_utils.bed_file_length(args.highconf_intervals)
+
+    if interval_obj.is_none():# interval of highconf_intervals
+        if not args.chr9_interval:
+            copyfile(args.highconf_intervals, args.output_interval)
+        else: # length of ch9 and highconf_intervals intersected
+            vcf_pipeline_utils.intersect_bed_files(interval_obj.chr9_interval(), args.highconf_intervals, args.output_interval)
     else:
-        interval_length = vcf_pipeline_utils.get_interval_length(interval_obj.as_bed_file(), args.highconf_intervals)
+        if not args.chr9_interval:
+            vcf_pipeline_utils.intersect_bed_files(interval_obj.as_bed_file(), args.highconf_intervals,
+                                                   args.output_interval)
+        else: # intersect all the 3 intervals
+            fp = NamedTemporaryFile()
+            temp_file_path = fp.name
+            vcf_pipeline_utils.intersect_bed_files(interval_obj.as_bed_file(), args.highconf_intervals, temp_file_path)
+            vcf_pipeline_utils.intersect_bed_files(interval_obj.chr9_interval(),temp_file_path, args.output_interval)
 
-
-    logger.info(f"Interval_length is {interval_length}")
-    args_dict['interval_size'] = interval_length
     pd.DataFrame(args_dict, index=[
         0]).to_hdf(args.output_file, key="input_args")
 

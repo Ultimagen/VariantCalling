@@ -1,5 +1,6 @@
 import pathmagic
 import python.pipelines.variant_filtering_utils as variant_filtering_utils
+import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import argparse
 import pandas as pd
 import numpy as np
@@ -19,7 +20,8 @@ ap.add_argument("--evaluate_concordance", help="Should the results of the model 
                 action="store_true")
 ap.add_argument("--apply_model",
                 help="If evaluate_concordance - which model should be applied", type=str, required=False)
-
+ap.add_argument("--input_interval", help="bed file of intersected intervals from run_comparison pipeline",
+                type=str, required=True)
 
 args = ap.parse_args()
 try:
@@ -38,7 +40,7 @@ try:
         pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
     concordance_clean = concordance[
         (~concordance.close_to_hmer_run) & (~concordance.inside_hmer_run)].copy()
-    interval_size = input_args['interval_size'][0]
+    interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
     # Unfiltered data
     model_no_gt, recall_precision_no_gt = variant_filtering_utils.calculate_unfiltered_model(
         concordance.copy(), "classify")
