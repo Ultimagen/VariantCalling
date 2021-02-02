@@ -91,23 +91,26 @@ if __name__ == "__main__":
                         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
 
+    # intersect intervals and output as a bed file
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
-    interval_obj = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference)
+    cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference)
+    chr9_interval = vcf_pipeline_utils.IntervalFile(args.chr9_interval, args.reference)
+    highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference)
 
-    if interval_obj.is_none():# interval of highconf_intervals
-        if not args.chr9_interval:
-            copyfile(args.highconf_intervals, args.output_interval)
+    if cmp_intervals.is_none():# interval of highconf_intervals
+        if chr9_interval.is_none():
+            copyfile(highconf_intervals.as_bed_file(), args.output_interval)
         else: # length of ch9 and highconf_intervals intersected
-            vcf_pipeline_utils.intersect_bed_files(interval_obj.chr9_interval(), args.highconf_intervals, args.output_interval)
+            vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
     else:
-        if not args.chr9_interval:
-            vcf_pipeline_utils.intersect_bed_files(interval_obj.as_bed_file(), args.highconf_intervals,
+        if chr9_interval.is_none():
+            vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(),
                                                    args.output_interval)
         else: # intersect all the 3 intervals
             fp = NamedTemporaryFile()
             temp_file_path = fp.name
-            vcf_pipeline_utils.intersect_bed_files(interval_obj.as_bed_file(), args.highconf_intervals, temp_file_path)
-            vcf_pipeline_utils.intersect_bed_files(interval_obj.chr9_interval(),temp_file_path, args.output_interval)
+            vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), temp_file_path)
+            vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(),temp_file_path, args.output_interval)
 
     pd.DataFrame(args_dict, index=[
         0]).to_hdf(args.output_file, key="input_args")
@@ -115,7 +118,7 @@ if __name__ == "__main__":
 
     if args.filter_runs:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, interval_obj.as_bed_file(),
+                                               args.header_file, args.gtr_vcf, cmp_intervals.as_bed_file(),
                                                args.highconf_intervals,
                                                args.runs_intervals, args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
@@ -123,7 +126,7 @@ if __name__ == "__main__":
                                                args.concordance_tool)
     else:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, interval_obj.as_bed_file(),
+                                               args.header_file, args.gtr_vcf, cmp_intervals.as_bed_file(),
                                                args.highconf_intervals,
                                                None, args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
