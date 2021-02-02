@@ -131,6 +131,7 @@ if __name__ == "__main__":
                                                args.concordance_tool)
 
     # single interval-file concordance - will be saved in a single dataframe
+
     if args.cmp_intervals is not None:
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool)
@@ -181,6 +182,8 @@ if __name__ == "__main__":
                 h5_temp = pd.concat((h5_temp, df_columns), axis=1)
             h5_temp.to_hdf(args.output_file, mode=write_mode, key=contig)
             write_mode = 'a'
+            if contig == "chr9":
+                h5_temp.to_hdf(args.output_file, mode=write_mode, key="concordance")
             os.remove(f"{base_name_outputfile}{contig}.h5")
 
         write_mode = 'w'

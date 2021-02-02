@@ -9,9 +9,7 @@ ENV PYTHONPATH=/VariantCalling/src/:$PYTHONPATH
 
 RUN conda update -n base -c defaults conda && \
     conda env create -f /VariantCalling/setup/environment.yml && \
-    conda init --all
-RUN source ~/.bashrc && \
-    conda activate genomics.py3 && \
-    pip install mpld3==0.5.1
+    conda env create -f /VariantCalling/setup/other_envs/cutadapt.yml && \
+    conda init --all 
 
 
