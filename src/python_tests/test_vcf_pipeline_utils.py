@@ -78,19 +78,19 @@ def test_intersect_bed_files(mocker, tmp_path):
     assert exists(output_path)
 
 
-def test_get_interval_length(mocker, tmp_path):
-    bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
-    bed2 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed2.bed")
-
-    spy_intersect = mocker.spy(vcf_pipeline_utils, 'intersect_bed_files')
-    spy_length = mocker.spy(vcf_pipeline_utils, 'bed_file_length')
-
-    intersect_length = vcf_pipeline_utils.get_interval_length(bed1, bed2)
-    assert intersect_length == 2705
-
-    spy_intersect.assert_called_once_with(bed1, bed2, mocker.ANY)
-    temp_file = spy_intersect.call_args[0][2]
-    spy_length.assert_called_once_with(temp_file)
+# def test_get_interval_length(mocker, tmp_path):
+#     bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
+#     bed2 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed2.bed")
+#
+#     spy_intersect = mocker.spy(vcf_pipeline_utils, 'intersect_bed_files')
+#     spy_length = mocker.spy(vcf_pipeline_utils, 'bed_file_length')
+#
+#     intersect_length = vcf_pipeline_utils.get_interval_length(bed1, bed2)
+#     assert intersect_length == 2705
+#
+#     spy_intersect.assert_called_once_with(bed1, bed2, mocker.ANY)
+#     temp_file = spy_intersect.call_args[0][2]
+#     spy_length.assert_called_once_with(temp_file)
 
 def test_bed_file_length():
     bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
