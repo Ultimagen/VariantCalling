@@ -95,7 +95,7 @@ try:
     if is_decision_tree:
         logger.info("Applying regressor")
         predictions_score = model_scor.predict(df)
-        prediction_fpr = variant_filtering_utils.score_to_fpr(df, predictions_score, model_scor.tree_score_fpr)
+        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_scor.tree_score_fpr)
         predictions_score = np.array(predictions_score)
 
 
