@@ -221,7 +221,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
     tree_scores = regression_model.predict(train_data)
-    tree_scores_sorted, fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
+    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
     return classifier, regression_model, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1)
 
 
@@ -352,12 +352,10 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
     tree_scores = model1.predict(train_data)
-    tree_scores_sorted, fpr_values = fpr_calc(tree_scores, labels, test_train_split, interval_size)
-    # enclabels - fn/fp -> fpr
-    # return as another param
+    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
     return model, model1, pd.concat([pd.Series(tree_scores_sorted),fpr_values], axis=1,)
 
-def fpr_calc(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
+def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
     '''Clclulate False Positive Rate for each variant
     '' Order the variants by incresinng order and clculate the number of false positives that we have per mega
 
@@ -468,7 +466,7 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
         df.loc[selection_functions[k](df), column_name] = k
     return df
 
-def score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: pd.DataFrame) -> pd.DataFrame:
+def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: pd.DataFrame) -> pd.DataFrame:
     '''Deduce frp value from the tree_score and the tree score fpr mapping
 
         Parameters

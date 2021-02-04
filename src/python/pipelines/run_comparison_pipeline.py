@@ -55,7 +55,7 @@ if __name__ == "__main__":
                     type=str, default=None, action='append')
     ap.add_argument("--reference", help='Reference genome',
                     required=True, type=str)
-    ap.add_argument("--reference_dict", help='Reference genome',
+    ap.add_argument("--reference_dict", help='Reference genome dictionary',
                     required=False, type=str)
     ap.add_argument("--aligned_bam", help='Aligned bam',
                     required=False, default=None, type=str, action='append')
@@ -93,20 +93,19 @@ if __name__ == "__main__":
                         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
 
-    # intersect intervals and output as a bed file
-    args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference, args.reference_dict)
     chr9_interval = vcf_pipeline_utils.IntervalFile(args.chr9_interval, args.reference, args.reference_dict)
     highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference, args.reference_dict)
     runs_intervals = vcf_pipeline_utils.IntervalFile(args.runs_intervals, args.reference, args.reference_dict)
 
+    # intersect intervals and output as a bed file
     if cmp_intervals.is_none():# interval of highconf_intervals
         if chr9_interval.is_none():
             copyfile(highconf_intervals.as_bed_file(), args.output_interval)
-        else: # length of ch9 and highconf_intervals intersected
+        else: # intersection ch9 and highconf_intervals
             vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
     else:
-        if chr9_interval.is_none():
+        if chr9_interval.is_none(): # intersection cmp_intervals and highconf_intervals
             vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(),
                                                    args.output_interval)
         else: # intersect all the 3 intervals
@@ -115,6 +114,7 @@ if __name__ == "__main__":
             vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), temp_file_path)
             vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(),temp_file_path, args.output_interval)
 
+    args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     pd.DataFrame(args_dict, index=[
         0]).to_hdf(args.output_file, key="input_args")
 

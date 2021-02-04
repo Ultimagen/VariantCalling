@@ -27,11 +27,8 @@ args = ap.parse_args()
 try:
     if 'input_file' in args:
         concordance = pd.read_hdf(args.input_file, "concordance")
-        input_args = pd.read_hdf(args.input_file, "input_args")
     else:
         concordance = pd.concat([pd.read_hdf(x.strip(), "concordance")
-                                 for x in open(args.input_fofn)])
-        input_args = pd.concat([pd.read_hdf(x.strip(), "input_args")
                                  for x in open(args.input_fofn)])
 
     if args.mutect: 
