@@ -67,7 +67,7 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
     index_vcf(output_file)
 
 class IntervalFile:
-    def __init__(self,cmp_intervals: str, ref: str):
+    def __init__(self,cmp_intervals: str, ref: str, ref_dict: str):
         # determine the file type and create the other temporary copy
         if cmp_intervals is None:
             self._is_none = True
@@ -88,7 +88,8 @@ class IntervalFile:
         elif cmp_intervals.endswith('.bed'):
             self._bed_file_name = cmp_intervals
             # deduce ref_dict
-            ref_dict = f"{ref}.dict"
+            if ref_dict is None:
+                ref_dict = f"{ref}.dict"
             if not os.path.isfile(ref_dict):
                 logger.error(f"dict file does not exist: {ref_dict}")
 

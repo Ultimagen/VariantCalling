@@ -55,6 +55,8 @@ if __name__ == "__main__":
                     type=str, default=None, action='append')
     ap.add_argument("--reference", help='Reference genome',
                     required=True, type=str)
+    ap.add_argument("--reference_dict", help='Reference genome',
+                    required=False, type=str)
     ap.add_argument("--aligned_bam", help='Aligned bam',
                     required=False, default=None, type=str, action='append')
     ap.add_argument("--call_sample_name",
@@ -93,10 +95,10 @@ if __name__ == "__main__":
 
     # intersect intervals and output as a bed file
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
-    cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference)
-    chr9_interval = vcf_pipeline_utils.IntervalFile(args.chr9_interval, args.reference)
-    highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference)
-    runs_intervals = vcf_pipeline_utils.IntervalFile(args.runs_intervals, args.reference)
+    cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference, args.reference_dict)
+    chr9_interval = vcf_pipeline_utils.IntervalFile(args.chr9_interval, args.reference, args.reference_dict)
+    highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference, args.reference_dict)
+    runs_intervals = vcf_pipeline_utils.IntervalFile(args.runs_intervals, args.reference, args.reference_dict)
 
     if cmp_intervals.is_none():# interval of highconf_intervals
         if chr9_interval.is_none():
