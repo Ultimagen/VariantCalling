@@ -103,7 +103,7 @@ def test_IntervalFile_init_bed_input(mocker):
     interval_list_path = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.interval_list")
     spy_subprocess = mocker.spy(subprocess, 'check_call')
 
-    intervalFile = vcf_pipeline_utils.IntervalFile(bed1, ref_genome)
+    intervalFile = vcf_pipeline_utils.IntervalFile(bed1, ref_genome, None)
 
     assert intervalFile.as_bed_file() == bed1
     assert intervalFile.as_interval_list_file() == interval_list_path
@@ -118,7 +118,7 @@ def test_IntervalFile_init_interval_list_input(mocker):
     bed_path = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "interval_list1.bed")
     spy_subprocess = mocker.spy(subprocess, 'check_call')
 
-    intervalFile = vcf_pipeline_utils.IntervalFile(interval_list, ref_genome)
+    intervalFile = vcf_pipeline_utils.IntervalFile(interval_list, ref_genome, None)
 
     assert intervalFile.as_bed_file() == bed_path
     assert intervalFile.as_interval_list_file() == interval_list
@@ -130,7 +130,7 @@ def test_IntervalFile_init_interval_list_input(mocker):
 
 def test_IntervalFile_init_error():
     ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
-    intervalFile = vcf_pipeline_utils.IntervalFile(ref_genome, ref_genome)
+    intervalFile = vcf_pipeline_utils.IntervalFile(ref_genome, ref_genome, None)
     assert intervalFile.as_bed_file() is None
     assert intervalFile.as_interval_list_file() is None
     assert intervalFile.is_none()
