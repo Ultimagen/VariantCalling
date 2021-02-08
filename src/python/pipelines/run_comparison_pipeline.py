@@ -149,7 +149,7 @@ if __name__ == "__main__":
                 continue
             else:
                 df_columns = pd.DataFrame(columns=h5_temp.columns)
-                break
+                break    
 
         for contig in contigs:
             h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
