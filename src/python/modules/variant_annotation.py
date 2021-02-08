@@ -4,6 +4,7 @@ import pyfaidx
 import python.utils as utils
 import pysam
 import tqdm
+from typing import List
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
@@ -160,25 +161,47 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
     return concordance
 
 
-def get_coverage(df: pd.DataFrame, alnfile: str, min_quality: int, filter_dups: bool = False):
-    results = []
-    with pysam.AlignmentFile(alnfile) as alns:
-        for r in tqdm.tqdm(df.iterrows()):
-            reads = alns.fetch(r[1].chrom, r[1].pos - 1, r[1].pos + 1)
-            count_total = 0
-            count_well = 0
-            for read in reads:
-                if filter_dups and read.is_duplicate:
-                    continue
+def get_coverage(df: pd.DataFrame, alnfiles: List[str], min_quality: int, filter_dups: bool = False) -> pd.DataFrame:
+    """Adds coverage columns to the variant dataframe. Three columns are added: coverage - totla coverage,
+    well_mapped_coverage - coverage of reads with mapping quality > min_quality and repetitive_read_coverage -
+    which is the difference between the two.
 
-                if read.mapping_quality > min_quality:
-                    count_well += 1
-                count_total += 1
-            results.append((count_total, count_well))
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe (VCF or concordance)
+    alnfiles : List[str]
+        List of BAMs that generated the DF (total coverage will be calculate)
+    min_quality : int
+        Minimal read quality to be counted in coverage
+    filter_dups : bool, optional
+        Should duplicates be discarded (default: False)
 
-    df['coverage'] = [x[0] for x in results]
-    df['well_mapped_coverage'] = [x[1] for x in results]
-    df['repetitive_read_coverage'] = [x[0] - x[1] for x in results]
+    Returns
+    -------
+    pd.DataFrame
+        Modified dataframe
+    """
+    all_results = []
+    for alnfile in alnfiles:
+        with pysam.AlignmentFile(alnfile) as alns:
+            results = []
+            for r in tqdm.tqdm(df.iterrows()):
+                reads = alns.fetch(r[1].chrom, r[1].pos - 1, r[1].pos)
+                count_total = 0
+                count_well = 0
+                for read in reads:
+                    if filter_dups and read.is_duplicate:
+                        continue
+                    if read.mapping_quality > min_quality:
+                        count_well += 1
+                    count_total += 1
+                results.append((count_total, count_well))
+            all_results.append(np.array(results).reshape(-1, 2))
+    all_results_array = np.sum(all_results, axis=0)
+    df['coverage'] = all_results_array[:, 0]
+    df['well_mapped_coverage'] = all_results_array[:, 1]
+    df['repetitive_read_coverage'] = all_results_array[:, 0]-all_results_array[:, 1]
     return df
 
 
