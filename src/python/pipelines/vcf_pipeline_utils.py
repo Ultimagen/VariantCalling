@@ -10,21 +10,9 @@ import python.vcftools as vcftools
 import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
-from python.auxiliary.format import CHROM_DTYPE
 import logging
 
 logger = logging.getLogger(__name__)
-
-logger.setLevel(logging.INFO)
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-# create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-# add formatter to ch
-ch.setFormatter(formatter)
-# add ch to logger
-logger.addHandler(ch)
 
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
@@ -50,6 +38,7 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
 def index_vcf(vcf: str):
     '''Tabix index on VCF'''
     cmd = ['bcftools', 'index', '-tf', vcf]
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
 
 
@@ -71,6 +60,7 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
     '''
 
     cmd = ['bcftools', 'reheader', '-h', new_header, input_file]
+    logger.info(" ".join(cmd))
     with open(output_file, "wb") as out:
         subprocess.check_call(cmd, stdout=out)
     index_vcf(output_file)
@@ -95,6 +85,7 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     '''
     cmd = ['gatk', 'SelectVariants', '-V', input_fn,
            '-L', intervals_fn, '-O', output_fn]
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
 
 
@@ -132,8 +123,8 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
            'IGNORE_FILTER_STATUS={}'.format(ignore_filter)]
     if comparison_intervals is not None:
         cmd += ['INTERVALS={}'.format(comparison_intervals)]
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
-
     fix_vcf_format(f'{output_prefix}.genotype_concordance')
 
 
@@ -167,7 +158,6 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     None
     '''
 
-
     output_dir = os.path.dirname(output_prefix)
     SDF_path = ref_genome + '.sdf'
     vcfeval_output_dir = os.path.join(
@@ -177,7 +167,8 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
         shutil.rmtree(vcfeval_output_dir)
 
     # filter the vcf to be only in the comparison_intervals.
-    filtered_truth_file = f"{os.path.splitext(truth_file)[0]}_filtered.vcf.gz"
+    filtered_truth_file = os.path.join(output_dir, '.'.join(
+        (os.path.basename(truth_file), 'filtered', 'vcf.gz')))
     if comparison_intervals is not None:
         intersect_with_intervals(
             truth_file, comparison_intervals, filtered_truth_file)
@@ -196,7 +187,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
            '--decompose']
     if ignore_filter:
         cmd += ['--all-records']
-
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     # fix the vcf file format
     fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
@@ -236,6 +227,7 @@ def fix_vcf_format(output_prefix):
     logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     cmd = ['bgzip', input_file_handle.name]
+    logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     index_vcf(f'{input_file_handle.name}.gz')
 
@@ -258,9 +250,12 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
     with open(highconf_file_name, "wb") as highconf_file:
         cmd = ['bedtools', 'intersect', '-a', input_file_calls, '-b', highconf_regions, '-nonamecheck',
                '-header', '-u']
+        logger.info(" ".join(cmd))
         subprocess.check_call(cmd, stdout=highconf_file)
 
     cmd = ['bgzip', '-f', highconf_file_name]
+    logger.info(" ".join(cmd))
+
     subprocess.check_call(cmd)
     highconf_file_name += '.gz'
     index_vcf(highconf_file_name)
@@ -269,9 +264,11 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
         with open(runs_file_name, "wb") as runs_file:
             cmd = ['bedtools', 'subtract', '-a', highconf_file_name, '-b', runs_regions, '-nonamecheck',
                    '-A', '-header']
+            logger.info(" ".join(cmd))
             subprocess.check_call(cmd, stdout=runs_file)
 
         cmd = ['bgzip', '-f', runs_file_name]
+        logger.info(" ".join(cmd))
         subprocess.check_call(cmd)
         runs_file_name += '.gz'
         index_vcf(runs_file_name)
@@ -366,16 +363,22 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         classify, axis=1, result_type='reduce')
 
     def classify_gt(x):
+        n_ref_gtr = len([y for y in x['gt_ground_truth'] if y == 0])
+        n_ref_ultima = len([y for y in x['gt_ultima'] if y == 0])
+
         if x['gt_ultima'] == (None, None) or x['gt_ultima'] == (None,):
             return 'fn'
         elif x['gt_ground_truth'] == (None, None) or x['gt_ground_truth'] == (None,):
             return 'fp'
-        elif (x['gt_ultima'] == (0, 1) or x['gt_ultima'] == (1, 0)) and x['gt_ground_truth'] == (1, 1):
+        elif n_ref_gtr < n_ref_ultima:
             return 'fn'
-        elif (x['gt_ground_truth'] == (0, 1) or x['gt_ground_truth'] == (1, 0)) and x['gt_ultima'] == (1, 1):
+        elif n_ref_gtr > n_ref_ultima:
+            return 'fp'
+        elif x['gt_ultima'] != x['gt_ground_truth']:
             return 'fp'
         else:
             return 'tp'
+            
     concordance_df['classify_gt'] = concordance_df.apply(
         classify_gt, axis=1, result_type='reduce')
 
@@ -392,17 +395,20 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                     x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
-               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad', 'tree_score', 'tlod', 'af']
+               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad',
+               'tree_score', 'tlod', 'af']
     original = pd.DataFrame([[x[y.upper()] for y in columns]
                              for x in vfi], columns=columns)
     original.index = list(zip(original.chrom, original.pos))
+
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
     concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
-    only_ref = concordance.alleles.apply(len) == 1
+    only_ref = concordance['alleles'].apply(len) == 1
     concordance = concordance[~only_ref]
+
     return concordance
 
 
@@ -436,26 +442,36 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
 
     '''
 
+    logger.info("Marking SNP/INDEL")
     df = annotation.classify_indel(df)
+    logger.info("Marking H-INDEL")
     df = annotation.is_hmer_indel(df, fasta)
+    logger.info("Maring motifs")
     df = annotation.get_motif_around(df, 5, fasta)
+    logger.info("Marking GC content")
     df = annotation.get_gc_content(df, 10, fasta)
     if alnfile is not None:
+        logger.info("Calculating coverage")
         df = annotation.get_coverage(df, alnfile, 10)
     if runfile is not None:
         length, dist = hmer_run_length_dist
+        logger.info("Marking homopolymer runs")
         df = annotation.close_to_hmer_run(
             df, runfile, min_hmer_run_length=length, max_distance=dist)
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:
+            logger.info("Annotating intervals")
             df = annotation.annotate_intervals(df, annotation_file)
+    logger.debug("Filling filter column")  # debug since not interesting step
     df = annotation.fill_filter_column(df)
+
+    logger.info("Filling filter column")
     df = annotation.annotate_cycle_skip(df, flow_order="TACG")
     return df
 
 
-def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str, 
-    ignore_low_quality_fps: bool = False) -> pd.DataFrame:
+def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str,
+                         ignore_low_quality_fps: bool = False) -> pd.DataFrame:
     '''Reinterprets the variants by comparing the variant to the ground truth in flow space
 
     Parameters
@@ -479,11 +495,14 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str,
     concordance_df_result = pd.DataFrame()
     fasta = pyfaidx.Fasta(reference_fasta)
     for contig in concordance_df['chrom'].unique():
-        concordance_df_contig = concordance_df.loc[concordance_df['chrom'] == contig]
-        input_dict = _get_locations_to_work_on(concordance_df_contig, ignore_low_quality_fps)
+        concordance_df_contig = concordance_df.loc[
+            concordance_df['chrom'] == contig]
+        input_dict = _get_locations_to_work_on(
+            concordance_df_contig, ignore_low_quality_fps)
         concordance_df_contig = fbc.reinterpret_variants(
             concordance_df_contig, input_dict, fasta)
-        concordance_df_result = pd.concat([concordance_df_result,concordance_df_contig])
+        concordance_df_result = pd.concat(
+            [concordance_df_result, concordance_df_contig])
     return concordance_df_result
 
 
@@ -500,7 +519,7 @@ def _get_locations_to_work_on(_df: pd.DataFrame, ignore_low_quality_fps: bool = 
     '''
     df = vcftools.FilterWrapper(_df)
     fps = df.reset().get_fp().get_df()
-    if 'tree_score' in fps.columns and fps['tree_score'].dtype==np.float64 and ignore_low_quality_fps:
+    if 'tree_score' in fps.columns and fps['tree_score'].dtype == np.float64 and ignore_low_quality_fps:
         cutoff = fps.tree_score.quantile(.80)
         fps = fps.query(f"tree_score > {cutoff}")
     fns = df.reset().get_df().query('classify=="fn"')
