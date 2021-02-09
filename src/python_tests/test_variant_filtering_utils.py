@@ -53,8 +53,9 @@ def test_fpr_tree_score_mapping():
     assert all(sorted_ts==np.arange(0.01,0.1,0.01)[::-1])
 
 def test_tree_score_to_fpr():
-    df = pd.DataFrame({'group': np.repeat('snp', 10)})
+    df = pd.DataFrame({'group': np.repeat(np.array([['h-mer','snp']]),5)})
     prediction_score = pd.Series(np.arange(1,0,-0.1))
-    tree_score_fpr = {'snp':pd.DataFrame({'tree_score':np.arange(0,1,0.1),'fpr':np.arange(0,10,1)})}
+    tree_score_fpr = {'snp':pd.DataFrame({'tree_score':np.arange(0,1,0.1),'fpr':np.arange(0,10,1)}),
+                      'h-mer':pd.DataFrame({'tree_score':np.arange(0,1,0.2),'fpr':np.arange(0,10,2)})}
     fpr_values = variant_filtering_utils.tree_score_to_fpr(df, prediction_score, tree_score_fpr)
-    assert all(fpr_values == [9,9,8,7,6,5,4,3,2,1])
+    assert all(fpr_values == [8,8,8,6,6,5,4,3,2,1])

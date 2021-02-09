@@ -137,29 +137,6 @@ def intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> No
     with open(bed_output, "w") as f:
         subprocess.call(cmd, stdout=f)
 
-# def get_interval_length(cmp_intervals: str, highconf_intervals: str)->int:
-#     '''
-#     Intersect the cmp_intervals with the high_conf intervals and calc the length of the intersected bed file
-#     Calc the number of bases in a bed file
-#
-#         Parameters
-#         ----------
-#         input_bed: str
-#             Input Bed file
-#
-#         Return
-#         ------
-#         int
-#             number of bases in a bed file
-#         '''
-#
-#     fp = NamedTemporaryFile()
-#     temp_file_path = fp.name
-#     intersect_bed_files(cmp_intervals, highconf_intervals, temp_file_path)
-#     bed_length = bed_file_length(temp_file_path)
-#     fp.close()
-#     return bed_length
-
 
 def bed_file_length(input_bed: str) -> int:
     '''Calc the number of bases in a bed file

@@ -127,6 +127,8 @@ def train_threshold_models(concordance: pd.DataFrame,interval_size: int, classif
     ----------
     concordance: pd.DataFrame
         Concordance dataframe
+    interval_size: int
+        number of bases in the interval
     classify_column: str
         Classification column
 
@@ -368,7 +370,7 @@ def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_trai
         test_train_split: pd.Series
             Boolean series that points to train/ test data selected for the model (true is train)
         interval_size: int
-            The length of the interval that we run on
+            Number of bases in interval
         Returns
         -------
         pd.Series:
@@ -494,7 +496,7 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
     for group in df['group'].unique():
         select = df['group'] == group
         tree_score_fpr_group = tree_score_fpr[group]
-        fpr_values.iloc[np.where(select)] = prediction_score.iloc[np.where(select)].apply(lambda value:tree_score_fpr_group.iloc[(np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin(), 1])
+        fpr_values.loc[select] = prediction_score.loc[select].apply(lambda value:tree_score_fpr_group.iloc[(np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin(), 1])
     return fpr_values
 
 def get_testing_selection_functions() -> dict:
@@ -581,6 +583,8 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, i
         Dataframe
     classify_column: str
         Ground truth labels
+    interval_size: int
+        number of bases in the interval
     Returns
     -------
     (MaskedHierarchicalModel, pd.DataFrame
@@ -593,7 +597,6 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, i
         concordance, train_selection_functions, "group")
     concordance = add_testing_train_split_column(
         concordance, "group", "test_train_split", classify_column)
-    print(concordance["test_train_split"].value_counts())
     transformer = feature_prepare()
     transformer.fit(concordance)
     groups = set(concordance["group"])
