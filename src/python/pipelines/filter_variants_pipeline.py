@@ -115,7 +115,7 @@ try:
 
         if is_decision_tree:
             hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
-            hdr.info.add("FPR", 1, "Float", "False Positive rate")
+            hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
                 pass_flag = True

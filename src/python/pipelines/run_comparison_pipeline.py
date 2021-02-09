@@ -93,6 +93,9 @@ if __name__ == "__main__":
                         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
 
+    # chr9_interval was added an an hack for resolving the report int eh vc pipeline which is on chr9
+    # in case the chr9 is not None we make the analysis on chr9 only (intersected by the 2 others intervals)
+    # @todo: chr9_interval should be removed
     cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference, args.reference_dict)
     chr9_interval = vcf_pipeline_utils.IntervalFile(args.chr9_interval, args.reference, args.reference_dict)
     highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference, args.reference_dict)
