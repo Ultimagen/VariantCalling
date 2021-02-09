@@ -178,6 +178,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
         Ground truth column
     transformer: sklearn_pandas.DataFrameMapper
         Feature mapper
+    interval_size: int
+        number of bases in the interval
     '''
 
     quals = np.linspace(0, 500, 49)
@@ -476,13 +478,10 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
         df: pd.DataFrame
             concordance dataframe
         prediction_score: pd.Series
-
         tree_score_fpr: dict -> pd.DataFrame
             dictionary of group -> df were the df is
             2 columns of tree score and its corresponding fpr
             and the group key is snp, h-indel, non-h-indel
-        column_name: str
-            Name of the column to contain fpr
 
         Returns
         -------
