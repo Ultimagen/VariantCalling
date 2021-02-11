@@ -20,7 +20,7 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
              ref_genome: str = REFERENCE,
              call_sample: str = CALL_SAMPLE,
              truth_sample: str = TRUTH_SAMPLE,
-             output_suffix: str = '',
+             output_suffix: str = None,
              ignore_filter: bool = False,
              concordance_tool: str = CONCORDANCE_TOOL) -> Tuple[str, str]:
     '''Run comparison between the two sets of calls: input_prefix and truth_file. Creates

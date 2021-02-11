@@ -1,5 +1,6 @@
 import pathmagic
 import pandas as pd
+import numpy as np
 import pickle
 from os.path import join as pjoin
 from pathmagic import PYTHON_TESTS_PATH
@@ -39,3 +40,22 @@ def test_apply_blacklist():
     vcs = [x.value_counts() for x in blacklists_applied]
     assert vcs[0]['PASS'] == 6597 and vcs[0]['ILLUMINA_FP'] == 6 \
         and vcs[1]['PASS'] == 6477 and vcs[1]['COHORT_FP'] == 126
+
+
+def test_fpr_tree_score_mapping():
+    tree_scores = np.arange(0.01,0.1,0.01)
+    labels = np.array(['tp','fp','fn','fp','tp','fp','tp','tp','fp'])
+    test_train_split = np.array([True,False,True,False,True,True,False,False,False,True])
+    interval_size = 10**6
+
+    sorted_ts, fpr = variant_filtering_utils.fpr_tree_score_mapping(tree_scores,labels,test_train_split,interval_size)
+    assert all(fpr==(pd.Series([2,2, 2, 4, 4, 6,6,8, 8])))
+    assert all(sorted_ts==np.arange(0.01,0.1,0.01)[::-1])
+
+def test_tree_score_to_fpr():
+    df = pd.DataFrame({'group': np.repeat(np.array([['h-mer','snp']]),5)})
+    prediction_score = pd.Series(np.arange(1,0,-0.1))
+    tree_score_fpr = {'snp':pd.DataFrame({'tree_score':np.arange(0,1,0.1),'fpr':np.arange(0,10,1)}),
+                      'h-mer':pd.DataFrame({'tree_score':np.arange(0,1,0.2),'fpr':np.arange(0,10,2)})}
+    fpr_values = variant_filtering_utils.tree_score_to_fpr(df, prediction_score, tree_score_fpr)
+    assert all(fpr_values == [8,8,8,6,6,5,4,3,2,1])
