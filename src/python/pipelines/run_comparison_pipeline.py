@@ -9,6 +9,8 @@ import os
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import logging
+from tempfile import NamedTemporaryFile
+from shutil import copyfile
 MIN_CONTIG_LENGTH = 100000
 
 
@@ -39,18 +41,22 @@ if __name__ == "__main__":
                     required=True, type=str)
     ap.add_argument("--output_file", help='Output h5 file',
                     required=True, type=str)
+    ap.add_argument("--output_interval", help='Output bed file of intersected intervals',
+                    required=True, type=str)
     ap.add_argument("--gtr_vcf", help='Ground truth VCF file',
                     required=True, type=str)
-    ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison',
+    ap.add_argument("--cmp_intervals", help='Ranges on which to perform comparison (bed/interval_list)',
                     required=False, type=str, default=None)
     ap.add_argument("--highconf_intervals",
-                    help='High confidence intervals', required=True, type=str)
-    ap.add_argument("--runs_intervals", help='Runs intervals',
+                    help='High confidence intervals (bed/interval_list)', required=True, type=str)
+    ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
                     required=False, type=str, default=None)
     ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                     type=str, default=None, action='append')
     ap.add_argument("--reference", help='Reference genome',
                     required=True, type=str)
+    ap.add_argument("--reference_dict", help='Reference genome dictionary',
+                    required=False, type=str)
     ap.add_argument("--aligned_bam", help='Aligned bam',
                     required=False, default=None, type=str, action='append')
     ap.add_argument("--call_sample_name",
@@ -75,31 +81,59 @@ if __name__ == "__main__":
                     help="Should re-interpretation be run", action="store_true")
     ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
                     action="store_true")
+    ap.add_argument("--chr9_interval", help='Chr9 interval (bed/interval_list)', # hack for supporting the pipeline report
+                    required=False, type=str, default=None)
     ap.add_argument("--n_jobs", help="n_jobs of parallel on contigs",type=int,
                     default=-1)
     ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
     args = ap.parse_args()
 
-    logging.basicConfig(level=getattr(logging, args.verbosity), format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.basicConfig(level=getattr(logging, args.verbosity),
+                        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
 
-    pd.DataFrame({k: str(vars(args)[k]) for k in vars(args)}, index=[0])\
-                        .to_hdf(args.output_file, key="input_args")
+    # chr9_interval was added as an hack for resolving the report in the vc pipeline which is on chr9 only
+    # in case chr9 is provided, we make the analysis on chr9 only (intersected by the 2 other intervals)
+    # @todo: chr9_interval should be removed
+    cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference, args.reference_dict)
+    chr9_interval = vcf_pipeline_utils.IntervalFile(args.chr9_interval, args.reference, args.reference_dict)
+    highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference, args.reference_dict)
+    runs_intervals = vcf_pipeline_utils.IntervalFile(args.runs_intervals, args.reference, args.reference_dict)
+
+    # intersect intervals and output as a bed file
+    if cmp_intervals.is_none():# interval of highconf_intervals
+        if chr9_interval.is_none():
+            copyfile(highconf_intervals.as_bed_file(), args.output_interval)
+        else: # intersection ch9 and highconf_intervals
+            vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
+    else:
+        if chr9_interval.is_none(): # intersection cmp_intervals and highconf_intervals
+            vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(),
+                                                   args.output_interval)
+        else: # intersect all the 3 intervals
+            fp = NamedTemporaryFile()
+            temp_file_path = fp.name
+            vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), temp_file_path)
+            vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(),temp_file_path, args.output_interval)
+
+    args_dict = {k: str(vars(args)[k]) for k in vars(args)}
+    pd.DataFrame(args_dict, index=[
+        0]).to_hdf(args.output_file, key="input_args")
 
 
     if args.filter_runs:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, args.cmp_intervals,
-                                               args.highconf_intervals,
-                                               args.runs_intervals, args.reference, args.call_sample_name,
+                                               args.header_file, args.gtr_vcf, cmp_intervals.as_bed_file(),
+                                               highconf_intervals.as_bed_file(),
+                                               runs_intervals.as_bed_file(), args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
                                                args.ignore_filter_status,
                                                args.concordance_tool)
     else:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.header_file, args.gtr_vcf, args.cmp_intervals,
-                                               args.highconf_intervals,
+                                               args.header_file, args.gtr_vcf, cmp_intervals.as_bed_file(),
+                                               highconf_intervals.as_bed_file(),
                                                None, args.reference, args.call_sample_name,
                                                args.truth_sample_name, args.output_suffix,
                                                args.ignore_filter_status,
@@ -107,14 +141,12 @@ if __name__ == "__main__":
 
     # single interval-file concordance - will be saved in a single dataframe
 
-    if args.cmp_intervals is not None:
+    if not cmp_intervals.is_none():
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool)
-        concordance.to_hdf(
-            "annotate_concordance_h5_input.hdf", key='concordance')
         annotated_concordance = vcf_pipeline_utils.annotate_concordance(
             concordance, args.reference, args.aligned_bam, args.annotate_intervals,
-            args.runs_intervals, hmer_run_length_dist=args.hpol_filter_length_dist,
+            runs_intervals.as_bed_file(), hmer_run_length_dist=args.hpol_filter_length_dist,
             flow_order=args.flow_order)
 
         if not args.disable_reinterpretation:
@@ -134,7 +166,7 @@ if __name__ == "__main__":
         base_name_outputfile = os.path.splitext(args.output_file)[0]
         Parallel(n_jobs=args.n_jobs, max_nbytes=None)(
             delayed(_contig_concordance_annotate_reinterpretation)
-            (results, contig, args.reference, args.aligned_bam, args.annotate_intervals, args.runs_intervals,
+            (results, contig, args.reference, args.aligned_bam, args.annotate_intervals, runs_intervals.as_bed_file(),
              args.hpol_filter_length_dist, args.flow_order, base_name_outputfile, args.concordance_tool,
              args.disable_reinterpretation, args.is_mutect)
             for contig in tqdm(contigs))

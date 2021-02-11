@@ -70,11 +70,13 @@ class SingleTrivialRegressorModel:
 class MaskedHierarchicalModel:
 
     def __init__(self, _name: str, _group_column: str, _models_dict: dict,
-                 transformer: Optional[sklearn_pandas.DataFrameMapper]=None):
+                 transformer: Optional[sklearn_pandas.DataFrameMapper]=None, tree_score_fpr = None):
         self.name = _name
         self.group_column = _group_column
         self.models = _models_dict
         self.transformer = transformer
+        self.tree_score_fpr = tree_score_fpr
+
 
     def predict(self, df: pd.DataFrame,
                 mask_column: Optional[str]=None) -> pd.Series:
@@ -117,7 +119,7 @@ class MaskedHierarchicalModel:
         return np.hstack(predictions)
 
 
-def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'classify')\
+def train_threshold_models(concordance: pd.DataFrame,interval_size: int, classify_column: str = 'classify')\
         -> Tuple[MaskedHierarchicalModel, MaskedHierarchicalModel, pd.DataFrame]:
     '''Trains threshold classifier and regressor
 
@@ -125,6 +127,8 @@ def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'cl
     ----------
     concordance: pd.DataFrame
         Concordance dataframe
+    interval_size: int
+        number of bases in the interval
     classify_column: str
         Classification column
 
@@ -144,19 +148,22 @@ def train_threshold_models(concordance: pd.DataFrame, classify_column: str = 'cl
     groups = set(concordance["group"])
     classifier_models = {}
     regressor_models = {}
+    fpr_values = {}
     for g in groups:
-        classifier_models[g], regressor_models[g] = \
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
             train_threshold_model(concordance, concordance['test_train_split'],
-                                  concordance['group'] == g, classify_column, transformer)
+                                  concordance['group'] == g, classify_column, transformer, interval_size)
 
     return MaskedHierarchicalModel("Threshold classifier", "group", classifier_models, transformer=transformer), \
-        MaskedHierarchicalModel("Threshold regressor", "group", regressor_models, transformer=transformer), \
+        MaskedHierarchicalModel("Threshold regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
         concordance
 
 
 def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series,
                           selection: pd.Series, gtr_column: str,
-                          transformer: sklearn_pandas.DataFrameMapper) -> tuple:
+                          transformer: sklearn_pandas.DataFrameMapper,
+                          interval_size: int) -> tuple:
     '''Trains threshold regressor and classifier models
 
     Parameters
@@ -164,13 +171,15 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     concordance: pd.DataFrame
         Concordance dataframe
     test_train_split: np.ndarray
-        Test train split column. NOTE: currently ignored!
+        Test train split column.
     selection : pd.Series
         Boolean - rows of concordance that belong to the group being trained
     gtr_column: str
         Ground truth column
     transformer: sklearn_pandas.DataFrameMapper
         Feature mapper
+    interval_size: int
+        number of bases in the interval
     '''
 
     quals = np.linspace(0, 500, 49)
@@ -180,10 +189,10 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                 for i in range(len(quals)) for j in range(len(sors))]
 
     fns = np.array(concordance[gtr_column] == 'fn')
-    train_data = concordance[selection & (~fns)][FEATURES]
+    train_data = concordance[selection & (~fns) & test_train_split][FEATURES]
 
     train_data = transformer.transform(train_data)
-    labels = concordance[selection & (~fns)][gtr_column]
+    labels = concordance[selection & (~fns) & test_train_split][gtr_column]
     enclabels = np.array(labels == 'tp')
     train_qual = train_data['qual']
     train_sor = train_data['sor']
@@ -215,7 +224,9 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                               'sor': np.array([x[1] for x in rsi.index])},
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
-    return classifier, regression_model
+    tree_scores = regression_model.predict(train_data)
+    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
+    return classifier, regression_model, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1)
 
 
 def get_r_s_i(results: pd.DataFrame, var_type: pd.DataFrame) -> tuple:
@@ -312,7 +323,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
 
 def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 selection: pd.Series, gtr_column: str,
-                transformer: sklearn_pandas.DataFrameMapper) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor]:
+                transformer: sklearn_pandas.DataFrameMapper,
+                interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor]:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -343,8 +355,38 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     model1 = DecisionTreeRegressor(max_depth=7)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
-    return model, model1
+    tree_scores = model1.predict(train_data)
+    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
+    return model, model1, pd.concat([pd.Series(tree_scores_sorted),fpr_values], axis=1,)
 
+def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
+    '''Clclulate False Positive Rate for each variant
+    '' Order the variants by incresinng order and clculate the number of false positives that we have per mega
+
+        Parameters
+        ----------
+        tree_scores: pd.Series
+            tree_scores values of the variants
+        labels: pd.Series
+            labels of tp fp fn for each variant
+        test_train_split: pd.Series
+            Boolean series that points to train/ test data selected for the model (true is train)
+        interval_size: int
+            Number of bases in interval
+        Returns
+        -------
+        pd.Series:
+            FPR value for each variant
+        '''
+    train_part = sum(test_train_split)/len(test_train_split)
+    tree_scores_sorted_inds = np.argsort(tree_scores)[::-1]
+    cur_fpr = 0
+    fpr = []
+    for cur_ind in tree_scores_sorted_inds:
+        if labels[cur_ind] =='fp':
+            cur_fpr = cur_fpr+1
+        fpr.append((cur_fpr/train_part) / interval_size)
+    return tree_scores[tree_scores_sorted_inds], pd.Series(fpr) * 10**6
 
 def get_basic_selection_functions():
     'Selection between SNPs and INDELs'
@@ -428,6 +470,33 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
         df.loc[selection_functions[k](df), column_name] = k
     return df
 
+def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: pd.DataFrame) -> pd.DataFrame:
+    '''Deduce frp value from the tree_score and the tree score fpr mapping
+
+        Parameters
+        ----------
+        df: pd.DataFrame
+            concordance dataframe
+        prediction_score: pd.Series
+        tree_score_fpr: dict -> pd.DataFrame
+            dictionary of group -> df were the df is
+            2 columns of tree score and its corresponding fpr
+            and the group key is snp, h-indel, non-h-indel
+
+        Returns
+        -------
+        pd.DataFrame
+            df with column_name added to it that is filled with the fpr value according
+            to the tree score fpr mapping
+        '''
+
+    fpr_values = pd.Series(np.zeros(len(prediction_score)))
+    fpr_values.index = prediction_score.index
+    for group in df['group'].unique():
+        select = df['group'] == group
+        tree_score_fpr_group = tree_score_fpr[group]
+        fpr_values.loc[select] = prediction_score.loc[select].apply(lambda value:tree_score_fpr_group.iloc[(np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin(), 1])
+    return fpr_values
 
 def get_testing_selection_functions() -> dict:
     sfs = []
@@ -504,7 +573,7 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     return concordance
 
 
-def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
+def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
     '''Train a decision tree model on the dataframe
 
     Parameters
@@ -513,6 +582,8 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -
         Dataframe
     classify_column: str
         Ground truth labels
+    interval_size: int
+        number of bases in the interval
     Returns
     -------
     (MaskedHierarchicalModel, pd.DataFrame
@@ -530,13 +601,15 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str) -
     groups = set(concordance["group"])
     classifier_models = {}
     regressor_models = {}
+    fpr_values = {}
     for g in groups:
-        classifier_models[g], regressor_models[g] = \
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
             train_model(concordance, concordance['test_train_split'],
-                        concordance['group'] == g, classify_column, transformer)
+                        concordance['group'] == g, classify_column, transformer, interval_size)
 
     return MaskedHierarchicalModel("Decision tree classifier", "group", classifier_models, transformer=transformer), \
-        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer), \
+        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
         concordance
 
 

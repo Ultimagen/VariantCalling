@@ -11,6 +11,7 @@ import python.modules.variant_annotation as annotation
 import python.modules.flow_based_concordance as fbc
 from typing import Optional, List
 import logging
+from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,96 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
         subprocess.check_call(cmd, stdout=out)
     index_vcf(output_file)
 
+class IntervalFile:
+    def __init__(self,cmp_intervals: str, ref: str, ref_dict: str):
+        # determine the file type and create the other temporary copy
+        if cmp_intervals is None:
+            self._is_none = True
+            self._interval_list_file_name = None
+            self._bed_file_name = None
+
+        elif cmp_intervals.endswith('.interval_list'):
+            self._interval_list_file_name = cmp_intervals
+            # create the interval bed file
+            cmd = ["picard", "IntervalListToBed",
+                   f"I={cmp_intervals}",
+                   f"O={os.path.splitext(cmp_intervals)[0]}.bed"]
+            logger.info(" ".join(cmd))
+            subprocess.check_call(cmd)
+            self._bed_file_name = f"{os.path.splitext(cmp_intervals)[0]}.bed"
+            self._is_none = False
+
+        elif cmp_intervals.endswith('.bed'):
+            self._bed_file_name = cmp_intervals
+            # deduce ref_dict
+            if ref_dict is None:
+                ref_dict = f"{ref}.dict"
+            if not os.path.isfile(ref_dict):
+                logger.error(f"dict file does not exist: {ref_dict}")
+
+            # create the interval list file
+            cmd = ["picard", "BedToIntervalList",
+                   f"I={cmp_intervals}",
+                   f"O={os.path.splitext(cmp_intervals)[0]}.interval_list",
+                   f"SD={ref_dict}"]
+            logger.info(" ".join(cmd))
+            subprocess.check_call(cmd)
+            self._interval_list_file_name = f"{os.path.splitext(cmp_intervals)[0]}.interval_list"
+            self._is_none = False
+        else:
+            logger.error("the cmp_intervals should be of type interval list or bed")
+            self._is_none = True
+            self._interval_list_file_name = None
+            self._bed_file_name = None
+    def as_bed_file(self):
+        return self._bed_file_name
+    def as_interval_list_file(self):
+        return self._interval_list_file_name
+    def is_none(self):
+        return self._is_none
+
+def intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> None:
+    '''Intersects bed files
+
+    Parameters
+    ----------
+    input_bed1: str
+        Input Bed file
+    input_bed2: str
+        Input Bed file
+    bed_output: str
+        Output bed intersected file
+
+    Return
+    ------
+    None
+        Writes output_fn file
+    '''
+    cmd = ['bedtools', 'intersect', '-a', input_bed1,
+           '-b', input_bed2]
+    logger.info(" ".join(cmd))
+    with open(bed_output, "w") as f:
+        subprocess.call(cmd, stdout=f)
+
+
+def bed_file_length(input_bed: str) -> int:
+    '''Calc the number of bases in a bed file
+
+    Parameters
+    ----------
+    input_bed: str
+        Input Bed file
+
+    Return
+    ------
+    int
+        number of bases in a bed file
+    '''
+
+    df = pd.read_csv(input_bed, sep="\t", header=None)
+    df = df.iloc[:,[0,1,2]]
+    df.columns = ['chr', 'pos_start', 'pos_end']
+    return np.sum(df['pos_end']-df['pos_start']+1)
 
 def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:
     '''Intersects VCF with intervalList
@@ -396,7 +487,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad',
-               'tree_score', 'tlod', 'af']
+               'tree_score', 'tlod', 'af','fpr']
     original = pd.DataFrame([[x[y.upper()] for y in columns]
                              for x in vfi], columns=columns)
     original.index = list(zip(original.chrom, original.pos))
