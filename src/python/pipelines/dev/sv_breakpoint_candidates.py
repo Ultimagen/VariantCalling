@@ -38,14 +38,14 @@ def SV_breakpoint_candidates(
         return cur_align_bases, cur_softclip_length[0], cur_softclip_length[1]
 
     # # directory to put the temporary chucks in
-    output_dir = f"{output_file_prefix}.temp_chuncks"
+    output_dir = f"{output_file_prefix}.temp_chunks"
     if os.path.isdir(output_dir):
         shutil.rmtree(output_dir)
     os.mkdir(output_dir)
     output_file_basename = os.path.basename(output_file_prefix)
 
     for ind in [f"chr{i}" for i in range(1, 24)]:  ## todo: add x,y?
-        logger.info(f"Reading {csv_filename}; chunck {ind}")
+        logger.info(f"Reading {csv_filename}; chunk {ind}")
         chunks = pd.read_csv(csv_filename, chunksize=chunksize, header=None, sep="\t")
         df = pd.DataFrame()
         # take only the rows of the specific chromosome
