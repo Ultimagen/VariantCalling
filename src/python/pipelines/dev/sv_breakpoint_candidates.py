@@ -312,6 +312,6 @@ if __name__ == "__main__":
     SV_breakpoint_candidates(
         args.input_file,
         args.output_file_prefix,
-        MQ_th=args.mapq,
-        minappearances=args.minappearances,
+        MQ_th=args.q,
+        minappearances=args.m,
     )
