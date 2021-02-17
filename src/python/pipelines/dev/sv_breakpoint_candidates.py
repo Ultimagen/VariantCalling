@@ -192,6 +192,9 @@ def SV_breakpoint_candidates(
             "SA_len",
         ]
 
+        if "-" in str(res.loc[0, "read_id"]):  # support new read_id format where sample name is pre-prepended
+            res["read_id"] = res["read_id"].str.split("-", expand=True).iloc[:, 2]
+
         res = res.astype(
             {
                 "read_id": int,
@@ -222,7 +225,7 @@ def SV_breakpoint_candidates(
 
         tmpfinal_res = final_res.loc[
             final_res[["cntf", "cntr"]].min(axis=1) >= minappearances
-            ]
+        ]
 
         final_res_bed = pd.concat(
             [
@@ -310,8 +313,5 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     SV_breakpoint_candidates(
-        args.input_file,
-        args.output_file_prefix,
-        MQ_th=args.q,
-        minappearances=args.m,
+        args.input_file, args.output_file_prefix, MQ_th=args.q, minappearances=args.m,
     )
