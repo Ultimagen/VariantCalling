@@ -97,6 +97,7 @@ try:
         predictions_score = model_scor.predict(df)
         prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_scor.tree_score_fpr)
         predictions_score = np.array(predictions_score)
+        group = df['group']
 
 
     hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
@@ -116,6 +117,7 @@ try:
         if is_decision_tree:
             hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
             hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
+            hdr.info.add("GROUP", 1,  "String", "Group for debugging")
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
                 pass_flag = True
@@ -134,6 +136,7 @@ try:
                 if is_decision_tree:
                     rec.info["TREE_SCORE"] = predictions_score[i]
                     rec.info["FPR"] = prediction_fpr[i]
+                    rec.info["GROUP"] = group[i]
 
                 # fix the alleles of form <1> that our GATK adds
                 rec.ref = rec.ref if re.match(
