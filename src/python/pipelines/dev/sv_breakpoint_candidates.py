@@ -193,11 +193,14 @@ def SV_breakpoint_candidates(
         ]
 
         if "-" in str(res.loc[0, "read_id"]):  # support new read_id format where sample name is pre-prepended
-            res["read_id"] = res["read_id"].str.split("-", expand=True).iloc[:, 2]
+            try:
+                res["read_id"] = res["read_id"].str.split("-", expand=True).iloc[:, 2].astype(int)
+            except ValueError:  # could not be converted to int
+                res = res.drop(columns="read_id")
+                print("Could not parse column read_id - discarding column")
 
         res = res.astype(
             {
-                "read_id": int,
                 "chr": object,
                 "junction_pos": int,
                 "SA_chr_id": object,
