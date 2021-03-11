@@ -225,7 +225,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
     tree_scores = regression_model.predict(train_data)
-    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
+    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split[selection], interval_size)
     return classifier, regression_model, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1)
 
 
@@ -376,23 +376,23 @@ def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_trai
         Returns
         -------
         pd.Series:
-            FPR value for each variant
+            FPR value for each variant sorted in increased order
         '''
     train_part = sum(test_train_split)/len(test_train_split)
-    tree_scores_sorted_inds = np.argsort(tree_scores)[::-1]
+    tree_scores_sorted_inds = np.argsort(tree_scores)
     cur_fpr = 0
     fpr = []
-    for cur_ind in tree_scores_sorted_inds:
+    for cur_ind in tree_scores_sorted_inds[::-1]:
         if labels[cur_ind] =='fp':
             cur_fpr = cur_fpr+1
         fpr.append((cur_fpr/train_part) / interval_size)
-    return tree_scores[tree_scores_sorted_inds], pd.Series(fpr) * 10**6
+    return tree_scores[tree_scores_sorted_inds], pd.Series(fpr[::-1]) * 10**6
 
 def get_basic_selection_functions():
     'Selection between SNPs and INDELs'
     sfs = []
     names = []
-    sfs.append(lambda x: (~x.indel))
+    sfs.append(lambda x: np.logical_not(x.indel))
     names.append("snp")
     sfs.append(lambda x: (x.indel))
     names.append("indel")
@@ -405,7 +405,7 @@ def get_training_selection_functions():
     '''
     sfs = []
     names = []
-    sfs.append(lambda x: (~x.indel))
+    sfs.append(lambda x: np.logical_not(x.indel))
     names.append("snp")
     sfs.append(lambda x: (x.indel & (x.hmer_indel_length == 0)))
     names.append("non-h-indel")
@@ -480,7 +480,7 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
         prediction_score: pd.Series
         tree_score_fpr: dict -> pd.DataFrame
             dictionary of group -> df were the df is
-            2 columns of tree score and its corresponding fpr
+            2 columns of tree score and its corresponding fpr in increasing order of tree_score
             and the group key is snp, h-indel, non-h-indel
 
         Returns
@@ -495,12 +495,13 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
     for group in df['group'].unique():
         select = df['group'] == group
         tree_score_fpr_group = tree_score_fpr[group]
-        fpr_values.loc[select] = prediction_score.loc[select].apply(lambda value:tree_score_fpr_group.iloc[(np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin(), 1])
+        #fpr_values.loc[select] = prediction_score.loc[select].apply(lambda value:tree_score_fpr_group.iloc[(np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin(), 1])
+        fpr_values.loc[select] = np.interp(prediction_score.loc[select], tree_score_fpr_group.iloc[:,0], tree_score_fpr_group.iloc[:,1])
     return fpr_values
 
 def get_testing_selection_functions() -> dict:
     sfs = []
-    sfs.append(('SNP', lambda x: ~x.indel))
+    sfs.append(('SNP', lambda x: np.logical_not(x.indel)))
     sfs.append(("Non-hmer INDEL", lambda x: x.indel &
                 (x.hmer_indel_length == 0)))
     sfs.append(("HMER indel <= 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
