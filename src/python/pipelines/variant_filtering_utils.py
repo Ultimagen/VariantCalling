@@ -495,7 +495,6 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
     for group in df['group'].unique():
         select = df['group'] == group
         tree_score_fpr_group = tree_score_fpr[group]
-        #fpr_values.loc[select] = prediction_score.loc[select].apply(lambda value:tree_score_fpr_group.iloc[(np.abs(tree_score_fpr_group.iloc[:,0] - value)).argmin(), 1])
         fpr_values.loc[select] = np.interp(prediction_score.loc[select], tree_score_fpr_group.iloc[:,0], tree_score_fpr_group.iloc[:,1])
     return fpr_values
 
