@@ -583,6 +583,7 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str,
     --------
     `flow_based_concordance.py`
     '''
+    logger.info("Variants reinterpret")
     concordance_df_result = pd.DataFrame()
     fasta = pyfaidx.Fasta(reference_fasta)
     for contig in concordance_df['chrom'].unique():
