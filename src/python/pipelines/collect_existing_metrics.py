@@ -48,10 +48,10 @@ if args.short_report_h5 is not None:
         hdf_keys = hdf.keys()
         for report_key in hdf_keys:
             short_report_h5_pd = pd.read_hdf(args.short_report_h5,key= report_key)
-            short_report_h5_pd.to_hdf(args.output_h5,key=report_key, mode="a")
+            short_report_h5_pd.to_hdf(args.output_h5,key="short_report_" + report_key, mode="a")
 if args.extended_report_h5 is not None:
     with pd.HDFStore(args.extended_report_h5,'r') as hdf:
         hdf_keys = hdf.keys()
         for report_key in hdf_keys:
             extended_report_h5_pd = pd.read_hdf(args.extended_report_h5,key= report_key)
-            extended_report_h5_pd.to_hdf(args.output_h5, key="short_report_" + report_key, mode="a")
+            extended_report_h5_pd.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
