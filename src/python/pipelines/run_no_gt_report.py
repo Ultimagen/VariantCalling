@@ -139,6 +139,106 @@ def snp_statistics(df, ref_fasta):
     motifs = (x_f + x_r)["size"]
     return motifs
 
+def variant_eval_statistics(vcf_input, reference, dbsnp, output_prefix):
+    # cmd = ["gatk", "VariantEval",
+    #        f"--eval {input_file}",
+    #        f"--reference {reference}",
+    #        f"--dbsnp {dbsnp}",
+    #        f"--output {output_prefix}.txt"]
+    # logger.info(" ".join(cmd))
+    # subprocess.check_call(cmd)
+
+    def parse_single_report(f):
+        def parse_single_table(f):
+            headers = f.readline().split()
+            table = []
+            l = f.readline().strip("\n").split()
+            while len(l) == len(headers):
+                table.append(l)
+                l = f.readline().strip("\n").split()
+
+            return pd.DataFrame(table, columns=headers)
+
+        data = dict()
+        # in_CompOverlap = False
+        # in_CountVariants = False
+        # in_TiTv = False
+        # CompOverlap = []
+        # CountVariants = []
+        # TiTvVariantEvaluator = []
+        tables_to_read = pd.Series(["CompOverlap",
+                                    "CountVariants",
+                                    "TiTvVariantEvaluator",
+                                    "IndelLengthHistogram",
+                                    "IndelSummary",
+                                    "MetricsCollection",
+                                    "ValidationReport",
+                                    "VariantSummary"])
+        for l in f:
+            is_specific_table = tables_to_read.apply(lambda x: x in f"#:GATKTable:{x}" in l)
+            start_table = sum(is_specific_table) > 0
+            if start_table:
+                table_name = tables_to_read[np.where(is_specific_table)[0][0]]
+                df = parse_single_table(f)
+                data[table_name] = df
+        # for l in f:
+        #     # Detect section headers
+        #     if "#:GATKTable:CompOverlap" in l:
+        #         in_CompOverlap = True
+        #     elif "#:GATKTable:CountVariants" in l:
+        #         in_CountVariants = True
+        #     elif "#:GATKTable:TiTvVariantEvaluator" in l:
+        #         in_TiTv = True
+        #     else:
+        #         # Parse contents using nested loops
+        #         if in_CompOverlap:
+        #             headers = l.split()
+        #             while in_CompOverlap:
+        #                 l = f.readline().strip("\n")
+        #                 if len(l) < len(headers):
+        #                     in_CompOverlap = False
+        #                     CompOverlap = pd.DataFrame(CompOverlap, columns=headers)
+        #                     break
+        #                 else:
+        #                     CompOverlap.append(l.split())
+        #
+        #         elif in_CountVariants:
+        #             headers = l.split()
+        #             while in_CountVariants:
+        #                 l = f.readline().strip("\n")
+        #                 if len(l) < len(headers):
+        #                     in_CountVariants = False
+        #                     CountVariants = pd.DataFrame(CountVariants, columns=headers)
+        #                     break
+        #                 else:
+        #                     CompOverlap.append(l.split())
+        #
+        #         elif in_TiTv:
+        #             headers = l.split()
+        #             while in_TiTv:
+        #                 l = f.readline().strip("\n")
+        #                 if len(l) < len(headers):
+        #                     in_TiTv = False
+        #                     TiTv = pd.DataFrame(TiTv, columns=headers)
+        #                     break
+        #                 else:
+        #                     TiTv.append(l.split())
+
+        return data
+
+    with open(f"{args.output_prefix}.txt") as f:
+        data = parse_single_report(f)
+    return data
+    # lines = []
+    # with open(f"{args.output_prefix}.txt") as f:
+    #     lines = f.readlines()
+    #
+    # count = 0
+    # for line in lines:
+    #     count += 1
+    #     print(f'line {count}: {line}')
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
         prog="collect_statistics_no_gt.py", description="Collect metrics for runs without ground truth")
@@ -162,13 +262,9 @@ if __name__ == "__main__":
     logger.info(" ".join(cmd))
     #subprocess.check_call(cmd)
 
-    cmd = ["gatk", "VariantEval",
-           f"--eval {args.input_file}",
-           f"--reference {args.reference}",
-           f"--dbsnp {args.dbsnp}",
-           f"--output {args.output_prefix}.txt"]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix)
+
+
 
     df = vcftools.get_vcf_df(args.input_file)
     annotated_df = vcf_pipeline_utils.annotate_concordance(
@@ -186,6 +282,9 @@ if __name__ == "__main__":
     ins_del_df['homo'].to_hdf(f"{args.output_prefix}.h5", key="ins_del_homo")
     af_df.to_hdf(f"{args.output_prefix}.h5", key="af_hist")
     snp_motifs.to_hdf(f"{args.output_prefix}.h5", key="snp_motifs")
+    for eval_table_name in eval_tables.keys():
+        eval_tables[eval_table_name].to_hdf(f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}")
+
     # with open(args.output_prefix+"_af.json", "w") as file:
     #     json.dump(af_df, file) ## todo: change it into df
     #ins_del_df['hete'].to_hdf(args.output_prefix + "_ins_del.h5", key="ins_del_hete")
