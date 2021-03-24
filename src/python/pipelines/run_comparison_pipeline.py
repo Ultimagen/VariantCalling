@@ -137,7 +137,7 @@ if __name__ == "__main__":
             annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
                 annotated_concordance, args.reference, ignore_low_quality_fps=args.is_mutect)
         annotated_concordance.to_hdf(args.output_file, key="concordance")
-        annotated_concordance.to_hdf(args.output_file, key="comparison_result")
+        annotated_concordance.to_hdf(args.output_file, key="comparison_result") ## hack until we totally remove chr9
         vcftools.bed_files_output(annotated_concordance,
                                   args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
 
