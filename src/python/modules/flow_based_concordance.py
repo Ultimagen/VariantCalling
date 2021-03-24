@@ -482,7 +482,7 @@ def _convert_fns_to_tps(_df: pd.DataFrame) -> pd.DataFrame:
     subdf['qual'] = 300
     subdf['sor'] = 1
     _df.loc[subdf.index, subdf.columns] = subdf
-    _df.loc[pd.isnull(_df['qual']), ['sor', 'qual']] = 50
+    _df.loc[pd.isnull(_df['qual']), 'qual'] = 50
     return _df
 
 
