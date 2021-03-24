@@ -487,7 +487,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                                             ('FILTER', ';'.join(x.filter.keys()))]), vf)
     columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
                'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad',
-               'tree_score', 'tlod', 'af','fpr']
+               'tree_score', 'tlod', 'af','fpr','group']
     original = pd.DataFrame([[x[y.upper()] for y in columns]
                              for x in vfi], columns=columns)
     original.index = list(zip(original.chrom, original.pos))
@@ -583,6 +583,7 @@ def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str,
     --------
     `flow_based_concordance.py`
     '''
+    logger.info("Variants reinterpret")
     concordance_df_result = pd.DataFrame()
     fasta = pyfaidx.Fasta(reference_fasta)
     for contig in concordance_df['chrom'].unique():
