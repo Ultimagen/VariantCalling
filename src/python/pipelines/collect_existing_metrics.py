@@ -16,8 +16,13 @@ ap.add_argument('--metric_files', nargs='+',help="comma seperated list of picard
 		required=True)
 ap.add_argument("--coverage_h5", help='Coverage h5 File',
                 required=False, type=str)
+ap.add_argument("--short_report_h5", help='Short report h5 file',
+                required=False, type=str )
+ap.add_argument("--extended_report_h5", help='Extended report h5 file',
+                required=False, type=str )
 ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
                 required=True, type=str)
+
 
 args = ap.parse_args()
 
@@ -37,3 +42,16 @@ if args.coverage_h5 is not None:
     cvg_df_unstacked=pd.DataFrame(cvg_df.unstack(level=0)).T
     cvg_df_unstacked.to_hdf(args.output_h5,key="stats_coverage", mode="a")
     cvg_h5_histogram.to_hdf(args.output_h5,key="histogram_coverage", mode="a")
+
+if args.short_report_h5 is not None:
+    with pd.HDFStore(args.short_report_h5,'r') as hdf:
+        hdf_keys = hdf.keys()
+        for report_key in hdf_keys:
+            short_report_h5_pd = pd.read_hdf(args.short_report_h5,key= report_key)
+            short_report_h5_pd.to_hdf(args.output_h5,key="short_report_" + report_key, mode="a")
+if args.extended_report_h5 is not None:
+    with pd.HDFStore(args.extended_report_h5,'r') as hdf:
+        hdf_keys = hdf.keys()
+        for report_key in hdf_keys:
+            extended_report_h5_pd = pd.read_hdf(args.extended_report_h5,key= report_key)
+            extended_report_h5_pd.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
