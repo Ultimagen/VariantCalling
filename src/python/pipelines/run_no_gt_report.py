@@ -94,7 +94,7 @@ def snp_statistics(df, ref_fasta):
         names=["ref_motif", "alt_1"],
     )
 
-    df_snp = df[~df["indel"] & (df["filter"] == "PASS")].drop(
+    df_snp = df[~df["indel"]].drop(
         columns=[
             "indel",
             "indel_classify",
