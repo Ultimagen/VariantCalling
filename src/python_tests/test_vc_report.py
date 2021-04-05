@@ -33,4 +33,3 @@ def test_vc_report(tmpdir):
     cmd = ['jupyter', 'nbconvert', '--to', 'html', 'createVarReport.nbconvert.ipynb', '--template', 'full',
            '--no-input', '--output', 'varReport.html']
     assert (subprocess.check_call(cmd, cwd=tmpdir) == 0)
-`

@@ -81,8 +81,6 @@ if __name__ == "__main__":
                     help="Should re-interpretation be run", action="store_true")
     ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
                     action="store_true")
-    ap.add_argument("--chr9_interval", help='Chr9 interval (bed/interval_list)', # hack for supporting the pipeline report
-                    required=False, type=str, default=None)
     ap.add_argument("--n_jobs", help="n_jobs of parallel on contigs",type=int,
                     default=-1)
     ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
@@ -93,30 +91,16 @@ if __name__ == "__main__":
                         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
 
-    # chr9_interval was added as an hack for resolving the report in the vc pipeline which is on chr9 only
-    # in case chr9 is provided, we make the analysis on chr9 only (intersected by the 2 other intervals)
-    # @todo: chr9_interval should be removed
     cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference, args.reference_dict)
-    chr9_interval = vcf_pipeline_utils.IntervalFile(args.chr9_interval, args.reference, args.reference_dict)
     highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference, args.reference_dict)
     runs_intervals = vcf_pipeline_utils.IntervalFile(args.runs_intervals, args.reference, args.reference_dict)
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():# interval of highconf_intervals
-        if chr9_interval.is_none():
-            copyfile(highconf_intervals.as_bed_file(), args.output_interval)
-        else: # intersection ch9 and highconf_intervals
-            vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
+        copyfile(highconf_intervals.as_bed_file(), args.output_interval)
     else:
-        if chr9_interval.is_none(): # intersection cmp_intervals and highconf_intervals
-            vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(),
-                                                   args.output_interval)
-        else: # intersect all the 3 intervals
-            fp = NamedTemporaryFile()
-            temp_file_path = fp.name
-            vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), temp_file_path)
-            vcf_pipeline_utils.intersect_bed_files(chr9_interval.as_bed_file(),temp_file_path, args.output_interval)
-
+        vcf_pipeline_utils.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(),
+                                               args.output_interval)
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     pd.DataFrame(args_dict, index=[
         0]).to_hdf(args.output_file, key="input_args")
@@ -153,6 +137,7 @@ if __name__ == "__main__":
             annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
                 annotated_concordance, args.reference, ignore_low_quality_fps=args.is_mutect)
         annotated_concordance.to_hdf(args.output_file, key="concordance")
+        annotated_concordance.to_hdf(args.output_file, key="comparison_result") ## hack until we totally remove chr9
         vcftools.bed_files_output(annotated_concordance,
                                   args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
 
