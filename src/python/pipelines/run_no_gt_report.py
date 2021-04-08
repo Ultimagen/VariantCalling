@@ -44,8 +44,8 @@ def allele_freq_hist(df, nbins = 100):
     '''
     bins = np.linspace(0, 1, nbins)
     result = {}
-    for group in df['group'].unique():
-        histogram_data, _ = np.histogram(df[df['group'] == group]['af'].apply(lambda x: x[0] if type(x) == tuple else x), bins)
+    for group in df['variant_type'].unique():
+        histogram_data, _ = np.histogram(df[df['variant_type'] == group]['af'].apply(lambda x: x[0] if type(x) == tuple else x), bins)
         result[group] = pd.Series(histogram_data)
     return pd.DataFrame(data=result)
 
