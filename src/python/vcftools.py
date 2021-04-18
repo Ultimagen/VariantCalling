@@ -99,6 +99,8 @@ def get_region_around_variant(
         (start, end)
     """
     initial_region = (max(vpos - region_size // 2, 0), vpos + region_size // 2)
+    if len(vlocs) == 0:
+        return initial_region
 
     # expand the region to the left
     # clip for the cases when the variant is after all the variants and need
@@ -387,13 +389,13 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
         data).get_h_mer_0().get_fn().BED_format(kind="fn").get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str, mode: str) -> None:
-        if file.shape[0]>0:
+        if file.shape[0] > 0:
             file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False, mode=mode)
 
     save_bed_file(snp_fp, basename, "snp_fp", mode)
     save_bed_file(snp_fn, basename, "snp_fn", mode)
 
-    if create_gt_diff : 
+    if create_gt_diff: 
         save_bed_file(all_fp_diff, basename, "genotyping_errors_fp", mode=mode)
         save_bed_file(all_fn_diff, basename, "genotyping_errors_fn", mode=mode)
 
