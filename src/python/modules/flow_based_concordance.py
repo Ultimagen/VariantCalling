@@ -84,7 +84,6 @@ def reinterpret_variants(concordance_df: pd.DataFrame, input: dict, fasta: pyfai
                                      input['ugi'], input['gtr'],
                                      fasta, 'gt_ultima', 'gt_ground_truth',
                                      variant_intervals)
-
     # Convert false positives for which there is a difference of a single
     # flow to hmer indels
     concordance_df = _apply_corrections(concordance_df, input[
@@ -102,6 +101,7 @@ def reinterpret_variants(concordance_df: pd.DataFrame, input: dict, fasta: pyfai
 
     # Convert false negatives for which there is a difference of a single
     # flow to hmer indels.
+
     concordance_df = _apply_corrections(concordance_df, input[
                                         'fns'].index, corrections_fns)
 
