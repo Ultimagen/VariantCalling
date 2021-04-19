@@ -1088,7 +1088,7 @@ def run_full_coverage_analysis(
         else:
             n_jobs_ = n_jobs
         CHR9_LENGTH = 138_394_717
-        n = np.linspace(0, CHR9_LENGTH + 1, n_jobs_).astype(int)
+        n = np.linspace(0, CHR9_LENGTH + 1, n_jobs_+1).astype(int)
         region = [f"chr9:{n[j] + 1}-{n[j + 1]}" for j in range(len(n) - 1)]
     elif region == "all_but_x":
         pass
