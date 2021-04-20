@@ -167,8 +167,7 @@ def variant_eval_statistics(vcf_input, reference, dbsnp, output_prefix):
                                     "IndelSummary",
                                     "MetricsCollection",
                                     "ValidationReport",
-                                    "VariantSummary",
-                                    "MultiallelicSummary"])
+                                    "VariantSummary"])
         for l in f:
             is_specific_table = tables_to_read.apply(lambda x: x in f"#:GATKTable:{x}" in l)
             start_table = sum(is_specific_table) > 0
@@ -199,29 +198,24 @@ if __name__ == "__main__":
 
     logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
 
-    # cmd = ["picard", "CollectVariantCallingMetrics",
-    #        f"I={args.input_file}",
-    #        f"DBSNP={args.dbsnp}",
-    #        f"O={args.output_prefix}"]
-    # logger.info(" ".join(cmd))
-    #subprocess.check_call(cmd)
-
     eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix)
 
-
-
+    logger.info("Converting vcf to df")
     df = vcftools.get_vcf_df(args.input_file)
+    logger.info("Annotating vcf")
     annotated_df = vcf_pipeline_utils.annotate_concordance(
         df, args.reference)
 
-    # insertion/ deletion statistics
+    logger.info("insertion/ deletion statistics")
     ins_del_df = insertion_deletion_statistics(df)
-    # Allele frequency histogram
+
+    logger.info("Allele frequency histogram")
     af_df = allele_freq_hist(annotated_df)
-    # snps motifs
+
+    logger.info("snps motifs statistics")
     snp_motifs = snp_statistics(df, args.reference)
 
-    ## save all statistics in h5 file
+    logger.info("save all statistics in h5 file")
     ins_del_df['hete'].to_hdf(f"{args.output_prefix}.h5", key="ins_del_hete")
     ins_del_df['homo'].to_hdf(f"{args.output_prefix}.h5", key="ins_del_homo")
     af_df.to_hdf(f"{args.output_prefix}.h5", key="af_hist")
