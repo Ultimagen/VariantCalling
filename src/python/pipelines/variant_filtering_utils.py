@@ -10,9 +10,12 @@ from typing import Optional, Tuple, Callable
 from enum import Enum
 import python.utils as utils
 
-FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
+# FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
+#             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
 
+FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
+            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length',
+            ]
 
 class SingleModel:
 
