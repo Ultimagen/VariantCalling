@@ -1,4 +1,5 @@
 import pathmagic
+from pathmagic import PYTHON_TESTS_PATH
 from os.path import join as pjoin
 import shutil
 import subprocess
