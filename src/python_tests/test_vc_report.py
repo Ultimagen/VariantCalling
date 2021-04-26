@@ -1,4 +1,5 @@
 import pathmagic
+from pathmagic import PYTHON_TESTS_PATH
 from os.path import join as pjoin
 import shutil
 import subprocess
@@ -16,6 +17,7 @@ def test_vc_report(tmpdir):
         strg = '''
         [VarReport]
         run_id = 140479-BC21
+        pipeline_version = 2.4.1
         h5_concordance_file = ./test.untrained.h5
         h5_model_file = ./test.trained.h5
 
