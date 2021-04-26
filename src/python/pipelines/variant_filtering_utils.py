@@ -197,8 +197,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     train_qual = train_data['qual']
     train_sor = train_data['sor']
 
-    qq = (train_qual[:, np.newaxis] > quals[np.newaxis, :])
-    ss = (train_sor[:, np.newaxis] < sors[np.newaxis, :])
+    qq = (train_qual.to_numpy()[:, np.newaxis] > quals[np.newaxis, :])
+    ss = (train_sor.to_numpy()[:, np.newaxis] < sors[np.newaxis, :])
     predictions_tp = (qq[..., np.newaxis] & ss[:, np.newaxis, :])
     tps = (predictions_tp & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
     fns = ((~predictions_tp) & enclabels[
