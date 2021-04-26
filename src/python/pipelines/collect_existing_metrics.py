@@ -13,7 +13,7 @@ import argparse
 ap = argparse.ArgumentParser(
     prog="collect_existing_picard_metrics.py", description="Collect picard metrics in h5 file")
 ap.add_argument('--metric_files', nargs='+',help="comma seperated list of picard metric files",
-		required=True)
+		required=False)
 ap.add_argument("--coverage_h5", help='Coverage h5 File',
                 required=False, type=str)
 ap.add_argument("--short_report_h5", help='Short report h5 file',
@@ -21,10 +21,17 @@ ap.add_argument("--short_report_h5", help='Short report h5 file',
 ap.add_argument("--extended_report_h5", help='Extended report h5 file',
                 required=False, type=str )
 ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
-                required=True, type=str)
+                required=False, type=str)
+ap.add_argument("--contamination_stdout", help='Rate of Contamination',
+                required=False, type=str)
 
 
 args = ap.parse_args()
+
+with open(args.contamination_stdout, 'r') as f:
+    contamination = float(f.read())
+    df = pd.Series(data=[contamination], index=["contamination"])
+    df.to_hdf(args.output_h5, key="contamination", mode="a")
 
 for metric_file in args.metric_files:
     if os.path.getsize(metric_file) > 0:
