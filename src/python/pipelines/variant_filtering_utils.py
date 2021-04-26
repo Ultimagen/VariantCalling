@@ -15,8 +15,9 @@ import python.utils as utils
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length',
-            ]
-
+            'gt','pl','ad','mq','af','dp_r','dp_f','tlod', 'strandq','as_sor','as_sorp','fs','vqsr_val','qd',
+            'gq','pgt','pid','ps','ac','an',
+            'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc']
 class SingleModel:
 
     def __init__(self, threshold_dict: dict, is_greater_then: dict):
@@ -318,7 +319,33 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('inside_hmer_run', None),
                       ('close_to_hmer_run', None),
                       ('hmer_indel_nuc', preprocessing.LabelEncoder()),
-                      (['hmer_indel_length'], default_filler)]
+                      (['hmer_indel_length'], default_filler),
+                      ('gt', None),
+                      ('pl', None),
+                      ('ad', None),
+                      ('mq', None),
+                      ('af', None),
+                      ('dp_r', None),
+                      ('tlod', None),
+                      ('strandq', None),
+                      ('as_sor', None),
+                      ('as_sorp', None),
+                      ('fs', None),
+                      ('vqsr_val', None),
+                      ('qd', None),
+                      ('gq', None),
+                      ('pgt', None),
+                      ('ps', None),
+                      ('ac', None),
+                      ('an', None),
+                      ('baseqranksum', None),
+                      ('excesshet', None),
+                      ('mleac', None),
+                      ('mleaf', None),
+                      ('mqranksum', None),
+                      ('readposranksum', None),
+                      ('xc', None)
+                      ]
     transformer = sklearn_pandas.DataFrameMapper(
         transform_list, df_out=output_df)
     return transformer
