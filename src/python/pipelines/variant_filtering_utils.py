@@ -6,12 +6,15 @@ import sklearn_pandas
 import pandas as pd
 import numpy as np
 import tqdm
+import logging
 from typing import Optional, Tuple, Callable
 from enum import Enum
 import python.utils as utils
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
+
+logger = logging.getLogger(__name__)
 
 
 class SingleModel:
@@ -70,16 +73,15 @@ class SingleTrivialRegressorModel:
 class MaskedHierarchicalModel:
 
     def __init__(self, _name: str, _group_column: str, _models_dict: dict,
-                 transformer: Optional[sklearn_pandas.DataFrameMapper]=None, tree_score_fpr = None):
+                 transformer: Optional[sklearn_pandas.DataFrameMapper] = None, tree_score_fpr=None):
         self.name = _name
         self.group_column = _group_column
         self.models = _models_dict
         self.transformer = transformer
         self.tree_score_fpr = tree_score_fpr
 
-
     def predict(self, df: pd.DataFrame,
-                mask_column: Optional[str]=None) -> pd.Series:
+                mask_column: Optional[str] = None) -> pd.Series:
         '''Makes prediction on the dataframe, optionally ignoring false-negative calls
 
         Parameters
@@ -119,7 +121,7 @@ class MaskedHierarchicalModel:
         return np.hstack(predictions)
 
 
-def train_threshold_models(concordance: pd.DataFrame,interval_size: int, classify_column: str = 'classify')\
+def train_threshold_models(concordance: pd.DataFrame, interval_size: int, classify_column: str = 'classify')\
         -> Tuple[MaskedHierarchicalModel, MaskedHierarchicalModel, pd.DataFrame]:
     '''Trains threshold classifier and regressor
 
@@ -192,7 +194,9 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     train_data = concordance[selection & (~fns) & test_train_split][FEATURES]
 
     train_data = transformer.transform(train_data)
+    _validate_data(train_data.to_numpy())
     labels = concordance[selection & (~fns) & test_train_split][gtr_column]
+    _validate_data(labels.to_numpy())
     enclabels = np.array(labels == 'tp')
     train_qual = train_data['qual']
     train_sor = train_data['sor']
@@ -225,7 +229,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
     tree_scores = regression_model.predict(train_data)
-    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split[selection], interval_size)
+    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
+        tree_scores, labels, test_train_split[selection], interval_size)
     return classifier, regression_model, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1)
 
 
@@ -348,6 +353,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = transformer.transform(train_data)
+    _validate_data(train_data.to_numpy())
+    _validate_data(labels.to_numpy())
 
     model = DecisionTreeClassifier(max_depth=7)
     model.fit(train_data, labels)
@@ -356,10 +363,25 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
     tree_scores = model1.predict(train_data)
-    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
-    return model, model1, pd.concat([pd.Series(tree_scores_sorted),fpr_values], axis=1,)
+    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
+        tree_scores, labels, test_train_split, interval_size)
+    return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,)
 
-def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
+
+def _validate_data(data: np.ndarray) -> None:
+    '''Validates that the data does not contain nulls'''
+    try:
+        if len(data.shape) == 1 or data.shape[1] <= 1:
+            assert pd.isnull(data).sum() == 0, "data vector contains null"
+        else:
+            for c in range(data.shape[1]):
+                assert pd.isnull(data[:, c]).sum() == 0, f"Data matrix contains null in column {c}"
+    except AssertionError as af:
+        logger.error(str(af))
+        raise af
+
+
+def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size: int) -> pd.Series:
     '''Clclulate False Positive Rate for each variant
     '' Order the variants by incresinng order and clculate the number of false positives that we have per mega
 
@@ -383,10 +405,11 @@ def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_trai
     cur_fpr = 0
     fpr = []
     for cur_ind in tree_scores_sorted_inds[::-1]:
-        if labels[cur_ind] =='fp':
+        if labels[cur_ind] == 'fp':
             cur_fpr = cur_fpr+1
         fpr.append((cur_fpr/train_part) / interval_size)
     return tree_scores[tree_scores_sorted_inds], pd.Series(fpr[::-1]) * 10**6
+
 
 def get_basic_selection_functions():
     'Selection between SNPs and INDELs'
@@ -470,6 +493,7 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
         df.loc[selection_functions[k](df), column_name] = k
     return df
 
+
 def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: pd.DataFrame) -> pd.DataFrame:
     '''Deduce frp value from the tree_score and the tree score fpr mapping
 
@@ -495,8 +519,10 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
     for group in df['group'].unique():
         select = df['group'] == group
         tree_score_fpr_group = tree_score_fpr[group]
-        fpr_values.loc[select] = np.interp(prediction_score.loc[select], tree_score_fpr_group.iloc[:,0], tree_score_fpr_group.iloc[:,1])
+        fpr_values.loc[select] = np.interp(
+            prediction_score.loc[select], tree_score_fpr_group.iloc[:, 0], tree_score_fpr_group.iloc[:, 1])
     return fpr_values
+
 
 def get_testing_selection_functions() -> dict:
     sfs = []
@@ -823,5 +849,8 @@ def blacklist_cg_insertions(df: pd.DataFrame) -> pd.Series:
 
 class VariantSelectionFunctions (Enum):
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
-    def ALL(df:pd.DataFrame) -> np.ndarray : return np.ones(df.shape[0], dtype=np.bool)
-    def HMER_INDEL(df:pd.DataFrame) -> np.ndarray : return np.array(df.hmer_indel_length > 0)
+    def ALL(
+        df: pd.DataFrame) -> np.ndarray: return np.ones(df.shape[0], dtype=np.bool)
+
+    def HMER_INDEL(
+        df: pd.DataFrame) -> np.ndarray: return np.array(df.hmer_indel_length > 0)
