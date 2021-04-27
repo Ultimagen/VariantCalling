@@ -313,6 +313,10 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
         Mapper, list of features
     '''
     default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
+
+    def tuple_break(val, place=0):
+        return val[place]
+
     transform_list = [(['sor'], default_filler),
                       (['dp'], default_filler),
                       ('qual', None),
@@ -320,11 +324,10 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('close_to_hmer_run', None),
                       ('hmer_indel_nuc', preprocessing.LabelEncoder()),
                       (['hmer_indel_length'], default_filler),
-                      ('gt', None),
-                      ('pl', None),
-                      ('ad', None),
+                      ('pl', [sklearn_pandas.FunctionTransformer(tuple_break)]), ## check?
+                      ('ad', [sklearn_pandas.FunctionTransformer(tuple_break)]),
                       ('mq', None),
-                      ('af', None),
+                      ('af', [sklearn_pandas.FunctionTransformer(tuple_break)]),
                       ('dp_r', None),
                       ('tlod', None),
                       ('strandq', None),
@@ -336,12 +339,12 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('gq', None),
                       ('pgt', None),
                       ('ps', None),
-                      ('ac', None),
+                      ('ac', [sklearn_pandas.FunctionTransformer(tuple_break)]),
                       ('an', None),
                       ('baseqranksum', None),
                       ('excesshet', None),
-                      ('mleac', None),
-                      ('mleaf', None),
+                      ('mleac', [sklearn_pandas.FunctionTransformer(tuple_break)]),
+                      ('mleaf', [sklearn_pandas.FunctionTransformer(tuple_break)]),
                       ('mqranksum', None),
                       ('readposranksum', None),
                       ('xc', None)
