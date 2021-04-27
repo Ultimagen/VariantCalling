@@ -10,6 +10,9 @@ import numpy as np
 import itertools
 from python.utils import revcomp
 
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
+
 def insertion_deletion_statistics(df):
     '''
     statistics for indel deletions and insertions.
@@ -42,7 +45,7 @@ def allele_freq_hist(df, nbins = 100):
     statistics for allele frequency
     For each group return the AF distribution in bins
     '''
-    bins = np.linspace(0, 1, nbins)
+    bins = np.linspace(0, 1, nbins+1)
     result = {}
     for group in df['variant_type'].unique():
         histogram_data, _ = np.histogram(df[df['variant_type'] == group]['af'].apply(lambda x: x[0] if type(x) == tuple else x), bins)
@@ -148,39 +151,38 @@ def variant_eval_statistics(vcf_input, reference, dbsnp, output_prefix):
     logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
 
-    def parse_single_report(f):
-        def parse_single_table(f):
-            headers = f.readline().split()
-            table = []
-            l = f.readline().strip("\n").split()
-            while len(l) == len(headers):
-                table.append(l)
-                l = f.readline().strip("\n").split()
-
-            return pd.DataFrame(table, columns=headers)
-
-        data = dict()
-        tables_to_read = pd.Series(["CompOverlap",
-                                    "CountVariants",
-                                    "TiTvVariantEvaluator",
-                                    "IndelLengthHistogram",
-                                    "IndelSummary",
-                                    "MetricsCollection",
-                                    "ValidationReport",
-                                    "VariantSummary"])
-        for l in f:
-            is_specific_table = tables_to_read.apply(lambda x: x in f"#:GATKTable:{x}" in l)
-            start_table = sum(is_specific_table) > 0
-            if start_table:
-                table_name = tables_to_read[np.where(is_specific_table)[0][0]]
-                df = parse_single_table(f)
-                data[table_name] = df
-        return data
-
-    with open(f"{args.output_prefix}.txt") as f:
-        data = parse_single_report(f)
+    with open(f"{output_prefix}.txt") as f:
+        data = _parse_single_report(f)
     return data
 
+def _parse_single_report(f):
+    def _parse_single_table(f):
+        headers = f.readline().split()
+        table = []
+        l = f.readline().strip("\n").split()
+        while len(l) == len(headers):
+            table.append(l)
+            l = f.readline().strip("\n").split()
+
+        return pd.DataFrame(table, columns=headers)
+
+    data = dict()
+    tables_to_read = pd.Series(["CompOverlap",
+                                "CountVariants",
+                                "TiTvVariantEvaluator",
+                                "IndelLengthHistogram",
+                                "IndelSummary",
+                                "MetricsCollection",
+                                "ValidationReport",
+                                "VariantSummary"])
+    for l in f:
+        is_specific_table = tables_to_read.apply(lambda x: x in f"#:GATKTable:{x}" in l)
+        start_table = sum(is_specific_table) > 0
+        if start_table:
+            table_name = tables_to_read[np.where(is_specific_table)[0][0]]
+            df = _parse_single_table(f)
+            data[table_name] = df
+    return data
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
@@ -196,7 +198,6 @@ if __name__ == "__main__":
 
     args = ap.parse_args()
 
-    logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
 
     eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix)
 
