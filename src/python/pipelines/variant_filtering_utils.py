@@ -14,10 +14,11 @@ import python.utils as utils
 #             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length',
+            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
             'gt','pl','ad','mq','af','dp_r','dp_f','tlod', 'strandq','as_sor','as_sorp','fs','vqsr_val','qd',
-            'gq','pgt','pid','ps','ac','an',
-            'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc']
+            'gq','pid','ps','ac','an',#'pgt'
+            'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
+            'indel']#,'left_motif','right_motif']#'cycleskip_status','variant_type',
 class SingleModel:
 
     def __init__(self, threshold_dict: dict, is_greater_then: dict):
@@ -326,28 +327,32 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       (['hmer_indel_length'], default_filler),
                       ('pl', [sklearn_pandas.FunctionTransformer(tuple_break)]), ## check?
                       ('ad', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      ('mq', None),
+                      (['mq'], default_filler),
                       ('af', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      ('dp_r', None),
-                      ('tlod', None),
-                      ('strandq', None),
-                      ('as_sor', None),
-                      ('as_sorp', None),
-                      ('fs', None),
-                      ('vqsr_val', None),
-                      ('qd', None),
-                      ('gq', None),
-                      ('pgt', None),
-                      ('ps', None),
+                      (['dp_r'], default_filler),
+                      (['tlod'], default_filler),
+                      (['strandq'], default_filler),
+                      (['as_sor'], default_filler),
+                      (['as_sorp'], default_filler),
+                      (['fs'], default_filler),
+                      (['vqsr_val'], default_filler),
+                      (['qd'], default_filler),
+                      (['gq'], default_filler),
+                      (['ps'], default_filler),
                       ('ac', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      ('an', None),
-                      ('baseqranksum', None),
-                      ('excesshet', None),
+                      (['an'], default_filler),
+                      (['baseqranksum'], default_filler),
+                      (['excesshet'], default_filler),
                       ('mleac', [sklearn_pandas.FunctionTransformer(tuple_break)]),
                       ('mleaf', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      ('mqranksum', None),
-                      ('readposranksum', None),
-                      ('xc', None)
+                      (['mqranksum'], default_filler),
+                      (['readposranksum'], default_filler),
+                      (['xc'], default_filler),
+                      #(['cycleskip_status'], default_filler),
+                      #('variant_type', None),
+                      ('indel', None)#,
+                      #(['left_motif'], default_filler),
+                      #(['right_motif'], default_filler)
                       ]
     transformer = sklearn_pandas.DataFrameMapper(
         transform_list, df_out=output_df)
