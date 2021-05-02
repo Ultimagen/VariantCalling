@@ -10,15 +10,15 @@ from typing import Optional, Tuple, Callable
 from enum import Enum
 import python.utils as utils
 
-# FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-#             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
-
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
-            'gt','pl','ad','mq','af','dp_r','dp_f','tlod', 'strandq','as_sor','as_sorp','fs','vqsr_val','qd',
-            'gq','pid','ps','ac','an',#'pgt'
-            'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
-            'indel']#,'left_motif','right_motif']#'cycleskip_status','variant_type',
+            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
+
+# FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
+#             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
+#             'gt','ad','mq','af', 'fs','qd','pl',#'as_sor','as_sorp','vqsr_val','tlod',
+#             'gq','ps','ac','an',#'pgt','pid'
+#             'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
+#             'indel','left_motif','right_motif'] #'cycleskip_status','variant_type','dp_r','dp_f','strandq'
 class SingleModel:
 
     def __init__(self, threshold_dict: dict, is_greater_then: dict):
@@ -149,6 +149,7 @@ def train_threshold_models(concordance: pd.DataFrame,interval_size: int, classif
     concordance = add_testing_train_split_column(
         concordance, "group", "test_train_split", classify_column)
     transformer = feature_prepare(output_df=True)
+    # remove qual=na
     transformer.fit(concordance)
     groups = set(concordance["group"])
     classifier_models = {}
@@ -300,6 +301,11 @@ def calculate_threshold_model(results):
     return result, recalls_precisions
 
 
+def tuple_break(x):
+    if type(x) == tuple:
+        return x[0]
+    return 0 if np.isnan(x) else x
+
 def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
@@ -314,46 +320,45 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
         Mapper, list of features
     '''
     default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
+    tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
 
-    def tuple_break(val, place=0):
-        return val[place]
 
     transform_list = [(['sor'], default_filler),
                       (['dp'], default_filler),
                       ('qual', None),
                       ('inside_hmer_run', None),
                       ('close_to_hmer_run', None),
-                      ('hmer_indel_nuc', preprocessing.LabelEncoder()),
-                      (['hmer_indel_length'], default_filler),
-                      ('pl', [sklearn_pandas.FunctionTransformer(tuple_break)]), ## check?
-                      ('ad', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      (['mq'], default_filler),
-                      ('af', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      (['dp_r'], default_filler),
-                      (['tlod'], default_filler),
-                      (['strandq'], default_filler),
-                      (['as_sor'], default_filler),
-                      (['as_sorp'], default_filler),
-                      (['fs'], default_filler),
-                      (['vqsr_val'], default_filler),
-                      (['qd'], default_filler),
-                      (['gq'], default_filler),
-                      (['ps'], default_filler),
-                      ('ac', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      (['an'], default_filler),
-                      (['baseqranksum'], default_filler),
-                      (['excesshet'], default_filler),
-                      ('mleac', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      ('mleaf', [sklearn_pandas.FunctionTransformer(tuple_break)]),
-                      (['mqranksum'], default_filler),
-                      (['readposranksum'], default_filler),
-                      (['xc'], default_filler),
-                      #(['cycleskip_status'], default_filler),
-                      #('variant_type', None),
-                      ('indel', None)#,
-                      #(['left_motif'], default_filler),
-                      #(['right_motif'], default_filler)
-                      ]
+                      ('hmer_indel_nuc', preprocessing.LabelEncoder())]#,
+                      # (['hmer_indel_length'], default_filler),
+                      # ('pl', [tuple_filter]),
+                      # ('ad', [tuple_filter]),
+                      # (['mq'], default_filler),
+                      # ('af', [tuple_filter]),
+                      # #(['dp_r'], default_filler),
+                      # #(['tlod'], default_filler),
+                      # #(['strandq'], default_filler),
+                      # #(['as_sor'], default_filler),
+                      # #(['as_sorp'], default_filler),
+                      # (['fs'], default_filler),
+                      # #(['vqsr_val'], default_filler),
+                      # (['qd'], default_filler),
+                      # (['gq'], default_filler),
+                      # (['ps'], default_filler),
+                      # ('ac', [tuple_filter]),
+                      # (['an'], default_filler),
+                      # (['baseqranksum'], default_filler),
+                      # (['excesshet'], default_filler),
+                      # ('mleac', [tuple_filter]),
+                      # ('mleaf', [tuple_filter]),
+                      # (['mqranksum'], default_filler),
+                      # (['readposranksum'], default_filler),
+                      # (['xc'], default_filler),
+                      # #(['cycleskip_status'], default_filler),
+                      # #('variant_type', None),
+                      # ('indel', None),
+                      # (['left_motif'], preprocessing.LabelEncoder()),
+                      # (['right_motif'], preprocessing.LabelEncoder())
+                      # ]
     transformer = sklearn_pandas.DataFrameMapper(
         transform_list, df_out=output_df)
     return transformer
