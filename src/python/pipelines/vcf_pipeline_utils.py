@@ -478,29 +478,28 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
 
-    original = vcftools.get_vcf_df(raw_calls_file,chromosome = chromosome)
-    # if chromosome is None:
-    #     vf = pysam.VariantFile(raw_calls_file)
-    # else:
-    #     vf = pysam.VariantFile(raw_calls_file).fetch(chromosome)
-    # vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
-    #                                 x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
-    #                                                         ('FILTER', ';'.join(x.filter.keys()))]), vf)
-    # columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
-    #            'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad',
-    #            'tree_score', 'tlod', 'af','fpr','group',
-    #            'gt', 'gq', 'pgt', 'pid', 'ps',
-    #            'ac', 'an', 'baseqranksum', 'excesshet', 'mleac', 'mleaf', 'mq', 'mqranksum', 'dq',
-    #            'readposranksum', 'xc']
-    # original = pd.DataFrame([[x[y.upper()] for y in columns]
-    #                          for x in vfi], columns=columns)
-    # original.index = list(zip(original.chrom, original.pos))
+    #original = vcftools.get_vcf_df(raw_calls_file,chromosome = chromosome)
+    if chromosome is None:
+        vf = pysam.VariantFile(raw_calls_file)
+    else:
+        vf = pysam.VariantFile(raw_calls_file).fetch(chromosome)
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
+                                    x.samples[0].items() + [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
+                                                            ('FILTER', ';'.join(x.filter.keys()))]), vf)
+    columns = ['chrom', 'pos', 'filter', 'qual', 'sor', 'as_sor',
+               'as_sorp', 'fs', 'vqsr_val', 'qd', 'dp', 'ad',
+               'tree_score', 'tlod', 'af','fpr','group']
+    original = pd.DataFrame([[x[y.upper()] for y in columns]
+                             for x in vfi], columns=columns)
+    original.index = list(zip(original.chrom, original.pos))
+
 
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
-    concordance = concordance_df.join(original.drop(['chrom', 'pos', 'alleles', 'indel','ref'], axis=1))
+    concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
+    #concordance = concordance_df.join(original.drop(['chrom', 'pos', 'alleles', 'indel','ref'], axis=1))
     only_ref = concordance['alleles'].apply(len) == 1
     concordance = concordance[~only_ref]
 
