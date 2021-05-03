@@ -37,7 +37,7 @@ try:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50)*10
     df.loc[
         pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
-    #df = df.loc[(~np.isnan(df['qual']) & ~np.isinf(df['qual'])) | (df['classify'] =='fn')]
+    df = df.loc[(~np.isnan(df['qual']) & ~np.isinf(df['qual'])) | (df['classify'] =='fn')]
     df_clean = df[
         np.logical_not(df.close_to_hmer_run) & np.logical_not(df.inside_hmer_run)].copy()
     interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
