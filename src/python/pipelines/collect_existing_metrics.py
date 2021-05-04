@@ -28,11 +28,6 @@ ap.add_argument("--contamination_stdout", help='Rate of Contamination',
 
 args = ap.parse_args()
 
-with open(args.contamination_stdout, 'r') as f:
-    contamination = float(f.read())
-    df = pd.Series(data=[contamination], index=["contamination"])
-    df.to_hdf(args.output_h5, key="contamination", mode="a")
-
 for metric_file in args.metric_files:
     if os.path.getsize(metric_file) > 0:
          metric_class,stats,histogram = vc_pipeline_utils.parse_cvg_metrics(metric_file)
@@ -66,3 +61,6 @@ if args.extended_report_h5 is not None:
             extended_report_h5_pd_df = pd.DataFrame(extended_report_h5_pd)
             extended_report_h5_unstacked = pd.DataFrame(extended_report_h5_pd_df.unstack(level=0)).T
             extended_report_h5_unstacked.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
+
+pd.Series(data=[float(args.contamination_stdout)], index=["contamination"]).to_hdf(args.output_h5, key="contamination", mode="a")
+
