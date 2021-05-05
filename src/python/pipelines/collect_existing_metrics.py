@@ -59,6 +59,7 @@ if args.extended_report_h5 is not None:
         for report_key in hdf_keys:
             extended_report_h5_pd = pd.read_hdf(args.extended_report_h5,key= report_key)
             extended_report_h5_pd_df = pd.DataFrame(extended_report_h5_pd)
+            extended_report_h5_pd_df.index = extended_report_h5_pd_df.index.to_flat_index()
             extended_report_h5_unstacked = pd.DataFrame(extended_report_h5_pd_df.unstack(level=0)).T
             extended_report_h5_unstacked.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
 
