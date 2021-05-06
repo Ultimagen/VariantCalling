@@ -74,6 +74,50 @@ CRAM_EXT = ".cram"
 GCS_OAUTH_TOKEN = "GCS_OAUTH_TOKEN"
 
 
+def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
+    """Create a depth bed file - built on "samtools depth" but outputs a bed file
+
+    Parameters
+    ----------
+    input_bam_file
+    output_bed_file
+    samtools_args - passed to "samtools depth"
+
+    Returns
+    -------
+
+    """
+    if samtools_args is None:
+        samtools_args = []
+    try:
+        samtools_depth_cmd = (
+            f"samtools depth {' '.join(samtools_args)} {input_bam_file}"
+            + '| awk \'{print $1"\\t"$2"\\t"($2 + 1)"\\t"$3}\''
+            + f' > {output_bed_file}'
+        )
+
+        token = (
+            get_gcs_token() if np.any([x.startswith("gs://") for x in [input_bam_file]+samtools_args]) else ""
+        )  # only generate token if input files are on gs
+        logger.debug(f"gcs token = {token}")
+        logger.debug(f"Running 'samtools depth'")
+        stdout, stderr = subprocess.Popen(
+            samtools_depth_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            env={**os.environ, **{GCS_OAUTH_TOKEN: token}},
+        ).communicate()
+        logger.debug(f"Finished Running command: {samtools_depth_cmd}")
+        logger.debug(f"stdout:\n{stdout.decode()}")
+        logger.debug(f"stderr:\n{stderr.decode()}")
+    except subprocess.CalledProcessError:
+        warnings.warn(
+            f"Error running the command:\n{samtools_depth_cmd}\nLikely a GCS_OAUTH_TOKEN issue"
+        )
+        raise
+
+
 def calculate_and_bin_coverage(
     f_in: str,
     f_out: str = None,
@@ -152,10 +196,7 @@ def calculate_and_bin_coverage(
     region_name = "merged_regions"  # only used if merge_regions is True
     if region == ALL:
         region_name = ALL
-        region = [f"chr{x}" for x in list(range(1, 23)) + ["X"]]
-    elif region == ALL_BUT_X or region == "all_but_X":
-        region_name = ALL_BUT_X
-        region = [f"chr{x}" for x in range(1, 23)]
+        region = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y", "M"]]
     logger.debug(f"Calculating coverage for file/s:\n{f_in}\n\nRegion/s:\n{region}")
 
     # the code below has a few options - either it got a single input file and a single region and max_read_length is
@@ -1088,7 +1129,7 @@ def run_full_coverage_analysis(
         else:
             n_jobs_ = n_jobs
         CHR9_LENGTH = 138_394_717
-        n = np.linspace(0, CHR9_LENGTH + 1, n_jobs_+1).astype(int)
+        n = np.linspace(0, CHR9_LENGTH + 1, n_jobs_ + 1).astype(int)
         region = [f"chr9:{n[j] + 1}-{n[j + 1]}" for j in range(len(n) - 1)]
     elif region == "all_but_x":
         pass
