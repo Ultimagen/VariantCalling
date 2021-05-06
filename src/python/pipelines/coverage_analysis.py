@@ -230,7 +230,7 @@ def calculate_and_bin_coverage(
                         )
                 except subprocess.CalledProcessError:
                     warnings.warn(
-                        f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
+                        f"Error running the command:\n{samtools_depth_cmd}\nLikely a GCS_OAUTH_TOKEN issue"
                     )
                     if "out" in locals():
                         sys.stderr.write(f"{out}")
