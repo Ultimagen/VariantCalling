@@ -74,6 +74,36 @@ CRAM_EXT = ".cram"
 GCS_OAUTH_TOKEN = "GCS_OAUTH_TOKEN"
 
 
+def _run_shell_command(cmd, logger=logger):
+    """Wrapper for running shell commands - takes care of logging and generates a GCS token if any command argument
+    is a gs:// file"""
+    try:
+        token = (
+            get_gcs_token()
+            if np.any([x.startswith("gs://") for x in cmd.split()])
+            else ""
+        )  # only generate token if input files are on gs
+        if len(token) > 0:
+            logger.debug(f"gcs token generated")
+        logger.debug(f"Running command:\n{cmd}")
+        stdout, stderr = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
+            env={**os.environ, **{GCS_OAUTH_TOKEN: token}},
+        ).communicate()
+        logger.debug(f"Finished Running command:\n{cmd}")
+        logger.debug(f"stdout:\n{stdout.decode()}")
+        logger.debug(f"stderr:\n{stderr.decode()}")
+    except subprocess.CalledProcessError:
+        warnings.warn(
+            f"Error running the command:\n{cmd}\nLikely a GCS_OAUTH_TOKEN issue"
+        )
+        raise
+    return stdout.decode(), stderr.decode()
+
+
 def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
     """Create a depth bed file - built on "samtools depth" but outputs a bed file
 
@@ -89,33 +119,40 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
     """
     if samtools_args is None:
         samtools_args = []
-    try:
-        samtools_depth_cmd = (
-            f"samtools depth {' '.join(samtools_args)} {input_bam_file}"
-            + '| awk \'{print $1"\\t"$2"\\t"($2 + 1)"\\t"$3}\''
-            + f' > {output_bed_file}'
-        )
+    samtools_depth_cmd = (
+        f"samtools depth {' '.join(samtools_args)} {input_bam_file}"
+        + ' | awk \'{print $1"\\t"$2"\\t"($2 + 1)"\\t"$3}\''
+        + f" > {output_bed_file}"
+    )
+    _run_shell_command(samtools_depth_cmd)
 
-        token = (
-            get_gcs_token() if np.any([x.startswith("gs://") for x in [input_bam_file]+samtools_args]) else ""
-        )  # only generate token if input files are on gs
-        logger.debug(f"gcs token = {token}")
-        logger.debug(f"Running 'samtools depth'")
-        stdout, stderr = subprocess.Popen(
-            samtools_depth_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True,
-            env={**os.environ, **{GCS_OAUTH_TOKEN: token}},
-        ).communicate()
-        logger.debug(f"Finished Running command: {samtools_depth_cmd}")
-        logger.debug(f"stdout:\n{stdout.decode()}")
-        logger.debug(f"stderr:\n{stderr.decode()}")
-    except subprocess.CalledProcessError:
-        warnings.warn(
-            f"Error running the command:\n{samtools_depth_cmd}\nLikely a GCS_OAUTH_TOKEN issue"
-        )
-        raise
+
+def create_coverage_histogram_from_depth_file(
+    input_depth_bed_file, output_tsv, region_bed_file=None
+):
+    """Take an input input_depth_bed_file (create with "collect_depth") and an optional region bed file, and create a
+    coverage histogram tsv file.
+
+    Parameters
+    ----------
+    input_depth_bed_file
+    region_bed_file
+    output_tsv
+
+    Returns
+    -------
+
+    """
+    bedtools_cmd = (
+        f"bedtools intersect -wa -a {input_depth_bed_file} -b {region_bed_file}"
+    )
+    awk_cmd = "awk '{count[$4]++} END {for (word in count) print word, count[word]}' "
+    output_cmd = f" > {output_tsv}"
+    if region_bed_file is None:
+        cmd = awk_cmd + input_depth_bed_file + output_cmd
+    else:
+        cmd = bedtools_cmd + " | " + awk_cmd + output_cmd
+    _run_shell_command(cmd)
 
 
 def calculate_and_bin_coverage(
