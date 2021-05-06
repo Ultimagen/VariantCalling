@@ -130,7 +130,7 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
 def create_coverage_histogram_from_depth_file(
     input_depth_bed_file, output_tsv, region_bed_file=None
 ):
-    """Take an input input_depth_bed_file (create with "collect_depth") and an optional region bed file, and create a
+    """Takes an input input_depth_bed_file (create with "collect_depth") and an optional region bed file, and creates a
     coverage histogram tsv file.
 
     Parameters
@@ -153,6 +153,58 @@ def create_coverage_histogram_from_depth_file(
     else:
         cmd = bedtools_cmd + " | " + awk_cmd + output_cmd
     _run_shell_command(cmd)
+
+
+def create_binned_coverage(
+    input_depth_bed_file,
+    output_binned_depth_bed_file,
+    lines_to_bin,
+    window_size,
+    generate_dataframe=False,
+):
+    """Takes an input input_depth_bed_file (create with "collect_depth" or previously aggregated with
+    create_binned_coverage) and creates a windowed version. Optionally generates a parquet dataframe as well, with the
+    same basenane as output_binned_depth_bed_file.
+
+    Parameters
+    ----------
+    input_depth_bed_file
+    output_binned_depth_bed_file
+    lines_to_bin
+        lines in bed file to group together
+    window_size
+        expected window size of output bed file - entries that do not match this size are due to reference discontinuty
+        and are discarded. If the original file is not binned then this should be equal to lines_to_bin, otherwise it
+        needs to be worked out. For example - you can apply this function twice to get a version with a window size of
+        10 and another with 100.
+    generate_dataframe
+
+    Returns
+    -------
+
+    """
+    cmd = (
+        f"awk -vn={lines_to_bin} -vm={window_size} "
+        + "'"
+        + r'{sum+=$4} NR%n==1 {chr=$1;start=$2} NR%n==0 {end=$3} (NR%n==0) && (end-start==m) {print chr "\t" start "\t" end "\t" sum/n} NR%n==0 {sum=0}'
+        + "'"
+        + f" {input_depth_bed_file} > {output_binned_depth_bed_file}"
+    )
+    _run_shell_command(cmd)
+    if generate_dataframe:
+        output_parquet = (
+            output_binned_depth_bed_file[:-4]
+            if output_binned_depth_bed_file.endswith(".bed")
+            or output_binned_depth_bed_file.endswith(".tsv")
+            else output_binned_depth_bed_file
+        ) + ".parquet"
+        pd.read_csv(
+            output_binned_depth_bed_file,
+            sep="\t",
+            header=None,
+            names=[CHROM, CHROM_START, CHROM_END, COVERAGE],
+        ).astype({CHROM: CHROM_DTYPE}).to_parquet(output_parquet)
+        return output_parquet
 
 
 def calculate_and_bin_coverage(
