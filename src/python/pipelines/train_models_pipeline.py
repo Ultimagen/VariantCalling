@@ -17,17 +17,20 @@ ap.add_argument("--mutect", required=False, action="store_true")
 ap.add_argument("--evaluate_concordance", help="Should the results of the model be applied to the concordance dataframe",
                 action="store_true")
 ap.add_argument("--apply_model",
-                help="If evaluate_concordance - which model should be applied", type=str, required=False)
+                help="If evaluate_concordance - which model should be applied", type=str, required='--evaluate_concordance' in sys.argv)
 ap.add_argument("--input_interval", help="bed file of intersected intervals from run_comparison pipeline",
                 type=str, required=True)
+ap.add_argument("--list_of_contigs_to_read", nargs='*', help="List of contigs to read from the DF", default=[])
 
 args = ap.parse_args()
+
 try:
-    ## read all data besides concordance and input_args
     df = []
     with pd.HDFStore(args.input_file) as data:
         for k in data.keys():
-            if (k != "/concordance") and (k != "/input_args"):
+            ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
+            if (k != "/concordance") and (k != "/input_args") and\
+             (args.list_of_contigs_to_read == [] or k[1:] in args.list_of_contigs_to_read):
                 h5_file = data.get(k)
                 if not h5_file.empty:
                     df.append(h5_file)
