@@ -215,10 +215,10 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     results_df = pd.DataFrame(data=np.vstack((recalls.flat, precisions.flat)).T,
                               index=pairs_qual_sor_threshold, columns=[('recall', 'var'), ('precision', 'var')])
 
-    dist = (results_df[('recall', 'var')] - 1)**2 + \
-        (results_df[('precision', 'var')] - 1)**2
-    results_df['dist'] = dist
-    best = results_df['dist'].idxmin()
+    f1 = 2*results_df[('recall', 'var')] * results_df[('precision', 'var')] / \
+                    (results_df[('recall', 'var')] + results_df[('precision', 'var')])
+    results_df['f1'] = f1
+    best = results_df['f1'].idxmax()
     classifier = SingleModel(dict(zip(['qual', 'sor'], best)), {
                              'sor': False, 'qual': True})
     rsi = get_r_s_i(results_df, 'var')[-1].copy()
@@ -353,7 +353,11 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = transformer.transform(train_data)
-    _validate_data(train_data.to_numpy())
+    if type(train_data == np.ndarray): 
+        _validate_data(train_data)
+    else: 
+        _validate_data(train_data.to_numpy())
+        
     _validate_data(labels.to_numpy())
 
     model = DecisionTreeClassifier(max_depth=7)
@@ -625,9 +629,9 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, i
     transformer = feature_prepare()
     transformer.fit(concordance)
     groups = set(concordance["group"])
-    classifier_models = {}
-    regressor_models = {}
-    fpr_values = {}
+    classifier_models:dict = {}
+    regressor_models:dict = {}
+    fpr_values:dict = {}
     for g in groups:
         classifier_models[g], regressor_models[g], fpr_values[g] = \
             train_model(concordance, concordance['test_train_split'],

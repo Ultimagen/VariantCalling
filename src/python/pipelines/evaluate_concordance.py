@@ -5,6 +5,7 @@ import argparse
 import pandas as pd
 import pickle
 import numpy as np
+import logging
 
 ap = argparse.ArgumentParser(prog="evaluate_concordance.py",
                              description="Calculate precision and recall for compared HDF5 ")
@@ -12,10 +13,17 @@ ap.add_argument("--input_file", help="Name of the input h5 file", type=str)
 ap.add_argument("--output_file", help="Output h5 file", type=str, required=True)
 args = ap.parse_args()
 
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 concordance = pd.read_hdf(args.input_file, key="concordance")
 assert 'tree_score' in concordance.columns, "Input concordance file should be after applying a model"
 
 concordance.loc[pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+
+if np.any(pd.isnull(concordance['tree_score'])):
+    logger.warning("Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
+    concordance.loc[pd.isnull(concordance['tree_score']), "tree_score"] = 0
 
 
 concordance['group'] = 'all'
