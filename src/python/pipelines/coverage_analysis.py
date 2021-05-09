@@ -207,6 +207,73 @@ def create_binned_coverage(
         return output_parquet
 
 
+def _intervals_to_bed(input_intervals, output_bed=None):
+    """convert picard intervals to bed
+
+    Parameters
+    ----------
+    input_intervals
+    output_bed
+        If None (default), the input file with a modified extension is used
+
+    Returns
+    -------
+
+    """
+    if output_bed is None:
+        output_bed = input_intervals
+        if output_bed.endswith(".interval"):
+            output_bed = output_bed[: -len(".interval")]
+        if output_bed.endswith(".interval_list"):
+            output_bed = output_bed[: -len(".interval_list")]
+        output_bed += ".bed"
+    cmd_create_bed = (
+        f"picard IntervalListToBed INPUT={input_intervals} OUTPUT={output_bed}"
+    )
+    _run_shell_command(cmd_create_bed)
+    if not os.path.isfile(output_bed):
+        raise ValueError(f"file {output_bed} was supposed to be created but cannot be found")
+    return output_bed
+
+
+def _create_coverage_intervals_dataframe(coverage_intervals_dict,):
+    if isinstance(coverage_intervals_dict, str):
+        if coverage_intervals_dict.endswith(TSV):
+            sep = "\t"
+        elif coverage_intervals_dict.endswith(CSV):
+            sep = ","
+        else:
+            raise ValueError(
+                f"""Unknown extension for input intervals dict file {coverage_intervals_dict}
+Expected {TSV}/{CSV}"""
+            )
+        coverage_intervals_dict_local = cloud_sync(coverage_intervals_dict)
+        df_coverage_intervals = pd.read_csv(coverage_intervals_dict_local, sep=sep)
+        df_coverage_intervals["file"] = df_coverage_intervals.apply(
+            lambda x: _intervals_to_bed(
+                cloud_sync(pjoin(dirname(coverage_intervals_dict), x["file"][2:]))
+            ),
+            axis=1,
+        )
+    elif isinstance(coverage_intervals_dict, dict):
+        df_coverage_intervals = pd.DataFrame.from_dict(
+            coverage_intervals_dict, orient="index"
+        ).reset_index()
+        df_coverage_intervals.columns = ["category", "file"]
+        df_coverage_intervals["file"] = df_coverage_intervals.apply(
+            lambda x: _intervals_to_bed(cloud_sync(x["file"])), axis=1,
+        )
+    else:
+        raise ValueError(f"Invalid input {coverage_intervals_dict}")
+
+    if "order" not in df_coverage_intervals:
+        df_coverage_intervals = df_coverage_intervals.assign(
+            order=range(df_coverage_intervals.shape[0])
+        )
+
+    return df_coverage_intervals
+
+
 def calculate_and_bin_coverage(
     f_in: str,
     f_out: str = None,
@@ -785,43 +852,6 @@ def create_coverage_annotations(
             logger.debug(f"saving annotations dataframe to {output_annotations_file}")
             _save_datframe(df_annotations, output_annotations_file, output_format)
         return output_annotations_file
-
-
-def _create_coverage_intervals_dataframe(coverage_intervals_dict,):
-    if isinstance(coverage_intervals_dict, str):
-        if coverage_intervals_dict.endswith(TSV):
-            sep = "\t"
-        elif coverage_intervals_dict.endswith(CSV):
-            sep = ","
-        else:
-            raise ValueError(
-                f"""Unknown extension for input intervals dict file {coverage_intervals_dict}
-Expected {TSV}/{CSV}"""
-            )
-        coverage_intervals_dict_local = cloud_sync(coverage_intervals_dict)
-        df_coverage_intervals = pd.read_csv(coverage_intervals_dict_local, sep=sep)
-        df_coverage_intervals["file"] = df_coverage_intervals.apply(
-            lambda x: cloud_sync(
-                pjoin(dirname(coverage_intervals_dict), x["file"][2:])
-            ),
-            axis=1,
-        )
-    elif isinstance(coverage_intervals_dict, dict):
-        df_coverage_intervals = pd.DataFrame.from_dict(
-            coverage_intervals_dict, orient="index"
-        ).reset_index()
-        df_coverage_intervals.columns = ["category", "file"]
-        df_coverage_intervals["file"] = df_coverage_intervals.apply(
-            lambda x: cloud_sync(x["file"]), axis=1,
-        )
-    else:
-        raise ValueError(f"Invalid input {coverage_intervals_dict}")
-
-    if "order" not in df_coverage_intervals:
-        df_coverage_intervals = df_coverage_intervals.assign(
-            order=range(df_coverage_intervals.shape[0])
-        )
-    return df_coverage_intervals
 
 
 def _intersect_intervals(interval_file, regions_file, outdir=None):
