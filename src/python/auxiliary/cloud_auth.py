@@ -1,4 +1,5 @@
-import google
+from google.auth import default
+from google.auth.transport.requests import Request
 import os
 import requests
 
@@ -20,10 +21,10 @@ def get_gcs_token():
     """
     if GOOGLE_APPLICATION_CREDENTIALS in os.environ:
         # getting the credentials and project details for gcp project
-        credentials, your_project_id = google.auth.default(scopes=[SCOPE])
+        credentials, your_project_id = default(scopes=[SCOPE])
 
         # getting request object
-        auth_req = google.auth.transport.requests.Request()
+        auth_req = Request()
         credentials.refresh(auth_req)  # refresh token
         token = credentials.token
     elif GCS_OAUTH_TOKEN in os.environ:
