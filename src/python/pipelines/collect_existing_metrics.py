@@ -57,12 +57,11 @@ if args.extended_report_h5 is not None:
     with pd.HDFStore(args.extended_report_h5,'r') as hdf:
         hdf_keys = hdf.keys()
         for report_key in hdf_keys:
-            extended_report_h5_pd = pd.read_hdf(args.extended_report_h5,key= report_key)
-            extended_report_h5_pd_df = pd.DataFrame(extended_report_h5_pd)
+            extended_report_h5_pd = pd.read_hdf(args.extended_report_h5, key= report_key)
+            extended_report_h5_pd_df = pd.DataFrame(extended_report_h5_pd.unstack(level=list(range(extended_report_h5_pd.index.nlevels))))
             extended_report_h5_pd_df.index = extended_report_h5_pd_df.index.to_flat_index()
-            extended_report_h5_unstacked = pd.DataFrame(extended_report_h5_pd_df.unstack(level=0)).T
-            extended_report_h5_unstacked.columns = [f'{col[0]}_{"_".join(col[1]) if len(col) > 1 else ""}' for col in extended_report_h5_unstacked.columns.values]
-            extended_report_h5_unstacked.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
+            extended_report_h5_pd_df = extended_report_h5_pd_df.T
+            extended_report_h5_pd_df.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
 
 contamination_df = pd.DataFrame(pd.Series(data=[float(args.contamination_stdout)], index=["Contamination"])).T
 contamination_df.to_hdf(args.output_h5, key="Contamination", mode="a")
