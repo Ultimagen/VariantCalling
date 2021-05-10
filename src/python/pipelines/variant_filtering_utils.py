@@ -9,16 +9,17 @@ import tqdm
 from typing import Optional, Tuple, Callable
 from enum import Enum
 import python.utils as utils
+import sklearn
 
-FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
+# FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
+#             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
-            'gt','ad','af', 'fs','qd','mq','pl',#'as_sor','as_sorp','vqsr_val','tlod',
+            'ad','af', 'fs','qd','mq','pl',#'as_sor','as_sorp','vqsr_val','tlod',
             'gq','ps','ac','an',#'pgt','pid'
             'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
-            'indel','left_motif','right_motif'] #'cycleskip_status','variant_type','dp_r','dp_f','strandq'
+            'indel','left_motif','right_motif','alleles','cycleskip_status']#,'variant_type','dp_r','dp_f','strandq'
 class SingleModel:
 
     def __init__(self, threshold_dict: dict, is_greater_then: dict):
@@ -305,6 +306,40 @@ def tuple_break(x):
         return x[0]
     return 0 if np.isnan(x) else x
 
+def tuple_break_second(x):
+    if type(x) == tuple:
+        return x[1]
+    return 0 if np.isnan(x) else x
+
+def motif_encode_left(x):
+    bases = {'A':1,
+             'T':2,
+             'G':3,
+             'C':4,
+             'N':5}
+    x_list = list(x)
+    x_list.reverse()
+    # return bases[x_list[0]]
+    num=0
+    for c in x_list:
+        num = 10 * num + bases.get(c,0)
+    return num
+
+def motif_encode_right(x):
+    bases = {'A':1,
+             'T':2,
+             'G':3,
+             'C':4,
+             'N':5}
+    # x_list = list(x)
+    # return bases[x_list[0]]
+    x_list = list(x)
+    num=0
+    for c in x_list:
+        num = 10 * num + bases.get(c,0)
+    return num
+
+
 def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
@@ -320,27 +355,24 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     '''
     default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
     tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
-
+    tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
+    left_motid_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
+    right_motid_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
 
     transform_list = [(['sor'], default_filler),
                       (['dp'], default_filler),
                       ('qual', None),
+                      ('hmer_indel_nuc', preprocessing.LabelEncoder()),
                       ('inside_hmer_run', None),
                       ('close_to_hmer_run', None),
-                      ('hmer_indel_nuc', preprocessing.LabelEncoder()),
                       (['hmer_indel_length'], default_filler),
-                      ('pl', [tuple_filter]),
+                      (['indel_length'],default_filler),
                       ('ad', [tuple_filter]),
-                      (['mq'], default_filler),
                       ('af', [tuple_filter]),
-                      #(['dp_r'], default_filler),
-                      #(['tlod'], default_filler),
-                      #(['strandq'], default_filler),
-                      #(['as_sor'], default_filler),
-                      #(['as_sorp'], default_filler),
                       (['fs'], default_filler),
-                      #(['vqsr_val'], default_filler),
                       (['qd'], default_filler),
+                      (['mq'], default_filler),
+                      ('pl', [tuple_filter]),
                       (['gq'], default_filler),
                       (['ps'], default_filler),
                       ('ac', [tuple_filter]),
@@ -352,11 +384,26 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       (['mqranksum'], default_filler),
                       (['readposranksum'], default_filler),
                       (['xc'], default_filler),
+                      ('indel', None),
+                      ('left_motif', [left_motid_filter]),
+                      ('right_motif', [right_motid_filter]),
+                      ('cycleskip_status', preprocessing.LabelEncoder()),
+                      ('alleles', [tuple_filter, preprocessing.LabelEncoder()]),
+                      ('alleles', [tuple_filter_second, preprocessing.LabelEncoder()])
+
+
+
+
+
                       #(['cycleskip_status'], default_filler),
                       #('variant_type', None),
-                      ('indel', None),
-                      (['left_motif'], preprocessing.LabelEncoder()),
-                      (['right_motif'], preprocessing.LabelEncoder())
+                      # (['dp_r'], default_filler),
+                      # (['tlod'], default_filler),
+                      # (['strandq'], default_filler),
+                      # (['as_sor'], default_filler),
+                      # (['as_sorp'], default_filler),
+                      # (['vqsr_val'], default_filler),
+
                       ]
     transformer = sklearn_pandas.DataFrameMapper(
         transform_list, df_out=output_df)
@@ -390,12 +437,17 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = transformer.transform(train_data)
-
-    model = DecisionTreeClassifier(max_depth=7)
+    print('train model')
+    print(train_data.shape)
+    model = DecisionTreeClassifier(max_depth=4)
     model.fit(train_data, labels)
 
-    model1 = DecisionTreeRegressor(max_depth=7)
+    model1 = DecisionTreeRegressor(max_depth=4)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
+
+#    min_max_scaler = preprocessing.MinMaxScaler()
+#    train_data_scaled = min_max_scaler.fit_transform(train_data)
+
     model1.fit(train_data, enclabels)
     tree_scores = model1.predict(train_data)
     tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
@@ -679,17 +731,22 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
     for g in groups:
-        select = (concordance["group_testing"] == g)
+        select = (concordance["group_testing"] == g) & \
+            (~concordance["test_train_split"])
 
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
+        print(f'test_decision_tree_model {g}')
+        print(group_ground_truth.shape)
 
         recall = metrics.recall_score(
             group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
         precision = metrics.precision_score(
             group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        recalls_precisions[g] = (recall, precision)
+        f1 = metrics.f1_score(
+            group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        recalls_precisions[g] = (recall, precision,f1)
 
     return recalls_precisions
 
@@ -713,6 +770,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     dict:
         Tuple dictionary - recall/precision for each category
     '''
+
     concordance = add_grouping_column(
         concordance, get_testing_selection_functions(), "group_testing")
     predictions = model.predict(concordance, classify_column)
@@ -722,16 +780,22 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     for g in groups:
         select = (concordance["group_testing"] == g) & \
                  (~concordance["test_train_split"])
+
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
         group_predictions[group_ground_truth == 'fn'] = -1
         # this is a change to calculate recall correctly
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
 
+        print(f'get_decision_tree_precision_recall_curve {g}')
+        print(group_ground_truth.shape)
+
         curve = utils.precision_recall_curve(np.array(group_ground_truth), np.array(
             group_predictions), pos_label="tp", fn_score=-1)
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
+
+
 
         precision, recall = curve
 
