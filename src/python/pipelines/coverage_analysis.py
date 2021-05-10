@@ -558,6 +558,7 @@ def run_full_coverage_analysis(
     verbose=False,
 ):
     # check inputs
+    os.makedirs(out_path, exist_ok=True)
     if windows is None:
         windows = [100, 1000, 10000, 100000]
     w0 = 1
@@ -728,7 +729,7 @@ def call_run_full_coverage_analysis(args_in):
         out_path=args_in.output,
         coverage_intervals_dict=args_in.coverage_intervals,
         regions=args_in.region,
-        windows=args_in.window,
+        windows=args_in.windows,
         min_bq=args_in.q,
         min_mapq=args_in.Q,
         min_read_length=args_in.l,
@@ -751,17 +752,13 @@ if __name__ == "__main__":
         "-i",
         "--input",
         type=str,
-        nargs="+",
-        help="input bam or cram file (multiple files allowed, e.g. -i f1 f2 f3)",
+        help="input bam or cram file ",
     )
     parser_full_analysis.add_argument(
         "-o",
         "--output",
         type=str,
-        help="""Path to which output dataframe will be written
-    Interpreted as a base path if it contains no "." characters
-    Can be None for output in the same directory as the input (or its cloud_sync)
-    Can be an Iterable of file names if INPUT is an Iterable""",
+        help="""Path to which output dataframe will be written, will be created if it does not exist""",
     )
     parser_full_analysis.add_argument(
         "-c",
@@ -774,15 +771,15 @@ if __name__ == "__main__":
         "-r",
         "--region",
         type=str,
-        default="all_but_x",
-        help="""Genomic region in samtools format - the only allowed values are "all_but_x" and "chr9" """,
+        default=CHROM_DTYPE.categories,
+        help=f"""Genomic region in samtools format - default is {CHROM_DTYPE.categories.values} """,
     )
     parser_full_analysis.add_argument(
         "-w",
-        "--window",
+        "--windows",
         type=int,
-        default=1,
-        help="Number of base pairs to bin coverage by (default 100)",
+        default=None,
+        help="Number of base pairs to bin coverage by (leave blank for default [100, 1000, 10000, 100000])",
     )
     parser_full_analysis.add_argument(
         "-q",
