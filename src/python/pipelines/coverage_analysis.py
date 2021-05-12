@@ -690,7 +690,7 @@ def run_full_coverage_analysis(
         )
 
         generate_coverage_boxplot(
-            df_percentiles, coverage_intervals_dict, out_path=out_path
+            df_percentiles, coverage_intervals_dict, out_path=out_path, title=basename(bam_file).split(".")
         )
 
     # create binned dataframes
