@@ -22,8 +22,8 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
     pd.DataFrame
     '''
     vf = pysam.VariantFile(variant_calls)
-    vfi = map(lambda x: defaultdict(lambda: None, x.info.items()
-                                    + x.samples[sample_id].items() +
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() + 
+                                    ( x.samples[sample_id].items() if sample_id is not None else [] ) +
                                     [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref),
                                      ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
 
@@ -33,7 +33,6 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
                'dp_r', 'dp_f', 'ad_r', 'ad_f', 'tlod', 'strandq','fpr','tree_score','variant_type','db', 'nlod','nalod','group']
     concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
     concordance_df.columns = columns
-
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
