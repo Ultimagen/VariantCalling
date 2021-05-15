@@ -136,8 +136,8 @@ if __name__ == "__main__":
         if not args.disable_reinterpretation:
             annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
                 annotated_concordance, args.reference, ignore_low_quality_fps=args.is_mutect)
-        annotated_concordance.to_hdf(args.output_file, key="concordance")
-        annotated_concordance.to_hdf(args.output_file, key="comparison_result") ## hack until we totally remove chr9
+        annotated_concordance.to_hdf(args.output_file, key="concordance", mode='a')
+        annotated_concordance.to_hdf(args.output_file, key="comparison_result", mode='a') ## hack until we totally remove chr9
         vcftools.bed_files_output(annotated_concordance,
                                   args.output_file, mode='w', create_gt_diff=(not args.is_mutect))
 
@@ -157,7 +157,6 @@ if __name__ == "__main__":
             for contig in tqdm(contigs))
 
         # merge temp h5 files
-        write_mode = 'w'
 
         # find columns and set the same header for empty dataframes
         for contig in contigs:
@@ -172,10 +171,9 @@ if __name__ == "__main__":
             h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             if h5_temp.shape == (0, 0):  # empty dataframes get default columns
                 h5_temp = pd.concat((h5_temp, df_columns), axis=1)
-            h5_temp.to_hdf(args.output_file, mode=write_mode, key=contig)
-            write_mode = 'a'
+            h5_temp.to_hdf(args.output_file, mode='a', key=contig)
             if contig == "chr9":
-                h5_temp.to_hdf(args.output_file, mode=write_mode, key="concordance")
+                h5_temp.to_hdf(args.output_file, mode='a', key="concordance")
             os.remove(f"{base_name_outputfile}{contig}.h5")
 
         write_mode = 'w'
