@@ -54,6 +54,8 @@ try:
     logger.info("Reading motif info")
     df = annotation.get_motif_around(df, 5, args.reference_file)
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+    logger.info("Cycle skip info")
+    df = annotation.annotate_cycle_skip(df, flow_order="TACG")
 
     if args.is_mutect: 
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
