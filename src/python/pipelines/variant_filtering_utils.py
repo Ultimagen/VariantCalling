@@ -16,7 +16,7 @@ import sklearn
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
-            'ad','af', 'fs','qd','mq','pl',#'as_sor','as_sorp','vqsr_val','tlod',
+            'ad','af', 'fs','qd','mq','pl','gt',#'as_sor','as_sorp','vqsr_val','tlod',
             'gq','ps','ac','an',#'pgt','pid'
             'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
             'indel','left_motif','right_motif','alleles','cycleskip_status']#,'variant_type','dp_r','dp_f','strandq'
@@ -107,6 +107,7 @@ class MaskedHierarchicalModel:
 
         apply_df = df[~mask]
         groups = set(df[self.group_column])
+        #groups.remove('snp')
         gvecs = [df[self.group_column] == g for g in groups]
         result = pd.Series(['fn'] * df.shape[0], index=df.index)
         for i, g in enumerate(groups):
@@ -339,6 +340,18 @@ def motif_encode_right(x):
         num = 10 * num + bases.get(c,0)
     return num
 
+def allele_encode(x):
+    bases = {'A':1,
+             'T':2,
+             'G':3,
+             'C':4}
+    return bases.get(x,0)
+
+def gt_encode(x):
+    if x == (1,1):
+        return 1
+    return 0
+
 
 def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
@@ -358,6 +371,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
     left_motid_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
     right_motid_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
+    allele_filter = sklearn_pandas.FunctionTransformer(allele_encode)
+    gt_filter = sklearn_pandas.FunctionTransformer(gt_encode)
 
     transform_list = [(['sor'], default_filler),
                       (['dp'], default_filler),
@@ -373,6 +388,7 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       (['qd'], default_filler),
                       (['mq'], default_filler),
                       ('pl', [tuple_filter]),
+                      ('gt', [gt_filter]),
                       (['gq'], default_filler),
                       (['ps'], default_filler),
                       ('ac', [tuple_filter]),
@@ -388,8 +404,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('left_motif', [left_motid_filter]),
                       ('right_motif', [right_motid_filter]),
                       ('cycleskip_status', preprocessing.LabelEncoder()),
-                      ('alleles', [tuple_filter, preprocessing.LabelEncoder()]),
-                      ('alleles', [tuple_filter_second, preprocessing.LabelEncoder()])
+                      ('alleles', [tuple_filter, allele_filter]),
+                      ('alleles', [tuple_filter_second, allele_filter])
 
 
 
@@ -439,10 +455,10 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     train_data = transformer.transform(train_data)
     print('train model')
     print(train_data.shape)
-    model = DecisionTreeClassifier(max_depth=4)
+    model = DecisionTreeClassifier(max_depth=5)
     model.fit(train_data, labels)
 
-    model1 = DecisionTreeRegressor(max_depth=4)
+    model1 = DecisionTreeRegressor(max_depth=5)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
 
 #    min_max_scaler = preprocessing.MinMaxScaler()
@@ -696,7 +712,7 @@ def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, i
     classifier_models = {}
     regressor_models = {}
     fpr_values = {}
-    for g in groups:
+    for g in groups:#(g for g in groups if g !='snp'):
         classifier_models[g], regressor_models[g], fpr_values[g] = \
             train_model(concordance, concordance['test_train_split'],
                         concordance['group'] == g, classify_column, transformer, interval_size)
@@ -777,12 +793,12 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
 
-    for g in groups:
+    for g in groups:#(g for g in groups if g !='SNP'):
         select = (concordance["group_testing"] == g) & \
                  (~concordance["test_train_split"])
 
         group_ground_truth = concordance.loc[select, classify_column]
-        group_predictions = predictions[select]
+        group_predictions = predictions[select] ## as type object
         group_predictions[group_ground_truth == 'fn'] = -1
         # this is a change to calculate recall correctly
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
@@ -797,9 +813,9 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
 
 
 
-        precision, recall = curve
+        precision, recall, f1 = curve
 
-        recalls_precisions[g] = np.vstack((recall, precision)).T
+        recalls_precisions[g] = np.vstack((recall, precision, f1)).T
 
     return recalls_precisions
 

@@ -137,12 +137,12 @@ try:
         df_tmp, models_reg_dt_no_gt, "classify")
 
     ### check on trained data
-    df_tmp['test_train_split'] = np.logical_not(df_tmp['test_train_split'])
-    trained_recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_dt_no_gt, "classify")
-    trained_recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_dt_no_gt, "classify")
-    df_tmp['test_train_split'] = np.logical_not(df_tmp['test_train_split'])
+    # df_tmp['test_train_split'] = np.logical_not(df_tmp['test_train_split'])
+    # trained_recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
+    #     df_tmp, models_dt_no_gt, "classify")
+    # trained_recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    #     df_tmp, models_reg_dt_no_gt, "classify")
+    # df_tmp['test_train_split'] = np.logical_not(df_tmp['test_train_split'])
 
     results_dict[
         'dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
@@ -151,10 +151,10 @@ try:
     results_dict[
         'dt_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
-    results_dict[
-        'trained_dt_model_recall_precision_ignore_gt_incl_hpol_runs'] = trained_recall_precision_no_gt
-    results_dict[
-        'trained_dt_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = trained_recall_precision_curve_no_gt
+    # results_dict[
+    #     'trained_dt_model_recall_precision_ignore_gt_incl_hpol_runs'] = trained_recall_precision_no_gt
+    # results_dict[
+    #     'trained_dt_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = trained_recall_precision_curve_no_gt
 
     # models_dt_gt, models_reg_dt_gt, df_tmp = \
     #     variant_filtering_utils.train_decision_tree_model(df.copy(),
@@ -204,7 +204,7 @@ try:
 
     optdict = {}
     prcdict = {}
-    for model in [ 'dt', 'trained_dt']:
+    for model in [ 'dt']:#, 'trained_dt']:
         for gt in ['ignore']:
             for hpol in ['incl']:
                 name_optimum = f'{model}_model_recall_precision_{gt}_gt_{hpol}_hpol_runs'
@@ -215,7 +215,7 @@ try:
     results_vals = (pd.DataFrame(optdict)).unstack().reset_index()
     results_vals.columns = ['model', 'category', 'tmp']
     results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
-        (np.nan, np.nan)]
+        (np.nan, np.nan, np.nan)]
     results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[0])
     results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[1])
     results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[2])
@@ -227,10 +227,10 @@ try:
     results_vals = (pd.DataFrame(prcdict)).unstack().reset_index()
     results_vals.columns = ['model', 'category', 'tmp']
     results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
-        np.zeros((0, 2))]
+        np.zeros((0, 3))]
     results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[:, 0])
     results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[:, 1])
-    #results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[:,2])
+    results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[:,2])
     results_vals.drop('tmp', axis=1, inplace=True)
 
     results_vals.to_hdf(args.output_file_prefix + ".h5",
