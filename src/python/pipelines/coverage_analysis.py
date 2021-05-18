@@ -16,6 +16,7 @@ import matplotlib as mpl
 import itertools
 from glob import glob
 from scipy.interpolate import interp1d
+import botocore
 
 path = dirname(dirname(dirname(__file__)))
 if path not in sys.path:
@@ -233,6 +234,15 @@ def _intervals_to_bed(input_intervals, output_bed_file=None):
     -------
 
     """
+    if input_intervals.endswith(".interval_list"):
+        try:
+            return cloud_sync(input_intervals[:-len(".interval_list")] + ".bed")
+        except botocore.exceptions.ClientError as error:  # bed file not found - convert automatically
+            pass
+    try:
+        input_intervals = cloud_sync(input_intervals)
+    except botocore.exceptions.ClientError as error:  # bed file not found - convert automatically
+        raise(f"Interval list file not found: {input_intervals}")
     if output_bed_file is None:
         output_bed_file = input_intervals
         if output_bed_file.endswith(".interval"):
@@ -266,7 +276,7 @@ Expected {TSV}/{CSV}"""
         df_coverage_intervals = pd.read_csv(coverage_intervals_dict_local, sep=sep)
         df_coverage_intervals["file"] = df_coverage_intervals.apply(
             lambda x: _intervals_to_bed(
-                cloud_sync(pjoin(dirname(coverage_intervals_dict), x["file"][2:]))
+                pjoin(dirname(coverage_intervals_dict), x["file"][2:])
             ),
             axis=1,
         )
