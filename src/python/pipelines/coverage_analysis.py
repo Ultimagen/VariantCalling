@@ -325,12 +325,12 @@ def generate_stats_from_histogram(
 ):
     if isinstance(val_count, str) and os.path.isfile(val_count):
         val_count = pd.read_hdf(val_count, key="histogram")
-    df_precentiles = pd.concat(
+    df_percentiles = pd.concat(
         (
             val_count.apply(lambda x: interp1d(np.cumsum(x), val_count.index, fill_value="extrapolate")(q)),
             val_count.apply(
-                lambda x: np.average(val_count.index, weights=x)
-                if x.sum() > 0
+                lambda x: np.sum(val_count.index.values * x.values) / np.sum(x.values)  # np.average gave strange bug
+                if not x.isnull().all() and x.sum() > 0
                 else np.nan
             )
             .to_frame()
@@ -338,13 +338,13 @@ def generate_stats_from_histogram(
         ),
         sort=False,
     )
-    df_precentiles.index = pd.Index(
+    df_percentiles.index = pd.Index(
         data=[f"Q{int(qq * 100)}" for qq in q] + ["mean"], name="statistic"
     )
 
-    genome_median = df_precentiles.loc["Q50"].filter(regex="Genome").values[0]
+    genome_median = df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
     selected_percentiles = (
-        df_precentiles.loc[[f"Q{q}" for q in [5, 10, 50]]]
+        df_percentiles.loc[[f"Q{q}" for q in [5, 10, 50]]]
         .rename(index={"Q50": "median coverage"})
         .rename(index={f"Q{q}": f"{q}th percentile" for q in [5, 10, 50]})
     )
@@ -393,10 +393,10 @@ def generate_stats_from_histogram(
         if verbose:
             logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
         df_stats.to_hdf(coverage_stats_dataframes, key="stats", mode="a")
-        df_precentiles.to_hdf(coverage_stats_dataframes, key="percentiles", mode="a")
+        df_percentiles.to_hdf(coverage_stats_dataframes, key="percentiles", mode="a")
         return coverage_stats_dataframes
 
-    return df_precentiles, df_stats
+    return df_percentiles, df_stats
 
 
 def generate_coverage_boxplot(
@@ -516,7 +516,7 @@ Calculated on chr9 unless noted otherwise (WG - Whole Genome)""",
 def _check_chr_in_file_name(filename):
     for x in basename(filename).split("."):
         if x.startswith("chr"):
-            return x
+            return x[:4]
     return None
 
 
@@ -580,26 +580,29 @@ def plot_coverage_profile(
         plt.plot(
             x, df["coverage"] / median_coverage, label="coverage profile", zorder=1,
         )
-        for j, (_, row) in enumerate(df_gaps.loc[[r]].iterrows()):
-            plt.fill_betweenx(
-                [0, y_max + 1],
-                row["chromStart"] / 1e6,
-                row["chromEnd"] / 1e6,
-                facecolor="red",
-                alpha=0.9,
-                label="reference gaps" if j == 0 else None,
-                zorder=2,
-            )
-        for j, (_, row) in enumerate(df_acen.loc[[r]].iterrows()):
-            plt.fill_betweenx(
-                [0, y_max + 1],
-                row["chromStart"] / 1e6,
-                row["chromEnd"] / 1e6,
-                facecolor="green",
-                label="centromeres" if j == 0 else None,
-                alpha=0.9,
-                zorder=2,
-            )
+        try:
+            for j, (_, row) in enumerate(df_gaps.loc[[r.split(":")[0]]].iterrows()):
+                plt.fill_betweenx(
+                    [0, y_max + 1],
+                    row["chromStart"] / 1e6,
+                    row["chromEnd"] / 1e6,
+                    facecolor="red",
+                    alpha=0.9,
+                    label="reference gaps" if j == 0 else None,
+                    zorder=2,
+                )
+            for j, (_, row) in enumerate(df_acen.loc[[r.split(":")[0]]].iterrows()):
+                plt.fill_betweenx(
+                    [0, y_max + 1],
+                    row["chromStart"] / 1e6,
+                    row["chromEnd"] / 1e6,
+                    facecolor="green",
+                    label="centromeres" if j == 0 else None,
+                    alpha=0.9,
+                    zorder=2,
+                )
+        except KeyError:
+            continue
         plt.xlim(x.min(), x.max())
 
     for ax in axs[-1, :] if len(axs.shape) > 1 else axs:
