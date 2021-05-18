@@ -236,13 +236,13 @@ def _intervals_to_bed(input_intervals, output_bed_file=None):
     """
     if input_intervals.endswith(".interval_list"):
         try:
-            return cloud_sync(input_intervals[:-len(".interval_list")] + ".bed")
+            return cloud_sync(input_intervals[: -len(".interval_list")] + ".bed")
         except botocore.exceptions.ClientError as error:  # bed file not found - convert automatically
             pass
     try:
         input_intervals = cloud_sync(input_intervals)
     except botocore.exceptions.ClientError as error:  # bed file not found - convert automatically
-        raise(f"Interval list file not found: {input_intervals}")
+        raise (f"Interval list file not found: {input_intervals}")
     if output_bed_file is None:
         output_bed_file = input_intervals
         if output_bed_file.endswith(".interval"):
@@ -327,9 +327,14 @@ def generate_stats_from_histogram(
         val_count = pd.read_hdf(val_count, key="histogram")
     df_percentiles = pd.concat(
         (
-            val_count.apply(lambda x: interp1d(np.cumsum(x), val_count.index, fill_value="extrapolate")(q)),
             val_count.apply(
-                lambda x: np.sum(val_count.index.values * x.values) / np.sum(x.values)  # np.average gave strange bug
+                lambda x: interp1d(
+                    np.cumsum(x), val_count.index, fill_value="extrapolate"
+                )(q)
+            ),
+            val_count.apply(
+                lambda x: np.sum(val_count.index.values * x.values)
+                / np.sum(x.values)  # np.average gave strange bug
                 if not x.isnull().all() and x.sum() > 0
                 else np.nan
             )
@@ -713,7 +718,8 @@ def run_full_coverage_analysis(
             tmpdir = dict()
             for region_bed_file in df_coverage_intervals["file"].values:
                 tmpdir[region_bed_file] = pjoin(
-                    tmp_basedir, f"tmp.{'.'.join(basename(region_bed_file).split('.')[:-1])}"
+                    tmp_basedir,
+                    f"tmp.{'.'.join(basename(region_bed_file).split('.')[:-1])}",
                 )
                 os.makedirs(tmpdir[region_bed_file], exist_ok=True)
 
