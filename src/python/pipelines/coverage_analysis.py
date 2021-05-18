@@ -5,7 +5,6 @@ import sys
 from os.path import join as pjoin, basename, dirname
 from tempfile import TemporaryDirectory
 import subprocess
-from multiprocessing import cpu_count
 from collections.abc import Iterable
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -16,6 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import itertools
 from glob import glob
+from scipy.interpolate import interp1d
 
 path = dirname(dirname(dirname(__file__)))
 if path not in sys.path:
@@ -57,6 +57,7 @@ plt.rc("figure", figsize=FIGSIZE)  # size of the figure
 
 # string constants
 TMPDIR_PREFIX = "/data/tmp/tmp" if os.path.isdir("/data/tmp/") else None
+DEFAULT_REFERENCE = "gs://concordance/ref_cram/hg38+ecoli+template+reference.fa"
 DEFAULT_INTERVALS = "s3://ultimagen-ilya-new/VariantCalling/data/coverage_intervals/coverage_chr9_extended_intervals.tsv"
 CHROM = "chrom"
 CHROM_START = "chromStart"
@@ -300,44 +301,10 @@ def _get_output_file_name(
         extra_extensions = f".q{min_bq}.Q{min_mapq}.l{min_read_length}"
         out_basename = pjoin(local_dirname, basename(f_in).split(".")[0])
         region_str = "" if region is None else "." + region.replace(":", "_")
-        f_out = f"{out_basename}{region_str}{extra_extensions}.w{window}.{output_format}"
+        f_out = (
+            f"{out_basename}{region_str}{extra_extensions}.w{window}.{output_format}"
+        )
     return f_out
-
-
-def _read_dataframe(input_dataframe_file):
-    # read coverage_dataframe
-    if input_dataframe_file.endswith(".parquet"):
-        df = pd.read_parquet(input_dataframe_file)
-        input_format = PARQUET
-    elif input_dataframe_file.endswith(".h5") or input_dataframe_file.endswith(".hdf"):
-        df = pd.read_hdf(input_dataframe_file)
-        input_format = H5
-    elif input_dataframe_file.endswith(".csv"):
-        df = pd.read_csv(input_dataframe_file)
-        input_format = CSV
-    elif input_dataframe_file.endswith(".tsv"):
-        df = pd.read_csv(input_dataframe_file, sep="\t")
-        input_format = TSV
-    else:
-        raise ValueError(
-            f"""Could not interpret extension of {input_dataframe_file}\n
-Should be one of {PARQUET}, {HDF}, {H5}, {CSV}, {TSV} """
-        )
-    return df, input_format
-
-
-def _save_datframe(df, f_out, output_format):
-    if output_format == PARQUET:
-        df.to_parquet(f_out)
-    elif output_format == HDF or output_format == H5:
-        df.to_hdf(f_out, "data")
-    elif output_format == CSV or output_format == TSV:
-        df.to_csv(f_out, sep="," if output_format == CSV else "\t")
-    else:
-        raise ValueError(
-            f"""Could not interpret output_format {output_format}\n
-Should be one of {PARQUET}, {HDF}, {H5}, {CSV}, {TSV} """
-        )
 
 
 def generate_stats_from_histogram(
@@ -350,7 +317,7 @@ def generate_stats_from_histogram(
         val_count = pd.read_hdf(val_count, key="histogram")
     df_precentiles = pd.concat(
         (
-            val_count.apply(lambda x: np.interp(q, np.cumsum(x), val_count.index)),
+            val_count.apply(lambda x: interp1d(np.cumsum(x), val_count.index, fill_value="extrapolate")(q)),
             val_count.apply(
                 lambda x: np.average(val_count.index, weights=x)
                 if x.sum() > 0
@@ -543,6 +510,106 @@ def _check_chr_in_file_name(filename):
     return None
 
 
+def plot_coverage_profile(
+    input_depth_files,
+    cyto_band_file="gs://ultimagen-sarah/ucsc_tables/CytoBandIdeo",
+    reference_gaps_file="gs://ultimagen-sarah/ucsc_tables/gap.txt",
+    title="",
+    sub_title="",
+    y_max=3,
+    out_path=None,
+):
+    if out_path is not None:
+        mpl.use("Agg")
+    df_acen = (
+        pd.read_csv(
+            cloud_sync(cyto_band_file),
+            sep="\t",
+            header=None,
+            names=["chrom", "chromStart", "chromEnd", "type"],
+            usecols=[0, 1, 2, 4],
+            comment="#",
+        )
+        .query("type == 'acen'")
+        .drop(columns=["type"])
+        .set_index("chrom")
+    )
+    df_gaps = pd.read_csv(
+        cloud_sync(reference_gaps_file),
+        sep="\t",
+        header=None,
+        names=["chrom", "chromStart", "chromEnd"],
+        usecols=range(1, 4),
+        comment="#",
+    ).set_index("chrom")
+
+    median_coverage = np.median(
+        [pd.read_parquet(f)["coverage"].median() for f in input_depth_files.values()]
+    )
+    N = len(input_depth_files)
+
+    fig, axs = plt.subplots(
+        np.ceil(N / 2).astype(int),
+        2,
+        figsize=(28, np.ceil(N / 2).astype(int) * 3),
+        sharey="all",
+    )
+    fig.subplots_adjust(hspace=0.5, wspace=0.01)
+    suptitle = fig.suptitle(
+        f"""Coverage profile (normalized to median) {title}
+    Median coverage = {median_coverage:.1f}{sub_title}""",
+        # Blue - coverage profile, Red - reference gaps, Green - centromeres""",
+        y=0.96,
+    )
+    for ax, r in zip(axs.flatten(), input_depth_files.keys()):
+        plt.sca(ax)
+
+        plt.title(r, fontsize=18)
+        df = pd.read_parquet(input_depth_files[r])
+        x = (df["chromStart"] + df["chromEnd"]) / (2e6)
+        plt.plot(
+            x, df["coverage"] / median_coverage, label="coverage profile", zorder=1,
+        )
+        for j, (_, row) in enumerate(df_gaps.loc[[r]].iterrows()):
+            plt.fill_betweenx(
+                [0, y_max + 1],
+                row["chromStart"] / 1e6,
+                row["chromEnd"] / 1e6,
+                facecolor="red",
+                alpha=0.9,
+                label="reference gaps" if j == 0 else None,
+                zorder=2,
+            )
+        for j, (_, row) in enumerate(df_acen.loc[[r]].iterrows()):
+            plt.fill_betweenx(
+                [0, y_max + 1],
+                row["chromStart"] / 1e6,
+                row["chromEnd"] / 1e6,
+                facecolor="green",
+                label="centromeres" if j == 0 else None,
+                alpha=0.9,
+                zorder=2,
+            )
+        plt.xlim(x.min(), x.max())
+
+    for ax in axs[-1, :] if len(axs.shape) > 1 else axs:
+        xlabel = ax.set_xlabel("Position [Mb]")
+    leg = axs.flatten()[0].legend(bbox_to_anchor=[1, 2])
+    ax.set_ylim(0, y_max)
+
+    if out_path is not None:
+        if "." not in basename(out_path):  # interpret as directory
+            out_path = pjoin(out_path, "coverage_boxplot.png")
+        fig.savefig(
+            out_path,
+            dpi=300,
+            bbox_extra_artists=[suptitle, leg, xlabel],
+            bbox_inches="tight",
+        )
+
+    return fig
+
+
 def run_full_coverage_analysis(
     bam_file: str,
     out_path: str,
@@ -552,10 +619,12 @@ def run_full_coverage_analysis(
     min_bq: int = 0,
     min_mapq: int = 0,
     min_read_length: int = 0,
-    ref_fasta: str = "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+    ref_fasta: str = DEFAULT_REFERENCE,
     n_jobs: int = -1,
     progress_bar: bool = True,
     verbose=False,
+    cyto_band_file="gs://ultimagen-sarah/ucsc_tables/CytoBandIdeo",
+    reference_gaps_file="gs://ultimagen-sarah/ucsc_tables/gap.txt",
 ):
     # check inputs
     os.makedirs(out_path, exist_ok=True)
@@ -571,6 +640,8 @@ def run_full_coverage_analysis(
         regions = CHROM_DTYPE.categories
     elif isinstance(regions, str) or not isinstance(regions, Iterable):
         regions = [regions]
+    bam_file_name = basename(bam_file).split(".")[0]
+    params_filename_suffix = f"q{min_bq}.Q{min_mapq}.l{min_read_length}"
 
     # set samtools arguments
     is_cram = bam_file.endswith(CRAM_EXT)
@@ -592,7 +663,14 @@ def run_full_coverage_analysis(
         delayed(collect_depth)(
             bam_file,
             _get_output_file_name(
-                bam_file, out_path, min_bq, min_mapq, min_read_length, region, window=1, output_format="depth",
+                bam_file,
+                out_path,
+                min_bq,
+                min_mapq,
+                min_read_length,
+                region,
+                window=1,
+                output_format="depth",
             ),
             samtools_args=" ".join(
                 samtools_depth_args + [f"-r {region}" if region is not None else ""]
@@ -607,6 +685,10 @@ def run_full_coverage_analysis(
 
     # collect coverage in intervals
     if coverage_intervals_dict is not None:
+        if verbose:
+            logger.debug(
+                f"Collecting coverage in genomic intervals from {coverage_intervals_dict}"
+            )
         df_coverage_intervals = _create_coverage_intervals_dataframe(
             coverage_intervals_dict
         )
@@ -618,7 +700,7 @@ def run_full_coverage_analysis(
             tmpdir = dict()
             for region_bed_file in df_coverage_intervals["file"].values:
                 tmpdir[region_bed_file] = pjoin(
-                    tmp_basedir, f"tmp.{basename(region_bed_file)}"
+                    tmp_basedir, f"tmp.{'.'.join(basename(region_bed_file).split('.')[:-1])}"
                 )
                 os.makedirs(tmpdir[region_bed_file], exist_ok=True)
 
@@ -640,6 +722,14 @@ def run_full_coverage_analysis(
                     or (_check_chr_in_file_name(y) is None)
                 ]
             )
+
+            # remove regions with not outputs
+            keys_to_remove = list()
+            for original_bed_file, tmp_region_dir in tmpdir.items():
+                if len(glob(pjoin(tmp_region_dir, "*.tsv"))) == 0:
+                    keys_to_remove.append(original_bed_file)
+            for k in keys_to_remove:
+                tmpdir.pop(k)
 
             df_coverage_histogram = (
                 pd.concat(
@@ -675,12 +765,15 @@ def run_full_coverage_analysis(
         df_percentiles, df_stats = generate_stats_from_histogram(
             df_coverage_histogram / df_coverage_histogram.sum()
         )
-        logger.debug(f"Saving data")
+        if verbose:
+            logger.debug(f"Saving data")
         if "." in basename(out_path):
             coverage_stats_dataframes = out_path
         else:
             os.makedirs(out_path, exist_ok=True)
-            coverage_stats_dataframes = pjoin(out_path, "coverage_stats.h5")
+            coverage_stats_dataframes = pjoin(
+                out_path, f"{bam_file_name}.coverage_stats.{params_filename_suffix}.h5"
+            )
         if verbose:
             logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
         df_stats.to_hdf(coverage_stats_dataframes, key="stats", mode="a")
@@ -690,11 +783,16 @@ def run_full_coverage_analysis(
         )
 
         generate_coverage_boxplot(
-            df_percentiles, coverage_intervals_dict, out_path=out_path, title=basename(bam_file).split(".")
+            df_percentiles,
+            coverage_intervals_dict,
+            out_path=pjoin(out_path, f"coverage_boxplot.{params_filename_suffix}.png"),
+            title=bam_file_name,
         )
 
     # create binned dataframes
     if windows is not None:
+        if verbose:
+            logger.debug(f"creating binned dataframes for window sizes: {windows}")
         depth_files_to_process = out_depth_files
         w0 = 1
         for j, w in enumerate(windows):
@@ -713,12 +811,31 @@ def run_full_coverage_analysis(
                     desc=f"Binning depth files ({j+1}/{len(windows)}, w={w})",
                 )
             )
-            # set new parameters so that the next window size is a processing of the binned file and not the original
-            w0 = w
+
             depth_files_to_process = [
                 depth_file.split(".w")[0] + f".w{w}.depth"
                 for depth_file in out_depth_files
             ]
+
+            # plot coverage profile
+            if w >= 1000:  # below that the graph is useless
+                plot_coverage_profile(
+                    input_depth_files={
+                        r: f + ".parquet"
+                        for r, f in zip(regions, depth_files_to_process)
+                        if r != "chrM"
+                    },
+                    cyto_band_file=cyto_band_file,
+                    reference_gaps_file=reference_gaps_file,
+                    title=bam_file_name,
+                    sub_title=f", Window = {w if w < 1000 else str(w // 1000) + 'k'}b, MapQ >= {min_mapq}",
+                    out_path=pjoin(
+                        out_path,
+                        f"{bam_file_name}.coverage_profile.w{w if w < 1000 else str(w // 1000) + 'k'}b.{params_filename_suffix}.png",
+                    ),
+                )
+            # set new parameters so that the next window size is a processing of the binned file and not the original
+            w0 = w
 
 
 def call_run_full_coverage_analysis(args_in):
@@ -749,10 +866,7 @@ if __name__ == "__main__":
         description="""Run full coverage analysis of an aligned bam/cram file""",
     )
     parser_full_analysis.add_argument(
-        "-i",
-        "--input",
-        type=str,
-        help="input bam or cram file ",
+        "-i", "--input", type=str, help="input bam or cram file ",
     )
     parser_full_analysis.add_argument(
         "-o",
@@ -765,12 +879,14 @@ if __name__ == "__main__":
         "--coverage_intervals",
         type=str,
         default=DEFAULT_INTERVALS,
-        help="""tsv file pointing to a dataframe detailing the various intervals""",
+        help=f"""tsv file pointing to a dataframe detailing the various intervals
+default {DEFAULT_INTERVALS}""",
     )
     parser_full_analysis.add_argument(
         "-r",
         "--region",
         type=str,
+        nargs="*",
         default=CHROM_DTYPE.categories,
         help=f"""Genomic region in samtools format - default is {CHROM_DTYPE.categories.values} """,
     )
@@ -804,7 +920,7 @@ if __name__ == "__main__":
     parser_full_analysis.add_argument(
         "--reference",
         type=str,
-        default="gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+        default=DEFAULT_REFERENCE,
         help="Reference fasta used for cram file compression, not used for bam inputs",
     )
     parser_full_analysis.add_argument(
