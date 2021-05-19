@@ -804,7 +804,7 @@ def run_full_coverage_analysis(
         generate_coverage_boxplot(
             df_percentiles,
             coverage_intervals_dict,
-            out_path=pjoin(out_path, f"coverage_boxplot.{params_filename_suffix}.png"),
+            out_path=pjoin(out_path, f"{bam_file_name}.coverage_boxplot.{params_filename_suffix}.png"),
             title=bam_file_name,
         )
 
