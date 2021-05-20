@@ -361,22 +361,22 @@ def generate_stats_from_histogram(
             selected_percentiles,
             pd.concat(
                 (
-                    (val_count.loc[(genome_median * 0.5).round().astype(int) :] * 100)
+                    (val_count[val_count.index >= (genome_median * 0.5)] * 100)
                     .sum()
                     .rename("% > 0.5 median of the genome")
                     .to_frame()
                     .T,
-                    (val_count.loc[(genome_median * 0.25).round().astype(int) :] * 100)
+                    (val_count[val_count.index >= (genome_median * 0.25)] * 100)
                     .sum()
                     .rename("% > 0.25 median of the genome")
                     .to_frame()
                     .T,
-                    (val_count.loc[10:] * 100)
+                    (val_count[val_count.index >= 10] * 100)
                     .sum()
                     .rename("% bases with coverage >= 10x")
                     .to_frame()
                     .T,
-                    (val_count.loc[20:] * 100)
+                    (val_count[val_count.index >= 20] * 100)
                     .sum()
                     .rename("% bases with coverage >= 20x")
                     .to_frame()
@@ -804,7 +804,10 @@ def run_full_coverage_analysis(
         generate_coverage_boxplot(
             df_percentiles,
             coverage_intervals_dict,
-            out_path=pjoin(out_path, f"{bam_file_name}.coverage_boxplot.{params_filename_suffix}.png"),
+            out_path=pjoin(
+                out_path,
+                f"{bam_file_name}.coverage_boxplot.{params_filename_suffix}.png",
+            ),
             title=bam_file_name,
         )
 
