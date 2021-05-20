@@ -4,6 +4,7 @@ import pandas as pd
 from os.path import join as pjoin, isfile
 from tempfile import TemporaryDirectory
 from pathmagic import PYTHON_TESTS_PATH
+import pathmagic
 from python.pipelines.coverage_analysis import run_full_coverage_analysis
 
 
