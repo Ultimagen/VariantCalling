@@ -350,12 +350,12 @@ def generate_stats_from_histogram(
     genome_median = df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
     selected_percentiles = (
         df_percentiles.loc[[f"Q{q}" for q in [5, 10, 50]]]
-        .rename(index={"Q50": "median coverage"})
-        .rename(index={f"Q{q}": f"{q}th percentile" for q in [5, 10, 50]})
+        .rename(index={"Q50": "median_coverage"})
+        .rename(index={f"Q{q}": f"percentile_{q}" for q in [5, 10, 50]})
     )
     selected_percentiles.loc[
-        "median coverage (normalized to median genome coverage)"
-    ] = (selected_percentiles.loc["median coverage"] / genome_median)
+        "median_coverage_normalized"
+    ] = (selected_percentiles.loc["median_coverage"] / genome_median)
     df_stats = pd.concat(
         (
             selected_percentiles,
@@ -363,22 +363,22 @@ def generate_stats_from_histogram(
                 (
                     (val_count[val_count.index >= (genome_median * 0.5)] * 100)
                     .sum()
-                    .rename("% > 0.5 median of the genome")
+                    .rename("percent_larger_than_05_of_genome_median")
                     .to_frame()
                     .T,
                     (val_count[val_count.index >= (genome_median * 0.25)] * 100)
                     .sum()
-                    .rename("% > 0.25 median of the genome")
+                    .rename("percent_larger_than_025_of_genome_median")
                     .to_frame()
                     .T,
                     (val_count[val_count.index >= 10] * 100)
                     .sum()
-                    .rename("% bases with coverage >= 10x")
+                    .rename("percent_over_or_equal_to_10x")
                     .to_frame()
                     .T,
                     (val_count[val_count.index >= 20] * 100)
                     .sum()
-                    .rename("% bases with coverage >= 20x")
+                    .rename("percent_over_or_equal_to_20x")
                     .to_frame()
                     .T,
                 )
