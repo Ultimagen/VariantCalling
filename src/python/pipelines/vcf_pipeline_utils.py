@@ -555,7 +555,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:
             logger.info("Annotating intervals")
-            df = annotation.annotate_intervals(df, annotation_file)
+            df = annotation.annotate_intervals(
+                df, annotation_file)
     logger.debug("Filling filter column")  # debug since not interesting step
     df = annotation.fill_filter_column(df)
 

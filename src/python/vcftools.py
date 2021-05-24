@@ -29,7 +29,7 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
 
     vfi = map(lambda x: defaultdict(lambda: None, x.info.items()
                                     + x.samples[sample_id].items() +
-                                    [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref),
+                                    [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref), ('ID', x.id),
                                      ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
 
     # columns = ['chrom', 'pos', 'qual',
@@ -45,7 +45,7 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
                'DP_R', 'DP_F', 'AD_R', 'AD_F', 'TLOD', 'STRANDQ','FPR', 'GROUP','TREE_SCORE','VARIANT_TYPE','DB',
                'AS_SOR', 'AS_SORP', 'FS', 'VQR_VAL', 'QD',
                'GQ', 'PGT', 'PID', 'PS',
-               'AC', 'AN', 'BaseQRankSum','ExcessHet', 'MLEAC', 'MLEAF', 'MQRankSum', 'ReadPosRankSum','XC']
+               'AC', 'AN', 'BaseQRankSum','ExcessHet', 'MLEAC', 'MLEAF', 'MQRankSum', 'ReadPosRankSum','XC','ID','GNOMAD_AF']
     concordance_df = pd.DataFrame([[x[y] for y in columns] for x in vfi],columns=[x.lower() for x in columns])
 
 
