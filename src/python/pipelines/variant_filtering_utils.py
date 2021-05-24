@@ -17,7 +17,7 @@ import sklearn
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
             'ad','af', 'fs','qd','mq','pl','gt',#'as_sor','as_sorp','vqsr_val','tlod',
-            'gq','ps','ac','an',#'pgt','pid'
+            'gq','ac','an',#'pgt','pid'
             'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
             'indel','left_motif','right_motif','alleles','cycleskip_status']#,'variant_type','dp_r','dp_f','strandq'
 class SingleModel:
@@ -390,7 +390,7 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('pl', [tuple_filter]),
                       ('gt', [gt_filter]),
                       (['gq'], default_filler),
-                      (['ps'], default_filler),
+                      #(['ps'], default_filler),
                       ('ac', [tuple_filter]),
                       (['an'], default_filler),
                       (['baseqranksum'], default_filler),
@@ -406,10 +406,6 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('cycleskip_status', preprocessing.LabelEncoder()),
                       ('alleles', [tuple_filter, allele_filter]),
                       ('alleles', [tuple_filter_second, allele_filter])
-
-
-
-
 
                       #(['cycleskip_status'], default_filler),
                       #('variant_type', None),

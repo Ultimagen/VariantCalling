@@ -128,9 +128,13 @@ try:
     #     'threshold_model_recall_precision_curve_include_gt_excl_hpol_runs'] = recall_precision_curve_gt
 
     # Decision tree models
+    # orig_classify = df['classify']
+    # df.loc[~df['id'].isna(),'classify'] = 'tp'
+    # df.loc[df['id'].isna(),'classify'] = 'fp'
     models_dt_no_gt, models_reg_dt_no_gt, df_tmp = \
         variant_filtering_utils.train_decision_tree_model(df.copy(),
                                                           classify_column='classify', interval_size=interval_size)
+    #df_tmp['classify'] = orig_classify
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, "classify")
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
