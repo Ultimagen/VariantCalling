@@ -329,7 +329,7 @@ def generate_stats_from_histogram(
         (
             val_count.apply(
                 lambda x: interp1d(
-                    np.cumsum(x), val_count.index, fill_value="extrapolate"
+                    np.cumsum(x), val_count.index,
                 )(q)
             ),
             val_count.apply(
