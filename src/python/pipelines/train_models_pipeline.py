@@ -11,6 +11,7 @@ ap = argparse.ArgumentParser(prog="train_models_pipeline.py",
                              description="Train filtering models on the concordance file")
 grp = ap.add_mutually_exclusive_group(required=True)
 grp.add_argument("--input_file", help="Name of the input h5 file", type=str)
+ap.add_argument("--blacklist", help="AAAAA", type=str, required=True)
 ap.add_argument("--output_file_prefix", help="Output .pkl file with models, .h5 file with results",
                 type=str, required=True)
 ap.add_argument("--mutect", required=False, action="store_true")
@@ -127,14 +128,28 @@ try:
     # results_dict[
     #     'threshold_model_recall_precision_curve_include_gt_excl_hpol_runs'] = recall_precision_curve_gt
 
+    blacklist = pd.read_hdf(args.blacklist,'blacklist')
+    df = df.merge(blacklist, left_index=True, right_index=True, how='left')
+
+    df['bl_classify'] = 'unknown'
+    df['bl_classify'].loc[df['bl'] == True] = 'fp'
+    #is_common = df['gnomad_af'].apply(lambda x: x[0] if type(x) == tuple else 0)
+    #df.loc[is_common > 0.001, 'bl_classify'] = 'tp'
+    df['bl_classify'].loc[~df['id'].isna()] = 'tp'
+    df = df[df['bl_classify'] != 'unknown']
     # Decision tree models
-    # orig_classify = df['classify']
-    # df.loc[~df['id'].isna(),'classify'] = 'tp'
-    # df.loc[df['id'].isna(),'classify'] = 'fp'
+    orig_classify = df['classify']
+    df['classify'] = df['bl_classify']
+    #df.loc[~df['id'].isna(),'classify'] = 'tp'
+    #df.loc[df['id'].isna(),'classify'] = 'fp'
+
+    #is_common = df['gnomad_af'].apply(lambda x: x[0] if type(x) == tuple else 0)
+    #df.loc[is_common > 0.001,'classify'] = 'tp'
+    #df.loc[is_common <= 0.001,'classify'] = 'fp'
     models_dt_no_gt, models_reg_dt_no_gt, df_tmp = \
         variant_filtering_utils.train_decision_tree_model(df.copy(),
                                                           classify_column='classify', interval_size=interval_size)
-    #df_tmp['classify'] = orig_classify
+    df_tmp['classify'] = orig_classify
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, "classify")
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
