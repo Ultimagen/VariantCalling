@@ -10,6 +10,7 @@ from typing import Optional, Tuple, Callable
 from enum import Enum
 import python.utils as utils
 import sklearn
+import matplotlib.pyplot as plt
 
 # FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
 #             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
@@ -17,7 +18,7 @@ import sklearn
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
             'ad','af', 'fs','qd','mq','pl','gt',#'as_sor','as_sorp','vqsr_val','tlod',
-            'gq','ac','an',#'pgt','pid'
+            'gq','ps','ac','an',#'pgt','pid'
             'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
             'indel','left_motif','right_motif','alleles','cycleskip_status']#,'variant_type','dp_r','dp_f','strandq'
 class SingleModel:
@@ -390,7 +391,7 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('pl', [tuple_filter]),
                       ('gt', [gt_filter]),
                       (['gq'], default_filler),
-                      #(['ps'], default_filler),
+                      (['ps'], default_filler),
                       ('ac', [tuple_filter]),
                       (['an'], default_filler),
                       (['baseqranksum'], default_filler),
@@ -446,13 +447,27 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         Trained classifier model, trained regressor model
     '''
     fns = np.array(concordance[gtr_column] == 'fn')
+    group = concordance[selection]['group'][0]
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = transformer.transform(train_data)
     print('train model')
     print(train_data.shape)
     model = DecisionTreeClassifier(max_depth=5)
     model.fit(train_data, labels)
+    importances = model.feature_importances_
+
+    feature_names = ['sor','dp','qual','hmer_indel_nuc','inside_hmer_run','close_to_hmer_run', 'hmer_indel_length','indel_length',
+    'ad','af','fs','qd','mq','pl','gt','gq','ps','ac','an','baseqranksum','excesshet','mleac','mleaf',
+    'mqranksum','readposranksum', 'xc', 'indel','left_motif','right_motif','cycleskip_status','alleles','alleles2']
+    forest_importances = pd.Series(importances, index=feature_names)
+    fig, ax = plt.subplots()
+    forest_importances.plot.bar( ax=ax)
+    ax.set_title(f"Model {group}")
+    ax.set_ylabel("Mean decrease in impurity")
+    fig.tight_layout()
+    fig.show()
 
     model1 = DecisionTreeRegressor(max_depth=5)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
@@ -461,6 +476,17 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
 #    train_data_scaled = min_max_scaler.fit_transform(train_data)
 
     model1.fit(train_data, enclabels)
+    importances = model.feature_importances_
+    feature_names = ['sor','dp','qual','hmer_indel_nuc','inside_hmer_run','close_to_hmer_run', 'hmer_indel_length','indel_length',
+    'ad','af','fs','qd','mq','pl','gt','gq','ps','ac','an','baseqranksum','excesshet','mleac','mleaf',
+    'mqranksum','readposranksum', 'xc', 'indel','left_motif','right_motif','cycleskip_status','alleles','alleles2']
+    forest_importances = pd.Series(importances, index=feature_names)
+    fig, ax = plt.subplots()
+    forest_importances.plot.bar( ax=ax)
+    ax.set_title(f"Model1 {group}")
+    ax.set_ylabel("Mean decrease in impurity")
+    fig.tight_layout()
+    fig.show()
     tree_scores = model1.predict(train_data)
     tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
     return model, model1, pd.concat([pd.Series(tree_scores_sorted),fpr_values], axis=1,)
@@ -809,9 +835,9 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
 
 
 
-        precision, recall, f1 = curve
+        precision, recall, f1, preditions = curve
 
-        recalls_precisions[g] = np.vstack((recall, precision, f1)).T
+        recalls_precisions[g] = np.vstack((recall, precision, f1, preditions)).T
 
     return recalls_precisions
 
