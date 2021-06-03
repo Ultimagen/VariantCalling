@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import tqdm
 import logging
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple, Callable, Union
 from enum import Enum
 import python.utils as utils
 
@@ -329,7 +329,7 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
 def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 selection: pd.Series, gtr_column: str,
                 transformer: sklearn_pandas.DataFrameMapper,
-                interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor]:
+                interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -353,11 +353,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = transformer.transform(train_data)
-    if type(train_data == np.ndarray): 
-        _validate_data(train_data)
-    else: 
-        _validate_data(train_data.to_numpy())
-        
+
+    _validate_data(train_data)
     _validate_data(labels.to_numpy())
 
     model = DecisionTreeClassifier(max_depth=7)
@@ -372,14 +369,19 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,)
 
 
-def _validate_data(data: np.ndarray) -> None:
+def _validate_data(data: Union[np.ndarray, pd.Series, pd.DataFrame]) -> None:
     '''Validates that the data does not contain nulls'''
+
+    if type(data) == np.ndarray:
+        test_data = data
+    else:
+        test_data = data.to_numpy()
     try:
-        if len(data.shape) == 1 or data.shape[1] <= 1:
-            assert pd.isnull(data).sum() == 0, "data vector contains null"
+        if len(test_data.shape) == 1 or test_data.shape[1] <= 1:
+            assert pd.isnull(test_data).sum() == 0, "data vector contains null"
         else:
-            for c in range(data.shape[1]):
-                assert pd.isnull(data[:, c]).sum() == 0, f"Data matrix contains null in column {c}"
+            for c in range(test_data.shape[1]):
+                assert pd.isnull(test_data[:, c]).sum() == 0, f"Data matrix contains null in column {c}"
     except AssertionError as af:
         logger.error(str(af))
         raise af
