@@ -84,7 +84,6 @@ def reinterpret_variants(concordance_df: pd.DataFrame, input: dict, fasta: pyfai
                                      input['ugi'], input['gtr'],
                                      fasta, 'gt_ultima', 'gt_ground_truth',
                                      variant_intervals)
-
     # Convert false positives for which there is a difference of a single
     # flow to hmer indels
     concordance_df = _apply_corrections(concordance_df, input[
@@ -102,6 +101,7 @@ def reinterpret_variants(concordance_df: pd.DataFrame, input: dict, fasta: pyfai
 
     # Convert false negatives for which there is a difference of a single
     # flow to hmer indels.
+
     concordance_df = _apply_corrections(concordance_df, input[
                                         'fns'].index, corrections_fns)
 
@@ -505,8 +505,8 @@ def _apply_corrections(_df: pd.DataFrame, positions: pd.Index, corrections: list
     compare_to_gtr_result = [x[0] if x[0] < 3 else 100 for x in corrections]
     hmer_indel_to_gtr = [x[1] if x[0] < 3 else 0 for x in corrections]
     if len(positions) == 1: # solves a boundary case where there is a single position and hmer_indel_to_gtr is an array
+        _df.at[positions[0:1], 'compare_to_gtr_hmer_indel_len'] = hmer_indel_to_gtr[0]
         _df['compare_to_gtr_hmer_indel_len'] = _df['compare_to_gtr_hmer_indel_len'].astype(object)
-        _df.at[positions[0], 'compare_to_gtr_hmer_indel_len'] = hmer_indel_to_gtr[0]
     else:
         _df.loc[positions, "compare_to_gtr_changes"] = compare_to_gtr_result
         _df.loc[positions, "compare_to_gtr_hmer_indel_len"] = hmer_indel_to_gtr

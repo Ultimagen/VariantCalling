@@ -391,9 +391,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     Parameters
     ----------
     raw_calls_file: str
-        File with GATK calls
+        File with GATK calls (.vcf.gz)
     concordance_file: str
-        GenotypeConcordance file
+        GenotypeConcordance/VCFEVAL output file (.vcf.gz)
     format: str
         Either 'GC' or 'VCFEVAL' - format for the concordance_file
     chromosome: str

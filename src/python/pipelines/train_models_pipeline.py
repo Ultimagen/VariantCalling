@@ -20,33 +20,24 @@ ap.add_argument("--mutect", required=False, action="store_true")
 ap.add_argument("--evaluate_concordance", help="Should the results of the model be applied to the concordance dataframe",
                 action="store_true")
 ap.add_argument("--apply_model",
-                help="If evaluate_concordance - which model should be applied", type=str, required=False)
+                help="If evaluate_concordance - which model should be applied", type=str, required='--evaluate_concordance' in sys.argv)
 ap.add_argument("--input_interval", help="bed file of intersected intervals from run_comparison pipeline",
-                type=str, required=False)
+                type=str, required=True)
+ap.add_argument("--list_of_contigs_to_read", nargs='*', help="List of contigs to read from the DF", default=[])
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
-
-logging.basicConfig(level=getattr(logging, args.verbosity),
-                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__ if __name__ != "__main__" else "train_model_pipeline")
-
-if not args.blacklist or not args.input_interval and (args.input_file.endswith('h5')):
-    logger.error("--input_interval is required when input file ends with h5")
-
-if not args.blacklist and (args.input_file.endswith('vcf.gz')):
-    logger.error("--blacklist is required when input file ends with vcf.gz")
-
 try:
     with_dbsnp_bl = not args.input_file.endswith('vcf.gz')
     if with_dbsnp_bl:
         df = vcftools.get_vcf_df(args.input_file)
     else:
-        ## read all data besides concordance and input_args
+        ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         df = []
         with pd.HDFStore(args.input_file) as data:
             for k in data.keys():
-                if (k != "/concordance") and (k != "/input_args"):
+                if (k != "/concordance") and (k != "/input_args") and \
+                        (args.list_of_contigs_to_read == [] or k[1:] in args.list_of_contigs_to_read):
                     h5_file = data.get(k)
                     if not h5_file.empty:
                         df.append(h5_file)
@@ -56,13 +47,10 @@ try:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50)*10
     df.loc[
         pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
-    #df = df.loc[(~np.isnan(df['qual']) & ~np.isinf(df['qual'])) | (df['classify'] =='fn')]
     df_clean = df[
         np.logical_not(df.close_to_hmer_run) & np.logical_not(df.inside_hmer_run)].copy()
     interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
-    # Unfiltered data
-    # model_no_gt, recall_precision_no_gt = variant_filtering_utils.calculate_unfiltered_model(
-    #     df.copy(), "classify")
+
     results_dict = {}
 
     if with_dbsnp_bl:
@@ -122,7 +110,6 @@ try:
     prcdict[name_optimum] = results_dict[name_optimum.replace(
         "recall_precision", "recall_precision_curve")]
 
-
     results_vals = (pd.DataFrame(optdict)).unstack().reset_index()
     results_vals.columns = ['model', 'category', 'tmp']
     results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
@@ -171,8 +158,6 @@ try:
             variant_filtering_utils.add_grouping_column(concordance,
                                                         variant_filtering_utils.get_training_selection_functions(),
                                                         "group"))
-
-
 
         concordance['prediction'] = predictions
         concordance['tree_score'] = predictions_score
