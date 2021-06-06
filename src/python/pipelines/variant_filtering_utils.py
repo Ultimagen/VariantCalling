@@ -488,8 +488,11 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     fig.tight_layout()
     fig.show()
     tree_scores = model1.predict(train_data)
-    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
-    return model, model1, pd.concat([pd.Series(tree_scores_sorted),fpr_values], axis=1,)
+    if gtr_column == 'classify': ## there is gt
+        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
+        return model, model1, pd.concat([pd.Series(tree_scores_sorted),fpr_values], axis=1,)
+    else:
+        return model, model1, None
 
 def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_train_split: pd.Series, interval_size:int) -> pd.Series:
     '''Clclulate False Positive Rate for each variant
