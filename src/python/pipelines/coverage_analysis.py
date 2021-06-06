@@ -328,9 +328,7 @@ def generate_stats_from_histogram(
     df_percentiles = pd.concat(
         (
             val_count.apply(
-                lambda x: interp1d(
-                    np.cumsum(x), val_count.index, bounds_error=False
-                )(q)
+                lambda x: interp1d(np.cumsum(x), val_count.index, bounds_error=False)(q)
             ),
             val_count.apply(
                 lambda x: np.sum(val_count.index.values * x.values)
@@ -353,9 +351,9 @@ def generate_stats_from_histogram(
         .rename(index={"Q50": "median_coverage"})
         .rename(index={f"Q{q}": f"percentile_{q}" for q in [5, 10, 50]})
     )
-    selected_percentiles.loc[
-        "median_coverage_normalized"
-    ] = (selected_percentiles.loc["median_coverage"] / genome_median)
+    selected_percentiles.loc["median_coverage_normalized"] = (
+        selected_percentiles.loc["median_coverage"] / genome_median
+    )
     df_stats = pd.concat(
         (
             selected_percentiles,
@@ -688,7 +686,7 @@ def run_full_coverage_analysis(
                 min_read_length,
                 region,
                 window=1,
-                output_format="depth",
+                output_format="depth.bed",
             ),
             samtools_args=" ".join(
                 samtools_depth_args + [f"-r {region}" if region is not None else ""]
@@ -818,11 +816,12 @@ def run_full_coverage_analysis(
         depth_files_to_process = out_depth_files
         w0 = 1
         for j, w in enumerate(windows):
+
             Parallel(n_jobs=n_jobs)(
                 delayed(create_binned_coverage)(
                     input_depth_bed_file=depth_file,
                     output_binned_depth_bed_file=depth_file.split(".w")[0]
-                    + f".w{w}.depth",
+                    + f".w{w}.depth.bed",
                     lines_to_bin=w // w0,
                     window_size=w,
                     generate_dataframe=True,
@@ -835,7 +834,7 @@ def run_full_coverage_analysis(
             )
 
             depth_files_to_process = [
-                depth_file.split(".w")[0] + f".w{w}.depth"
+                depth_file.split(".w")[0] + f".w{w}.depth.bed"
                 for depth_file in out_depth_files
             ]
 
@@ -843,7 +842,7 @@ def run_full_coverage_analysis(
             if w >= 1000:  # below that the graph is useless
                 plot_coverage_profile(
                     input_depth_files={
-                        r: f + ".parquet"
+                        r: f.replace(".bed", ".parquet")
                         for r, f in zip(regions, depth_files_to_process)
                         if r != "chrM"
                     },
@@ -858,6 +857,15 @@ def run_full_coverage_analysis(
                 )
             # set new parameters so that the next window size is a processing of the binned file and not the original
             w0 = w
+    # gzip all the bed files
+    Parallel(n_jobs=n_jobs)(
+        delayed(lambda x: subprocess.call(["gzip", x]))(depth_file)
+        for depth_file in tqdm(
+            glob(pjoin(out_path, "*.bed")),
+            disable=not progress_bar,
+            desc=f"gzipping bed files",
+        )
+    )
 
 
 def call_run_full_coverage_analysis(args_in):
