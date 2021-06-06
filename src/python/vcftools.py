@@ -27,28 +27,21 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
     else:
         vf = pysam.VariantFile(variant_calls).fetch(chromosome)
 
-    vfi = map(lambda x: defaultdict(lambda: None, x.info.items()
-                                    + x.samples[sample_id].items() +
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
+                                    (x.samples[sample_id].items() if sample_id is not None else []) +
                                     [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref), ('ID', x.id),
                                      ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
-
-    # columns = ['chrom', 'pos', 'qual',
-    #            'ref', 'alleles', 'gt', 'pl',
-    #            'dp', 'ad', 'mq', 'sor', 'af', 'filter',
-    #            'dp_r', 'dp_f', 'ad_r', 'ad_f', 'tlod', 'strandq','fpr','tree_score','variant_type','db']
-    # concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
-    # concordance_df.columns = columns
-
     columns = ['CHROM', 'POS', 'QUAL',
                'REF', 'ALLELES', 'GT', 'PL',
                'DP', 'AD', 'MQ', 'SOR', 'AF', 'FILTER',
-               'DP_R', 'DP_F', 'AD_R', 'AD_F', 'TLOD', 'STRANDQ','FPR', 'GROUP','TREE_SCORE','VARIANT_TYPE','DB',
+               'DP_R', 'DP_F', 'AD_R', 'AD_F', 'TLOD', 'STRANDQ', 'FPR', 'GROUP', 'TREE_SCORE', 'VARIANT_TYPE', 'DB',
                'AS_SOR', 'AS_SORP', 'FS', 'VQR_VAL', 'QD',
                'GQ', 'PGT', 'PID', 'PS',
-               'AC', 'AN', 'BaseQRankSum','ExcessHet', 'MLEAC', 'MLEAF', 'MQRankSum', 'ReadPosRankSum','XC','ID','GNOMAD_AF']
-    concordance_df = pd.DataFrame([[x[y] for y in columns] for x in vfi],columns=[x.lower() for x in columns])
+               'AC', 'AN', 'BaseQRankSum', 'ExcessHet', 'MLEAC', 'MLEAF', 'MQRankSum', 'ReadPosRankSum', 'XC', 'ID',
+               'GNOMAD_AF','NLOD','NALOD']
 
-
+    concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
+    concordance_df.columns = columns
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
@@ -114,6 +107,8 @@ def get_region_around_variant(
         (start, end)
     """
     initial_region = (max(vpos - region_size // 2, 0), vpos + region_size // 2)
+    if len(vlocs) == 0:
+        return initial_region
 
     # expand the region to the left
     # clip for the cases when the variant is after all the variants and need
@@ -402,13 +397,13 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
         data).get_h_mer_0().get_fn().BED_format(kind="fn").get_df()
 
     def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str, mode: str) -> None:
-        if file.shape[0]>0:
+        if file.shape[0] > 0:
             file.to_csv((basename + "_" + f"{curr_name}.bed"), sep='\t', index=False, header=False, mode=mode)
 
     save_bed_file(snp_fp, basename, "snp_fp", mode)
     save_bed_file(snp_fn, basename, "snp_fn", mode)
 
-    if create_gt_diff : 
+    if create_gt_diff:
         save_bed_file(all_fp_diff, basename, "genotyping_errors_fp", mode=mode)
         save_bed_file(all_fn_diff, basename, "genotyping_errors_fn", mode=mode)
 

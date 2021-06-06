@@ -7,6 +7,7 @@ from os.path import dirname
 from os.path import join as pjoin
 CLASS_PATH = "vcftools"
 
+
 def test_bed_files_output():
     # snp_fp testing
     data = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, 'BC10.chr1.h5'), key='concordance')
@@ -85,3 +86,9 @@ def test_bed_output_when_no_tree_score():  # testing the case when there is no t
     result = dict(df.get_fp().BED_format(kind="fp").get_df()['itemRgb'].value_counts())
 
     assert len(result.keys()) == 1
+
+
+def test_get_region_around_variant():
+    vpos = 100
+    vlocs = []
+    assert vcftools.get_region_around_variant(vpos, vlocs, 10) == (95, 105)
