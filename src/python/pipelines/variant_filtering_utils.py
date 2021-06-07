@@ -538,6 +538,9 @@ def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_trai
         pd.Series:
             FPR value for each variant sorted in increased order
         '''
+    # in case we do not want ot run frp - interval_size is None
+    if interval_size is None:
+        return np.zeros(len(tree_scores)), pd.Series(np.zeros(len(tree_scores)))
     train_part = sum(test_train_split)/len(test_train_split)
     tree_scores_sorted_inds = np.argsort(tree_scores)
     cur_fpr = 0
