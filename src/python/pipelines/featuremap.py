@@ -12,11 +12,7 @@ import argparse
 
 from python.utils import revcomp, generateKeyFromSequence
 from python.modules.variant_annotation import get_motif_around
-from python.auxiliary.format import CHROM_DTYPE
-
-CYCLE_SKIP = "cycle-skip"
-POSSIBLE_CYCLE_SKIP = "possible-cycle-skip"
-NON_CYCLE_SKIP = "non-skip"
+from python.auxiliary.format import CHROM_DTYPE, CYCLE_SKIP_DTYPE, CYCLE_SKIP, POSSIBLE_CYCLE_SKIP, NON_CYCLE_SKIP
 
 
 def _collect_coverage_per_motif(chr_str, depth_file, reference_fasta, size=5, N=100):
@@ -218,7 +214,7 @@ def featuremap_to_dataframe(
         columns = ["chrom", "pos", "ref", "alt"] + x_fields
         df = pd.DataFrame(
             (
-                [x[y.upper()] for y in columns]
+                (x[y.upper()] for y in columns)
                 for x in tqdm(
                     vfi,
                     disable=not show_progress_bar,
@@ -268,8 +264,9 @@ def featuremap_to_dataframe(
 
         if flow_order is not None:
             df_cskp = get_cycle_skip_dataframe(flow_order=flow_order)
-            df = df.join(df_cskp)
+            df = df.set_index(["ref_motif", "alt_motif"]).join(df_cskp).reset_index()
 
+    df = df.set_index(["chrom", "pos"])
     if output_file is not None:
         df.to_parquet(output_file)
     return df
@@ -323,7 +320,7 @@ def get_cycle_skip_dataframe(flow_order="TGCA"):
             row["ref_motif"], row["alt_motif"], flow_order
         ),
         axis=1,
-    ).astype("category")
+    ).astype(CYCLE_SKIP_DTYPE)
     return df_cskp.set_index(["ref_motif", "alt_motif"])
 
 
