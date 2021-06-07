@@ -9,10 +9,20 @@ import pysam
 import pyfaidx
 import itertools
 import argparse
+from os.path import dirname
 
+path = dirname(dirname(dirname(__file__)))
+if path not in sys.path:
+    sys.path.append(path)
 from python.utils import revcomp, generateKeyFromSequence
 from python.modules.variant_annotation import get_motif_around
-from python.auxiliary.format import CHROM_DTYPE, CYCLE_SKIP_DTYPE, CYCLE_SKIP, POSSIBLE_CYCLE_SKIP, NON_CYCLE_SKIP
+from python.auxiliary.format import (
+    CHROM_DTYPE,
+    CYCLE_SKIP_DTYPE,
+    CYCLE_SKIP,
+    POSSIBLE_CYCLE_SKIP,
+    NON_CYCLE_SKIP,
+)
 
 
 def _collect_coverage_per_motif(chr_str, depth_file, reference_fasta, size=5, N=100):
@@ -214,7 +224,7 @@ def featuremap_to_dataframe(
         columns = ["chrom", "pos", "ref", "alt"] + x_fields
         df = pd.DataFrame(
             (
-                (x[y.upper()] for y in columns)
+                [x[y.upper() if y != "rq" else y] for y in columns]
                 for x in tqdm(
                     vfi,
                     disable=not show_progress_bar,
@@ -266,9 +276,13 @@ def featuremap_to_dataframe(
             df_cskp = get_cycle_skip_dataframe(flow_order=flow_order)
             df = df.set_index(["ref_motif", "alt_motif"]).join(df_cskp).reset_index()
 
-    df = df.set_index(["chrom", "pos"])
-    if output_file is not None:
-        df.to_parquet(output_file)
+    df = df.set_index(["chrom", "pos"]).sort_index()
+    if output_file is None:
+        if featuremap_vcf.endswith(".vcf.gz"):
+            output_file = featuremap_vcf[: -len(".vcf.gz")] + ".parquet"
+        else:
+            output_file = featuremap_vcf + ".parquet"
+    df.to_parquet(output_file)
     return df
 
 
@@ -324,14 +338,75 @@ def get_cycle_skip_dataframe(flow_order="TGCA"):
     return df_cskp.set_index(["ref_motif", "alt_motif"])
 
 
+def call_featuremap_to_dataframe(args_in):
+    if args_in.input is None:
+        raise ValueError("No input provided")
+    featuremap_to_dataframe(
+        featuremap_vcf=args_in.input,
+        output_file=args_in.output,
+        reference_fasta=args_in.reference_fasta,
+        motif_length=args_in.motif_length,
+        report_read_orientation=not args_in.report_sense_strand_bases,
+        show_progress_bar=args_in.show_progress_bar,
+        flow_order=args_in.flow_order,
+    )
+    sys.stdout.write("DONE\n")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
-    #
-    # parser_full_analysis = subparsers.add_parser(
-    #     name="full_analysis",
-    #     description="""Run full coverage analysis of an aligned bam/cram file""",
-    # )
-    # parser_full_analysis.add_argument(
-    #     "-i", "--input", type=str, help="input bam or cram file ",
-    # )
+
+    parser_featuremap_to_dataframe = subparsers.add_parser(
+        name="to_dataframe", description="""Convert featuremap to pandas dataframe""",
+    )
+    parser_featuremap_to_dataframe.add_argument(
+        "-i", "--input", type=str, required=True, help="input featuremap file",
+    )
+    parser_featuremap_to_dataframe.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        help="""Path to which output dataframe will be written, if None a file with the same name as input and 
+".parquet" extension will be created""",
+    )
+    parser_featuremap_to_dataframe.add_argument(
+        "-r",
+        "--reference_fasta",
+        type=str,
+        help="""reference fasta, only required for motif annotation
+most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta but it must be localized""",
+    )
+    parser_featuremap_to_dataframe.add_argument(
+        "-f",
+        "--flow_order",
+        type=str,
+        required=False,
+        default=None,
+        help="""flow order - required for cycle skip annotation but not mandatory""",
+    )
+    parser_featuremap_to_dataframe.add_argument(
+        "-m",
+        "--motif_length",
+        type=int,
+        default=4,
+        help="motif length to annotate the vcf with",
+    )
+    parser_featuremap_to_dataframe.add_argument(
+        "--report_sense_strand_bases",
+        default=False,
+        action="store_true",
+        help="if True, the ref, alt, and motifs will be reported according to the sense strand and not according to the read orientation",
+    )
+    parser_featuremap_to_dataframe.add_argument(
+        "--show_progress_bar",
+        default=False,
+        action="store_true",
+        help="show progress bar (tqdm)",
+    )
+
+    parser_featuremap_to_dataframe.set_defaults(func=call_featuremap_to_dataframe)
+
+    args = parser.parse_args()
+    args.func(args)
