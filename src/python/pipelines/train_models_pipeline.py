@@ -11,8 +11,9 @@ import logging
 
 ap = argparse.ArgumentParser(prog="train_models_pipeline.py",
                              description="Train filtering models on the concordance file")
-grp = ap.add_mutually_exclusive_group(required=True)
-grp.add_argument("--input_file", help="Name of the input h5/vcf file", type=str)
+
+ap.add_argument("--input_file", help="Name of the input h5/vcf file", type=str)
+ap.add_argument("--input_file_index", help="Name of the input vcf index file", type=str, required=False)
 ap.add_argument("--blacklist", help="blacklist file by which we decide variants as FP", type=str, required=sys.argv[0])
 ap.add_argument("--output_file_prefix", help="Output .pkl file with models, .h5 file with results",
                 type=str, required=False)
@@ -22,15 +23,42 @@ ap.add_argument("--evaluate_concordance", help="Should the results of the model 
 ap.add_argument("--apply_model",
                 help="If evaluate_concordance - which model should be applied", type=str, required='--evaluate_concordance' in sys.argv)
 ap.add_argument("--input_interval", help="bed file of intersected intervals from run_comparison pipeline",
-                type=str, required=True)
+                type=str, required=False)
 ap.add_argument("--list_of_contigs_to_read", nargs='*', help="List of contigs to read from the DF", default=[])
+ap.add_argument("--reference", help='Reference genome',
+                required=False, type=str)
+ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
+                required=False, type=str, default=None)
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
+
+logging.basicConfig(level=getattr(logging, args.verbosity),
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__ if __name__ != "__main__" else "train_model_pipeline")
+
 try:
-    with_dbsnp_bl = not args.input_file.endswith('vcf.gz')
+    if args.input_file.endswith('h5'):
+        assert args.input_interval,\
+            "--input_interval is required when input file type is h5"
+    if args.input_file.endswith('vcf.gz'):
+        assert args.blacklist,\
+            "--blacklist is required when input file type is vcf.gz"
+        assert args.reference,\
+            "--reference is required when input file type is vcf.gz"
+        assert args.runs_intervals,\
+            "--runs_intervals is required when input file type is vcf.gz"
+        assert args.input_file_index,\
+            "--input_file_index is required when input file type is vcf.gz"
+except AssertionError as af:
+    logger.error(str(af))
+    raise af
+
+try:
+    with_dbsnp_bl = args.input_file.endswith('vcf.gz')
     if with_dbsnp_bl:
         df = vcftools.get_vcf_df(args.input_file)
+        df = vcf_pipeline_utils.annotate_concordance(df, args.reference, runfile=args.runs_intervals)
     else:
         ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         df = []
@@ -49,7 +77,7 @@ try:
         pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
     df_clean = df[
         np.logical_not(df.close_to_hmer_run) & np.logical_not(df.inside_hmer_run)].copy()
-    interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
+
 
     results_dict = {}
 
@@ -65,8 +93,10 @@ try:
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
         cassify_clm = 'bl_classify'
+        interval_size = None
     else:
         cassify_clm = 'classify'
+        interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
     # Thresholding model
     models_thr_no_gt, models_reg_thr_no_gt, df_tmp = \
@@ -135,8 +165,11 @@ try:
                         key="recall_precision_curve")
 
     if args.evaluate_concordance:
-
-        concordance = pd.read_hdf(args.input_file, "concordance")
+        if with_dbsnp_bl:
+            concordance = vcftools.get_vcf_df(args.input_file, chromosome='chr9')
+            concordance = vcf_pipeline_utils.annotate_concordance(df, args.reference, runfile=args.runs_intervals)
+        else:
+            concordance = pd.read_hdf(args.input_file, "concordance")
 
         if args.mutect:
             concordance['qual'] = concordance['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10

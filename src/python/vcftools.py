@@ -40,8 +40,8 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
                'AC', 'AN', 'BaseQRankSum', 'ExcessHet', 'MLEAC', 'MLEAF', 'MQRankSum', 'ReadPosRankSum', 'XC', 'ID',
                'GNOMAD_AF','NLOD','NALOD']
 
-    concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
-    concordance_df.columns = columns
+    concordance_df = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[x.lower() for x in columns])
+
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
