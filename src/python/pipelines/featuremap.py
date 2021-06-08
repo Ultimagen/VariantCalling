@@ -338,6 +338,15 @@ def get_cycle_skip_dataframe(flow_order="TGCA"):
     return df_cskp.set_index(["ref_motif", "alt_motif"])
 
 
+def merge_featuremap_dataframes(dataframes, outfile, n_jobs=1):
+    df = pd.concat(
+        Parallel(n_jobs=n_jobs)(delayed(pd.read_parquet)(f) for f in dataframes)
+    )
+    df = df.sort_index()
+    df.to_parquet(outfile)
+    return df
+
+
 def call_featuremap_to_dataframe(args_in):
     if args_in.input is None:
         raise ValueError("No input provided")
@@ -353,6 +362,15 @@ def call_featuremap_to_dataframe(args_in):
     sys.stdout.write("DONE\n")
 
 
+def call_merge_featuremap_dataframes(args_in):
+    if args_in.input is None:
+        raise ValueError("No input provided")
+    merge_featuremap_dataframes(
+        dataframes=args_in.input, outfile=args_in.output, n_jobs=args_in.jobs,
+    )
+    sys.stdout.write("DONE\n")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
@@ -360,6 +378,11 @@ if __name__ == "__main__":
     parser_featuremap_to_dataframe = subparsers.add_parser(
         name="to_dataframe", description="""Convert featuremap to pandas dataframe""",
     )
+    parser_concat_dataframes = subparsers.add_parser(
+        name="concat_dataframes",
+        description="""Concat featuremap pandas dataframe created on different intevals""",
+    )
+
     parser_featuremap_to_dataframe.add_argument(
         "-i", "--input", type=str, required=True, help="input featuremap file",
     )
@@ -407,6 +430,24 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
     )
 
     parser_featuremap_to_dataframe.set_defaults(func=call_featuremap_to_dataframe)
+
+    parser_concat_dataframes.add_argument(
+        "input", nargs="+", type=str, help="input featuremap files",
+    )
+    parser_concat_dataframes.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        required=True,
+        help="""Path to which output dataframe will be written, if None a file with the same name as input and 
+    ".parquet" extension will be created""",
+    )
+    parser_concat_dataframes.add_argument(
+        "-j", "--jobs", type=int, default=1, help="Number of jobs to run in parallel (default 1, -1 for max)",
+    )
+
+    parser_concat_dataframes.set_defaults(func=call_merge_featuremap_dataframes)
 
     args = parser.parse_args()
     args.func(args)
