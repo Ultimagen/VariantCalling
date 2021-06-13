@@ -14,7 +14,7 @@ ap = argparse.ArgumentParser(prog="train_models_pipeline.py",
 
 ap.add_argument("--input_file", help="Name of the input h5/vcf file", type=str)
 ap.add_argument("--input_file_index", help="Name of the input vcf index file", type=str, required=False)
-ap.add_argument("--blacklist", help="blacklist file by which we decide variants as FP", type=str, required=sys.argv[0])
+ap.add_argument("--blacklist", help="blacklist file by which we decide variants as FP", type=str, required=False)
 ap.add_argument("--output_file_prefix", help="Output .pkl file with models, .h5 file with results",
                 type=str, required=False)
 ap.add_argument("--mutect", required=False, action="store_true")
@@ -87,8 +87,6 @@ try:
 
         df['bl_classify'] = 'unknown'
         df['bl_classify'].loc[df['bl'] == True] = 'fp'
-        #is_common = df['gnomad_af'].apply(lambda x: x[0] if type(x) == tuple else 0)
-        #df.loc[is_common > 0.001, 'bl_classify'] = 'tp'
         df['bl_classify'].loc[~df['id'].isna()] = 'tp'
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
@@ -135,7 +133,7 @@ try:
 
     optdict = {}
     prcdict = {}
-    name_optimum = f'dt_model_recall_precision_ignore_gt_incl_hpol_runs'
+    name_optimum = 'dt_model_recall_precision_ignore_gt_incl_hpol_runs'
     optdict[name_optimum] = results_dict[name_optimum]
     prcdict[name_optimum] = results_dict[name_optimum.replace(
         "recall_precision", "recall_precision_curve")]
@@ -199,7 +197,7 @@ try:
             apply(lambda x: x.replace('PASS', ''))
         concordance.loc[concordance['prediction']=='fp','filter'] = \
             concordance.loc[concordance['prediction']=='fp','filter'].apply(
-            lambda x: 'LOW_SCORE'if x=='' else x+';LOW_SCORE')
+            lambda x: 'LOW_SCORE' if x=='' else x+';LOW_SCORE')
         concordance.loc[concordance['prediction'] == 'tp','filter'] = \
             concordance.loc[concordance['prediction'] == 'tp','filter'].apply(
             lambda x: 'PASS' if x == '' else x + ';PASS')
