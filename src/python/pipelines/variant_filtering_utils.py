@@ -16,10 +16,10 @@ import matplotlib.pyplot as plt
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
-            'ad','af', 'fs','qd','mq','pl','gt',#'as_sor','as_sorp','vqsr_val','tlod',
-            'gq','ps','ac','an',#'pgt','pid'
+            'ad','af', 'fs','qd','mq','pl','gt',
+            'gq','ps','ac','an',
             'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
-            'indel','left_motif','right_motif','alleles','cycleskip_status']#,'variant_type','dp_r','dp_f','strandq'
+            'indel','left_motif','right_motif','alleles','cycleskip_status']
 
 logger = logging.getLogger(__name__)
 class SingleModel:
@@ -108,7 +108,6 @@ class MaskedHierarchicalModel:
 
         apply_df = df[~mask]
         groups = set(df[self.group_column])
-        #groups.remove('snp')
         gvecs = [df[self.group_column] == g for g in groups]
         result = pd.Series(['fn'] * df.shape[0], index=df.index)
         for i, g in enumerate(groups):
@@ -411,15 +410,6 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       ('alleles', [tuple_filter, allele_filter]),
                       ('alleles', [tuple_filter_second, allele_filter])
 
-                      #(['cycleskip_status'], default_filler),
-                      #('variant_type', None),
-                      # (['dp_r'], default_filler),
-                      # (['tlod'], default_filler),
-                      # (['strandq'], default_filler),
-                      # (['as_sor'], default_filler),
-                      # (['as_sorp'], default_filler),
-                      # (['vqsr_val'], default_filler),
-
                       ]
     transformer = sklearn_pandas.DataFrameMapper(
         transform_list, df_out=output_df)
@@ -476,10 +466,6 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
 
     model1 = DecisionTreeRegressor(max_depth=5)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
-
-#    min_max_scaler = preprocessing.MinMaxScaler()
-#    train_data_scaled = min_max_scaler.fit_transform(train_data)
-
     model1.fit(train_data, enclabels)
     importances = model.feature_importances_
     feature_names = ['sor','dp','qual','hmer_indel_nuc','inside_hmer_run','close_to_hmer_run', 'hmer_indel_length','indel_length',
@@ -538,7 +524,7 @@ def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_trai
         pd.Series:
             FPR value for each variant sorted in increased order
         '''
-    # in case we do not want ot run frp - interval_size is None
+    # in case we do not run frp - interval_size is None
     if interval_size is None:
         return np.zeros(len(tree_scores)), pd.Series(np.zeros(len(tree_scores)))
     train_part = sum(test_train_split)/len(test_train_split)
@@ -850,7 +836,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
 
-    for g in groups:#(g for g in groups if g !='SNP'):
+    for g in groups:
         select = (concordance["group_testing"] == g) & \
                  (~concordance["test_train_split"])
 
