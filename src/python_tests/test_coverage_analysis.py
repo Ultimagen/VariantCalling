@@ -34,4 +34,5 @@ def test_coverage_analysis():
             pjoin(tmpdir, "170201-BC23.coverage_stats.q0.Q0.l0.h5"), "percentiles"
         )
         df_ref = pd.read_parquet(f_ref)
+        df.to_parquet("/data/tmp/1")
         assert np.allclose(df.fillna(-1), df_ref.fillna(-1))
