@@ -194,6 +194,15 @@ try:
 
         concordance['prediction'] = predictions
         concordance['tree_score'] = predictions_score
+        concordance['filter'] = concordance['filter'].apply(lambda x: x.replace('PASS;', '')).\
+            apply(lambda x: x.replace(';PASS', '')).\
+            apply(lambda x: x.replace('PASS', ''))
+        concordance.loc[concordance['prediction']=='fp','filter'] = \
+            concordance.loc[concordance['prediction']=='fp','filter'].apply(
+            lambda x: 'LOW_SCORE'if x=='' else x+';LOW_SCORE')
+        concordance.loc[concordance['prediction'] == 'tp','filter'] = \
+            concordance.loc[concordance['prediction'] == 'tp','filter'].apply(
+            lambda x: 'PASS' if x == '' else x + ';PASS')
         concordance.to_hdf(args.output_file_prefix +
                            ".h5", key="scored_concordance")
     print("Model training run: success", file=sys.stderr, flush=True)
