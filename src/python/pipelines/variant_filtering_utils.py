@@ -306,16 +306,25 @@ def calculate_threshold_model(results):
 
 
 def tuple_break(x):
+    '''Returns the first element in the tuple
+    '''
     if type(x) == tuple:
         return x[0]
     return 0 if np.isnan(x) else x
 
 def tuple_break_second(x):
+    '''Returns the second element in the tuple
+    '''
     if type(x) == tuple:
         return x[1]
     return 0 if np.isnan(x) else x
 
+
 def motif_encode_left(x):
+    '''Gets motif as input and translates it into integer
+    by bases mapping and order of the bases
+    The closes to the variant is the most significant bit
+    '''
     bases = {'A':1,
              'T':2,
              'G':3,
@@ -323,20 +332,21 @@ def motif_encode_left(x):
              'N':5}
     x_list = list(x)
     x_list.reverse()
-    # return bases[x_list[0]]
     num=0
     for c in x_list:
         num = 10 * num + bases.get(c,0)
     return num
 
 def motif_encode_right(x):
+    '''Gets motif as input and translates it into integer
+    by bases mapping and order of the bases
+    The closes to the variant is the most significant bit
+    '''
     bases = {'A':1,
              'T':2,
              'G':3,
              'C':4,
              'N':5}
-    # x_list = list(x)
-    # return bases[x_list[0]]
     x_list = list(x)
     num=0
     for c in x_list:
@@ -344,6 +354,9 @@ def motif_encode_right(x):
     return num
 
 def allele_encode(x):
+    '''Translate base into integer.
+    In case we don't get a single base, we return zero
+    '''
     bases = {'A':1,
              'T':2,
              'G':3,
@@ -351,6 +364,8 @@ def allele_encode(x):
     return bases.get(x,0)
 
 def gt_encode(x):
+    '''Checks whether the variant is heterozygous(0) or homozygous(1)
+    '''
     if x == (1,1):
         return 1
     return 0
@@ -372,8 +387,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
     tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
     tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
-    left_motid_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
-    right_motid_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
+    left_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
+    right_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
     allele_filter = sklearn_pandas.FunctionTransformer(allele_encode)
     gt_filter = sklearn_pandas.FunctionTransformer(gt_encode)
 
@@ -404,8 +419,8 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
                       (['readposranksum'], default_filler),
                       (['xc'], default_filler),
                       ('indel', None),
-                      ('left_motif', [left_motid_filter]),
-                      ('right_motif', [right_motid_filter]),
+                      ('left_motif', [left_motif_filter]),
+                      ('right_motif', [right_motif_filter]),
                       ('cycleskip_status', preprocessing.LabelEncoder()),
                       ('alleles', [tuple_filter, allele_filter]),
                       ('alleles', [tuple_filter_second, allele_filter])
@@ -449,35 +464,12 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     _validate_data(train_data)
     _validate_data(labels.to_numpy())
 
-    model = DecisionTreeClassifier(max_depth=7)
+    model = DecisionTreeClassifier(max_depth=5)
     model.fit(train_data, labels)
-    importances = model.feature_importances_
-
-    feature_names = ['sor','dp','qual','hmer_indel_nuc','inside_hmer_run','close_to_hmer_run', 'hmer_indel_length','indel_length',
-    'ad','af','fs','qd','mq','pl','gt','gq','ps','ac','an','baseqranksum','excesshet','mleac','mleaf',
-    'mqranksum','readposranksum', 'xc', 'indel','left_motif','right_motif','cycleskip_status','alleles','alleles2']
-    forest_importances = pd.Series(importances, index=feature_names)
-    fig, ax = plt.subplots()
-    forest_importances.plot.bar( ax=ax)
-    ax.set_title(f"Model {group}")
-    ax.set_ylabel("Mean decrease in impurity")
-    fig.tight_layout()
-    fig.show()
 
     model1 = DecisionTreeRegressor(max_depth=5)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
-    importances = model.feature_importances_
-    feature_names = ['sor','dp','qual','hmer_indel_nuc','inside_hmer_run','close_to_hmer_run', 'hmer_indel_length','indel_length',
-    'ad','af','fs','qd','mq','pl','gt','gq','ps','ac','an','baseqranksum','excesshet','mleac','mleaf',
-    'mqranksum','readposranksum', 'xc', 'indel','left_motif','right_motif','cycleskip_status','alleles','alleles2']
-    forest_importances = pd.Series(importances, index=feature_names)
-    fig, ax = plt.subplots()
-    forest_importances.plot.bar( ax=ax)
-    ax.set_title(f"Model1 {group}")
-    ax.set_ylabel("Mean decrease in impurity")
-    fig.tight_layout()
-    fig.show()
     tree_scores = model1.predict(train_data)
     if gtr_column == 'classify':  ## there is gt
         tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
@@ -646,8 +638,10 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
     for group in df['group'].unique():
         select = df['group'] == group
         tree_score_fpr_group = tree_score_fpr[group]
-        fpr_values.loc[select] = np.interp(
-            prediction_score.loc[select], tree_score_fpr_group.iloc[:, 0], tree_score_fpr_group.iloc[:, 1])
+        if tree_score_fpr_group is not None:
+            # it is None in case we didn't run training on gt, but on dbsnp and blacklist
+            fpr_values.loc[select] = np.interp(
+                prediction_score.loc[select], tree_score_fpr_group.iloc[:, 0], tree_score_fpr_group.iloc[:, 1])
     return fpr_values
 
 
@@ -796,8 +790,6 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
-        print(f'test_decision_tree_model {g}')
-        print(group_ground_truth.shape)
 
         recall = metrics.recall_score(
             group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
@@ -845,9 +837,6 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         group_predictions[group_ground_truth == 'fn'] = -1
         # this is a change to calculate recall correctly
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
-
-        print(f'get_decision_tree_precision_recall_curve {g}')
-        print(group_ground_truth.shape)
 
         curve = utils.precision_recall_curve(np.array(group_ground_truth), np.array(
             group_predictions), pos_label="tp", fn_score=-1)
