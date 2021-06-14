@@ -12,11 +12,11 @@ import logging
 ap = argparse.ArgumentParser(prog="train_models_pipeline.py",
                              description="Train filtering models on the concordance file")
 
-ap.add_argument("--input_file", help="Name of the input h5/vcf file", type=str)
+ap.add_argument("--input_file", help="Name of the input h5/vcf file. h5 is output of comparison", type=str)
 ap.add_argument("--input_file_index", help="Name of the input vcf index file", type=str, required=False)
 ap.add_argument("--blacklist", help="blacklist file by which we decide variants as FP", type=str, required=False)
 ap.add_argument("--output_file_prefix", help="Output .pkl file with models, .h5 file with results",
-                type=str, required=False)
+                type=str, required=True)
 ap.add_argument("--mutect", required=False, action="store_true")
 ap.add_argument("--evaluate_concordance", help="Should the results of the model be applied to the concordance dataframe",
                 action="store_true")
@@ -75,8 +75,6 @@ try:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50)*10
     df.loc[
         pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
-    df_clean = df[
-        np.logical_not(df.close_to_hmer_run) & np.logical_not(df.inside_hmer_run)].copy()
 
 
     results_dict = {}
@@ -90,20 +88,20 @@ try:
         df['bl_classify'].loc[~df['id'].isna()] = 'tp'
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
-        cassify_clm = 'bl_classify'
+        classify_clm = 'bl_classify'
         interval_size = None
     else:
-        cassify_clm = 'classify'
+        classify_clm = 'classify'
         interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
     # Thresholding model
     models_thr_no_gt, models_reg_thr_no_gt, df_tmp = \
         variant_filtering_utils.train_threshold_models(
-            df.copy(), interval_size, classify_column=cassify_clm)
+            df.copy(), interval_size, classify_column=classify_clm)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_thr_no_gt, classify_column=cassify_clm)
+        df_tmp, models_thr_no_gt, classify_column=classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_thr_no_gt, classify_column=cassify_clm)
+        df_tmp, models_reg_thr_no_gt, classify_column=classify_clm)
 
     results_dict[
         'threshold_model_ignore_gt_incl_hpol_runs'] = models_thr_no_gt, models_reg_thr_no_gt
@@ -115,11 +113,11 @@ try:
     # decision tree model
     models_dt_no_gt, models_reg_dt_no_gt, df_tmp = \
         variant_filtering_utils.train_decision_tree_model(df.copy(),
-                                                          classify_column=cassify_clm, interval_size=interval_size)
+                                                          classify_column=classify_clm, interval_size=interval_size)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_dt_no_gt, cassify_clm)
+        df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_dt_no_gt, cassify_clm)
+        df_tmp, models_reg_dt_no_gt, classify_clm)
 
     results_dict[
         'dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
@@ -192,6 +190,7 @@ try:
 
         concordance['prediction'] = predictions
         concordance['tree_score'] = predictions_score
+        # In case we already have filter column, reset the PASS
         concordance['filter'] = concordance['filter'].apply(lambda x: x.replace('PASS;', '')).\
             apply(lambda x: x.replace(';PASS', '')).\
             apply(lambda x: x.replace('PASS', ''))

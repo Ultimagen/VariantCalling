@@ -485,7 +485,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         original.drop('qual', axis=1, inplace=True)
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
-    #concordance = concordance_df.join(original.drop(['chrom', 'pos'], axis=1))
     concordance = concordance_df.join(original.drop(['chrom', 'pos', 'alleles', 'indel','ref'], axis=1))
     only_ref = concordance['alleles'].apply(len) == 1
     concordance = concordance[~only_ref]
@@ -548,7 +547,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = annotation.fill_filter_column(df)
 
     logger.info("Filling filter column")
-    df = annotation.annotate_cycle_skip(df, flow_order="TACG")
+    df = annotation.annotate_cycle_skip(df, flow_order=flow_order)
     return df
 
 

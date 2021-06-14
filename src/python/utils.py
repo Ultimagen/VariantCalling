@@ -280,7 +280,7 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     Returns
     -------
     tuple
-        precisions, recalls
+        precisions, recalls, prediction_values
     '''
     asidx = np.argsort(predictions)
     predictions = predictions[asidx]
@@ -293,10 +293,8 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     mask = (tp_counts + fp_counts < 20) | (tp_counts + fn_counts < 20)
     precisions = tp_counts / (tp_counts + fp_counts)
     recalls = tp_counts / (tp_counts + fn_counts)
-    try:
-        f1 = 2 * (recalls * precisions) / (recalls + precisions)
-    except:
-        f1 = np.Series(np.zeros(len(precisions)))
+    f1 = 2 * (recalls * precisions) / (recalls + precisions + np.finfo(float).eps)
+
 
 
     trim_idx = np.argmax(predictions > fn_score)
