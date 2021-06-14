@@ -58,6 +58,9 @@ def _collect_coverage_per_motif(chr_str, depth_file, reference_fasta, size=5, N=
         for j, line in enumerate(f):
             if j % N != 0:
                 continue
+            if isinstance(line, bytes):
+                line = line.decode()
+            line = line.strip()
             spl = line.split("\t")
             pos = int(spl[1])
             cov = int(spl[3])
