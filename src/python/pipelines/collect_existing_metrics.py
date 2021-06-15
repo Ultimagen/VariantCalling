@@ -37,11 +37,10 @@ for metric_file in args.metric_files:
              histogram.to_hdf(args.output_h5, key= "histogram_" + metric_class, mode="a")
 
 if args.coverage_h5 is not None:
-    cvg_h5_stats = pd.read_hdf(args.coverage_h5, key="stats")
     cvg_h5_histogram = pd.read_hdf(args.coverage_h5, key="histogram")
-    cvg_df=pd.DataFrame(cvg_h5_stats.loc[("5th percentile","10th percentile","median coverage","median coverage (normalized to median genome coverage)","% bases with coverage >= 10x","% bases with coverage >= 20x"),:])
-    cvg_df=cvg_df.rename(index={"median coverage (normalized to median genome coverage)":"median_coverage_normalized","median coverage": "median_coverage","5th percentile":"5th_percentile","10th percentile": "10th_percentile","% bases with coverage >= 20x":"percent_bases_above_20x","% bases with coverage >= 10x":"percent_bases_above_10x"})
-    cvg_df_unstacked=pd.DataFrame(cvg_df.unstack(level=0)).T
+    cvg_df = pd.read_hdf(args.coverage_h5, key="stats")
+    # cvg_df.columns = [c.replace(" ", "_") for c in cvg_df.columns]
+    cvg_df_unstacked = pd.DataFrame(cvg_df.unstack(level=0)).T
     cvg_df_unstacked.to_hdf(args.output_h5,key="stats_coverage", mode="a")
     cvg_h5_histogram.to_hdf(args.output_h5,key="histogram_coverage", mode="a")
 
