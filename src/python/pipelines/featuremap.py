@@ -87,7 +87,7 @@ def _collect_coverage_per_motif(
 
 
 def collect_coverage_per_motif(
-    depth_files: dict or Iterable,
+    depth_files,
     reference_fasta: str,
     outfile: str = None,
     show_stats: bool = False,
@@ -367,7 +367,7 @@ def get_cycle_skip_dataframe(flow_order: str = "TGCA"):
     return df_cskp.set_index(["ref_motif", "alt_motif"])
 
 
-def merge_featuremap_dataframes(dataframes: list[str], outfile: str, n_jobs: int = 1):
+def merge_featuremap_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
     df = pd.concat(
         Parallel(n_jobs=n_jobs)(delayed(pd.read_parquet)(f) for f in dataframes)
     )
