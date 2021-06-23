@@ -92,6 +92,7 @@ def _collect_coverage_per_motif(
     -------
 
     """
+
     chrom = pyfaidx.Fasta(reference_fasta)[chr_str]
 
     counter = defaultdict(lambda: 0)
@@ -180,7 +181,7 @@ def collect_coverage_per_motif(
         depth_files = {_extract_chrom(fname): fname for fname in depth_files}
 
     df = pd.concat(
-        Parallel(n_jobs=n_jobs)(
+        Parallel(n_jobs=n_jobs, backend="threading")(
             delayed(_collect_coverage_per_motif)(
                 chr_str, depth_file, reference_fasta, size=size, N=N
             )
