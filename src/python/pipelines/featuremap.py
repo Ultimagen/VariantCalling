@@ -436,9 +436,9 @@ def calculate_snp_error_rate(
     if len(out_basename) > 0 and not out_basename.endswith("."):
         out_basename += "."
     out_coverage_per_motif = pjoin(out_path, f"{out_basename}coverage_per_motif.h5")
-    out_snp_rate = pjoin(out_path, f"{out_basename}snp_rate.h5")
+    out_snp_rate = pjoin(out_path, f"{out_basename}snp_error_rate.h5")
     out_snp_rate_plots = {
-        th: pjoin(out_path, f"{out_basename}snp_rate_threshold{th}.png")
+        th: pjoin(out_path, f"{out_basename}snp_error_rate_threshold{th}.png")
         for th in xscore_thresholds
     }
 
@@ -581,7 +581,6 @@ def calculate_snp_error_rate(
     )
 
     logger.debug(f"Setting non-cycle skip motifs at X-SCORE>=6 to NaN")
-    print(df_motifs_1.head(10))
     for th in xscore_thresholds:
         if th >= 6:
             df_motifs_2.loc[:, f"snp_count_thresh{th}"] = df_motifs_2[
@@ -590,7 +589,6 @@ def calculate_snp_error_rate(
             df_motifs_1.loc[:, f"snp_count_thresh{th}"] = df_motifs_1[
                 f"snp_count_thresh{th}"
             ].where(df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP)
-    print(df_motifs_1.head(10))
 
     logger.debug(f"Assigning error rates")
     for df_tmp in [df_motifs_0, df_motifs_1, df_motifs_2]:
