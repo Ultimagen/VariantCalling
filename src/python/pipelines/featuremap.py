@@ -962,7 +962,7 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         help="Number of jobs to run in parallel (default 1, -1 for max)",
     )
 
-    parser_coverage_per_motif.set_defaults(func=call_merge_featuremap_dataframes)
+    parser_concat_dataframes.set_defaults(func=call_merge_featuremap_dataframes)
 
     parser_coverage_per_motif.add_argument(
         "input", nargs="+", type=str, help="input depth files",
