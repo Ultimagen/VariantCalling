@@ -31,19 +31,11 @@ def preprocess_columns(dataframe):
                 MULTI_INDEX_SEPARATOR) for col in dataframe.columns.values]
 
 
-def preprocess_json_for_mongodb(json_string: str):
-    """Replace characters which are invalid in MongoDB."""
-    result = json_string
-    result = result.replace("%", "_Percent")
-    result = result.replace("$", "__")
-    return result
-
-
 def log(str: str):
     print(str)
 
 
-def convert_h5_to_json(input_h5_filename: str, root_element: str, mongodb_preprocessing: bool, ignored_h5_key_substring: str):
+def convert_h5_to_json(input_h5_filename: str, root_element: str, ignored_h5_key_substring: str):
     """Convert an .h5 metrics file to .json with control over the root element and the processing
 
     Parameters
@@ -53,9 +45,6 @@ def convert_h5_to_json(input_h5_filename: str, root_element: str, mongodb_prepro
 
     root_element: str
         Root element of the returned json
-
-    mongodb_preprocessing: bool
-        Do preprocessing to adapt the JSON file to MongoDB
 
     ignored_h5_key_substring: str
         A way to filter some of the keys using substring match
@@ -81,6 +70,4 @@ def convert_h5_to_json(input_h5_filename: str, root_element: str, mongodb_prepro
         new_json_dict[root_element][preprocess_h5_key(h5_key)] = json_dict
 
     json_string = json.dumps(new_json_dict, indent=4)
-    if mongodb_preprocessing:
-        json_string = preprocess_json_for_mongodb(json_string)
-    return json_string 
+    return json_string
