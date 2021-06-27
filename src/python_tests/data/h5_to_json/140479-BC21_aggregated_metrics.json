@@ -866,651 +866,651 @@
                         "type": "integer"
                     },
                     {
-                        "name": "Genome (100_Percent)___5th_percentile",
+                        "name": "Genome (100%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Genome (100_Percent)___10th_percentile",
+                        "name": "Genome (100%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Genome (100_Percent)___median_coverage",
+                        "name": "Genome (100%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Genome (100_Percent)___median_coverage_normalized",
+                        "name": "Genome (100%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Genome (100_Percent)___percent_bases_above_10x",
+                        "name": "Genome (100%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Genome (100_Percent)___percent_bases_above_20x",
+                        "name": "Genome (100%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Exome (WG) (1_Percent)___5th_percentile",
+                        "name": "Exome (WG) (1%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Exome (WG) (1_Percent)___10th_percentile",
+                        "name": "Exome (WG) (1%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Exome (WG) (1_Percent)___median_coverage",
+                        "name": "Exome (WG) (1%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Exome (WG) (1_Percent)___median_coverage_normalized",
+                        "name": "Exome (WG) (1%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Exome (WG) (1_Percent)___percent_bases_above_10x",
+                        "name": "Exome (WG) (1%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Exome (WG) (1_Percent)___percent_bases_above_20x",
+                        "name": "Exome (WG) (1%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "ACMG59 (WG) (0_Percent)___5th_percentile",
+                        "name": "ACMG59 (WG) (0%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "ACMG59 (WG) (0_Percent)___10th_percentile",
+                        "name": "ACMG59 (WG) (0%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "ACMG59 (WG) (0_Percent)___median_coverage",
+                        "name": "ACMG59 (WG) (0%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "ACMG59 (WG) (0_Percent)___median_coverage_normalized",
+                        "name": "ACMG59 (WG) (0%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "ACMG59 (WG) (0_Percent)___percent_bases_above_10x",
+                        "name": "ACMG59 (WG) (0%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "ACMG59 (WG) (0_Percent)___percent_bases_above_20x",
+                        "name": "ACMG59 (WG) (0%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Exon 1 (0_Percent)___5th_percentile",
+                        "name": "Exon 1 (0%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Exon 1 (0_Percent)___10th_percentile",
+                        "name": "Exon 1 (0%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Exon 1 (0_Percent)___median_coverage",
+                        "name": "Exon 1 (0%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Exon 1 (0_Percent)___median_coverage_normalized",
+                        "name": "Exon 1 (0%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Exon 1 (0_Percent)___percent_bases_above_10x",
+                        "name": "Exon 1 (0%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Exon 1 (0_Percent)___percent_bases_above_20x",
+                        "name": "Exon 1 (0%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Exon >1 (2_Percent)___5th_percentile",
+                        "name": "Exon >1 (2%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Exon >1 (2_Percent)___10th_percentile",
+                        "name": "Exon >1 (2%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Exon >1 (2_Percent)___median_coverage",
+                        "name": "Exon >1 (2%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Exon >1 (2_Percent)___median_coverage_normalized",
+                        "name": "Exon >1 (2%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Exon >1 (2_Percent)___percent_bases_above_10x",
+                        "name": "Exon >1 (2%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Exon >1 (2_Percent)___percent_bases_above_20x",
+                        "name": "Exon >1 (2%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Regulatory (WG) (8_Percent)___5th_percentile",
+                        "name": "Regulatory (WG) (8%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Regulatory (WG) (8_Percent)___10th_percentile",
+                        "name": "Regulatory (WG) (8%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Regulatory (WG) (8_Percent)___median_coverage",
+                        "name": "Regulatory (WG) (8%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Regulatory (WG) (8_Percent)___median_coverage_normalized",
+                        "name": "Regulatory (WG) (8%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Regulatory (WG) (8_Percent)___percent_bases_above_10x",
+                        "name": "Regulatory (WG) (8%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Regulatory (WG) (8_Percent)___percent_bases_above_20x",
+                        "name": "Regulatory (WG) (8%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 10-20 (1_Percent)___5th_percentile",
+                        "name": "GC 10-20 (1%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 10-20 (1_Percent)___10th_percentile",
+                        "name": "GC 10-20 (1%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 10-20 (1_Percent)___median_coverage",
+                        "name": "GC 10-20 (1%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 10-20 (1_Percent)___median_coverage_normalized",
+                        "name": "GC 10-20 (1%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 10-20 (1_Percent)___percent_bases_above_10x",
+                        "name": "GC 10-20 (1%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 10-20 (1_Percent)___percent_bases_above_20x",
+                        "name": "GC 10-20 (1%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 20-30 (12_Percent)___5th_percentile",
+                        "name": "GC 20-30 (12%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 20-30 (12_Percent)___10th_percentile",
+                        "name": "GC 20-30 (12%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 20-30 (12_Percent)___median_coverage",
+                        "name": "GC 20-30 (12%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 20-30 (12_Percent)___median_coverage_normalized",
+                        "name": "GC 20-30 (12%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 20-30 (12_Percent)___percent_bases_above_10x",
+                        "name": "GC 20-30 (12%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 20-30 (12_Percent)___percent_bases_above_20x",
+                        "name": "GC 20-30 (12%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 30-40 (36_Percent)___5th_percentile",
+                        "name": "GC 30-40 (36%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 30-40 (36_Percent)___10th_percentile",
+                        "name": "GC 30-40 (36%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 30-40 (36_Percent)___median_coverage",
+                        "name": "GC 30-40 (36%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 30-40 (36_Percent)___median_coverage_normalized",
+                        "name": "GC 30-40 (36%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 30-40 (36_Percent)___percent_bases_above_10x",
+                        "name": "GC 30-40 (36%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 30-40 (36_Percent)___percent_bases_above_20x",
+                        "name": "GC 30-40 (36%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 40-50 (30_Percent)___5th_percentile",
+                        "name": "GC 40-50 (30%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 40-50 (30_Percent)___10th_percentile",
+                        "name": "GC 40-50 (30%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 40-50 (30_Percent)___median_coverage",
+                        "name": "GC 40-50 (30%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 40-50 (30_Percent)___median_coverage_normalized",
+                        "name": "GC 40-50 (30%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 40-50 (30_Percent)___percent_bases_above_10x",
+                        "name": "GC 40-50 (30%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 40-50 (30_Percent)___percent_bases_above_20x",
+                        "name": "GC 40-50 (30%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 50-60 (17_Percent)___5th_percentile",
+                        "name": "GC 50-60 (17%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 50-60 (17_Percent)___10th_percentile",
+                        "name": "GC 50-60 (17%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 50-60 (17_Percent)___median_coverage",
+                        "name": "GC 50-60 (17%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 50-60 (17_Percent)___median_coverage_normalized",
+                        "name": "GC 50-60 (17%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 50-60 (17_Percent)___percent_bases_above_10x",
+                        "name": "GC 50-60 (17%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 50-60 (17_Percent)___percent_bases_above_20x",
+                        "name": "GC 50-60 (17%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 60-70 (5_Percent)___5th_percentile",
+                        "name": "GC 60-70 (5%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 60-70 (5_Percent)___10th_percentile",
+                        "name": "GC 60-70 (5%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 60-70 (5_Percent)___median_coverage",
+                        "name": "GC 60-70 (5%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 60-70 (5_Percent)___median_coverage_normalized",
+                        "name": "GC 60-70 (5%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 60-70 (5_Percent)___percent_bases_above_10x",
+                        "name": "GC 60-70 (5%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 60-70 (5_Percent)___percent_bases_above_20x",
+                        "name": "GC 60-70 (5%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 70-80 (1_Percent)___5th_percentile",
+                        "name": "GC 70-80 (1%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 70-80 (1_Percent)___10th_percentile",
+                        "name": "GC 70-80 (1%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 70-80 (1_Percent)___median_coverage",
+                        "name": "GC 70-80 (1%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 70-80 (1_Percent)___median_coverage_normalized",
+                        "name": "GC 70-80 (1%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 70-80 (1_Percent)___percent_bases_above_10x",
+                        "name": "GC 70-80 (1%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 70-80 (1_Percent)___percent_bases_above_20x",
+                        "name": "GC 70-80 (1%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 80-90 (0_Percent)___5th_percentile",
+                        "name": "GC 80-90 (0%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 80-90 (0_Percent)___10th_percentile",
+                        "name": "GC 80-90 (0%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 80-90 (0_Percent)___median_coverage",
+                        "name": "GC 80-90 (0%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 80-90 (0_Percent)___median_coverage_normalized",
+                        "name": "GC 80-90 (0%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 80-90 (0_Percent)___percent_bases_above_10x",
+                        "name": "GC 80-90 (0%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 80-90 (0_Percent)___percent_bases_above_20x",
+                        "name": "GC 80-90 (0%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 90-100 (0_Percent)___5th_percentile",
+                        "name": "GC 90-100 (0%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 90-100 (0_Percent)___10th_percentile",
+                        "name": "GC 90-100 (0%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "GC 90-100 (0_Percent)___median_coverage",
+                        "name": "GC 90-100 (0%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "GC 90-100 (0_Percent)___median_coverage_normalized",
+                        "name": "GC 90-100 (0%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "GC 90-100 (0_Percent)___percent_bases_above_10x",
+                        "name": "GC 90-100 (0%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "GC 90-100 (0_Percent)___percent_bases_above_20x",
+                        "name": "GC 90-100 (0%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Unique (94_Percent)___5th_percentile",
+                        "name": "Unique (94%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Unique (94_Percent)___10th_percentile",
+                        "name": "Unique (94%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Unique (94_Percent)___median_coverage",
+                        "name": "Unique (94%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Unique (94_Percent)___median_coverage_normalized",
+                        "name": "Unique (94%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Unique (94_Percent)___percent_bases_above_10x",
+                        "name": "Unique (94%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Unique (94_Percent)___percent_bases_above_20x",
+                        "name": "Unique (94%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Non-unique (6_Percent)___5th_percentile",
+                        "name": "Non-unique (6%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Non-unique (6_Percent)___10th_percentile",
+                        "name": "Non-unique (6%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Non-unique (6_Percent)___median_coverage",
+                        "name": "Non-unique (6%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Non-unique (6_Percent)___median_coverage_normalized",
+                        "name": "Non-unique (6%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Non-unique (6_Percent)___percent_bases_above_10x",
+                        "name": "Non-unique (6%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Non-unique (6_Percent)___percent_bases_above_20x",
+                        "name": "Non-unique (6%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "DNA repeats (3_Percent)___5th_percentile",
+                        "name": "DNA repeats (3%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "DNA repeats (3_Percent)___10th_percentile",
+                        "name": "DNA repeats (3%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "DNA repeats (3_Percent)___median_coverage",
+                        "name": "DNA repeats (3%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "DNA repeats (3_Percent)___median_coverage_normalized",
+                        "name": "DNA repeats (3%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "DNA repeats (3_Percent)___percent_bases_above_10x",
+                        "name": "DNA repeats (3%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "DNA repeats (3_Percent)___percent_bases_above_20x",
+                        "name": "DNA repeats (3%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "LINE (22_Percent)___5th_percentile",
+                        "name": "LINE (22%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "LINE (22_Percent)___10th_percentile",
+                        "name": "LINE (22%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "LINE (22_Percent)___median_coverage",
+                        "name": "LINE (22%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "LINE (22_Percent)___median_coverage_normalized",
+                        "name": "LINE (22%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "LINE (22_Percent)___percent_bases_above_10x",
+                        "name": "LINE (22%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "LINE (22_Percent)___percent_bases_above_20x",
+                        "name": "LINE (22%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "LTR (8_Percent)___5th_percentile",
+                        "name": "LTR (8%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "LTR (8_Percent)___10th_percentile",
+                        "name": "LTR (8%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "LTR (8_Percent)___median_coverage",
+                        "name": "LTR (8%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "LTR (8_Percent)___median_coverage_normalized",
+                        "name": "LTR (8%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "LTR (8_Percent)___percent_bases_above_10x",
+                        "name": "LTR (8%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "LTR (8_Percent)___percent_bases_above_20x",
+                        "name": "LTR (8%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Low complexity (0_Percent)___5th_percentile",
+                        "name": "Low complexity (0%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Low complexity (0_Percent)___10th_percentile",
+                        "name": "Low complexity (0%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Low complexity (0_Percent)___median_coverage",
+                        "name": "Low complexity (0%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Low complexity (0_Percent)___median_coverage_normalized",
+                        "name": "Low complexity (0%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Low complexity (0_Percent)___percent_bases_above_10x",
+                        "name": "Low complexity (0%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Low complexity (0_Percent)___percent_bases_above_20x",
+                        "name": "Low complexity (0%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "SINE (14_Percent)___5th_percentile",
+                        "name": "SINE (14%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "SINE (14_Percent)___10th_percentile",
+                        "name": "SINE (14%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "SINE (14_Percent)___median_coverage",
+                        "name": "SINE (14%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "SINE (14_Percent)___median_coverage_normalized",
+                        "name": "SINE (14%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "SINE (14_Percent)___percent_bases_above_10x",
+                        "name": "SINE (14%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "SINE (14_Percent)___percent_bases_above_20x",
+                        "name": "SINE (14%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Alu repeats (11_Percent)___5th_percentile",
+                        "name": "Alu repeats (11%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Alu repeats (11_Percent)___10th_percentile",
+                        "name": "Alu repeats (11%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Alu repeats (11_Percent)___median_coverage",
+                        "name": "Alu repeats (11%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Alu repeats (11_Percent)___median_coverage_normalized",
+                        "name": "Alu repeats (11%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Alu repeats (11_Percent)___percent_bases_above_10x",
+                        "name": "Alu repeats (11%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Alu repeats (11_Percent)___percent_bases_above_20x",
+                        "name": "Alu repeats (11%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Satellite (2_Percent)___5th_percentile",
+                        "name": "Satellite (2%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Satellite (2_Percent)___10th_percentile",
+                        "name": "Satellite (2%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Satellite (2_Percent)___median_coverage",
+                        "name": "Satellite (2%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Satellite (2_Percent)___median_coverage_normalized",
+                        "name": "Satellite (2%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Satellite (2_Percent)___percent_bases_above_10x",
+                        "name": "Satellite (2%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Satellite (2_Percent)___percent_bases_above_20x",
+                        "name": "Satellite (2%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Simple repeat (1_Percent)___5th_percentile",
+                        "name": "Simple repeat (1%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Simple repeat (1_Percent)___10th_percentile",
+                        "name": "Simple repeat (1%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Simple repeat (1_Percent)___median_coverage",
+                        "name": "Simple repeat (1%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Simple repeat (1_Percent)___median_coverage_normalized",
+                        "name": "Simple repeat (1%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Simple repeat (1_Percent)___percent_bases_above_10x",
+                        "name": "Simple repeat (1%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Simple repeat (1_Percent)___percent_bases_above_20x",
+                        "name": "Simple repeat (1%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "LCR (3_Percent)___5th_percentile",
+                        "name": "LCR (3%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "LCR (3_Percent)___10th_percentile",
+                        "name": "LCR (3%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "LCR (3_Percent)___median_coverage",
+                        "name": "LCR (3%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "LCR (3_Percent)___median_coverage_normalized",
+                        "name": "LCR (3%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "LCR (3_Percent)___percent_bases_above_10x",
+                        "name": "LCR (3%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "LCR (3_Percent)___percent_bases_above_20x",
+                        "name": "LCR (3%)___percent_bases_above_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Non-LCR (98_Percent)___5th_percentile",
+                        "name": "Non-LCR (98%)___5th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Non-LCR (98_Percent)___10th_percentile",
+                        "name": "Non-LCR (98%)___10th_percentile",
                         "type": "number"
                     },
                     {
-                        "name": "Non-LCR (98_Percent)___median_coverage",
+                        "name": "Non-LCR (98%)___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Non-LCR (98_Percent)___median_coverage_normalized",
+                        "name": "Non-LCR (98%)___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Non-LCR (98_Percent)___percent_bases_above_10x",
+                        "name": "Non-LCR (98%)___percent_bases_above_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Non-LCR (98_Percent)___percent_bases_above_20x",
+                        "name": "Non-LCR (98%)___percent_bases_above_20x",
                         "type": "number"
                     }
                 ],
@@ -1522,168 +1522,168 @@
             "data": [
                 {
                     "index": 0,
-                    "Genome (100_Percent)___5th_percentile": 19.9219977015,
-                    "Genome (100_Percent)___10th_percentile": 23.2872561909,
-                    "Genome (100_Percent)___median_coverage": 32.2793364861,
-                    "Genome (100_Percent)___median_coverage_normalized": 1.0,
-                    "Genome (100_Percent)___percent_bases_above_10x": 98.6522975498,
-                    "Genome (100_Percent)___percent_bases_above_20x": 95.7496208869,
-                    "Exome (WG) (1_Percent)___5th_percentile": 20.1297148455,
-                    "Exome (WG) (1_Percent)___10th_percentile": 22.4615226885,
-                    "Exome (WG) (1_Percent)___median_coverage": 30.6119159812,
-                    "Exome (WG) (1_Percent)___median_coverage_normalized": 0.9483440279,
-                    "Exome (WG) (1_Percent)___percent_bases_above_10x": 99.7600073499,
-                    "Exome (WG) (1_Percent)___percent_bases_above_20x": 96.5317962251,
-                    "ACMG59 (WG) (0_Percent)___5th_percentile": 22.5061594203,
-                    "ACMG59 (WG) (0_Percent)___10th_percentile": 24.1901554404,
-                    "ACMG59 (WG) (0_Percent)___median_coverage": 31.7261235955,
-                    "ACMG59 (WG) (0_Percent)___median_coverage_normalized": 0.9828617019,
-                    "ACMG59 (WG) (0_Percent)___percent_bases_above_10x": 99.3407019585,
-                    "ACMG59 (WG) (0_Percent)___percent_bases_above_20x": 97.9445414,
-                    "Exon 1 (0_Percent)___5th_percentile": 16.8784010749,
-                    "Exon 1 (0_Percent)___10th_percentile": 19.8239208326,
-                    "Exon 1 (0_Percent)___median_coverage": 28.9136915301,
-                    "Exon 1 (0_Percent)___median_coverage_normalized": 0.8957337628,
-                    "Exon 1 (0_Percent)___percent_bases_above_10x": 98.8786644359,
-                    "Exon 1 (0_Percent)___percent_bases_above_20x": 91.7563832109,
-                    "Exon >1 (2_Percent)___5th_percentile": 21.235006448,
-                    "Exon >1 (2_Percent)___10th_percentile": 23.5599033934,
-                    "Exon >1 (2_Percent)___median_coverage": 31.6763925296,
-                    "Exon >1 (2_Percent)___median_coverage_normalized": 0.9813210548,
-                    "Exon >1 (2_Percent)___percent_bases_above_10x": 99.6218578089,
-                    "Exon >1 (2_Percent)___percent_bases_above_20x": 97.5132788529,
-                    "Regulatory (WG) (8_Percent)___5th_percentile": 21.5029836606,
-                    "Regulatory (WG) (8_Percent)___10th_percentile": 23.7472532653,
-                    "Regulatory (WG) (8_Percent)___median_coverage": 31.5167046107,
-                    "Regulatory (WG) (8_Percent)___median_coverage_normalized": 0.9763739916,
-                    "Regulatory (WG) (8_Percent)___percent_bases_above_10x": 99.7671015669,
-                    "Regulatory (WG) (8_Percent)___percent_bases_above_20x": 97.845721823,
-                    "GC 10-20 (1_Percent)___5th_percentile": 0.0,
-                    "GC 10-20 (1_Percent)___10th_percentile": 1.847637051,
-                    "GC 10-20 (1_Percent)___median_coverage": 29.2063092925,
-                    "GC 10-20 (1_Percent)___median_coverage_normalized": 0.9047989355,
-                    "GC 10-20 (1_Percent)___percent_bases_above_10x": 80.9163462398,
-                    "GC 10-20 (1_Percent)___percent_bases_above_20x": 73.0789759009,
-                    "GC 20-30 (12_Percent)___5th_percentile": 20.2862103233,
-                    "GC 20-30 (12_Percent)___10th_percentile": 24.48423673,
-                    "GC 20-30 (12_Percent)___median_coverage": 34.1774330471,
-                    "GC 20-30 (12_Percent)___median_coverage_normalized": 1.0588022174,
-                    "GC 20-30 (12_Percent)___percent_bases_above_10x": 98.2783496724,
-                    "GC 20-30 (12_Percent)___percent_bases_above_20x": 95.7542759104,
-                    "GC 30-40 (36_Percent)___5th_percentile": 20.4168453597,
-                    "GC 30-40 (36_Percent)___10th_percentile": 24.2275023346,
-                    "GC 30-40 (36_Percent)___median_coverage": 33.4238015269,
-                    "GC 30-40 (36_Percent)___median_coverage_normalized": 1.0354550361,
-                    "GC 30-40 (36_Percent)___percent_bases_above_10x": 98.5946228362,
-                    "GC 30-40 (36_Percent)___percent_bases_above_20x": 95.9321437366,
-                    "GC 40-50 (30_Percent)___5th_percentile": 20.8302851094,
-                    "GC 40-50 (30_Percent)___10th_percentile": 23.6176481567,
-                    "GC 40-50 (30_Percent)___median_coverage": 31.9484312331,
-                    "GC 40-50 (30_Percent)___median_coverage_normalized": 0.9897486972,
-                    "GC 40-50 (30_Percent)___percent_bases_above_10x": 99.1484937485,
-                    "GC 40-50 (30_Percent)___percent_bases_above_20x": 96.6851064092,
-                    "GC 50-60 (17_Percent)___5th_percentile": 20.0530941874,
-                    "GC 50-60 (17_Percent)___10th_percentile": 22.6282190153,
-                    "GC 50-60 (17_Percent)___median_coverage": 30.6359150963,
-                    "GC 50-60 (17_Percent)___median_coverage_normalized": 0.9490875102,
-                    "GC 50-60 (17_Percent)___percent_bases_above_10x": 99.3540758313,
-                    "GC 50-60 (17_Percent)___percent_bases_above_20x": 96.1948307924,
-                    "GC 60-70 (5_Percent)___5th_percentile": 17.9045655255,
-                    "GC 60-70 (5_Percent)___10th_percentile": 20.9197508774,
-                    "GC 60-70 (5_Percent)___median_coverage": 29.1030277326,
-                    "GC 60-70 (5_Percent)___median_coverage_normalized": 0.9015993171,
-                    "GC 60-70 (5_Percent)___percent_bases_above_10x": 98.7783170313,
-                    "GC 60-70 (5_Percent)___percent_bases_above_20x": 93.6722136659,
-                    "GC 70-80 (1_Percent)___5th_percentile": 5.5867262465,
-                    "GC 70-80 (1_Percent)___10th_percentile": 13.1204377358,
-                    "GC 70-80 (1_Percent)___median_coverage": 25.8136337868,
-                    "GC 70-80 (1_Percent)___median_coverage_normalized": 0.7996953035,
-                    "GC 70-80 (1_Percent)___percent_bases_above_10x": 92.9093854341,
-                    "GC 70-80 (1_Percent)___percent_bases_above_20x": 80.9080403378,
-                    "GC 80-90 (0_Percent)___5th_percentile": 0.3143993149,
-                    "GC 80-90 (0_Percent)___10th_percentile": 2.0982549858,
-                    "GC 80-90 (0_Percent)___median_coverage": 19.6045624001,
-                    "GC 80-90 (0_Percent)___median_coverage_normalized": 0.6073409349,
-                    "GC 80-90 (0_Percent)___percent_bases_above_10x": 77.6529689388,
-                    "GC 80-90 (0_Percent)___percent_bases_above_20x": 52.5881789647,
-                    "GC 90-100 (0_Percent)___5th_percentile": 0.0,
-                    "GC 90-100 (0_Percent)___10th_percentile": 0.0,
-                    "GC 90-100 (0_Percent)___median_coverage": 2.9764044944,
-                    "GC 90-100 (0_Percent)___median_coverage_normalized": 0.0922077347,
-                    "GC 90-100 (0_Percent)___percent_bases_above_10x": 17.3689227836,
-                    "GC 90-100 (0_Percent)___percent_bases_above_20x": 4.5567206864,
-                    "Unique (94_Percent)___5th_percentile": 20.8353608047,
-                    "Unique (94_Percent)___10th_percentile": 23.6977974426,
-                    "Unique (94_Percent)___median_coverage": 32.2696975431,
-                    "Unique (94_Percent)___median_coverage_normalized": 0.9997013897,
-                    "Unique (94_Percent)___percent_bases_above_10x": 99.1293285593,
-                    "Unique (94_Percent)___percent_bases_above_20x": 96.6637919187,
-                    "Non-unique (6_Percent)___5th_percentile": 4.5586362675,
-                    "Non-unique (6_Percent)___10th_percentile": 10.2768632414,
-                    "Non-unique (6_Percent)___median_coverage": 32.5582641497,
-                    "Non-unique (6_Percent)___median_coverage_normalized": 1.0086410594,
-                    "Non-unique (6_Percent)___percent_bases_above_10x": 91.1248952453,
-                    "Non-unique (6_Percent)___percent_bases_above_20x": 81.3459381479,
-                    "DNA repeats (3_Percent)___5th_percentile": 21.8159138754,
-                    "DNA repeats (3_Percent)___10th_percentile": 24.3115407383,
-                    "DNA repeats (3_Percent)___median_coverage": 32.4603205675,
-                    "DNA repeats (3_Percent)___median_coverage_normalized": 1.0056068092,
-                    "DNA repeats (3_Percent)___percent_bases_above_10x": 99.5299204092,
-                    "DNA repeats (3_Percent)___percent_bases_above_20x": 97.6561817727,
-                    "LINE (22_Percent)___5th_percentile": 21.7746008369,
-                    "LINE (22_Percent)___10th_percentile": 24.645889845,
-                    "LINE (22_Percent)___median_coverage": 33.3676104613,
-                    "LINE (22_Percent)___median_coverage_normalized": 1.033714261,
-                    "LINE (22_Percent)___percent_bases_above_10x": 99.3377759303,
-                    "LINE (22_Percent)___percent_bases_above_20x": 97.2764415174,
-                    "LTR (8_Percent)___5th_percentile": 21.289287662,
-                    "LTR (8_Percent)___10th_percentile": 23.8842402402,
-                    "LTR (8_Percent)___median_coverage": 32.055471636,
-                    "LTR (8_Percent)___median_coverage_normalized": 0.993064763,
-                    "LTR (8_Percent)___percent_bases_above_10x": 99.3525568487,
-                    "LTR (8_Percent)___percent_bases_above_20x": 97.2102098068,
-                    "Low complexity (0_Percent)___5th_percentile": 11.245585997,
-                    "Low complexity (0_Percent)___10th_percentile": 18.4503687316,
-                    "Low complexity (0_Percent)___median_coverage": 32.3470899471,
-                    "Low complexity (0_Percent)___median_coverage_normalized": 1.0020989732,
-                    "Low complexity (0_Percent)___percent_bases_above_10x": 96.0139124245,
-                    "Low complexity (0_Percent)___percent_bases_above_20x": 89.4233075667,
-                    "SINE (14_Percent)___5th_percentile": 18.8531829005,
-                    "SINE (14_Percent)___10th_percentile": 22.1444032913,
-                    "SINE (14_Percent)___median_coverage": 30.7713079335,
-                    "SINE (14_Percent)___median_coverage_normalized": 0.9532819222,
-                    "SINE (14_Percent)___percent_bases_above_10x": 98.5817049183,
-                    "SINE (14_Percent)___percent_bases_above_20x": 94.8768466851,
-                    "Alu repeats (11_Percent)___5th_percentile": 17.7188928199,
-                    "Alu repeats (11_Percent)___10th_percentile": 21.4442798812,
-                    "Alu repeats (11_Percent)___median_coverage": 30.3730265164,
-                    "Alu repeats (11_Percent)___median_coverage_normalized": 0.9409433347,
-                    "Alu repeats (11_Percent)___percent_bases_above_10x": 98.235332638,
-                    "Alu repeats (11_Percent)___percent_bases_above_20x": 93.8412437069,
-                    "Satellite (2_Percent)___5th_percentile": 2.9004246434,
-                    "Satellite (2_Percent)___10th_percentile": 6.2494425155,
-                    "Satellite (2_Percent)___median_coverage": 28.9313631532,
-                    "Satellite (2_Percent)___median_coverage_normalized": 0.8962812221,
-                    "Satellite (2_Percent)___percent_bases_above_10x": 85.6843590929,
-                    "Satellite (2_Percent)___percent_bases_above_20x": 68.536799264,
-                    "Simple repeat (1_Percent)___5th_percentile": 0.0,
-                    "Simple repeat (1_Percent)___10th_percentile": 2.6012667849,
-                    "Simple repeat (1_Percent)___median_coverage": 26.6959299142,
-                    "Simple repeat (1_Percent)___median_coverage_normalized": 0.8270284591,
-                    "Simple repeat (1_Percent)___percent_bases_above_10x": 84.0239452159,
-                    "Simple repeat (1_Percent)___percent_bases_above_20x": 72.1341140988,
-                    "LCR (3_Percent)___5th_percentile": 0.0,
-                    "LCR (3_Percent)___10th_percentile": 0.0,
-                    "LCR (3_Percent)___median_coverage": 21.5645219788,
-                    "LCR (3_Percent)___median_coverage_normalized": 0.6680596421,
-                    "LCR (3_Percent)___percent_bases_above_10x": 60.5651774961,
-                    "LCR (3_Percent)___percent_bases_above_20x": 53.3118688194,
-                    "Non-LCR (98_Percent)___5th_percentile": 20.3843782931,
-                    "Non-LCR (98_Percent)___10th_percentile": 23.5121908302,
-                    "Non-LCR (98_Percent)___median_coverage": 32.3347172378,
-                    "Non-LCR (98_Percent)___median_coverage_normalized": 1.0017156719,
-                    "Non-LCR (98_Percent)___percent_bases_above_10x": 98.9494855846,
-                    "Non-LCR (98_Percent)___percent_bases_above_20x": 96.2016024806
+                    "Genome (100%)___5th_percentile": 19.9219977015,
+                    "Genome (100%)___10th_percentile": 23.2872561909,
+                    "Genome (100%)___median_coverage": 32.2793364861,
+                    "Genome (100%)___median_coverage_normalized": 1.0,
+                    "Genome (100%)___percent_bases_above_10x": 98.6522975498,
+                    "Genome (100%)___percent_bases_above_20x": 95.7496208869,
+                    "Exome (WG) (1%)___5th_percentile": 20.1297148455,
+                    "Exome (WG) (1%)___10th_percentile": 22.4615226885,
+                    "Exome (WG) (1%)___median_coverage": 30.6119159812,
+                    "Exome (WG) (1%)___median_coverage_normalized": 0.9483440279,
+                    "Exome (WG) (1%)___percent_bases_above_10x": 99.7600073499,
+                    "Exome (WG) (1%)___percent_bases_above_20x": 96.5317962251,
+                    "ACMG59 (WG) (0%)___5th_percentile": 22.5061594203,
+                    "ACMG59 (WG) (0%)___10th_percentile": 24.1901554404,
+                    "ACMG59 (WG) (0%)___median_coverage": 31.7261235955,
+                    "ACMG59 (WG) (0%)___median_coverage_normalized": 0.9828617019,
+                    "ACMG59 (WG) (0%)___percent_bases_above_10x": 99.3407019585,
+                    "ACMG59 (WG) (0%)___percent_bases_above_20x": 97.9445414,
+                    "Exon 1 (0%)___5th_percentile": 16.8784010749,
+                    "Exon 1 (0%)___10th_percentile": 19.8239208326,
+                    "Exon 1 (0%)___median_coverage": 28.9136915301,
+                    "Exon 1 (0%)___median_coverage_normalized": 0.8957337628,
+                    "Exon 1 (0%)___percent_bases_above_10x": 98.8786644359,
+                    "Exon 1 (0%)___percent_bases_above_20x": 91.7563832109,
+                    "Exon >1 (2%)___5th_percentile": 21.235006448,
+                    "Exon >1 (2%)___10th_percentile": 23.5599033934,
+                    "Exon >1 (2%)___median_coverage": 31.6763925296,
+                    "Exon >1 (2%)___median_coverage_normalized": 0.9813210548,
+                    "Exon >1 (2%)___percent_bases_above_10x": 99.6218578089,
+                    "Exon >1 (2%)___percent_bases_above_20x": 97.5132788529,
+                    "Regulatory (WG) (8%)___5th_percentile": 21.5029836606,
+                    "Regulatory (WG) (8%)___10th_percentile": 23.7472532653,
+                    "Regulatory (WG) (8%)___median_coverage": 31.5167046107,
+                    "Regulatory (WG) (8%)___median_coverage_normalized": 0.9763739916,
+                    "Regulatory (WG) (8%)___percent_bases_above_10x": 99.7671015669,
+                    "Regulatory (WG) (8%)___percent_bases_above_20x": 97.845721823,
+                    "GC 10-20 (1%)___5th_percentile": 0.0,
+                    "GC 10-20 (1%)___10th_percentile": 1.847637051,
+                    "GC 10-20 (1%)___median_coverage": 29.2063092925,
+                    "GC 10-20 (1%)___median_coverage_normalized": 0.9047989355,
+                    "GC 10-20 (1%)___percent_bases_above_10x": 80.9163462398,
+                    "GC 10-20 (1%)___percent_bases_above_20x": 73.0789759009,
+                    "GC 20-30 (12%)___5th_percentile": 20.2862103233,
+                    "GC 20-30 (12%)___10th_percentile": 24.48423673,
+                    "GC 20-30 (12%)___median_coverage": 34.1774330471,
+                    "GC 20-30 (12%)___median_coverage_normalized": 1.0588022174,
+                    "GC 20-30 (12%)___percent_bases_above_10x": 98.2783496724,
+                    "GC 20-30 (12%)___percent_bases_above_20x": 95.7542759104,
+                    "GC 30-40 (36%)___5th_percentile": 20.4168453597,
+                    "GC 30-40 (36%)___10th_percentile": 24.2275023346,
+                    "GC 30-40 (36%)___median_coverage": 33.4238015269,
+                    "GC 30-40 (36%)___median_coverage_normalized": 1.0354550361,
+                    "GC 30-40 (36%)___percent_bases_above_10x": 98.5946228362,
+                    "GC 30-40 (36%)___percent_bases_above_20x": 95.9321437366,
+                    "GC 40-50 (30%)___5th_percentile": 20.8302851094,
+                    "GC 40-50 (30%)___10th_percentile": 23.6176481567,
+                    "GC 40-50 (30%)___median_coverage": 31.9484312331,
+                    "GC 40-50 (30%)___median_coverage_normalized": 0.9897486972,
+                    "GC 40-50 (30%)___percent_bases_above_10x": 99.1484937485,
+                    "GC 40-50 (30%)___percent_bases_above_20x": 96.6851064092,
+                    "GC 50-60 (17%)___5th_percentile": 20.0530941874,
+                    "GC 50-60 (17%)___10th_percentile": 22.6282190153,
+                    "GC 50-60 (17%)___median_coverage": 30.6359150963,
+                    "GC 50-60 (17%)___median_coverage_normalized": 0.9490875102,
+                    "GC 50-60 (17%)___percent_bases_above_10x": 99.3540758313,
+                    "GC 50-60 (17%)___percent_bases_above_20x": 96.1948307924,
+                    "GC 60-70 (5%)___5th_percentile": 17.9045655255,
+                    "GC 60-70 (5%)___10th_percentile": 20.9197508774,
+                    "GC 60-70 (5%)___median_coverage": 29.1030277326,
+                    "GC 60-70 (5%)___median_coverage_normalized": 0.9015993171,
+                    "GC 60-70 (5%)___percent_bases_above_10x": 98.7783170313,
+                    "GC 60-70 (5%)___percent_bases_above_20x": 93.6722136659,
+                    "GC 70-80 (1%)___5th_percentile": 5.5867262465,
+                    "GC 70-80 (1%)___10th_percentile": 13.1204377358,
+                    "GC 70-80 (1%)___median_coverage": 25.8136337868,
+                    "GC 70-80 (1%)___median_coverage_normalized": 0.7996953035,
+                    "GC 70-80 (1%)___percent_bases_above_10x": 92.9093854341,
+                    "GC 70-80 (1%)___percent_bases_above_20x": 80.9080403378,
+                    "GC 80-90 (0%)___5th_percentile": 0.3143993149,
+                    "GC 80-90 (0%)___10th_percentile": 2.0982549858,
+                    "GC 80-90 (0%)___median_coverage": 19.6045624001,
+                    "GC 80-90 (0%)___median_coverage_normalized": 0.6073409349,
+                    "GC 80-90 (0%)___percent_bases_above_10x": 77.6529689388,
+                    "GC 80-90 (0%)___percent_bases_above_20x": 52.5881789647,
+                    "GC 90-100 (0%)___5th_percentile": 0.0,
+                    "GC 90-100 (0%)___10th_percentile": 0.0,
+                    "GC 90-100 (0%)___median_coverage": 2.9764044944,
+                    "GC 90-100 (0%)___median_coverage_normalized": 0.0922077347,
+                    "GC 90-100 (0%)___percent_bases_above_10x": 17.3689227836,
+                    "GC 90-100 (0%)___percent_bases_above_20x": 4.5567206864,
+                    "Unique (94%)___5th_percentile": 20.8353608047,
+                    "Unique (94%)___10th_percentile": 23.6977974426,
+                    "Unique (94%)___median_coverage": 32.2696975431,
+                    "Unique (94%)___median_coverage_normalized": 0.9997013897,
+                    "Unique (94%)___percent_bases_above_10x": 99.1293285593,
+                    "Unique (94%)___percent_bases_above_20x": 96.6637919187,
+                    "Non-unique (6%)___5th_percentile": 4.5586362675,
+                    "Non-unique (6%)___10th_percentile": 10.2768632414,
+                    "Non-unique (6%)___median_coverage": 32.5582641497,
+                    "Non-unique (6%)___median_coverage_normalized": 1.0086410594,
+                    "Non-unique (6%)___percent_bases_above_10x": 91.1248952453,
+                    "Non-unique (6%)___percent_bases_above_20x": 81.3459381479,
+                    "DNA repeats (3%)___5th_percentile": 21.8159138754,
+                    "DNA repeats (3%)___10th_percentile": 24.3115407383,
+                    "DNA repeats (3%)___median_coverage": 32.4603205675,
+                    "DNA repeats (3%)___median_coverage_normalized": 1.0056068092,
+                    "DNA repeats (3%)___percent_bases_above_10x": 99.5299204092,
+                    "DNA repeats (3%)___percent_bases_above_20x": 97.6561817727,
+                    "LINE (22%)___5th_percentile": 21.7746008369,
+                    "LINE (22%)___10th_percentile": 24.645889845,
+                    "LINE (22%)___median_coverage": 33.3676104613,
+                    "LINE (22%)___median_coverage_normalized": 1.033714261,
+                    "LINE (22%)___percent_bases_above_10x": 99.3377759303,
+                    "LINE (22%)___percent_bases_above_20x": 97.2764415174,
+                    "LTR (8%)___5th_percentile": 21.289287662,
+                    "LTR (8%)___10th_percentile": 23.8842402402,
+                    "LTR (8%)___median_coverage": 32.055471636,
+                    "LTR (8%)___median_coverage_normalized": 0.993064763,
+                    "LTR (8%)___percent_bases_above_10x": 99.3525568487,
+                    "LTR (8%)___percent_bases_above_20x": 97.2102098068,
+                    "Low complexity (0%)___5th_percentile": 11.245585997,
+                    "Low complexity (0%)___10th_percentile": 18.4503687316,
+                    "Low complexity (0%)___median_coverage": 32.3470899471,
+                    "Low complexity (0%)___median_coverage_normalized": 1.0020989732,
+                    "Low complexity (0%)___percent_bases_above_10x": 96.0139124245,
+                    "Low complexity (0%)___percent_bases_above_20x": 89.4233075667,
+                    "SINE (14%)___5th_percentile": 18.8531829005,
+                    "SINE (14%)___10th_percentile": 22.1444032913,
+                    "SINE (14%)___median_coverage": 30.7713079335,
+                    "SINE (14%)___median_coverage_normalized": 0.9532819222,
+                    "SINE (14%)___percent_bases_above_10x": 98.5817049183,
+                    "SINE (14%)___percent_bases_above_20x": 94.8768466851,
+                    "Alu repeats (11%)___5th_percentile": 17.7188928199,
+                    "Alu repeats (11%)___10th_percentile": 21.4442798812,
+                    "Alu repeats (11%)___median_coverage": 30.3730265164,
+                    "Alu repeats (11%)___median_coverage_normalized": 0.9409433347,
+                    "Alu repeats (11%)___percent_bases_above_10x": 98.235332638,
+                    "Alu repeats (11%)___percent_bases_above_20x": 93.8412437069,
+                    "Satellite (2%)___5th_percentile": 2.9004246434,
+                    "Satellite (2%)___10th_percentile": 6.2494425155,
+                    "Satellite (2%)___median_coverage": 28.9313631532,
+                    "Satellite (2%)___median_coverage_normalized": 0.8962812221,
+                    "Satellite (2%)___percent_bases_above_10x": 85.6843590929,
+                    "Satellite (2%)___percent_bases_above_20x": 68.536799264,
+                    "Simple repeat (1%)___5th_percentile": 0.0,
+                    "Simple repeat (1%)___10th_percentile": 2.6012667849,
+                    "Simple repeat (1%)___median_coverage": 26.6959299142,
+                    "Simple repeat (1%)___median_coverage_normalized": 0.8270284591,
+                    "Simple repeat (1%)___percent_bases_above_10x": 84.0239452159,
+                    "Simple repeat (1%)___percent_bases_above_20x": 72.1341140988,
+                    "LCR (3%)___5th_percentile": 0.0,
+                    "LCR (3%)___10th_percentile": 0.0,
+                    "LCR (3%)___median_coverage": 21.5645219788,
+                    "LCR (3%)___median_coverage_normalized": 0.6680596421,
+                    "LCR (3%)___percent_bases_above_10x": 60.5651774961,
+                    "LCR (3%)___percent_bases_above_20x": 53.3118688194,
+                    "Non-LCR (98%)___5th_percentile": 20.3843782931,
+                    "Non-LCR (98%)___10th_percentile": 23.5121908302,
+                    "Non-LCR (98%)___median_coverage": 32.3347172378,
+                    "Non-LCR (98%)___median_coverage_normalized": 1.0017156719,
+                    "Non-LCR (98%)___percent_bases_above_10x": 98.9494855846,
+                    "Non-LCR (98%)___percent_bases_above_20x": 96.2016024806
                 }
             ]
         }
