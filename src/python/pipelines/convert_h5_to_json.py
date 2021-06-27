@@ -16,17 +16,14 @@ ap.add_argument("--root_element", help="Root element of the output JSON",
             required=True, type=str)
 ap.add_argument("--ignored_h5_key_substring", help="The h5 key substring to ignore during conversion",
             required=False, type=str)
-ap.add_argument("--mongodb_preprocessing", help="Prepare for MongoDB (for example: remove '$' from keys)",
-            required=False, type=bool, default=True)
 
 args = ap.parse_args()
 input_h5_filename = args.input_h5
 output_json_filename = args.output_json
-mongodb_preprocessing = args.mongodb_preprocessing
 ignored_h5_key_substring = args.ignored_h5_key_substring
 root_element = args.root_element
 
-json_string = convert_h5_to_json_utils.convert_h5_to_json(input_h5_filename, root_element, mongodb_preprocessing, ignored_h5_key_substring)
+json_string = convert_h5_to_json_utils.convert_h5_to_json(input_h5_filename, root_element, ignored_h5_key_substring)
 f = open(output_json_filename, "w")
 f.write(json_string)
 f.close()
