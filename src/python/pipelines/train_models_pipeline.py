@@ -13,7 +13,6 @@ ap = argparse.ArgumentParser(prog="train_models_pipeline.py",
                              description="Train filtering models on the concordance file")
 
 ap.add_argument("--input_file", help="Name of the input h5/vcf file. h5 is output of comparison", type=str)
-ap.add_argument("--input_file_index", help="Name of the input vcf index file", type=str, required=False)
 ap.add_argument("--blacklist", help="blacklist file by which we decide variants as FP", type=str, required=False)
 ap.add_argument("--output_file_prefix", help="Output .pkl file with models, .h5 file with results",
                 type=str, required=True)
@@ -48,8 +47,6 @@ try:
             "--reference is required when input file type is vcf.gz"
         assert args.runs_intervals,\
             "--runs_intervals is required when input file type is vcf.gz"
-        assert args.input_file_index,\
-            "--input_file_index is required when input file type is vcf.gz"
 except AssertionError as af:
     logger.error(str(af))
     raise af
@@ -94,6 +91,11 @@ try:
         classify_clm = 'classify'
         interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
+    fns = np.array(df[classify_clm] == 'fn')
+    qual_na = np.isnan(df['qual'])
+    df = df[(~qual_na & ~fns) | fns]
+
+
     # Thresholding model
     models_thr_no_gt, models_reg_thr_no_gt, df_tmp = \
         variant_filtering_utils.train_threshold_models(
@@ -126,15 +128,49 @@ try:
     results_dict[
         'dt_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
+    # NN model
+    models_nn_no_gt, models_reg_nn_no_gt, df_tmp = \
+        variant_filtering_utils.train_neural_network_model(df.copy(),
+                                                          classify_column=classify_clm, interval_size=interval_size)
+    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
+        df_tmp, models_nn_no_gt, classify_clm)
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        df_tmp, models_reg_nn_no_gt, classify_clm)
+
+    results_dict[
+        'nn_model_ignore_gt_incl_hpol_runs'] = models_nn_no_gt, models_reg_nn_no_gt
+    results_dict[
+        'nn_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
+    results_dict[
+        'nn_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
+
+    # RF model
+    models_rf_no_gt, models_reg_rf_no_gt, df_tmp = \
+        variant_filtering_utils.train_random_forest_model(df.copy(),
+                                                          classify_column=classify_clm, interval_size=interval_size)
+    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
+        df_tmp, models_rf_no_gt, classify_clm)
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        df_tmp, models_reg_rf_no_gt, classify_clm)
+
+    results_dict[
+        'rf_model_ignore_gt_incl_hpol_runs'] = models_rf_no_gt, models_reg_rf_no_gt
+    results_dict[
+        'rf_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
+    results_dict[
+        'rf_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
+
+
 
     pickle.dump(results_dict, open(args.output_file_prefix + ".pkl", "wb"))
 
     optdict = {}
     prcdict = {}
-    name_optimum = 'dt_model_recall_precision_ignore_gt_incl_hpol_runs'
-    optdict[name_optimum] = results_dict[name_optimum]
-    prcdict[name_optimum] = results_dict[name_optimum.replace(
-        "recall_precision", "recall_precision_curve")]
+    for m in ['dt','nn','threshold','rf']:
+        name_optimum = f'{m}_model_recall_precision_ignore_gt_incl_hpol_runs'
+        optdict[name_optimum] = results_dict[name_optimum]
+        prcdict[name_optimum] = results_dict[name_optimum.replace(
+            "recall_precision", "recall_precision_curve")]
 
     results_vals = (pd.DataFrame(optdict)).unstack().reset_index()
     results_vals.columns = ['model', 'category', 'tmp']
@@ -163,7 +199,7 @@ try:
     if args.evaluate_concordance:
         if with_dbsnp_bl:
             concordance = vcftools.get_vcf_df(args.input_file, chromosome='chr9')
-            concordance = vcf_pipeline_utils.annotate_concordance(df, args.reference, runfile=args.runs_intervals)
+            concordance = vcf_pipeline_utils.annotate_concordance(concordance, args.reference, runfile=args.runs_intervals)
         else:
             concordance = pd.read_hdf(args.input_file, "concordance")
 
@@ -190,7 +226,8 @@ try:
 
         concordance['prediction'] = predictions
         concordance['tree_score'] = predictions_score
-        # In case we already have filter column, reset the PASS
+        # In case we already have filter column, reset the PASS,
+        # Then, by the prediction of the model we decide whether the filter column is PASS or LOW_SCORE
         concordance['filter'] = concordance['filter'].apply(lambda x: x.replace('PASS;', '')).\
             apply(lambda x: x.replace(';PASS', '')).\
             apply(lambda x: x.replace('PASS', ''))

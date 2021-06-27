@@ -1,3 +1,5 @@
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn import preprocessing
 from sklearn import metrics
@@ -455,7 +457,6 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         Trained classifier model, trained regressor model
     '''
     fns = np.array(concordance[gtr_column] == 'fn')
-    group = concordance[selection]['group'][0]
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
 
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
@@ -475,6 +476,110 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
             tree_scores, labels, test_train_split, interval_size)
         return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,)
+    else:
+        return model, model1, None
+
+def train_model_NN(concordance: pd.DataFrame, test_train_split: np.ndarray,
+                selection: pd.Series, gtr_column: str,
+                transformer: sklearn_pandas.DataFrameMapper,
+                interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+    '''Trains model on a subset of dataframe that is already dividied into a testing and training set
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    test_train_split: pd.Series or np.ndarray
+        Boolean array, 1 is train
+    selection: pd.Series
+        Boolean series that points to data selected for the model
+    gtr_column: str
+        Column with labeling
+    transformer: sklearn_pandas.DataFrameMapper
+        transformer from df -> matrix
+    Returns
+    -------
+    tuple:
+        Trained classifier model, trained regressor model
+    '''
+    fns = np.array(concordance[gtr_column] == 'fn')
+    train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+
+    labels = concordance[test_train_split & selection & (~fns)][gtr_column]
+    train_data = transformer.transform(train_data)
+
+    # from sklearn.preprocessing import StandardScaler
+    # scaler = StandardScaler()
+    # scaler.fit(train_data)
+    # scaler.transform(train_data)
+
+    _validate_data(train_data)
+    _validate_data(labels.to_numpy())
+
+    model = MLPClassifier(solver='sgd', alpha=1e-5,
+        hidden_layer_sizes=(3,), random_state=1)
+    model.fit(train_data, labels)
+
+    model1 = MLPRegressor(solver='sgd', alpha=1e-5,
+        hidden_layer_sizes=(3,), random_state=1)
+    enclabels = preprocessing.LabelEncoder().fit_transform(labels)
+    model1.fit(train_data, enclabels)
+    tree_scores = model1.predict(train_data)
+    if gtr_column == 'classify':  ## there is gt
+        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
+            tree_scores, labels, test_train_split, interval_size)
+        return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,)
+    else:
+        return model, model1, None
+
+def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
+                   selection: pd.Series, gtr_column: str,
+                   transformer: sklearn_pandas.DataFrameMapper,
+                   interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+    '''Trains model on a subset of dataframe that is already dividied into a testing and training set
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    test_train_split: pd.Series or np.ndarray
+        Boolean array, 1 is train
+    selection: pd.Series
+        Boolean series that points to data selected for the model
+    gtr_column: str
+        Column with labeling
+    transformer: sklearn_pandas.DataFrameMapper
+        transformer from df -> matrix
+    Returns
+    -------
+    tuple:
+        Trained classifier model, trained regressor model
+    '''
+    fns = np.array(concordance[gtr_column] == 'fn')
+    train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+
+    labels = concordance[test_train_split & selection & (~fns)][gtr_column]
+    train_data = transformer.transform(train_data)
+
+    # from sklearn.preprocessing import StandardScaler
+    # scaler = StandardScaler()
+    # scaler.fit(train_data)
+    # scaler.transform(train_data)
+
+    _validate_data(train_data)
+    _validate_data(labels.to_numpy())
+
+    model = RandomForestClassifier()
+    model.fit(train_data, labels)
+
+    model1 = RandomForestRegressor()
+    enclabels = preprocessing.LabelEncoder().fit_transform(labels)
+    model1.fit(train_data, enclabels)
+    tree_scores = model1.predict(train_data)
+    if gtr_column == 'classify':  ## there is gt
+        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
+            tree_scores, labels, test_train_split, interval_size)
+        return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1, )
     else:
         return model, model1, None
 
@@ -719,6 +824,84 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     concordance[test_train_split_column] = test_train_split_vector
     return concordance
 
+
+def train_neural_network_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
+    '''Train a decision tree model on the dataframe
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Dataframe
+    classify_column: str
+        Ground truth labels
+    interval_size: int
+        number of bases in the interval
+    Returns
+    -------
+    (MaskedHierarchicalModel, pd.DataFrame
+        Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
+
+    '''
+
+    train_selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(
+        concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(
+        concordance, "group", "test_train_split", classify_column)
+    transformer = feature_prepare()
+    transformer.fit(concordance)
+    groups = set(concordance["group"])
+    classifier_models:dict = {}
+    regressor_models:dict = {}
+    fpr_values:dict = {}
+    for g in groups:
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
+            train_model_NN(concordance, concordance['test_train_split'],
+                        concordance['group'] == g, classify_column, transformer, interval_size)
+
+    return MaskedHierarchicalModel("Decision tree classifier", "group", classifier_models, transformer=transformer), \
+        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
+        concordance
+
+def train_random_forest_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
+    '''Train a decision tree model on the dataframe
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Dataframe
+    classify_column: str
+        Ground truth labels
+    interval_size: int
+        number of bases in the interval
+    Returns
+    -------
+    (MaskedHierarchicalModel, pd.DataFrame
+        Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
+
+    '''
+
+    train_selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(
+        concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(
+        concordance, "group", "test_train_split", classify_column)
+    transformer = feature_prepare()
+    transformer.fit(concordance)
+    groups = set(concordance["group"])
+    classifier_models:dict = {}
+    regressor_models:dict = {}
+    fpr_values:dict = {}
+    for g in groups:
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
+            train_model_RF(concordance, concordance['test_train_split'],
+                        concordance['group'] == g, classify_column, transformer, interval_size)
+
+    return MaskedHierarchicalModel("Random forest classifier", "group", classifier_models, transformer=transformer), \
+        MaskedHierarchicalModel("Random forest regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
+        concordance
 
 def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
     '''Train a decision tree model on the dataframe
