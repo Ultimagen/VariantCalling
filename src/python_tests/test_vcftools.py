@@ -4,7 +4,6 @@ from pathmagic import PYTHON_TESTS_PATH
 import python.vcftools as vcftools
 import pandas as pd
 from os.path import dirname
-from os.path import join as pjoin
 CLASS_PATH = "vcftools"
 
 
