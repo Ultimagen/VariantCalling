@@ -1,3 +1,5 @@
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn import preprocessing
 from sklearn import metrics
@@ -10,13 +12,18 @@ import logging
 from typing import Optional, Tuple, Callable, Union
 from enum import Enum
 import python.utils as utils
+import sklearn
+import matplotlib.pyplot as plt
+
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length']
+            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
+            'ad','af', 'fs','qd','mq','pl','gt',
+            'gq','ps','ac','an',
+            'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
+            'indel','left_motif','right_motif','alleles','cycleskip_status']
 
 logger = logging.getLogger(__name__)
-
-
 class SingleModel:
 
     def __init__(self, threshold_dict: dict, is_greater_then: dict):
@@ -300,6 +307,72 @@ def calculate_threshold_model(results):
     return result, recalls_precisions
 
 
+def tuple_break(x):
+    '''Returns the first element in the tuple
+    '''
+    if type(x) == tuple:
+        return x[0]
+    return 0 if np.isnan(x) else x
+
+def tuple_break_second(x):
+    '''Returns the second element in the tuple
+    '''
+    if type(x) == tuple:
+        return x[1]
+    return 0 if np.isnan(x) else x
+
+
+def motif_encode_left(x):
+    '''Gets motif as input and translates it into integer
+    by bases mapping and order of the bases
+    The closes to the variant is the most significant bit
+    '''
+    bases = {'A':1,
+             'T':2,
+             'G':3,
+             'C':4,
+             'N':5}
+    x_list = list(x)
+    x_list.reverse()
+    num=0
+    for c in x_list:
+        num = 10 * num + bases.get(c,0)
+    return num
+
+def motif_encode_right(x):
+    '''Gets motif as input and translates it into integer
+    by bases mapping and order of the bases
+    The closes to the variant is the most significant bit
+    '''
+    bases = {'A':1,
+             'T':2,
+             'G':3,
+             'C':4,
+             'N':5}
+    x_list = list(x)
+    num=0
+    for c in x_list:
+        num = 10 * num + bases.get(c,0)
+    return num
+
+def allele_encode(x):
+    '''Translate base into integer.
+    In case we don't get a single base, we return zero
+    '''
+    bases = {'A':1,
+             'T':2,
+             'G':3,
+             'C':4}
+    return bases.get(x,0)
+
+def gt_encode(x):
+    '''Checks whether the variant is heterozygous(0) or homozygous(1)
+    '''
+    if x == (1,1):
+        return 1
+    return 0
+
+
 def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
@@ -314,13 +387,47 @@ def feature_prepare(output_df: bool = False) -> sklearn_pandas.DataFrameMapper:
         Mapper, list of features
     '''
     default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
+    tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
+    tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
+    left_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
+    right_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
+    allele_filter = sklearn_pandas.FunctionTransformer(allele_encode)
+    gt_filter = sklearn_pandas.FunctionTransformer(gt_encode)
+
     transform_list = [(['sor'], default_filler),
                       (['dp'], default_filler),
                       ('qual', None),
+                      ('hmer_indel_nuc', preprocessing.LabelEncoder()),
                       ('inside_hmer_run', None),
                       ('close_to_hmer_run', None),
-                      ('hmer_indel_nuc', preprocessing.LabelEncoder()),
-                      (['hmer_indel_length'], default_filler)]
+                      (['hmer_indel_length'], default_filler),
+                      (['indel_length'],default_filler),
+                      ('ad', [tuple_filter]),
+                      ('af', [tuple_filter]),
+                      (['fs'], default_filler),
+                      (['qd'], default_filler),
+                      (['mq'], default_filler),
+                      ('pl', [tuple_filter]),
+                      ('gt', [gt_filter]),
+                      (['gq'], default_filler),
+                      (['ps'], default_filler),
+                      ('ac', [tuple_filter]),
+                      (['an'], default_filler),
+                      (['baseqranksum'], default_filler),
+                      (['excesshet'], default_filler),
+                      ('mleac', [tuple_filter]),
+                      ('mleaf', [tuple_filter]),
+                      (['mqranksum'], default_filler),
+                      (['readposranksum'], default_filler),
+                      (['xc'], default_filler),
+                      ('indel', None),
+                      ('left_motif', [left_motif_filter]),
+                      ('right_motif', [right_motif_filter]),
+                      ('cycleskip_status', preprocessing.LabelEncoder()),
+                      ('alleles', [tuple_filter, allele_filter]),
+                      ('alleles', [tuple_filter_second, allele_filter])
+
+                      ]
     transformer = sklearn_pandas.DataFrameMapper(
         transform_list, df_out=output_df)
     return transformer
@@ -351,22 +458,130 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     '''
     fns = np.array(concordance[gtr_column] == 'fn')
     train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = transformer.transform(train_data)
 
     _validate_data(train_data)
     _validate_data(labels.to_numpy())
 
-    model = DecisionTreeClassifier(max_depth=7)
+    model = DecisionTreeClassifier(max_depth=5)
     model.fit(train_data, labels)
 
-    model1 = DecisionTreeRegressor(max_depth=7)
+    model1 = DecisionTreeRegressor(max_depth=5)
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
     model1.fit(train_data, enclabels)
     tree_scores = model1.predict(train_data)
-    tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
-        tree_scores, labels, test_train_split, interval_size)
-    return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,)
+    if gtr_column == 'classify':  ## there is gt
+        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
+            tree_scores, labels, test_train_split, interval_size)
+        return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,)
+    else:
+        return model, model1, None
+
+def train_model_NN(concordance: pd.DataFrame, test_train_split: np.ndarray,
+                selection: pd.Series, gtr_column: str,
+                transformer: sklearn_pandas.DataFrameMapper,
+                interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+    '''Trains model on a subset of dataframe that is already dividied into a testing and training set
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    test_train_split: pd.Series or np.ndarray
+        Boolean array, 1 is train
+    selection: pd.Series
+        Boolean series that points to data selected for the model
+    gtr_column: str
+        Column with labeling
+    transformer: sklearn_pandas.DataFrameMapper
+        transformer from df -> matrix
+    Returns
+    -------
+    tuple:
+        Trained classifier model, trained regressor model
+    '''
+    fns = np.array(concordance[gtr_column] == 'fn')
+    train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+
+    labels = concordance[test_train_split & selection & (~fns)][gtr_column]
+    train_data = transformer.transform(train_data)
+
+    # from sklearn.preprocessing import StandardScaler
+    # scaler = StandardScaler()
+    # scaler.fit(train_data)
+    # scaler.transform(train_data)
+
+    _validate_data(train_data)
+    _validate_data(labels.to_numpy())
+
+    model = MLPClassifier(solver='sgd', alpha=1e-5,
+        hidden_layer_sizes=(3,), random_state=1)
+    model.fit(train_data, labels)
+
+    model1 = MLPRegressor(solver='sgd', alpha=1e-5,
+        hidden_layer_sizes=(3,), random_state=1)
+    enclabels = preprocessing.LabelEncoder().fit_transform(labels)
+    model1.fit(train_data, enclabels)
+    tree_scores = model1.predict(train_data)
+    if gtr_column == 'classify':  ## there is gt
+        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
+            tree_scores, labels, test_train_split, interval_size)
+        return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,)
+    else:
+        return model, model1, None
+
+def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
+                   selection: pd.Series, gtr_column: str,
+                   transformer: sklearn_pandas.DataFrameMapper,
+                   interval_size: int) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+    '''Trains model on a subset of dataframe that is already dividied into a testing and training set
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Concordance dataframe
+    test_train_split: pd.Series or np.ndarray
+        Boolean array, 1 is train
+    selection: pd.Series
+        Boolean series that points to data selected for the model
+    gtr_column: str
+        Column with labeling
+    transformer: sklearn_pandas.DataFrameMapper
+        transformer from df -> matrix
+    Returns
+    -------
+    tuple:
+        Trained classifier model, trained regressor model
+    '''
+    fns = np.array(concordance[gtr_column] == 'fn')
+    train_data = concordance[test_train_split & selection & (~fns)][FEATURES]
+
+    labels = concordance[test_train_split & selection & (~fns)][gtr_column]
+    train_data = transformer.transform(train_data)
+
+    # from sklearn.preprocessing import StandardScaler
+    # scaler = StandardScaler()
+    # scaler.fit(train_data)
+    # scaler.transform(train_data)
+
+    _validate_data(train_data)
+    _validate_data(labels.to_numpy())
+
+    model = RandomForestClassifier()
+    model.fit(train_data, labels)
+
+    model1 = RandomForestRegressor()
+    enclabels = preprocessing.LabelEncoder().fit_transform(labels)
+    model1.fit(train_data, enclabels)
+    tree_scores = model1.predict(train_data)
+    if gtr_column == 'classify':  ## there is gt
+        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
+            tree_scores, labels, test_train_split, interval_size)
+        return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1, )
+    else:
+        return model, model1, None
 
 
 def _validate_data(data: Union[np.ndarray, pd.Series, pd.DataFrame]) -> None:
@@ -406,6 +621,9 @@ def fpr_tree_score_mapping(tree_scores: np.ndarray, labels: pd.Series, test_trai
         pd.Series:
             FPR value for each variant sorted in increased order
         '''
+    # in case we do not run frp - interval_size is None
+    if interval_size is None:
+        return np.zeros(len(tree_scores)), pd.Series(np.zeros(len(tree_scores)))
     train_part = sum(test_train_split)/len(test_train_split)
     tree_scores_sorted_inds = np.argsort(tree_scores)
     cur_fpr = 0
@@ -525,8 +743,10 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
     for group in df['group'].unique():
         select = df['group'] == group
         tree_score_fpr_group = tree_score_fpr[group]
-        fpr_values.loc[select] = np.interp(
-            prediction_score.loc[select], tree_score_fpr_group.iloc[:, 0], tree_score_fpr_group.iloc[:, 1])
+        if tree_score_fpr_group is not None:
+            # it is None in case we didn't run training on gt, but on dbsnp and blacklist
+            fpr_values.loc[select] = np.interp(
+                prediction_score.loc[select], tree_score_fpr_group.iloc[:, 0], tree_score_fpr_group.iloc[:, 1])
     return fpr_values
 
 
@@ -605,6 +825,84 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     return concordance
 
 
+def train_neural_network_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
+    '''Train a decision tree model on the dataframe
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Dataframe
+    classify_column: str
+        Ground truth labels
+    interval_size: int
+        number of bases in the interval
+    Returns
+    -------
+    (MaskedHierarchicalModel, pd.DataFrame
+        Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
+
+    '''
+
+    train_selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(
+        concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(
+        concordance, "group", "test_train_split", classify_column)
+    transformer = feature_prepare()
+    transformer.fit(concordance)
+    groups = set(concordance["group"])
+    classifier_models:dict = {}
+    regressor_models:dict = {}
+    fpr_values:dict = {}
+    for g in groups:
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
+            train_model_NN(concordance, concordance['test_train_split'],
+                        concordance['group'] == g, classify_column, transformer, interval_size)
+
+    return MaskedHierarchicalModel("Decision tree classifier", "group", classifier_models, transformer=transformer), \
+        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
+        concordance
+
+def train_random_forest_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
+    '''Train a decision tree model on the dataframe
+
+    Parameters
+    ----------
+    concordance: pd.DataFrame
+        Dataframe
+    classify_column: str
+        Ground truth labels
+    interval_size: int
+        number of bases in the interval
+    Returns
+    -------
+    (MaskedHierarchicalModel, pd.DataFrame
+        Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
+
+    '''
+
+    train_selection_functions = get_training_selection_functions()
+    concordance = add_grouping_column(
+        concordance, train_selection_functions, "group")
+    concordance = add_testing_train_split_column(
+        concordance, "group", "test_train_split", classify_column)
+    transformer = feature_prepare()
+    transformer.fit(concordance)
+    groups = set(concordance["group"])
+    classifier_models:dict = {}
+    regressor_models:dict = {}
+    fpr_values:dict = {}
+    for g in groups:
+        classifier_models[g], regressor_models[g], fpr_values[g] = \
+            train_model_RF(concordance, concordance['test_train_split'],
+                        concordance['group'] == g, classify_column, transformer, interval_size)
+
+    return MaskedHierarchicalModel("Random forest classifier", "group", classifier_models, transformer=transformer), \
+        MaskedHierarchicalModel("Random forest regressor", "group", regressor_models, transformer=transformer,
+                                tree_score_fpr=fpr_values), \
+        concordance
+
 def train_decision_tree_model(concordance: pd.DataFrame, classify_column: str, interval_size: int) -> tuple:
     '''Train a decision tree model on the dataframe
 
@@ -669,7 +967,8 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
     for g in groups:
-        select = (concordance["group_testing"] == g)
+        select = (concordance["group_testing"] == g) & \
+            (~concordance["test_train_split"])
 
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
@@ -679,7 +978,9 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
             group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
         precision = metrics.precision_score(
             group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        recalls_precisions[g] = (recall, precision)
+        f1 = metrics.f1_score(
+            group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
+        recalls_precisions[g] = (recall, precision,f1)
 
     return recalls_precisions
 
@@ -703,6 +1004,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     dict:
         Tuple dictionary - recall/precision for each category
     '''
+
     concordance = add_grouping_column(
         concordance, get_testing_selection_functions(), "group_testing")
     predictions = model.predict(concordance, classify_column)
@@ -712,8 +1014,9 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     for g in groups:
         select = (concordance["group_testing"] == g) & \
                  (~concordance["test_train_split"])
+
         group_ground_truth = concordance.loc[select, classify_column]
-        group_predictions = predictions[select]
+        group_predictions = predictions[select] ## as type object
         group_predictions[group_ground_truth == 'fn'] = -1
         # this is a change to calculate recall correctly
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
@@ -723,9 +1026,11 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
-        precision, recall = curve
 
-        recalls_precisions[g] = np.vstack((recall, precision)).T
+
+        precision, recall, f1, preditions = curve
+
+        recalls_precisions[g] = np.vstack((recall, precision, f1, preditions)).T
 
     return recalls_precisions
 

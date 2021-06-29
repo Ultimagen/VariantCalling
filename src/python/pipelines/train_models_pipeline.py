@@ -1,16 +1,19 @@
 import pathmagic
 import python.pipelines.variant_filtering_utils as variant_filtering_utils
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
+import python.vcftools as vcftools
 import argparse
 import pandas as pd
 import numpy as np
 import pickle
 import sys
+import logging
 
 ap = argparse.ArgumentParser(prog="train_models_pipeline.py",
                              description="Train filtering models on the concordance file")
-grp = ap.add_mutually_exclusive_group(required=True)
-grp.add_argument("--input_file", help="Name of the input h5 file", type=str)
+
+ap.add_argument("--input_file", help="Name of the input h5/vcf file. h5 is output of comparison", type=str)
+ap.add_argument("--blacklist", help="blacklist file by which we decide variants as FP", type=str, required=False)
 ap.add_argument("--output_file_prefix", help="Output .pkl file with models, .h5 file with results",
                 type=str, required=True)
 ap.add_argument("--mutect", required=False, action="store_true")
@@ -19,64 +22,89 @@ ap.add_argument("--evaluate_concordance", help="Should the results of the model 
 ap.add_argument("--apply_model",
                 help="If evaluate_concordance - which model should be applied", type=str, required='--evaluate_concordance' in sys.argv)
 ap.add_argument("--input_interval", help="bed file of intersected intervals from run_comparison pipeline",
-                type=str, required=True)
+                type=str, required=False)
 ap.add_argument("--list_of_contigs_to_read", nargs='*', help="List of contigs to read from the DF", default=[])
+ap.add_argument("--reference", help='Reference genome',
+                required=False, type=str)
+ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
+                required=False, type=str, default=None)
+ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
 
-try:
-    df = []
-    with pd.HDFStore(args.input_file) as data:
-        for k in data.keys():
-            ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
-            if (k != "/concordance") and (k != "/input_args") and\
-             (args.list_of_contigs_to_read == [] or k[1:] in args.list_of_contigs_to_read):
-                h5_file = data.get(k)
-                if not h5_file.empty:
-                    df.append(h5_file)
+logging.basicConfig(level=getattr(logging, args.verbosity),
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__ if __name__ != "__main__" else "train_model_pipeline")
 
-    df = pd.concat(df, axis=0)
+try:
+    if args.input_file.endswith('h5'):
+        assert args.input_interval,\
+            "--input_interval is required when input file type is h5"
+    if args.input_file.endswith('vcf.gz'):
+        assert args.blacklist,\
+            "--blacklist is required when input file type is vcf.gz"
+        assert args.reference,\
+            "--reference is required when input file type is vcf.gz"
+        assert args.runs_intervals,\
+            "--runs_intervals is required when input file type is vcf.gz"
+except AssertionError as af:
+    logger.error(str(af))
+    raise af
+
+try:
+    with_dbsnp_bl = args.input_file.endswith('vcf.gz')
+    if with_dbsnp_bl:
+        df = vcftools.get_vcf_df(args.input_file)
+        df = vcf_pipeline_utils.annotate_concordance(df, args.reference, runfile=args.runs_intervals)
+    else:
+        ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
+        df = []
+        with pd.HDFStore(args.input_file) as data:
+            for k in data.keys():
+                if (k != "/concordance") and (k != "/input_args") and \
+                        (args.list_of_contigs_to_read == [] or k[1:] in args.list_of_contigs_to_read):
+                    h5_file = data.get(k)
+                    if not h5_file.empty:
+                        df.append(h5_file)
+
+        df = pd.concat(df, axis=0)
     if args.mutect:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50)*10
     df.loc[
         pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
-    df_clean = df[
-        np.logical_not(df.close_to_hmer_run) & np.logical_not(df.inside_hmer_run)].copy()
-    interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
-    # Unfiltered data
-    model_no_gt, recall_precision_no_gt = variant_filtering_utils.calculate_unfiltered_model(
-        df.copy(), "classify")
+
+
     results_dict = {}
-    results_dict['unfiltered_ignore_gt_incl_hpol_runs'] = model_no_gt
-    results_dict[
-        'unfiltered_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
 
-    model_gt, recall_precision_gt = variant_filtering_utils.calculate_unfiltered_model(
-        df.copy(), "classify_gt")
-    results_dict['unfiltered_include_gt_incl_hpol_runs'] = model_gt
-    results_dict[
-        'unfiltered_recall_precision_include_gt_incl_hpol_runs'] = recall_precision_gt
+    if with_dbsnp_bl:
+        blacklist = pd.read_hdf(args.blacklist,'blacklist')
+        df = df.merge(blacklist, left_index=True, right_index=True, how='left')
 
-    model_no_gt, recall_precision_no_gt = variant_filtering_utils.calculate_unfiltered_model(
-        df_clean.copy(), "classify")
-    results_dict['unfiltered_ignore_gt_excl_hpol_runs'] = model_no_gt
-    results_dict[
-        'unfiltered_recall_precision_ignore_gt_excl_hpol_runs'] = recall_precision_no_gt
+        df['bl_classify'] = 'unknown'
+        df['bl_classify'].loc[df['bl'] == True] = 'fp'
+        df['bl_classify'].loc[~df['id'].isna()] = 'tp'
+        df = df[df['bl_classify'] != 'unknown']
+        # Decision tree models
+        classify_clm = 'bl_classify'
+        interval_size = None
+    else:
+        classify_clm = 'classify'
+        interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
-    model_gt, recall_precision_gt = variant_filtering_utils.calculate_unfiltered_model(
-        df_clean.copy(), "classify_gt")
-    results_dict['unfiltered_include_gt_excl_hpol_runs'] = model_gt
-    results_dict[
-        'unfiltered_recall_precision_include_gt_excl_hpol_runs'] = recall_precision_gt
+    # In some cases we get qual=Nan, until we will solve that, we remove such variants (we have very few of them)
+    fns = np.array(df[classify_clm] == 'fn')
+    qual_na = np.isnan(df['qual'])
+    df = df[(~qual_na & ~fns) | fns]
+
 
     # Thresholding model
     models_thr_no_gt, models_reg_thr_no_gt, df_tmp = \
         variant_filtering_utils.train_threshold_models(
-            df.copy(), interval_size, classify_column='classify')
+            df.copy(), interval_size, classify_column=classify_clm)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_thr_no_gt, "classify")
+        df_tmp, models_thr_no_gt, classify_column=classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_thr_no_gt, "classify")
+        df_tmp, models_reg_thr_no_gt, classify_column=classify_clm)
 
     results_dict[
         'threshold_model_ignore_gt_incl_hpol_runs'] = models_thr_no_gt, models_reg_thr_no_gt
@@ -85,58 +113,14 @@ try:
     results_dict[
         'threshold_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
-    models_thr_gt, models_reg_thr_gt, df_tmp = \
-        variant_filtering_utils.train_threshold_models(
-            df.copy(), interval_size, classify_column='classify_gt')
-    recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_thr_gt, "classify_gt")
-    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_thr_gt, "classify_gt")
-
-    results_dict[
-        'threshold_model_include_gt_incl_hpol_runs'] = models_thr_gt, models_reg_thr_gt
-    results_dict[
-        'threshold_model_recall_precision_include_gt_incl_hpol_runs'] = recall_precision_gt
-    results_dict[
-        'threshold_model_recall_precision_curve_include_gt_incl_hpol_runs'] = recall_precision_curve_gt
-
-    models_thr_no_gt, models_reg_thr_no_gt, df_clean_tmp = \
-        variant_filtering_utils.train_threshold_models(
-            df_clean.copy(), interval_size, classify_column='classify')
-    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_clean_tmp, models_thr_no_gt, "classify")
-    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_clean_tmp, models_reg_thr_no_gt, "classify")
-
-    results_dict[
-        'threshold_model_ignore_gt_excl_hpol_runs'] = models_thr_no_gt, models_reg_thr_no_gt
-    results_dict[
-        'threshold_model_recall_precision_ignore_gt_excl_hpol_runs'] = recall_precision_no_gt
-    results_dict[
-        'threshold_model_recall_precision_curve_ignore_gt_excl_hpol_runs'] = recall_precision_curve_no_gt
-    models_thr_gt, models_reg_thr_gt, df_clean_tmp = \
-        variant_filtering_utils.train_threshold_models(
-            df_clean.copy(), interval_size, classify_column='classify_gt')
-    recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
-        df_clean_tmp, models_thr_gt, "classify_gt")
-    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_clean_tmp, models_reg_thr_gt, "classify_gt")
-
-    results_dict[
-        'threshold_model_include_gt_excl_hpol_runs'] = models_thr_gt, models_reg_thr_gt
-    results_dict[
-        'threshold_model_recall_precision_include_gt_excl_hpol_runs'] = recall_precision_gt
-    results_dict[
-        'threshold_model_recall_precision_curve_include_gt_excl_hpol_runs'] = recall_precision_curve_gt
-
-    # Decision tree models
+    # decision tree model
     models_dt_no_gt, models_reg_dt_no_gt, df_tmp = \
         variant_filtering_utils.train_decision_tree_model(df.copy(),
-                                                          classify_column='classify', interval_size=interval_size)
+                                                          classify_column=classify_clm, interval_size=interval_size)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_dt_no_gt, "classify")
+        df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_dt_no_gt, "classify")
+        df_tmp, models_reg_dt_no_gt, classify_clm)
 
     results_dict[
         'dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
@@ -145,68 +129,57 @@ try:
     results_dict[
         'dt_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
-    models_dt_gt, models_reg_dt_gt, df_tmp = \
-        variant_filtering_utils.train_decision_tree_model(df.copy(),
-                                                          classify_column='classify_gt', interval_size=interval_size)
-    recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_dt_gt, "classify_gt")
-    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_dt_gt, "classify_gt")
-
-    results_dict[
-        'dt_model_include_gt_incl_hpol_runs'] = models_dt_gt, models_reg_dt_gt
-    results_dict[
-        'dt_model_recall_precision_include_gt_incl_hpol_runs'] = recall_precision_gt
-    results_dict[
-        'dt_model_recall_precision_curve_include_gt_incl_hpol_runs'] = recall_precision_curve_gt
-
-    models_dt_no_gt, models_reg_dt_no_gt, df_clean_tmp = \
-        variant_filtering_utils.train_decision_tree_model(df_clean.copy(),
-                                                          classify_column='classify', interval_size=interval_size)
+    # NN model
+    models_nn_no_gt, models_reg_nn_no_gt, df_tmp = \
+        variant_filtering_utils.train_neural_network_model(df.copy(),
+                                                          classify_column=classify_clm, interval_size=interval_size)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_clean_tmp, models_dt_no_gt, "classify")
+        df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_clean_tmp, models_reg_dt_no_gt, "classify")
+        df_tmp, models_reg_nn_no_gt, classify_clm)
 
     results_dict[
-        'dt_model_ignore_gt_excl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
+        'nn_model_ignore_gt_incl_hpol_runs'] = models_nn_no_gt, models_reg_nn_no_gt
     results_dict[
-        'dt_model_recall_precision_ignore_gt_excl_hpol_runs'] = recall_precision_no_gt
+        'nn_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
     results_dict[
-        'dt_model_recall_precision_curve_ignore_gt_excl_hpol_runs'] = recall_precision_curve_no_gt
+        'nn_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
-    models_dt_gt, models_reg_dt_gt, df_clean_tmp = \
-        variant_filtering_utils.train_decision_tree_model(df_clean.copy(),
-                                                          classify_column='classify_gt', interval_size=interval_size)
-    recall_precision_gt = variant_filtering_utils.test_decision_tree_model(
-        df_clean_tmp, models_dt_gt, "classify_gt")
-    recall_precision_curve_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_clean_tmp, models_reg_dt_gt, "classify_gt")
+    # RF model
+    models_rf_no_gt, models_reg_rf_no_gt, df_tmp = \
+        variant_filtering_utils.train_random_forest_model(df.copy(),
+                                                          classify_column=classify_clm, interval_size=interval_size)
+    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
+        df_tmp, models_rf_no_gt, classify_clm)
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        df_tmp, models_reg_rf_no_gt, classify_clm)
+
     results_dict[
-        'dt_model_include_gt_excl_hpol_runs'] = models_dt_gt, models_reg_dt_gt
+        'rf_model_ignore_gt_incl_hpol_runs'] = models_rf_no_gt, models_reg_rf_no_gt
     results_dict[
-        'dt_model_recall_precision_include_gt_excl_hpol_runs'] = recall_precision_gt
+        'rf_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
     results_dict[
-        'dt_model_recall_precision_curve_include_gt_excl_hpol_runs'] = recall_precision_curve_gt
+        'rf_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
+
+
 
     pickle.dump(results_dict, open(args.output_file_prefix + ".pkl", "wb"))
 
     optdict = {}
     prcdict = {}
-    for model in ['threshold', 'dt']:
-        for gt in ['ignore', 'include']:
-            for hpol in ['incl', 'excl']:
-                name_optimum = f'{model}_model_recall_precision_{gt}_gt_{hpol}_hpol_runs'
-                optdict[name_optimum] = results_dict[name_optimum]
-                prcdict[name_optimum] = results_dict[name_optimum.replace(
-                    "recall_precision", "recall_precision_curve")]
+    for m in ['dt','nn','threshold','rf']:
+        name_optimum = f'{m}_model_recall_precision_ignore_gt_incl_hpol_runs'
+        optdict[name_optimum] = results_dict[name_optimum]
+        prcdict[name_optimum] = results_dict[name_optimum.replace(
+            "recall_precision", "recall_precision_curve")]
 
     results_vals = (pd.DataFrame(optdict)).unstack().reset_index()
     results_vals.columns = ['model', 'category', 'tmp']
     results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
-        (np.nan, np.nan)]
+        (np.nan, np.nan, np.nan)]
     results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[0])
     results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[1])
+    results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[2])
     results_vals.drop('tmp', axis=1, inplace=True)
 
     results_vals.to_hdf(args.output_file_prefix + '.h5',
@@ -215,22 +188,26 @@ try:
     results_vals = (pd.DataFrame(prcdict)).unstack().reset_index()
     results_vals.columns = ['model', 'category', 'tmp']
     results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
-        np.zeros((0, 2))]
+        np.zeros((0, 3))]
     results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[:, 0])
     results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[:, 1])
+    results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[:,2])
     results_vals.drop('tmp', axis=1, inplace=True)
 
     results_vals.to_hdf(args.output_file_prefix + ".h5",
                         key="recall_precision_curve")
 
     if args.evaluate_concordance:
-
-        concordance = pd.read_hdf(args.input_file, "concordance")
+        if with_dbsnp_bl:
+            calls_df = vcftools.get_vcf_df(args.input_file, chromosome='chr9')
+            calls_df = vcf_pipeline_utils.annotate_concordance(calls_df, args.reference, runfile=args.runs_intervals)
+        else:
+            calls_df = pd.read_hdf(args.input_file, "concordance")
 
         if args.mutect:
-            concordance['qual'] = concordance['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
-        concordance.loc[
-            pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+            calls_df['qual'] = calls_df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
+        calls_df.loc[
+            pd.isnull(calls_df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
         models = results_dict[args.apply_model]
         model_clsf = models[0]
@@ -238,19 +215,30 @@ try:
 
         print("Applying classifier", flush=True, file=sys.stderr)
         predictions = model_clsf.predict(
-            variant_filtering_utils.add_grouping_column(concordance,
+            variant_filtering_utils.add_grouping_column(calls_df,
                                                         variant_filtering_utils.get_training_selection_functions(),
                                                         "group"))
         print("Applying regressor", flush=True, file=sys.stderr)
 
         predictions_score = model_scor.predict(
-            variant_filtering_utils.add_grouping_column(concordance,
+            variant_filtering_utils.add_grouping_column(calls_df,
                                                         variant_filtering_utils.get_training_selection_functions(),
                                                         "group"))
 
-        concordance['prediction'] = predictions
-        concordance['tree_score'] = predictions_score
-        concordance.to_hdf(args.output_file_prefix +
+        calls_df['prediction'] = predictions
+        calls_df['tree_score'] = predictions_score
+        # In case we already have filter column, reset the PASS,
+        # Then, by the prediction of the model we decide whether the filter column is PASS or LOW_SCORE
+        calls_df['filter'] = calls_df['filter'].apply(lambda x: x.replace('PASS;', '')).\
+            apply(lambda x: x.replace(';PASS', '')).\
+            apply(lambda x: x.replace('PASS', ''))
+        calls_df.loc[calls_df['prediction']=='fp','filter'] = \
+            calls_df.loc[calls_df['prediction']=='fp','filter'].apply(
+            lambda x: 'LOW_SCORE' if x=='' else x+';LOW_SCORE')
+        calls_df.loc[calls_df['prediction'] == 'tp','filter'] = \
+            calls_df.loc[calls_df['prediction'] == 'tp','filter'].apply(
+            lambda x: 'PASS' if x == '' else x + ';PASS')
+        calls_df.to_hdf(args.output_file_prefix +
                            ".h5", key="scored_concordance")
     print("Model training run: success", file=sys.stderr, flush=True)
 
