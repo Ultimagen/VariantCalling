@@ -7,7 +7,7 @@ from collections import defaultdict
 from enum import Enum
 
 
-def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
+def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -> pd.DataFrame:
     '''Reads VCF file into dataframe, re
 
     Parameters
@@ -16,23 +16,34 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0) -> pd.DataFrame:
         VCF file
     sample_id: int
         Index of sample to fetch (default: 0)
+    chromosome: str
+            specific chromosome to load from vcf, (default: all chromosomes)
 
     Returns
     -------
     pd.DataFrame
     '''
-    vf = pysam.VariantFile(variant_calls)
-    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() + 
-                                    ( x.samples[sample_id].items() if sample_id is not None else [] ) +
-                                    [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref),
-                                     ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
 
-    columns = ['chrom', 'pos', 'qual',
-               'ref', 'alleles', 'gt', 'pl',
-               'dp', 'ad', 'mq', 'sor', 'af', 'filter',
-               'dp_r', 'dp_f', 'ad_r', 'ad_f', 'tlod', 'strandq','fpr','tree_score','variant_type','db', 'nlod','nalod','group']
-    concordance_df = pd.DataFrame([[x[y.upper()] for y in columns] for x in vfi])
-    concordance_df.columns = columns
+    if chromosome is None:
+        vf = pysam.VariantFile(variant_calls)
+    else:
+        vf = pysam.VariantFile(variant_calls).fetch(chromosome)
+
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
+                                    (x.samples[sample_id].items() if sample_id is not None else []) +
+                                    [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref), ('ID', x.id),
+                                     ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
+    columns = ['CHROM', 'POS', 'QUAL',
+               'REF', 'ALLELES', 'GT', 'PL',
+               'DP', 'AD', 'MQ', 'SOR', 'AF', 'FILTER',
+               'DP_R', 'DP_F', 'AD_R', 'AD_F', 'TLOD', 'STRANDQ', 'FPR', 'GROUP', 'TREE_SCORE', 'VARIANT_TYPE', 'DB',
+               'AS_SOR', 'AS_SORP', 'FS', 'VQR_VAL', 'QD',
+               'GQ', 'PGT', 'PID', 'PS',
+               'AC', 'AN', 'BaseQRankSum', 'ExcessHet', 'MLEAC', 'MLEAF', 'MQRankSum', 'ReadPosRankSum', 'XC', 'ID',
+               'GNOMAD_AF','NLOD','NALOD']
+
+    concordance_df = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[x.lower() for x in columns])
+
     concordance_df['indel'] = concordance_df['alleles'].apply(
         lambda x: len(set(([len(y) for y in x]))) > 1)
 
@@ -394,7 +405,7 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
     save_bed_file(snp_fp, basename, "snp_fp", mode)
     save_bed_file(snp_fn, basename, "snp_fn", mode)
 
-    if create_gt_diff: 
+    if create_gt_diff:
         save_bed_file(all_fp_diff, basename, "genotyping_errors_fp", mode=mode)
         save_bed_file(all_fn_diff, basename, "genotyping_errors_fn", mode=mode)
 

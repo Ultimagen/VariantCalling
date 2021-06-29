@@ -34,6 +34,8 @@ ap.add_argument("--output_file", help="Output VCF file",
                 type=str, required=True)
 ap.add_argument("--is_mutect",
                 help="Is the input a result of mutect", action="store_true")
+ap.add_argument("--flow_order",
+                help="Sequencing flow order (4 cycle)", required=False, default="TACG")
 args = ap.parse_args()
 
 try:
@@ -54,6 +56,8 @@ try:
     logger.info("Reading motif info")
     df = annotation.get_motif_around(df, 5, args.reference_file)
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+    logger.info("Cycle skip info")
+    df = annotation.annotate_cycle_skip(df, flow_order=args.flow_order)
 
     if args.is_mutect: 
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
