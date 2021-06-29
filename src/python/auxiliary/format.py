@@ -4,6 +4,7 @@ CHROM_DTYPE = CategoricalDtype(
     categories=[f"chr{j}" for j in range(1, 23)] + ["chrX", "chrY", "chrM"], ordered=True
 )
 
+CYCLE_SKIP_STATUS = "cycle_skip_status"
 CYCLE_SKIP = "cycle-skip"
 POSSIBLE_CYCLE_SKIP = "possible-cycle-skip"
 NON_CYCLE_SKIP = "non-skip"
