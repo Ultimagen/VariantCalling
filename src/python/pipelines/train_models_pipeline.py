@@ -91,6 +91,7 @@ try:
         classify_clm = 'classify'
         interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
+    # In some cases we get qual=Nan, until we will solve that, we remove such variants (we have very few of them)
     fns = np.array(df[classify_clm] == 'fn')
     qual_na = np.isnan(df['qual'])
     df = df[(~qual_na & ~fns) | fns]
@@ -198,15 +199,15 @@ try:
 
     if args.evaluate_concordance:
         if with_dbsnp_bl:
-            concordance = vcftools.get_vcf_df(args.input_file, chromosome='chr9')
-            concordance = vcf_pipeline_utils.annotate_concordance(concordance, args.reference, runfile=args.runs_intervals)
+            calls_df = vcftools.get_vcf_df(args.input_file, chromosome='chr9')
+            calls_df = vcf_pipeline_utils.annotate_concordance(calls_df, args.reference, runfile=args.runs_intervals)
         else:
-            concordance = pd.read_hdf(args.input_file, "concordance")
+            calls_df = pd.read_hdf(args.input_file, "concordance")
 
         if args.mutect:
-            concordance['qual'] = concordance['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
-        concordance.loc[
-            pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+            calls_df['qual'] = calls_df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
+        calls_df.loc[
+            pd.isnull(calls_df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
         models = results_dict[args.apply_model]
         model_clsf = models[0]
@@ -214,30 +215,30 @@ try:
 
         print("Applying classifier", flush=True, file=sys.stderr)
         predictions = model_clsf.predict(
-            variant_filtering_utils.add_grouping_column(concordance,
+            variant_filtering_utils.add_grouping_column(calls_df,
                                                         variant_filtering_utils.get_training_selection_functions(),
                                                         "group"))
         print("Applying regressor", flush=True, file=sys.stderr)
 
         predictions_score = model_scor.predict(
-            variant_filtering_utils.add_grouping_column(concordance,
+            variant_filtering_utils.add_grouping_column(calls_df,
                                                         variant_filtering_utils.get_training_selection_functions(),
                                                         "group"))
 
-        concordance['prediction'] = predictions
-        concordance['tree_score'] = predictions_score
+        calls_df['prediction'] = predictions
+        calls_df['tree_score'] = predictions_score
         # In case we already have filter column, reset the PASS,
         # Then, by the prediction of the model we decide whether the filter column is PASS or LOW_SCORE
-        concordance['filter'] = concordance['filter'].apply(lambda x: x.replace('PASS;', '')).\
+        calls_df['filter'] = calls_df['filter'].apply(lambda x: x.replace('PASS;', '')).\
             apply(lambda x: x.replace(';PASS', '')).\
             apply(lambda x: x.replace('PASS', ''))
-        concordance.loc[concordance['prediction']=='fp','filter'] = \
-            concordance.loc[concordance['prediction']=='fp','filter'].apply(
+        calls_df.loc[calls_df['prediction']=='fp','filter'] = \
+            calls_df.loc[calls_df['prediction']=='fp','filter'].apply(
             lambda x: 'LOW_SCORE' if x=='' else x+';LOW_SCORE')
-        concordance.loc[concordance['prediction'] == 'tp','filter'] = \
-            concordance.loc[concordance['prediction'] == 'tp','filter'].apply(
+        calls_df.loc[calls_df['prediction'] == 'tp','filter'] = \
+            calls_df.loc[calls_df['prediction'] == 'tp','filter'].apply(
             lambda x: 'PASS' if x == '' else x + ';PASS')
-        concordance.to_hdf(args.output_file_prefix +
+        calls_df.to_hdf(args.output_file_prefix +
                            ".h5", key="scored_concordance")
     print("Model training run: success", file=sys.stderr, flush=True)
 
