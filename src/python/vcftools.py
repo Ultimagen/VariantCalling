@@ -257,7 +257,7 @@ class FilterWrapper:
         if not do_filtering:
             return pd.Series([True] * self.df.shape[0])
 
-        # in the new VCF format, the low_score is a separate column rather then a filter 
+        # in the new VCF format, the low_score is a separate column rather then a filter
         filter_column = self.df['filter']
         # remove low score points
         self.df = self.df[~filter_column.str.contains(
