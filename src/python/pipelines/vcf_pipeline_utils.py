@@ -538,17 +538,19 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         logger.info("Marking homopolymer runs")
         df = annotation.close_to_hmer_run(
             df, runfile, min_hmer_run_length=length, max_distance=dist)
+    annots = []
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:
             logger.info("Annotating intervals")
-            df = annotation.annotate_intervals(
+            df, annot = annotation.annotate_intervals(
                 df, annotation_file)
+            annots.append(annot)
     logger.debug("Filling filter column")  # debug since not interesting step
     df = annotation.fill_filter_column(df)
 
     logger.info("Filling filter column")
     df = annotation.annotate_cycle_skip(df, flow_order=flow_order)
-    return df
+    return df, annots
 
 
 def reinterpret_variants(concordance_df: pd.DataFrame, reference_fasta: str,
