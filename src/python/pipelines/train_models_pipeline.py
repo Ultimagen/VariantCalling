@@ -28,6 +28,8 @@ ap.add_argument("--reference", help='Reference genome',
                 required=False, type=str)
 ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
                 required=False, type=str, default=None)
+ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
+                type=str, default=None, action='append')
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
@@ -55,7 +57,9 @@ try:
     with_dbsnp_bl = args.input_file.endswith('vcf.gz')
     if with_dbsnp_bl:
         df = vcftools.get_vcf_df(args.input_file)
-        df = vcf_pipeline_utils.annotate_concordance(df, args.reference, runfile=args.runs_intervals)
+        df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference,
+                                                             runfile=args.runs_intervals,
+                                                             annotate_intervals=args.annotate_intervals)
     else:
         ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         df = []
@@ -100,7 +104,7 @@ try:
     # Thresholding model
     models_thr_no_gt, models_reg_thr_no_gt, df_tmp = \
         variant_filtering_utils.train_threshold_models(
-            df.copy(), interval_size, classify_column=classify_clm)
+            df.copy(), interval_size, classify_column=classify_clm, annots=annots)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_thr_no_gt, classify_column=classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -115,8 +119,11 @@ try:
 
     # decision tree model
     models_dt_no_gt, models_reg_dt_no_gt, df_tmp = \
-        variant_filtering_utils.train_decision_tree_model(df.copy(),
-                                                          classify_column=classify_clm, interval_size=interval_size)
+        variant_filtering_utils.train_model_wrapper(df.copy(),
+                                                    classify_column=classify_clm,
+                                                    interval_size=interval_size,
+                                                    train_function=variant_filtering_utils.train_model_NN,
+                                                    annots=annots)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -131,8 +138,11 @@ try:
 
     # NN model
     models_nn_no_gt, models_reg_nn_no_gt, df_tmp = \
-        variant_filtering_utils.train_neural_network_model(df.copy(),
-                                                          classify_column=classify_clm, interval_size=interval_size)
+        variant_filtering_utils.train_model_wrapper(df.copy(),
+                                                    classify_column=classify_clm,
+                                                    interval_size=interval_size,
+                                                    train_function=variant_filtering_utils.train_model_NN,
+                                                    annots=annots)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -147,8 +157,11 @@ try:
 
     # RF model
     models_rf_no_gt, models_reg_rf_no_gt, df_tmp = \
-        variant_filtering_utils.train_random_forest_model(df.copy(),
-                                                          classify_column=classify_clm, interval_size=interval_size)
+        variant_filtering_utils.train_model_wrapper(df.copy(),
+                                                    classify_column=classify_clm,
+                                                    interval_size=interval_size,
+                                                    train_function=variant_filtering_utils.train_model_RF,
+                                                    annots=annots)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(

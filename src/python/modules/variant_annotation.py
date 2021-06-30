@@ -257,7 +257,7 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
 
         is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
         df.loc[gdf_ix, annot] = is_inside
-    return df
+    return df, annot
 
 
 def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame:
