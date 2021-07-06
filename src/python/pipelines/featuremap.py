@@ -65,10 +65,7 @@ plt.rc("figure", figsize=FIGSIZE)  # size of the figure
 
 
 def _collect_coverage_per_motif(
-    chrom: str,
-    depth_file: str,
-    size: int = 5,
-    N: int = 100,
+    chrom: str, depth_file: str, size: int = 5, N: int = 100,
 ):
     """
     Collect coverage per motif from given input file from a single chromosome
@@ -179,7 +176,10 @@ def collect_coverage_per_motif(
     df = pd.concat(
         Parallel(n_jobs=n_jobs)(
             delayed(_collect_coverage_per_motif)(
-                chrom=pyfaidx.Fasta(reference_fasta)[chr_str][:].seq.upper(), depth_file=depth_file, size=size, N=N
+                chrom=pyfaidx.Fasta(reference_fasta)[chr_str][:].seq.upper(),
+                depth_file=depth_file,
+                size=size,
+                N=N,
             )
             for chr_str, depth_file in depth_files.items()
         )
@@ -303,9 +303,11 @@ def featuremap_to_dataframe(
             df[c] = df[c].where(is_reverse, df[c].apply(revcomp))
 
     if reference_fasta is not None:
-        df = get_motif_around(
-            df.assign(indel=False), motif_length, reference_fasta
-        ).drop(columns=["indel"])
+        df = (
+            get_motif_around(df.assign(indel=False), motif_length, reference_fasta)
+            .drop(columns=["indel"])
+            .astype({"left_motif": str, "right_motif": str})
+        )
 
         if report_read_orientation:
             left_motif_reverse = df["left_motif"].apply(revcomp)
