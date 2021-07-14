@@ -30,6 +30,9 @@ ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
                 required=False, type=str, default=None)
 ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                 type=str, default=None, action='append')
+ap.add_argument("--exome_weight", help='weight of exome variants in comparison to whole genome variant', required=False,
+                type=int, default=1)
+
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
@@ -57,12 +60,11 @@ try:
     with_dbsnp_bl = args.input_file.endswith('vcf.gz')
     if with_dbsnp_bl:
         df = vcftools.get_vcf_df(args.input_file)
-        df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference,
-                                                             runfile=args.runs_intervals,
-                                                             annotate_intervals=args.annotate_intervals)
+
     else:
         ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         df = []
+        annots = []
         with pd.HDFStore(args.input_file) as data:
             for k in data.keys():
                 if (k != "/concordance") and (k != "/input_args") and \
@@ -72,6 +74,11 @@ try:
                         df.append(h5_file)
 
         df = pd.concat(df, axis=0)
+
+    df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference,
+                                                         runfile=args.runs_intervals,
+                                                         annotate_intervals=args.annotate_intervals)
+
     if args.mutect:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50)*10
     df.loc[
@@ -123,7 +130,9 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_NN,
-                                                    annots=annots)
+                                                    annots=annots,
+                                                    exome_weight=args.exome_weight)
+    df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -142,7 +151,9 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_NN,
-                                                    annots=annots)
+                                                    annots=annots,
+                                                    exome_weight=args.exome_weight)
+    df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -161,7 +172,9 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_RF,
-                                                    annots=annots)
+                                                    annots=annots,
+                                                    exome_weight=args.exome_weight)
+    df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -213,10 +226,11 @@ try:
     if args.evaluate_concordance:
         if with_dbsnp_bl:
             calls_df = vcftools.get_vcf_df(args.input_file, chromosome='chr9')
-            calls_df = vcf_pipeline_utils.annotate_concordance(calls_df, args.reference, runfile=args.runs_intervals)
         else:
             calls_df = pd.read_hdf(args.input_file, "concordance")
-
+        calls_df, _ = vcf_pipeline_utils.annotate_concordance(calls_df, args.reference,
+                                                              runfile=args.runs_intervals,
+                                                              annotate_intervals=args.annotate_intervals)
         if args.mutect:
             calls_df['qual'] = calls_df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
         calls_df.loc[

@@ -519,7 +519,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     -------
     pd.DataFrame
         Annotated dataframe
-
+    list
+        list of the annotated intervals
     '''
 
     logger.info("Marking SNP/INDEL")
