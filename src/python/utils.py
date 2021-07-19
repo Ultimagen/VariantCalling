@@ -2,7 +2,8 @@ import numpy as np
 import itertools
 import pandas as pd
 from typing import Optional, Union, List
-
+import os
+import json
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
     '''Returns values from a distribution
@@ -20,9 +21,10 @@ def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray
     '''
     return np.random.choice(vals, 10000, p=probs)
 
-def generateKeyFromSequence(sequence: str, flow_order: str, truncate: int=None) -> np.ndarray:
+
+def generateKeyFromSequence(sequence: str, flow_order: str, truncate: Optional[int] = None) -> np.ndarray:
     """Converts bases to flow order
-    
+
     Parameters
     ----------
     sequence : str
@@ -31,7 +33,7 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: int=None) 
         Flow order
     truncate : int, optional
         maximal hmer to read
-    
+
     Returns
     -------
     np.ndarray
@@ -39,7 +41,7 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: int=None) 
     """
 
     flow = flow_order*len(sequence)
-    
+
     key = []
     pos = 0
     for base in flow:
@@ -52,13 +54,14 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: int=None) 
         else:
             key.append(hcount)
             break # end of sequence
-            
+
         key.append(hcount)
         pos += hcount
-    if truncate: 
+    if truncate:
         return np.clip(np.array(key), 0, truncate)    
-    else: 
+    else:
         return np.array(key)
+
 
 def revcomp(seq: str) -> Union[str, list, np.ndarray]:
     '''Reverse complements DNA given as string
@@ -320,10 +323,11 @@ def max_merits(specificity, recall):
 def parse_intervals_file(intervalfile, threshold=0):
     '''Parses bed file'''
     df = pd.read_csv(intervalfile, names=['chromosome', 'start', 'end'], usecols=[0,1,2], index_col=None, sep="\t")
-    if threshold>0:
+    if threshold > 0:
         df = df[df['end'] - df['start'] > threshold]
     df.sort_values(['chromosome', 'start'], inplace=True)
     return df
+
 
 def isin(pos: int, interval: tuple) -> bool:
     '''Is position inside the [interval)
@@ -340,3 +344,4 @@ def isin(pos: int, interval: tuple) -> bool:
     bool
     '''
     return pos >= interval[0] and pos < interval[1]
+
