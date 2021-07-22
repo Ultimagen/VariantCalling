@@ -51,22 +51,7 @@ try:
     df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference_file,
                                                          runfile=args.runs_file,
                                                          annotate_intervals=args.annotate_intervals)
-
-    # logger.info("Adding hpol run info")
-    # min_hmer_run_length, max_distance = args.hpol_filter_length_dist
-    # df = annotation.close_to_hmer_run(df, args.runs_file,
-    #                                   min_hmer_run_length=min_hmer_run_length,
-    #                                   max_distance=max_distance)
-    # logger.info("Classifying indel/SNP")
-    # df = annotation.classify_indel(df)
-    # logger.info("Classifying hmer/non-hmer indel")
-    # df = annotation.is_hmer_indel(df, args.reference_file)
-    # logger.info("Reading motif info")
-    # df = annotation.get_motif_around(df, 5, args.reference_file)
-    # df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
-    # logger.info("Cycle skip info")
-    # df = annotation.annotate_cycle_skip(df, flow_order=args.flow_order)
-
+    
     if args.is_mutect:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
 
