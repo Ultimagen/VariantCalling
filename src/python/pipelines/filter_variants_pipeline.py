@@ -51,7 +51,7 @@ try:
     df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference_file,
                                                          runfile=args.runs_file,
                                                          annotate_intervals=args.annotate_intervals)
-    
+
     if args.is_mutect:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
 

@@ -446,7 +446,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 classify_model,
                 regression_model,
                 annots: list = [],
-                exome_weight: int = 1) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+                exome_weight: int = 1,
+                exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -464,6 +465,9 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     annots: list
         Annotation interval names
     exome_weight: int
+        Weight value for the exome variants
+    exome_weight_annotation: str
+        Exome weight annotation name
 
     Returns
     -------
@@ -484,9 +488,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
 
     if isinstance(model, RandomForestClassifier):
-        sample_weight = concordance[test_train_split & selection & (~fns)][FEATURES + annots]['exome.twist']
+        sample_weight = concordance[test_train_split & selection & (~fns)][FEATURES + annots][exome_weight_annotation]
         sample_weight = sample_weight.apply(lambda x: exome_weight if x else 1)
-        print(exome_weight)
 
         model.fit(train_data, labels, sample_weight=sample_weight)
         model1.fit(train_data, enclabels, sample_weight=sample_weight)
@@ -505,7 +508,9 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
 def train_model_NN(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 selection: pd.Series, gtr_column: str,
                 transformer: sklearn_pandas.DataFrameMapper,
-                interval_size: int, annots: list = [], exome_weight: int = 1) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+                interval_size: int, annots: list = [],
+                exome_weight: int = 1,
+                exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already divided into a testing and training set
 
     Parameters
@@ -522,6 +527,10 @@ def train_model_NN(concordance: pd.DataFrame, test_train_split: np.ndarray,
         transformer from df -> matrix
     annots: list
         Annotation interval names
+    exome_weight: int
+        Weight value for the exome variants
+    exome_weight_annotation: str
+        Exome weight annotation name
     Returns
     -------
     tuple:
@@ -534,13 +543,17 @@ def train_model_NN(concordance: pd.DataFrame, test_train_split: np.ndarray,
     model1 = MLPRegressor(solver='sgd', alpha=1e-5,
         hidden_layer_sizes=(3,), random_state=1)
     return train_model(concordance, test_train_split,
-                   selection, gtr_column, transformer, interval_size, model, model1, annots=annots, exome_weight=exome_weight)
+                   selection, gtr_column, transformer, interval_size, model, model1, annots=annots,
+                       exome_weight=exome_weight,
+                       exome_weight_annotation=exome_weight_annotation)
 
 
 def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
                    selection: pd.Series, gtr_column: str,
                    transformer: sklearn_pandas.DataFrameMapper,
-                   interval_size: int, annots: list = [], exome_weight: int = 1) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+                   interval_size: int, annots: list = [],
+                   exome_weight: int = 1,
+                   exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already divided into a testing and training set
 
     Parameters
@@ -557,6 +570,10 @@ def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
         transformer from df -> matrix
     annots: list
         Annotation interval names
+    exome_weight: int
+        Weight value for the exome variants
+    exome_weight_annotation: str
+        Exome weight annotation name
     Returns
     -------
     tuple:
@@ -566,12 +583,16 @@ def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
 
     model1 = RandomForestRegressor()
     return train_model(concordance, test_train_split,
-                   selection, gtr_column, transformer, interval_size, model, model1, annots=annots, exome_weight=exome_weight)
+                   selection, gtr_column, transformer, interval_size, model, model1, annots=annots,
+                       exome_weight=exome_weight,
+                       exome_weight_annotation=exome_weight_annotation)
 
 def train_model_DT(concordance: pd.DataFrame, test_train_split: np.ndarray,
                    selection: pd.Series, gtr_column: str,
                    transformer: sklearn_pandas.DataFrameMapper,
-                   interval_size: int, annots: list = [], exome_weight: int = 1) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+                   interval_size: int, annots: list = [],
+                   exome_weight: int = 1,
+                   exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already divided into a testing and training set
 
     Parameters
@@ -588,6 +609,10 @@ def train_model_DT(concordance: pd.DataFrame, test_train_split: np.ndarray,
         transformer from df -> matrix
     annots: list
         Annotation interval names
+    exome_weight: int
+        Weight value for the exome variants
+    exome_weight_annotation: str
+        Exome weight annotation name
     Returns
     -------
     tuple:
@@ -597,7 +622,9 @@ def train_model_DT(concordance: pd.DataFrame, test_train_split: np.ndarray,
 
     model1 = RandomForestRegressor()
     return train_model(concordance, test_train_split,
-                   selection, gtr_column, transformer, interval_size, model, model1, annots=annots, exome_weight=exome_weight)
+                   selection, gtr_column, transformer, interval_size, model, model1, annots=annots,
+                       exome_weight=exome_weight,
+                       exome_weight_annotation=exome_weight_annotation)
 
 
 def _validate_data(data: Union[np.ndarray, pd.Series, pd.DataFrame]) -> None:
@@ -841,8 +868,11 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     return concordance
 
 def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interval_size: int, train_function,
+                        model_name: str,
                         annots: list = [],
-                        exome_weight: int = 1) -> tuple:
+                        exome_weight: int = 1,
+                        exome_weight_annotation: str = None,
+                        use_train_test_split: bool = True) -> tuple:
     '''Train a decision tree model on the dataframe
 
     Parameters
@@ -855,13 +885,17 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
         number of bases in the interval
     train_function: def
         The inner function to call for training
+    model_name: str
+        The name of the model to save
+    annots: list
+        Annotation interval names
+    exome_weight: int
+        Weight value for the exome variants
+    exome_weight_annotation: str
+        Exome weight annotation name
+    use_train_test_split: bool
+        Whether to split the data to train/test(True) or keep all the data(False)
 
-
-
-
-
-
-    _weight: int
 
     Returns
     -------
@@ -873,9 +907,11 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
     train_selection_functions = get_training_selection_functions()
     concordance = add_grouping_column(
         concordance, train_selection_functions, "group")
-    # concordance = add_testing_train_split_column(
-    #     concordance, "group", "test_train_split", classify_column)
-    concordance['test_train_split'] = True
+    if use_train_test_split:
+        concordance = add_testing_train_split_column(
+            concordance, "group", "test_train_split", classify_column)
+    else:
+        concordance['test_train_split'] = True
     transformer = feature_prepare(annots=annots)
     transformer.fit(concordance)
     groups = set(concordance["group"])
@@ -886,10 +922,11 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
         classifier_models[g], regressor_models[g], fpr_values[g] = \
             train_function(concordance, concordance['test_train_split'],
                         concordance['group'] == g, classify_column, transformer, interval_size, annots,
-                           exome_weight=exome_weight)
+                           exome_weight=exome_weight,
+                           exome_weight_annotation=exome_weight_annotation)
 
-    return MaskedHierarchicalModel("Decision tree classifier", "group", classifier_models, transformer=transformer), \
-        MaskedHierarchicalModel("Decision tree regressor", "group", regressor_models, transformer=transformer,
+    return MaskedHierarchicalModel(model_name + " classifier", "group", classifier_models, transformer=transformer), \
+        MaskedHierarchicalModel(model_name + " regressor", "group", regressor_models, transformer=transformer,
                                 tree_score_fpr=fpr_values), \
         concordance
 
