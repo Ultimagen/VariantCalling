@@ -30,9 +30,11 @@ ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
                 required=False, type=str, default=None)
 ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                 type=str, default=None, action='append')
-ap.add_argument("--exome_weight", help='weight of exome variants in comparison to whole genome variant', required=False,
+grp = ap.add_mutually_exclusive_group(required=False)
+grp.add_argument("--exome_weight", help='weight of exome variants in comparison to whole genome variant',
                 type=int, default=1)
-
+grp.add_argument("--exome_weight_annotation", help='annotation name by which we decide the weight of exome variants',
+                type=str)
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
@@ -129,10 +131,14 @@ try:
         variant_filtering_utils.train_model_wrapper(df.copy(),
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
-                                                    train_function=variant_filtering_utils.train_model_NN,
+                                                    train_function=variant_filtering_utils.train_model_DT,
+                                                    train_model="Decision tree",
                                                     annots=annots,
-                                                    exome_weight=args.exome_weight)
-    df_tmp['test_train_split'] = False
+                                                    exome_weight=args.exome_weight,
+                                                    exome_weight_annotation=args.exome_weight_annotation,
+                                                    use_train_test_split=not with_dbsnp_bl)
+    if with_dbsnp_bl:
+        df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -151,9 +157,12 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_NN,
+                                                    train_model="Neural network",
                                                     annots=annots,
-                                                    exome_weight=args.exome_weight)
-    df_tmp['test_train_split'] = False
+                                                    exome_weight=args.exome_weight,
+                                                    use_train_test_split=not with_dbsnp_bl)
+    if with_dbsnp_bl:
+        df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -172,9 +181,12 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_RF,
+                                                    train_model="Random forest",
                                                     annots=annots,
-                                                    exome_weight=args.exome_weight)
-    df_tmp['test_train_split'] = False
+                                                    exome_weight=args.exome_weight,
+                                                    use_train_test_split=not with_dbsnp_bl)
+    if with_dbsnp_bl:
+        df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
