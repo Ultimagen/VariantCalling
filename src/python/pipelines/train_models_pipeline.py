@@ -25,15 +25,14 @@ ap.add_argument("--input_interval", help="bed file of intersected intervals from
                 type=str, required=False)
 ap.add_argument("--list_of_contigs_to_read", nargs='*', help="List of contigs to read from the DF", default=[])
 ap.add_argument("--reference", help='Reference genome',
-                required=False, type=str)
+                required=True, type=str)
 ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
                 required=False, type=str, default=None)
 ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                 type=str, default=None, action='append')
-grp = ap.add_mutually_exclusive_group(required=False)
-grp.add_argument("--exome_weight", help='weight of exome variants in comparison to whole genome variant',
+ap.add_argument("--exome_weight", help='weight of exome variants in comparison to whole genome variant',
                 type=int, default=1)
-grp.add_argument("--exome_weight_annotation", help='annotation name by which we decide the weight of exome variants',
+ap.add_argument("--exome_weight_annotation", help='annotation name by which we decide the weight of exome variants',
                 type=str)
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
@@ -104,10 +103,6 @@ try:
         classify_clm = 'classify'
         interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
-    # In some cases we get qual=Nan, until we will solve that, we remove such variants (we have very few of them)
-    fns = np.array(df[classify_clm] == 'fn')
-    qual_na = np.isnan(df['qual'])
-    df = df[(~qual_na & ~fns) | fns]
 
 
     # Thresholding model
@@ -132,7 +127,7 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_DT,
-                                                    train_model="Decision tree",
+                                                    model_name="Decision tree",
                                                     annots=annots,
                                                     exome_weight=args.exome_weight,
                                                     exome_weight_annotation=args.exome_weight_annotation,
@@ -157,9 +152,10 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_NN,
-                                                    train_model="Neural network",
+                                                    model_name="Neural network",
                                                     annots=annots,
                                                     exome_weight=args.exome_weight,
+                                                    exome_weight_annotation=args.exome_weight_annotation,
                                                     use_train_test_split=not with_dbsnp_bl)
     if with_dbsnp_bl:
         df_tmp['test_train_split'] = False
@@ -181,9 +177,10 @@ try:
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
                                                     train_function=variant_filtering_utils.train_model_RF,
-                                                    train_model="Random forest",
+                                                    model_name="Random forest",
                                                     annots=annots,
                                                     exome_weight=args.exome_weight,
+                                                    exome_weight_annotation=args.exome_weight_annotation,
                                                     use_train_test_split=not with_dbsnp_bl)
     if with_dbsnp_bl:
         df_tmp['test_train_split'] = False
