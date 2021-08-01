@@ -487,7 +487,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     model1 = regression_model
     enclabels = preprocessing.LabelEncoder().fit_transform(labels)
 
-    if isinstance(model, RandomForestClassifier):
+    if exome_weight != 1 and (exome_weight_annotation is not None) and\
+            isinstance(model, RandomForestClassifier):
         sample_weight = concordance[test_train_split & selection & (~fns)][FEATURES + annots][exome_weight_annotation]
         sample_weight = sample_weight.apply(lambda x: exome_weight if x else 1)
 
@@ -618,9 +619,9 @@ def train_model_DT(concordance: pd.DataFrame, test_train_split: np.ndarray,
     tuple:
         Trained classifier model, trained regressor model
     '''
-    model = RandomForestClassifier()
+    model = DecisionTreeClassifier(max_depth=5)
 
-    model1 = RandomForestRegressor()
+    model1 = DecisionTreeRegressor(max_depth=5)
     return train_model(concordance, test_train_split,
                    selection, gtr_column, transformer, interval_size, model, model1, annots=annots,
                        exome_weight=exome_weight,
@@ -903,7 +904,7 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
         Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
 
     '''
-
+    logger.info("Train model " + model_name)
     train_selection_functions = get_training_selection_functions()
     concordance = add_grouping_column(
         concordance, train_selection_functions, "group")

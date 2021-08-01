@@ -74,9 +74,6 @@ try:
                                                      variant_filtering_utils.get_training_selection_functions(),
                                                      "group")
 
-    # In some cases we get qual=Nan, until we will solve that, we remove such variants (we have very few of them)
-    qual_na = np.isnan(df['qual'])
-    df = df[~qual_na]
     if args.blacklist is not None:
         with open(args.blacklist, "rb") as blf:
             blacklists = pickle.load(blf)
@@ -119,30 +116,25 @@ try:
             hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
             hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
             hdr.info.add("VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
-        qual_na_ind = pd.Series(np.where(qual_na)[0])
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
-                if i in qual_na_ind:
-                    na_till_now = na_till_now + 1
-                    continue
                 pass_flag = True
-                apdated_i=i-na_till_now
-                if hmer_run[apdated_i]:
+                if hmer_run[i]:
                     rec.info["HPOL_RUN"] = True
-                if predictions[apdated_i] == 'fp':
+                if predictions[i] == 'fp':
                     rec.filter.add("LOW_SCORE")
                     pass_flag = False
-                if blacklist[apdated_i] != "PASS":
-                    for v in blacklist[apdated_i].split(";"):
+                if blacklist[i] != "PASS":
+                    for v in blacklist[i].split(";"):
                         if v != "PASS":
                             rec.filter.add(v)
                             pass_flag = False
                 if pass_flag:
                     rec.filter.add("PASS")
                 if is_decision_tree:
-                    rec.info["TREE_SCORE"] = predictions_score[apdated_i]
-                    rec.info["FPR"] = prediction_fpr[apdated_i]
-                    rec.info["VARIANT_TYPE"] = group[apdated_i]
+                    rec.info["TREE_SCORE"] = predictions_score[i]
+                    rec.info["FPR"] = prediction_fpr[i]
+                    rec.info["VARIANT_TYPE"] = group[i]
 
                 # fix the alleles of form <1> that our GATK adds
                 rec.ref = rec.ref if re.match(
