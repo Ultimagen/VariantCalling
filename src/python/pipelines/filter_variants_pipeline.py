@@ -101,7 +101,6 @@ try:
 
     logger.info("Writing")
     skipped_records = 0
-    na_till_now = 0
     with pysam.VariantFile(args.input_file) as infile:
         hdr = infile.header
         hdr.info.add("HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
