@@ -340,7 +340,7 @@ def generate_stats_from_histogram(
             .T,
         ),
         sort=False,
-    )
+    ).fillna(0)  # extrapolation below 0 yields NaN
     df_percentiles.index = pd.Index(
         data=[f"Q{int(qq * 100)}" for qq in q] + ["mean"], name="statistic"
     )
@@ -579,7 +579,13 @@ def plot_coverage_profile(
 
         plt.title(r, fontsize=18)
         df = pd.read_parquet(input_depth_files[r])
-        x = (df["chromStart"] + df["chromEnd"]) / (2e6)
+
+        if df.shape[0] > 300:  # downsample data for display
+            print(df.shape)
+            space = df.shape[0] // 300
+            df = df.iloc[::space]
+            print(df.shape)
+        x = (df["chromStart"] + df["chromEnd"]) / 2 / 1E6
         plt.plot(
             x, df["coverage"] / median_coverage, label="coverage profile", zorder=1,
         )
