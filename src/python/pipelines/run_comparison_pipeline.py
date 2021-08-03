@@ -21,7 +21,7 @@ def _contig_concordance_annotate_reinterpretation(results, contig, reference, al
     logger.info(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], concordance_tool, contig)
-    annotated_concordance = vcf_pipeline_utils.annotate_concordance(
+    annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
         concordance, reference, aligned_bam, annotate_intervals,
         runs_intervals, hmer_run_length_dist=hpol_filter_length_dist, flow_order=flow_order)
 
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     if not cmp_intervals.is_none():
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool)
-        annotated_concordance = vcf_pipeline_utils.annotate_concordance(
+        annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
             concordance, args.reference, args.aligned_bam, args.annotate_intervals,
             runs_intervals.as_bed_file(), hmer_run_length_dist=args.hpol_filter_length_dist,
             flow_order=args.flow_order)

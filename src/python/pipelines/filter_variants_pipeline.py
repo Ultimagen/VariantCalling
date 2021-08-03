@@ -13,6 +13,7 @@ import pickle
 import python.modules.variant_annotation as annotation
 import python.pipelines.variant_filtering_utils as variant_filtering_utils
 import python.vcftools as vcftools
+import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 
 ap = argparse.ArgumentParser(
     prog="filter_variants_pipeline.py", description="Filter VCF")
@@ -36,6 +37,8 @@ ap.add_argument("--is_mutect",
                 help="Is the input a result of mutect", action="store_true")
 ap.add_argument("--flow_order",
                 help="Sequencing flow order (4 cycle)", required=False, default="TACG")
+ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
+                type=str, default=None, action='append')
 args = ap.parse_args()
 
 try:
@@ -44,22 +47,12 @@ try:
 
     logger.info("Reading VCF")
     df = vcftools.get_vcf_df(args.input_file)
-    logger.info("Adding hpol run info")
-    min_hmer_run_length, max_distance = args.hpol_filter_length_dist
-    df = annotation.close_to_hmer_run(df, args.runs_file,
-                                      min_hmer_run_length=min_hmer_run_length,
-                                      max_distance=max_distance)
-    logger.info("Classifying indel/SNP")
-    df = annotation.classify_indel(df)
-    logger.info("Classifying hmer/non-hmer indel")
-    df = annotation.is_hmer_indel(df, args.reference_file)
-    logger.info("Reading motif info")
-    df = annotation.get_motif_around(df, 5, args.reference_file)
-    df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
-    logger.info("Cycle skip info")
-    df = annotation.annotate_cycle_skip(df, flow_order=args.flow_order)
 
-    if args.is_mutect: 
+    df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference_file,
+                                                         runfile=args.runs_file,
+                                                         annotate_intervals=args.annotate_intervals)
+
+    if args.is_mutect:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
 
     df.loc[df['gt'] == (1, 1), 'sor'] = 0.5
