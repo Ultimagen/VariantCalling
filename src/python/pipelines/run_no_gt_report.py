@@ -204,7 +204,7 @@ if __name__ == "__main__":
     logger.info("Converting vcf to df")
     df = vcftools.get_vcf_df(args.input_file)
     logger.info("Annotating vcf")
-    annotated_df = vcf_pipeline_utils.annotate_concordance(
+    annotated_df, _ = vcf_pipeline_utils.annotate_concordance(
         df, args.reference)
 
     logger.info("insertion/ deletion statistics")

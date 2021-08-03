@@ -25,9 +25,15 @@ ap.add_argument("--input_interval", help="bed file of intersected intervals from
                 type=str, required=False)
 ap.add_argument("--list_of_contigs_to_read", nargs='*', help="List of contigs to read from the DF", default=[])
 ap.add_argument("--reference", help='Reference genome',
-                required=False, type=str)
+                required=True, type=str)
 ap.add_argument("--runs_intervals", help='Runs intervals (bed/interval_list)',
                 required=False, type=str, default=None)
+ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
+                type=str, default=None, action='append')
+ap.add_argument("--exome_weight", help='weight of exome variants in comparison to whole genome variant',
+                type=int, default=1)
+ap.add_argument("--exome_weight_annotation", help='annotation name by which we decide the weight of exome variants',
+                type=str)
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
@@ -55,10 +61,11 @@ try:
     with_dbsnp_bl = args.input_file.endswith('vcf.gz')
     if with_dbsnp_bl:
         df = vcftools.get_vcf_df(args.input_file)
-        df = vcf_pipeline_utils.annotate_concordance(df, args.reference, runfile=args.runs_intervals)
+
     else:
         ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         df = []
+        annots = []
         with pd.HDFStore(args.input_file) as data:
             for k in data.keys():
                 if (k != "/concordance") and (k != "/input_args") and \
@@ -68,6 +75,11 @@ try:
                         df.append(h5_file)
 
         df = pd.concat(df, axis=0)
+
+    df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference,
+                                                         runfile=args.runs_intervals,
+                                                         annotate_intervals=args.annotate_intervals)
+
     if args.mutect:
         df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50)*10
     df.loc[
@@ -91,16 +103,12 @@ try:
         classify_clm = 'classify'
         interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
-    # In some cases we get qual=Nan, until we will solve that, we remove such variants (we have very few of them)
-    fns = np.array(df[classify_clm] == 'fn')
-    qual_na = np.isnan(df['qual'])
-    df = df[(~qual_na & ~fns) | fns]
 
 
     # Thresholding model
     models_thr_no_gt, models_reg_thr_no_gt, df_tmp = \
         variant_filtering_utils.train_threshold_models(
-            df.copy(), interval_size, classify_column=classify_clm)
+            df.copy(), interval_size, classify_column=classify_clm, annots=annots)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_thr_no_gt, classify_column=classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -115,8 +123,17 @@ try:
 
     # decision tree model
     models_dt_no_gt, models_reg_dt_no_gt, df_tmp = \
-        variant_filtering_utils.train_decision_tree_model(df.copy(),
-                                                          classify_column=classify_clm, interval_size=interval_size)
+        variant_filtering_utils.train_model_wrapper(df.copy(),
+                                                    classify_column=classify_clm,
+                                                    interval_size=interval_size,
+                                                    train_function=variant_filtering_utils.train_model_DT,
+                                                    model_name="Decision tree",
+                                                    annots=annots,
+                                                    exome_weight=args.exome_weight,
+                                                    exome_weight_annotation=args.exome_weight_annotation,
+                                                    use_train_test_split=not with_dbsnp_bl)
+    if with_dbsnp_bl:
+        df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -131,8 +148,17 @@ try:
 
     # NN model
     models_nn_no_gt, models_reg_nn_no_gt, df_tmp = \
-        variant_filtering_utils.train_neural_network_model(df.copy(),
-                                                          classify_column=classify_clm, interval_size=interval_size)
+        variant_filtering_utils.train_model_wrapper(df.copy(),
+                                                    classify_column=classify_clm,
+                                                    interval_size=interval_size,
+                                                    train_function=variant_filtering_utils.train_model_NN,
+                                                    model_name="Neural network",
+                                                    annots=annots,
+                                                    exome_weight=args.exome_weight,
+                                                    exome_weight_annotation=args.exome_weight_annotation,
+                                                    use_train_test_split=not with_dbsnp_bl)
+    if with_dbsnp_bl:
+        df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -147,8 +173,17 @@ try:
 
     # RF model
     models_rf_no_gt, models_reg_rf_no_gt, df_tmp = \
-        variant_filtering_utils.train_random_forest_model(df.copy(),
-                                                          classify_column=classify_clm, interval_size=interval_size)
+        variant_filtering_utils.train_model_wrapper(df.copy(),
+                                                    classify_column=classify_clm,
+                                                    interval_size=interval_size,
+                                                    train_function=variant_filtering_utils.train_model_RF,
+                                                    model_name="Random forest",
+                                                    annots=annots,
+                                                    exome_weight=args.exome_weight,
+                                                    exome_weight_annotation=args.exome_weight_annotation,
+                                                    use_train_test_split=not with_dbsnp_bl)
+    if with_dbsnp_bl:
+        df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -200,10 +235,11 @@ try:
     if args.evaluate_concordance:
         if with_dbsnp_bl:
             calls_df = vcftools.get_vcf_df(args.input_file, chromosome='chr9')
-            calls_df = vcf_pipeline_utils.annotate_concordance(calls_df, args.reference, runfile=args.runs_intervals)
         else:
             calls_df = pd.read_hdf(args.input_file, "concordance")
-
+        calls_df, _ = vcf_pipeline_utils.annotate_concordance(calls_df, args.reference,
+                                                              runfile=args.runs_intervals,
+                                                              annotate_intervals=args.annotate_intervals)
         if args.mutect:
             calls_df['qual'] = calls_df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
         calls_df.loc[
