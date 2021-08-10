@@ -20,6 +20,8 @@ ap.add_argument("--short_report_h5", help='Short report h5 file',
                 required=False, type=str)
 ap.add_argument("--extended_report_h5", help='Extended report h5 file',
                 required=False, type=str)
+ap.add_argument("--no_gt_report_h5", help='No ground truth report h5 file',
+                required=False, type=str)
 ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
                 required=False, type=str)
 ap.add_argument("--contamination_stdout", help='Rate of Contamination',
@@ -69,3 +71,15 @@ if args.contamination_stdout is not None:
     contamination_df = pd.DataFrame(
         pd.Series(data=[float(args.contamination_stdout)], index=["contamination"])).T
     contamination_df.to_hdf(args.output_h5, key="contamination", mode="a")
+
+if args.no_gt_report_h5 is not None:
+    with pd.HDFStore(args.no_gt_report_h5, 'r') as hdf:
+        hdf_keys = hdf.keys()
+        for report_key in hdf_keys:
+            no_gt_report_h5_pd = pd.read_hdf(
+                args.no_gt_report_h5, key=report_key)
+            no_gt_report_h5_pd_df = pd.DataFrame(no_gt_report_h5_pd)
+            no_gt_report_h5_unstacked = pd.DataFrame(
+                no_gt_report_h5_pd_df.unstack(level=0)).T
+            no_gt_report_h5_unstacked.to_hdf(
+                args.output_h5, key="no_gt_report_" + report_key, mode="a")
