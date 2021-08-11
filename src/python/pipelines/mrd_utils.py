@@ -1,6 +1,8 @@
 import sys
 import pandas as pd
 from os.path import dirname, basename, join as pjoin
+import os
+import argparse
 import pyfaidx
 import logging
 
@@ -105,3 +107,42 @@ def create_control_signature(
             pos += delta
     df_out = pd.concat(out_rows, axis=1).T
     df_out.to_csv(signature_bed_file_control_output, sep="\t", header=None, index=False)
+
+
+def call_create_control_signature(args_in):
+    if args_in.input is None:
+        raise ValueError("No input provided")
+    create_control_signature(
+        signature_bed_file=args_in.input,
+        signature_bed_file_control_output=args_in.output,
+        reference_fasta=args_in.reference,
+    )
+    sys.stdout.write("DONE" + os.linesep)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+
+    parser_create_control_signature = subparsers.add_parser(
+        name="create_control_signature",
+        description="""Run full coverage analysis of an aligned bam/cram file""",
+    )
+    parser_create_control_signature.add_argument(
+        "-i", "--input", type=str, help="input signature bed file",
+    )
+    parser_create_control_signature.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        help="""Path to which output bed file will be written. 
+If None (default) the input file name is used with a ".control.bed" suffix""",
+    )
+    parser_create_control_signature.add_argument(
+        "-r", "--reference", type=str, help="Reference fasta (local)",
+    )
+    parser_create_control_signature.set_defaults(func=call_create_control_signature)
+
+    args = parser.parse_args()
+    args.func(args)
