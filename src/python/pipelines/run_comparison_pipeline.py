@@ -6,6 +6,7 @@ import argparse
 import pandas as pd
 import pysam
 import os
+from os.path import dirname
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import logging
@@ -109,8 +110,9 @@ if __name__ == "__main__":
         0]).to_hdf(args.output_file, key="input_args")
 
 
+    output_dir = dirname(args.output_file)
     if args.filter_runs:
-        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
+        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix, output_dir, 
                                                args.header_file, args.gtr_vcf, cmp_intervals.as_bed_file(),
                                                highconf_intervals.as_bed_file(),
                                                runs_intervals.as_bed_file(), args.reference, args.call_sample_name,
@@ -118,7 +120,7 @@ if __name__ == "__main__":
                                                args.ignore_filter_status,
                                                args.concordance_tool)
     else:
-        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
+        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix, output_dir, 
                                                args.header_file, args.gtr_vcf, cmp_intervals.as_bed_file(),
                                                highconf_intervals.as_bed_file(),
                                                None, args.reference, args.call_sample_name,
