@@ -1,5 +1,7 @@
 from python.pipelines import vcf_pipeline_utils
 import shutil
+from os.path import join as pjoin
+from os.path import basename
 from typing import Optional, Tuple
 
 TRUTH_FILE = "/home/ubuntu/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
@@ -12,7 +14,9 @@ TRUTH_SAMPLE = "HG001"
 CONCORDANCE_TOOL = "VCFEVAL"
 
 
-def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
+def pipeline(n_parts: int, input_prefix: str, 
+            output_dir: str, 
+            header: Optional[str] = None,
              truth_file: str = TRUTH_FILE,
              cmp_intervals: str = CMP_INTERVALS,
              highconf_intervals: str = HIGHCONF_INTERVALS,
@@ -35,6 +39,8 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
         Input prefix for the vcf. If the vcf is split into multiple parts, the script
         will look for <input_prefix>.1.vcf, <input_prefix>.2.vcf etc. For the non-split VCF
         will look for <input_prefix>.vcf.gz
+    output_dir : str
+        Output directory for the output 
     header : str, optional
         for backward compatibility - to be able to change the header of the VCF. Default None
     truth_file : str, optional
@@ -64,20 +70,21 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
     -------
     Tuple[str, str]
     '''
+    input_prefix_basename = basename(input_prefix)
 
     if not output_suffix:
-        output_fn = input_prefix + ".vcf.gz"
+        output_fn = pjoin(output_dir, input_prefix_basename + ".vcf.gz")
     else:
-        output_fn = input_prefix + f".{output_suffix}.vcf.gz"
+        output_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.vcf.gz")
     if n_parts > 0:
         vcf_pipeline_utils.combine_vcf(n_parts, input_prefix, output_fn)
     else:
         output_fn = input_prefix + ".vcf.gz"
 
     if not output_suffix:
-        reheader_fn = input_prefix + ".rhdr.vcf.gz"
+        reheader_fn = pjoin(output_dir, input_prefix_basename + ".rhdr.vcf.gz")
     else:
-        reheader_fn = input_prefix + f".{output_suffix}.rhdr.vcf.gz"
+        reheader_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.rhdr.vcf.gz")
 
     if header is not None:
         vcf_pipeline_utils.reheader_vcf(output_fn, header, reheader_fn)
@@ -86,9 +93,9 @@ def pipeline(n_parts: int, input_prefix: str, header: Optional[str] = None,
         shutil.copy(".".join((output_fn, "tbi")), ".".join((reheader_fn, "tbi")))
 
     if not output_suffix:
-        select_intervals_fn = input_prefix + ".intsct.vcf.gz"
+        select_intervals_fn = pjoin(output_dir, input_prefix_basename + ".intsct.vcf.gz")
     else:
-        select_intervals_fn = input_prefix + f".{output_suffix}.intsct.vcf.gz"
+        select_intervals_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.intsct.vcf.gz")
 
     if cmp_intervals is not None:
         vcf_pipeline_utils.intersect_with_intervals(reheader_fn, cmp_intervals, select_intervals_fn)
