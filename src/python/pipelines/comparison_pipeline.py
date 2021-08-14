@@ -4,28 +4,21 @@ from os.path import join as pjoin
 from os.path import basename
 from typing import Optional, Tuple
 
-TRUTH_FILE = "/home/ubuntu/proj/VariantCalling/data/giab/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.update_sd.vcf.gz"
-CMP_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/interval.list"
-HIGHCONF_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190614/GIAB_highconf.bed"
-RUNS_INTERVALS = "/home/ubuntu/proj/VariantCalling/work/190724/runs.bed"
-REFERENCE = "/home/ubuntu/proj/VariantCalling/data/genomes/hg19.fa"
-CALL_SAMPLE = "NA12878"
-TRUTH_SAMPLE = "HG001"
 CONCORDANCE_TOOL = "VCFEVAL"
 
-
 def pipeline(n_parts: int, input_prefix: str, 
-            output_dir: str, 
-            header: Optional[str] = None,
-             truth_file: str = TRUTH_FILE,
-             cmp_intervals: str = CMP_INTERVALS,
-             highconf_intervals: str = HIGHCONF_INTERVALS,
-             runs_intervals: Optional[str] = RUNS_INTERVALS,
-             ref_genome: str = REFERENCE,
-             call_sample: str = CALL_SAMPLE,
-             truth_sample: str = TRUTH_SAMPLE,
-             output_suffix: str = None,
+             output_dir: str,
+             truth_file: str,
+             cmp_intervals: vcf_pipeline_utils.IntervalFile,
+             highconf_intervals: str,
+             ref_genome: str,
+             call_sample: str,
+             truth_sample: str,
+             header: Optional[str] = None,
+             runs_intervals: Optional[str] = None,
+             output_suffix: Optional[str] = None,
              ignore_filter: bool = False,
+             annotate_tandem_repeats: bool = False,
              concordance_tool: str = CONCORDANCE_TOOL) -> Tuple[str, str]:
     '''Run comparison between the two sets of calls: input_prefix and truth_file. Creates
     a combined call file and a concordance VCF by either of the concordance tools
@@ -41,28 +34,30 @@ def pipeline(n_parts: int, input_prefix: str,
         will look for <input_prefix>.vcf.gz
     output_dir : str
         Output directory for the output 
-    header : str, optional
-        for backward compatibility - to be able to change the header of the VCF. Default None
     truth_file : str, optional
         Truth calls file
-    cmp_intervals : str, optional
+    cmp_intervals : vcf_pipeline_utils.IntervalFile, optional
         interval_list file over which to do comparison (e.g. chr9)
     highconf_intervals : str, optional
         high confidence intervals for the ground truth (BED)
-    runs_intervals : str, optional
-        Hompolymer runs annotation (BED)
     ref_genome : str, optional
         Reference genome FASTA
     call_sample : str, optional
         Name of the calls sample
     truth_sample : str, optional
         Name of the truth sample
+    header : str, optional
+        for backward compatibility - to be able to change the header of the VCF. Default None
+    runs_intervals : str, optional
+        Hompolymer runs annotation (BED)
     output_suffix : str, optional
         Suffix for the output file name (e.g. chr9) -
         otherwise the output file nams are starting with the input prefix
     ignore_filter : bool, optional
         Should the filter status **of calls only** be ignored. Filter status of truth is always
         taken into account
+    annotate_tandem_repeats: bool, optional
+        Should VariantAnnotator be run to annotate tandem repeats
     concordance_tool : str, optional
         GC - GenotypeConcordance (picard) or VCFEVAL (default)
 
@@ -107,16 +102,22 @@ def pipeline(n_parts: int, input_prefix: str,
 
     if concordance_tool == 'VCFEVAL':
         vcf_pipeline_utils.run_vcfeval_concordance(select_intervals_fn, truth_file, output_prefix,
-                                                   ref_genome, cmp_intervals, call_sample, truth_sample, ignore_filter)
+                                                   ref_genome, cmp_intervals,
+                                                   call_sample, truth_sample, ignore_filter)
         output_prefix = f'{output_prefix}.vcfeval_concordance'
     else:
         vcf_pipeline_utils.run_genotype_concordance(select_intervals_fn, truth_file, output_prefix,
-                                                    cmp_intervals, call_sample, truth_sample, ignore_filter)
+                                                    cmp_intervals,
+                                                    call_sample, truth_sample, ignore_filter)
         output_prefix = f'{output_prefix}.genotype_concordance'
 
+    if annotate_tandem_repeats:
+        vcf_pipeline_utils.annotate_tandem_repeats(output_prefix + ".vcf.gz", ref_genome)
+        output_prefix = f'{output_prefix}.annotated'
+
     vcf_pipeline_utils.filter_bad_areas(select_intervals_fn, highconf_intervals, runs_intervals)
-    vcf_pipeline_utils.filter_bad_areas(output_prefix + ".vcf.gz",
-                                        highconf_intervals, runs_intervals)
+    vcf_pipeline_utils.filter_bad_areas(output_prefix + ".vcf.gz", highconf_intervals, runs_intervals)
+
     if runs_intervals is not None:
         return select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"), output_prefix + ".runs.vcf.gz"
     else:
