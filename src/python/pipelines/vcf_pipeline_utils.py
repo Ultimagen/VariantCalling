@@ -468,7 +468,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
                                       ('ALLELES', x.alleles)]), vf))
 
         columns = ['CHROM', 'POS', 'QUAL', 'REF', 'ALLELES',
-                   'GT_ULTIMA', 'GT_GROUND_TRUTH', 'SYNC', 'CALL', 'BASE' ]
+                   'GT_ULTIMA', 'GT_GROUND_TRUTH', 'SYNC', 'CALL', 'BASE', 'STR', 'RU', 'RPA', ]
         concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[
             x.lower() for x in columns])
 
@@ -538,7 +538,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
         concordance_df.drop('qual', axis=1, inplace=True)
 
     drop_candidates = ['chrom', 'pos', 'alleles',
-                       'indel', 'ref', 'str', 'ru', 'rpa', 'rpb']
+                       'indel', 'ref', 'str', 'ru', 'rpa']
     concordance = concordance_df.join(original.drop([x for x in drop_candidates
                                                      if x in original.columns and x in concordance_df.columns], axis=1))
     only_ref = concordance['alleles'].apply(len) == 1
