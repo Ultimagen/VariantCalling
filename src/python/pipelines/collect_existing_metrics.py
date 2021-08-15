@@ -27,6 +27,17 @@ ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
 ap.add_argument("--contamination_stdout", help='Rate of Contamination',
                 required=False, type=str)
 
+def add_h5_to_hdf(input_h5_name, output_h5_name, output_report_key_prefix):
+    with pd.HDFStore(input_h5_name, 'r') as hdf:
+        hdf_keys = hdf.keys()
+        for report_key in hdf_keys:
+            report_h5_pd = pd.read_hdf(
+                input_h5_name, key=report_key)
+            report_h5_pd_df = pd.DataFrame(report_h5_pd)
+            report_h5_unstacked = pd.DataFrame(
+                report_h5_pd_df.unstack(level=0)).T
+            report_h5_unstacked.to_hdf(
+                output_h5_name, key=output_report_key_prefix, mode="a")
 
 args = ap.parse_args()
 
@@ -47,17 +58,12 @@ if args.coverage_h5 is not None:
     cvg_df_unstacked.to_hdf(args.output_h5,key="stats_coverage", mode="a")
     cvg_h5_histogram.to_hdf(args.output_h5,key="histogram_coverage", mode="a")
 
+
+
+
 if args.short_report_h5 is not None:
-    with pd.HDFStore(args.short_report_h5, 'r') as hdf:
-        hdf_keys = hdf.keys()
-        for report_key in hdf_keys:
-            short_report_h5_pd = pd.read_hdf(
-                args.short_report_h5, key=report_key)
-            short_report_h5_pd_df = pd.DataFrame(short_report_h5_pd)
-            short_report_h5_unstacked = pd.DataFrame(
-                short_report_h5_pd_df.unstack(level=0)).T
-            short_report_h5_unstacked.to_hdf(
-                args.output_h5, key="short_report_" + report_key, mode="a")
+    add_h5_to_hdf(args.short_report_h5, args.output_h5, "short_report_")
+
 # if args.extended_report_h5 is not None:
 #     with pd.HDFStore(args.extended_report_h5,'r') as hdf:
 #         hdf_keys = hdf.keys()
@@ -73,13 +79,4 @@ if args.contamination_stdout is not None:
     contamination_df.to_hdf(args.output_h5, key="contamination", mode="a")
 
 if args.no_gt_report_h5 is not None:
-    with pd.HDFStore(args.no_gt_report_h5, 'r') as hdf:
-        hdf_keys = hdf.keys()
-        for report_key in hdf_keys:
-            no_gt_report_h5_pd = pd.read_hdf(
-                args.no_gt_report_h5, key=report_key)
-            no_gt_report_h5_pd_df = pd.DataFrame(no_gt_report_h5_pd)
-            no_gt_report_h5_unstacked = pd.DataFrame(
-                no_gt_report_h5_pd_df.unstack(level=0)).T
-            no_gt_report_h5_unstacked.to_hdf(
-                args.output_h5, key="no_gt_report_" + report_key, mode="a")
+    add_h5_to_hdf(args.no_gt_report_h5, args.output_h5, "no_gt_report_")
