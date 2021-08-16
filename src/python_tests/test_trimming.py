@@ -11,12 +11,12 @@ CLASS_PATH = "trimming"
 trimming_script = pjoin(dirname(__file__), "..",
                         "bash", "find_adapter_coords.sh")
 
-test_params = [['cutadapt', 'CTACACGACGCTCTTCCGATCT', 'AGATCGGAAGAGCACACGTCTGAA', '0', '0', '0.15', '0.2', '10', '6'],
-               ['cutadapt', 'CTACACGACGCTCTTCCGATCT', 'AGATCGGAAGAGCACACGTCTGAA',
+test_params = [['cutadapt', '^CTACACGACGCTCTTCCGATCT', 'AGATCGGAAGAGCACACGTCTGAA', '0', '0', '0.15', '0.2', '10', '6'],
+               ['cutadapt', '^CTACACGACGCTCTTCCGATCT', 'AGATCGGAAGAGCACACGTCTGAA',
                    '8', '0', '0.15', '0.2', '10', '6'],
-               ['cutadapt', 'CTACACGACGCTCTTCCGATCT', 'AGATCGGAAGAGCACACGTCTGAA',
+               ['cutadapt', '^CTACACGACGCTCTTCCGATCT', 'AGATCGGAAGAGCACACGTCTGAA',
                    '8', '4', '0.15', '0.2', '10', '6'],
-               ['cutadapt', 'CTACACGACGCTCTTCCGATCT', '', '0',
+               ['cutadapt', '^CTACACGACGCTCTTCCGATCT', '', '0',
                    '0', '0.15', '0.2', '10', '6'],
                ['cutadapt', '', 'AGATCGGAAGAGCACACGTCTGAA', '0', '0', '0.15', '0.2', '10', '6']]
 
