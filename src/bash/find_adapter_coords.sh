@@ -55,11 +55,11 @@ samtools fastq ${bam_infile} -0 ${fastq_file}
 for_cutadapt=""
 if [ ! -z "$left_adapter" ] && [ ! -z "$right_adapter" ]
 then
-     for_cutadapt="-a ^$left_adapter;max_error_rate=${error_rate_5p};min_overlap=${min_overlap_5p}...$right_adapter;max_error_rate=${error_rate_3p};min_overlap=${min_overlap_3p}"
+     for_cutadapt="-a $left_adapter;max_error_rate=${error_rate_5p};min_overlap=${min_overlap_5p};required...$right_adapter;max_error_rate=${error_rate_3p};min_overlap=${min_overlap_3p}"
 else
     if [ ! -z "$left_adapter" ]
     then
-       for_cutadapt="-g ^$left_adapter;max_error_rate=${error_rate_5p};min_overlap=${min_overlap_5p}"
+       for_cutadapt="-g $left_adapter;max_error_rate=${error_rate_5p};min_overlap=${min_overlap_5p}"
     fi
     if [ ! -z "$right_adapter" ]
     then
