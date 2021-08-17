@@ -37,7 +37,7 @@ def add_h5_to_hdf(input_h5_name, output_h5_name, output_report_key_prefix):
             report_h5_unstacked = pd.DataFrame(
                 report_h5_pd_df.unstack(level=0)).T
             report_h5_unstacked.to_hdf(
-                output_h5_name, key=output_report_key_prefix, mode="a")
+                output_h5_name, key=output_report_key_prefix + report_key, mode="a")
 
 args = ap.parse_args()
 
