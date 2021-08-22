@@ -219,7 +219,7 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
            'TRUTH_VCF={}'.format(truth_file),
            'TRUTH_SAMPLE={}'.format(truth_sample), 'OUTPUT_VCF=true',
            'IGNORE_FILTER_STATUS={}'.format(ignore_filter)]
-    if comparison_intervals is not None:
+    if not comparison_intervals.is_none():
         cmd += ['INTERVALS={}'.format(comparison_intervals.as_interval_list_file())]
     logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
@@ -267,7 +267,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     # filter the vcf to be only in the comparison_intervals.
     filtered_truth_file = os.path.join(output_dir, '.'.join(
         (os.path.basename(truth_file), 'filtered', 'vcf.gz')))
-    if comparison_intervals is not None:
+    if not comparison_intervals.is_none():
         intersect_with_intervals(
             truth_file, comparison_intervals, filtered_truth_file)
     else:
