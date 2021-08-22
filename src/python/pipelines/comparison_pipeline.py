@@ -92,7 +92,7 @@ def pipeline(n_parts: int, input_prefix: str,
     else:
         select_intervals_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.intsct.vcf.gz")
 
-    if cmp_intervals is not None:
+    if not cmp_intervals.is_none():
         vcf_pipeline_utils.intersect_with_intervals(reheader_fn, cmp_intervals, select_intervals_fn)
     else:
         shutil.copy(reheader_fn, select_intervals_fn)
