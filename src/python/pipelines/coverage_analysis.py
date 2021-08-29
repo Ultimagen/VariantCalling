@@ -125,7 +125,7 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
         samtools_args = []
     samtools_depth_cmd = (
         f"samtools depth {' '.join(samtools_args)} {input_bam_file}"
-        + ' | awk \'{print $1"\\t"$2"\\t"($2 + 1)"\\t"$3}\''
+        + ' | awk \'{print $1"\\t"($2 - 1)"\\t"($2)"\\t"$3}\''
         + f" > {output_bed_file}"
     )
     _run_shell_command(samtools_depth_cmd)
