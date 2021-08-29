@@ -386,6 +386,8 @@ def feature_prepare(output_df: bool = False, annots: list = []) -> sklearn_panda
     ----------
     output_df: bool
         Should the transformer output dataframe (for threshold models) or numpy array (for trees)
+    annots: list, optional
+        List of annotation features (will be transformed with "None")
 
     Returns
     -------
