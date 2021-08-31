@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import sys
-from os.path import join as pjoin, basename, dirname
+from os.path import join as pjoin, basename, dirname, splitext
 from tempfile import TemporaryDirectory
 import subprocess
 from collections.abc import Iterable
@@ -125,7 +125,7 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
         samtools_args = []
     samtools_depth_cmd = (
         f"samtools depth {' '.join(samtools_args)} {input_bam_file}"
-        + ' | awk \'{print $1"\\t"($2 - 1)"\\t"($2)"\\t"$3}\''
+        + ' | awk \'{print $1"\\t"($2-1)"\\t"$2"\\t"$3}\''
         + f" > {output_bed_file}"
     )
     _run_shell_command(samtools_depth_cmd)
@@ -207,9 +207,8 @@ def create_binned_coverage(
     _run_shell_command(cmd)
     if generate_dataframe:
         output_parquet = (
-            output_binned_depth_bed_file[:-4]
-            if output_binned_depth_bed_file.endswith(".bed")
-            or output_binned_depth_bed_file.endswith(".tsv")
+            splitext(output_binned_depth_bed_file)[0]
+            if splitext(output_binned_depth_bed_file)[1] in ['.bedgraph', '.tsv']
             else output_binned_depth_bed_file
         ) + ".parquet"
         pd.read_csv(
@@ -581,10 +580,8 @@ def plot_coverage_profile(
         df = pd.read_parquet(input_depth_files[r])
 
         if df.shape[0] > 300:  # downsample data for display
-            print(df.shape)
             space = df.shape[0] // 300
             df = df.iloc[::space]
-            print(df.shape)
         x = (df["chromStart"] + df["chromEnd"]) / 2 / 1E6
         plt.plot(
             x, df["coverage"] / median_coverage, label="coverage profile", zorder=1,
@@ -692,7 +689,7 @@ def run_full_coverage_analysis(
                 min_read_length,
                 region,
                 window=1,
-                output_format="depth.bed",
+                output_format="depth.bedgraph",
             ),
             samtools_args=" ".join(
                 samtools_depth_args + [f"-r {region}" if region is not None else ""]
@@ -718,7 +715,7 @@ def run_full_coverage_analysis(
         # interval. it makes sure that if the filenames are annotated with "chrX" somewhere that the chrom is the same
         # between the region and bed interval (most bed file are for chr9 only, no point in running them with the other
         # depth files)
-        with TemporaryDirectory(prefix=pjoin(out_path, "tmp")) as tmp_basedir:
+        with TemporaryDirectory(dir=out_path, prefix="tmp") as tmp_basedir:
             tmpdir = dict()
             for region_bed_file in df_coverage_intervals["file"].values:
                 tmpdir[region_bed_file] = pjoin(
@@ -827,7 +824,7 @@ def run_full_coverage_analysis(
                 delayed(create_binned_coverage)(
                     input_depth_bed_file=depth_file,
                     output_binned_depth_bed_file=depth_file.split(".w")[0]
-                    + f".w{w}.depth.bed",
+                    + f".w{w}.depth.bedgraph",
                     lines_to_bin=w // w0,
                     window_size=w,
                     generate_dataframe=True,
@@ -840,7 +837,7 @@ def run_full_coverage_analysis(
             )
 
             depth_files_to_process = [
-                depth_file.split(".w")[0] + f".w{w}.depth.bed"
+                depth_file.split(".w")[0] + f".w{w}.depth.bedgraph"
                 for depth_file in out_depth_files
             ]
 
@@ -848,7 +845,7 @@ def run_full_coverage_analysis(
             if w >= 1000:  # below that the graph is useless
                 plot_coverage_profile(
                     input_depth_files={
-                        r: f.replace(".bed", ".parquet")
+                        r: f.replace(".bedgraph", ".parquet")
                         for r, f in zip(regions, depth_files_to_process)
                         if r != "chrM"
                     },
@@ -867,7 +864,7 @@ def run_full_coverage_analysis(
     Parallel(n_jobs=n_jobs)(
         delayed(lambda x: subprocess.call(["gzip", x]))(depth_file)
         for depth_file in tqdm(
-            glob(pjoin(out_path, "*.bed")),
+            glob(pjoin(out_path, "*.bedgraph")),
             disable=not progress_bar,
             desc=f"gzipping bed files",
         )
