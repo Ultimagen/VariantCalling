@@ -23,6 +23,7 @@ if path not in sys.path:
     sys.path.append(path)
 from python.auxiliary.cloud_sync import cloud_sync
 from python.auxiliary.cloud_auth import get_gcs_token
+from python import utils
 from python.auxiliary.format import CHROM_DTYPE
 
 # init logging
@@ -108,7 +109,7 @@ def _run_shell_command(cmd, logger=logger):
     return stdout.decode(), stderr.decode()
 
 
-def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
+def collect_depth(input_bam_file, output_bed_file, samtools_args=None) -> str: 
     """Create a depth bed file - built on "samtools depth" but outputs a bed file
 
     Parameters
@@ -119,6 +120,7 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
 
     Returns
     -------
+    Name of the output_bed_file
 
     """
     if samtools_args is None:
@@ -129,11 +131,35 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None):
         + f" > {output_bed_file}"
     )
     _run_shell_command(samtools_depth_cmd)
+
     if not os.path.isfile(output_bed_file):
         raise ValueError(
             f"file {output_bed_file} was supposed to be created but cannot be found"
         )
     return output_bed_file
+
+
+def depth_to_bigwig(input_depth_file: str, output_bw_file: str, sizes_file: str) -> str: 
+    """Converts bedgraph depth file to bigwig, uses bedgraphToBigWig from UCSC
+    
+    Parameters
+    ----------
+    input_depth_file : str
+        Input bedgraph
+    output_bw_file : str
+        BW file name
+    sizes_file: str
+        Chromosome sizes file (tsv contig<tab>length)
+    """
+
+    cmd = ['bedGraphToBigWig', input_depth_file, sizes_file, output_bw_file]
+    _run_shell_command(" ".join(cmd))
+    if not os.path.isfile(output_bw_file):
+        raise ValueError(
+            f"file {output_bw_file} was supposed to be created but cannot be found"
+        )
+    return output_bw_file
+
 
 
 def create_coverage_histogram_from_depth_file(
@@ -699,6 +725,22 @@ def run_full_coverage_analysis(
             regions,
             disable=not progress_bar,
             desc="Creating depth files using samtools",
+        )
+    )
+
+    sizes_file = utils.contig_lens_from_bam_header(bam_file, pjoin(out_path, "chrom.sizes"))
+
+    # convert bedgraph files to BW
+    out_bw_files = Parallel(n_jobs=n_jobs)(
+        delayed(depth_to_bigwig)(
+            depth_file,
+            depth_file.replace(".bedgraph",".bw"),
+            sizes_file
+        )
+        for depth_file in tqdm(
+            out_depth_files,
+            disable=not progress_bar,
+            desc="converting .bedgraph depth files to .bw"
         )
     )
 
