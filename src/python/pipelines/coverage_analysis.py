@@ -17,10 +17,7 @@ import itertools
 from glob import glob
 from scipy.interpolate import interp1d
 import botocore
-
-path = dirname(dirname(dirname(__file__)))
-if path not in sys.path:
-    sys.path.append(path)
+import pathmagic
 from python.auxiliary.cloud_sync import cloud_sync
 from python.auxiliary.cloud_auth import get_gcs_token
 from python import utils
@@ -34,7 +31,8 @@ logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 # create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # add formatter to ch
 ch.setFormatter(formatter)
 # add ch to logger
@@ -109,7 +107,7 @@ def _run_shell_command(cmd, logger=logger):
     return stdout.decode(), stderr.decode()
 
 
-def collect_depth(input_bam_file, output_bed_file, samtools_args=None) -> str: 
+def collect_depth(input_bam_file, output_bed_file, samtools_args=None) -> str:
     """Create a depth bed file - built on "samtools depth" but outputs a bed file
 
     Parameters
@@ -139,9 +137,9 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None) -> str:
     return output_bed_file
 
 
-def depth_to_bigwig(input_depth_file: str, output_bw_file: str, sizes_file: str) -> str: 
-    """Converts bedgraph depth file to bigwig, uses bedgraphToBigWig from UCSC
-    
+def depth_to_bigwig(input_depth_file: str, output_bw_file: str, sizes_file: str) -> str:
+    """Converts bedgraph depth filecmd to bigwig, uses bedgraphToBigWig from UCSC
+
     Parameters
     ----------
     input_depth_file : str
@@ -152,14 +150,16 @@ def depth_to_bigwig(input_depth_file: str, output_bw_file: str, sizes_file: str)
         Chromosome sizes file (tsv contig<tab>length)
     """
 
-    cmd = ['bedGraphToBigWig', input_depth_file, sizes_file, output_bw_file]
+    cmd = [pjoin(utils.find_scripts_path(), 'run_ucsc_command.sh'), 'bedGraphToBigWig',
+           input_depth_file, sizes_file, output_bw_file]
+    print("********")
+    print(cmd, flush=True)
     _run_shell_command(" ".join(cmd))
     if not os.path.isfile(output_bw_file):
         raise ValueError(
             f"file {output_bw_file} was supposed to be created but cannot be found"
         )
     return output_bw_file
-
 
 
 def create_coverage_histogram_from_depth_file(
@@ -298,7 +298,8 @@ def _create_coverage_intervals_dataframe(coverage_intervals_dict,):
 Expected {TSV}/{CSV}"""
             )
         coverage_intervals_dict_local = cloud_sync(coverage_intervals_dict)
-        df_coverage_intervals = pd.read_csv(coverage_intervals_dict_local, sep=sep)
+        df_coverage_intervals = pd.read_csv(
+            coverage_intervals_dict_local, sep=sep)
         df_coverage_intervals["file"] = df_coverage_intervals.apply(
             lambda x: _intervals_to_bed(
                 pjoin(dirname(coverage_intervals_dict), x["file"][2:])
@@ -353,7 +354,8 @@ def generate_stats_from_histogram(
     df_percentiles = pd.concat(
         (
             val_count.apply(
-                lambda x: interp1d(np.cumsum(x), val_count.index, bounds_error=False)(q)
+                lambda x: interp1d(
+                    np.cumsum(x), val_count.index, bounds_error=False)(q)
             ),
             val_count.apply(
                 lambda x: np.sum(val_count.index.values * x.values)
@@ -389,7 +391,8 @@ def generate_stats_from_histogram(
                     .rename("percent_larger_than_05_of_genome_median")
                     .to_frame()
                     .T,
-                    (val_count[val_count.index >= (genome_median * 0.25)] * 100)
+                    (val_count[val_count.index >=
+                               (genome_median * 0.25)] * 100)
                     .sum()
                     .rename("percent_larger_than_025_of_genome_median")
                     .to_frame()
@@ -421,7 +424,8 @@ def generate_stats_from_histogram(
         if verbose:
             logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
         df_stats.to_hdf(coverage_stats_dataframes, key="stats", mode="a")
-        df_percentiles.to_hdf(coverage_stats_dataframes, key="percentiles", mode="a")
+        df_percentiles.to_hdf(coverage_stats_dataframes,
+                              key="percentiles", mode="a")
         return coverage_stats_dataframes
 
     return df_percentiles, df_stats
@@ -435,14 +439,16 @@ def generate_coverage_boxplot(
     if isinstance(df_percentiles, str) and os.path.isfile(df_percentiles):
         df_percentiles = pd.read_hdf(df_percentiles, key="percentiles")
     df_percentiles_norm = (
-        df_percentiles / df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
+        df_percentiles /
+        df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
     )
 
     if color_group is None:
         color_group = range(df_percentiles.shape[1])
     elif isinstance(color_group, str) and color_group.endswith(TSV):
         # In this clause we either download the TSV or assume it's a dictionary with the right annotation values as keys
-        color_group = pd.read_csv(cloud_sync(color_group), sep="\t",)["color_group"]
+        color_group = pd.read_csv(cloud_sync(color_group), sep="\t",)[
+            "color_group"]
 
     color_list = [
         "#3274a1",
@@ -460,7 +466,8 @@ def generate_coverage_boxplot(
     bxp = [
         {**v, **{"label": k}}
         for k, v in df_percentiles_norm.rename(
-            {"Q50": "med", "Q25": "q1", "Q75": "q3", "Q5": "whislo", "Q95": "whishi"}
+            {"Q50": "med", "Q25": "q1", "Q75": "q3",
+                "Q5": "whislo", "Q95": "whishi"}
         )
         .to_dict()
         .items()
@@ -582,7 +589,8 @@ def plot_coverage_profile(
     ).set_index("chrom")
 
     median_coverage = np.median(
-        [pd.read_parquet(f)["coverage"].median() for f in input_depth_files.values()]
+        [pd.read_parquet(f)["coverage"].median()
+         for f in input_depth_files.values()]
     )
     N = len(input_depth_files)
 
@@ -728,13 +736,14 @@ def run_full_coverage_analysis(
         )
     )
 
-    sizes_file = utils.contig_lens_from_bam_header(bam_file, pjoin(out_path, "chrom.sizes"))
+    sizes_file = utils.contig_lens_from_bam_header(
+        bam_file, pjoin(out_path, "chrom.sizes"))
 
     # convert bedgraph files to BW
     out_bw_files = Parallel(n_jobs=n_jobs)(
         delayed(depth_to_bigwig)(
             depth_file,
-            depth_file.replace(".bedgraph",".bw"),
+            depth_file.replace(".bedgraph", ".bw"),
             sizes_file
         )
         for depth_file in tqdm(
@@ -839,7 +848,8 @@ def run_full_coverage_analysis(
         if verbose:
             logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
         df_stats.to_hdf(coverage_stats_dataframes, key="stats", mode="a")
-        df_percentiles.to_hdf(coverage_stats_dataframes, key="percentiles", mode="a")
+        df_percentiles.to_hdf(coverage_stats_dataframes,
+                              key="percentiles", mode="a")
         df_coverage_histogram.to_hdf(
             coverage_stats_dataframes, key="histogram", mode="a"
         )

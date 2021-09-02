@@ -1,4 +1,4 @@
-from os.path import dirname
+from os.path import dirname, join
 import sys
 
 path = dirname(dirname(dirname(__file__)))

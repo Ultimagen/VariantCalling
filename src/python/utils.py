@@ -4,7 +4,10 @@ import pandas as pd
 import pysam
 from typing import Optional, Union, List
 import os
+from os.path import dirname
+from os.path import join as pjoin
 import json
+import pkgutil
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
     '''Returns values from a distribution
@@ -370,3 +373,18 @@ def isin(pos: int, interval: tuple) -> bool:
     '''
     return pos >= interval[0] and pos < interval[1]
 
+
+def find_scripts_path() -> str:
+    '''Locates the absolute path of the scripts installation
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str
+        The path
+    '''
+    package = pkgutil.get_loader("python")
+    return pjoin(dirname(package.get_filename()), "shell")
