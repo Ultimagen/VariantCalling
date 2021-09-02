@@ -387,4 +387,4 @@ def find_scripts_path() -> str:
         The path
     '''
     package = pkgutil.get_loader("python")
-    return pjoin(dirname(package.get_filename()), "shell")
+    return pjoin(dirname(package.get_filename()), "..", "bash")

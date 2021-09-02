@@ -152,8 +152,6 @@ def depth_to_bigwig(input_depth_file: str, output_bw_file: str, sizes_file: str)
 
     cmd = [pjoin(utils.find_scripts_path(), 'run_ucsc_command.sh'), 'bedGraphToBigWig',
            input_depth_file, sizes_file, output_bw_file]
-    print("********")
-    print(cmd, flush=True)
     _run_shell_command(" ".join(cmd))
     if not os.path.isfile(output_bw_file):
         raise ValueError(
@@ -736,9 +734,9 @@ def run_full_coverage_analysis(
         )
     )
 
-    sizes_file = utils.contig_lens_from_bam_header(
-        bam_file, pjoin(out_path, "chrom.sizes"))
-
+    sizes_file = pjoin(out_path, "chrom.sizes")
+    utils.contig_lens_from_bam_header(
+        bam_file, sizes_file)
     # convert bedgraph files to BW
     out_bw_files = Parallel(n_jobs=n_jobs)(
         delayed(depth_to_bigwig)(
