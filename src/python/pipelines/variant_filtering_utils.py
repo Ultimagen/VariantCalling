@@ -1154,3 +1154,6 @@ class VariantSelectionFunctions (Enum):
 
     def HMER_INDEL(
         df: pd.DataFrame) -> np.ndarray: return np.array(df.hmer_indel_length > 0)
+    
+    def ALL_except_HMER_INDEL_greater_than_or_equal_5(
+        df: pd.DataFrame) -> np.ndarray: return np.array(~ df.hmer_indel_length >= 5)
