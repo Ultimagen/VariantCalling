@@ -13,6 +13,7 @@ import pyfaidx
 import itertools
 import argparse
 import gzip
+import pyBigWig as pbw
 from os.path import dirname, basename, join as pjoin
 from collections.abc import Iterable
 from scipy.interpolate import interp1d
@@ -31,10 +32,7 @@ ch.setFormatter(formatter)
 # add ch to logger
 logger.addHandler(ch)
 
-
-path = dirname(dirname(dirname(__file__)))
-if path not in sys.path:
-    sys.path.append(path)
+import pathmagic
 from python.utils import revcomp, generateKeyFromSequence
 from python.modules.variant_annotation import get_motif_around
 from python.auxiliary.format import (
@@ -90,23 +88,45 @@ def _collect_coverage_per_motif(
 
     counter = defaultdict(lambda: 0)
     search = re.compile(r"[^ACGTacgt.]").search
-    open_func = gzip.open if depth_file.endswith(".gz") else open
-    with open_func(depth_file) as f:
-        for j, line in enumerate(f):
-            if j % N != 0:
-                continue
-            if isinstance(line, bytes):
-                line = line.decode()
-            line = line.strip()
-            spl = line.split("\t")
-            pos = int(spl[1])
-            cov = int(spl[3])
-            if pos < 2 * size or cov == 0:
-                continue
-            seq = chrom[pos - size - 1 : pos + size]
+    if not depth_file.endswith("bw"):
+        open_func = gzip.open if depth_file.endswith(".gz") else open
+        with open_func(depth_file) as f:
+            for j, line in enumerate(f):
+                if j % N != 0:
+                    continue
+                if isinstance(line, bytes):
+                    line = line.decode()
+                line = line.strip()
+                spl = line.split("\t")
+                pos = int(spl[1])
+                cov = int(spl[3])
+                if pos < 2 * size or cov == 0:
+                    continue
+                seq = chrom[pos - size - 1 : pos + size]
 
-            if not bool(search(seq)):  # no letters other than ACGT
-                counter[seq] += cov
+                if not bool(search(seq)):  # no letters other than ACGT
+                    counter[seq] += cov
+
+    else:  # case of bigWig - we fetch by region
+        open_func = pbw.open
+        CHUNK_SIZE = 1000000
+        with open_func(depth_file) as f:
+            assert len(list(f.chroms().keys())) == 1, "Expected single chromosome per bw"
+            chrom_name = list(f.chroms().keys())[0]
+            chrom_len = f.chroms()[chrom_name]
+            start_points = np.arange(0, chrom_len, CHUNK_SIZE).astype(np.int)
+            for s in start_points:
+                vals = f.values(chrom_name, s, min(CHUNK_SIZE, chrom_len-s))
+                vals = vals[::N]
+                poss = np.arange(s, min(CHUNK_SIZE, chrom_len-s))[::N]
+                for i, pos in enumerate(poss):
+                    cov = vals[i]
+                    if pos < 2 * size or cov == 0:
+                        continue
+                    seq = chrom[pos - size - 1:pos + size]
+
+                    if not bool(search(seq)):  # no letters other than ACGT
+                        counter[seq] += cov
 
     df = (
         pd.DataFrame(counter.values(), counter.keys())
