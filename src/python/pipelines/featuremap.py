@@ -46,6 +46,7 @@ from python.auxiliary.format import (
 )
 
 SMALL_SIZE = 12
+
 MEDIUM_SIZE = 18
 BIGGER_SIZE = 26
 TITLE_SIZE = 36
@@ -129,11 +130,16 @@ def _collect_coverage_per_motif(
                         counter[seq] += cov
 
     df = (
-        pd.DataFrame(counter.values(), counter.keys())
+        pd.DataFrame(counter.values(), index=counter.keys())
         .reset_index()
         .rename(columns={"index": f"motif_{size}", 0: "count"})
     )
+    
 
+    # edge case of empty dataframe
+
+    if 'count' not in df.columns :
+        df['count'] = []
     return df
 
 
@@ -179,7 +185,7 @@ def collect_coverage_per_motif(
     motif coverage dataframe
 
     """
-
+ 
     if not isinstance(depth_files, dict):
         if not isinstance(depth_files, Iterable):
             raise ValueError(f"Expected dictionary or Iterable, got:\n{depth_files}")
@@ -208,6 +214,7 @@ def collect_coverage_per_motif(
     df = df.reset_index()
     for j in list(range(size))[::-1]:
         df[f"motif_{j}"] = df[f"motif_{j + 1}"].str.slice(1, -1)
+
     df = df[[f"motif_{j}" for j in range(size + 1)] + ["count"]]
     df["coverage"] = df["count"] * N
     if outfile is not None:
