@@ -18,8 +18,6 @@ class TestVariantAnnotation:
         result = variant_annotation.get_coverage(
             df.copy(), [temp_bw_name1], [temp_bw_name2])
         expected_total, expected_well_mapped = self._create_expected_coverage()
-        print(result['coverage'])
-        print(result['well_mapped_coverage'])
         assert result.shape == (df.shape[0], df.shape[1] + 3)
         assert 'coverage' in result.columns
         assert 'well_mapped_coverage' in result.columns
@@ -86,6 +84,4 @@ class TestVariantAnnotation:
         result = np.concatenate((result, np.zeros(1000)))
         result_well_mapped = np.concatenate(
             (result_well_mapped, np.zeros(1000)))
-        print(result)
-        print(result_well_mapped)
         return result, result_well_mapped
