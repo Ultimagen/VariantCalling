@@ -166,7 +166,9 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
     return concordance
 
 
-def get_coverage(df: pd.DataFrame, bw_coverage_files_q20: List[str], bw_coverage_files_q0: List[str]) -> pd.DataFrame:
+def get_coverage(df: pd.DataFrame, 
+    bw_coverage_files_high_quality: List[str], 
+    bw_coverage_files_low_quality: List[str]) -> pd.DataFrame:
     """Adds coverage columns to the variant dataframe. Three columns are added: coverage - total coverage,
     well_mapped_coverage - coverage of reads with mapping quality > min_quality and repetitive_read_coverage -
     which is the difference between the two.
@@ -176,9 +178,9 @@ def get_coverage(df: pd.DataFrame, bw_coverage_files_q20: List[str], bw_coverage
     ----------
     df : pd.DataFrame
         Dataframe (VCF or concordance)
-    bw_coverage_files_q20 : List[str]
-        List of BW for the coverage at the MAPQ threshold 20
-    bw_coverage_files_q0 : List[str]
+    bw_coverage_files_high_quality : List[str]
+        List of BW for the coverage at the high MAPQ quality threshold
+    bw_coverage_files_low_quality : List[str]
         List of BW for the coverage at the MAPQ threshold 0
 
 
@@ -189,36 +191,36 @@ def get_coverage(df: pd.DataFrame, bw_coverage_files_q20: List[str], bw_coverage
     """
 
     chrom2f = [(list(pbw.open(f).chroms().keys())[0], f)
-               for f in bw_coverage_files_q20]
+               for f in bw_coverage_files_high_quality]
     chrom2bw_dict = dict(chrom2f)
 
     chrom2f = [(list(pbw.open(f).chroms().keys())[0], f)
-               for f in bw_coverage_files_q0]
+               for f in bw_coverage_files_low_quality]
     for v in chrom2f:
         chrom2bw_dict[v[0]] = (chrom2bw_dict[v[0]], v[1])
 
     df.insert(len(df.columns), "coverage", np.NaN)
     df.insert(len(df.columns), "well_mapped_coverage", np.NaN)
-    df.insert(len(df.columns), "repetitive_read_coverage", np.NaN)    
+    df.insert(len(df.columns), "repetitive_read_coverage", np.NaN)
 
     gdf = df.groupby("chrom")
 
     for g in gdf.groups:
         idx = gdf.groups[g]
         if g in chrom2bw_dict:
-            bw_q20 = chrom2bw_dict[g][0]
-            bw_q0 = chrom2bw_dict[g][1]
+            bw_hq = chrom2bw_dict[g][0]
+            bw_lq = chrom2bw_dict[g][1]
         else:
             continue
 
-        with pbw.open(bw_q20) as bw:
-            values_q20 = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
-        with pbw.open(bw_q0) as bw:
-            values_q0 = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
-        df.loc[gdf.groups[g], "coverage"] = values_q0
-        df.loc[gdf.groups[g], "well_mapped_coverage"] = values_q20
+        with pbw.open(bw_hq) as bw:
+            values_hq = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
+        with pbw.open(bw_lq) as bw:
+            values_lq = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
+        df.loc[gdf.groups[g], "coverage"] = values_lq
+        df.loc[gdf.groups[g], "well_mapped_coverage"] = values_hq
         df.loc[gdf.groups[g], "repetitive_read_coverage"] = np.array(
-            values_q0) - np.array(values_q20)
+            values_lq) - np.array(values_hq)
     return df
 
 
