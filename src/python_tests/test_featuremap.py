@@ -44,6 +44,7 @@ def test_collect_coverage_per_motif(generate_coverage_test_set):
     for k in result.index:
         assert result.loc[k, 'count'] == expected[k], k + str(sequence.index(k))
 
+
 def test_collect_coverage_per_motif_empty_dataset(data, tmpdir):
     with pbw.open(pjoin(tmpdir, "sample.bw"), 'w') as out:
         out.addHeader([('chr20', 100000)])
@@ -53,4 +54,14 @@ def test_collect_coverage_per_motif_empty_dataset(data, tmpdir):
         data, pjoin(tmpdir, "sample.bw"), 5, 1).set_index("motif_5")
     assert result.shape == (0,1)
     assert 'count' in result.columns
+    os.remove(pjoin(tmpdir, "sample.bw"))
+
+
+def test_collect_coverage_per_motif_long_chromosome(data, tmpdir):
+    with pbw.open(pjoin(tmpdir, "sample.bw"), 'w') as out:
+        out.addHeader([('chr20', 10000000)])
+        out.addEntries(['chr20'], [0], ends=[10000000], values=[1.0])
+    result = fm._collect_coverage_per_motif(
+       data, pjoin(tmpdir, "sample.bw"), 5, 10).set_index("motif_5")
+    assert result['count'].sum() >= 990000  # Require less than 1M motifs since there are Ns on the end of the chrom
     os.remove(pjoin(tmpdir, "sample.bw"))
