@@ -119,7 +119,7 @@ def _collect_coverage_per_motif(
             for s in start_points:
                 vals = f.values(chrom_name, s, min(s+CHUNK_SIZE, chrom_len))
                 vals = vals[::N]
-                poss = np.arange(s, min(CHUNK_SIZE, chrom_len-s))[::N]
+                poss = np.arange(s, min(s+CHUNK_SIZE, chrom_len))[::N]
                 for i, pos in enumerate(poss):
                     cov = vals[i]
                     if pos < 2 * size or cov == 0 or np.isnan(cov):
