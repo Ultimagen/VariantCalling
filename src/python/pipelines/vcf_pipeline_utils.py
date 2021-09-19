@@ -70,9 +70,9 @@ class IntervalFile:
     def __init__(self,cmp_intervals: str, ref: str, ref_dict: str):
         # determine the file type and create the other temporary copy
         if cmp_intervals is None:
-            self._is_none = True
-            self._interval_list_file_name = None
-            self._bed_file_name = None
+            self._is_none: bool = True
+            self._interval_list_file_name: Optional[str] = None
+            self._bed_file_name: Optional[str] = None
 
         elif cmp_intervals.endswith('.interval_list'):
             self._interval_list_file_name = cmp_intervals
@@ -480,7 +480,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     original = vcftools.get_vcf_df(raw_calls_file,chromosome = chromosome)
 
-
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
@@ -493,7 +492,8 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
 
 def annotate_concordance(df: pd.DataFrame, fasta: str,
-                         alnfile: Optional[str] = None,
+                         bw_high_quality: Optional[List[str]] = None,
+                         bw_all_quality: Optional[List[str]] = None, 
                          annotate_intervals: List[str] = [],
                          runfile: Optional[str] = None,
                          flow_order: Optional[str] = "TACG",
@@ -506,8 +506,10 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
         Concordance dataframe
     fasta : str
         Indexed FASTA of the reference genome
-    alnfile : Optional[str], optional
-        Alignment file (Optional)
+    bw_high_quality : Optional[List[str]], optional
+        Coverage bigWig file from high mapq reads  (Optional)
+    bw_all_quality : Optional[List[str]], optional
+        Coverage bigWig file from all mapq reads  (Optional)
     annotate_intervals : List[str], optional
         Description
     runfile : Optional[str], optional
@@ -531,9 +533,9 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = annotation.get_motif_around(df, 5, fasta)
     logger.info("Marking GC content")
     df = annotation.get_gc_content(df, 10, fasta)
-    if alnfile is not None:
+    if bw_all_quality is not None and bw_high_quality is not None:
         logger.info("Calculating coverage")
-        df = annotation.get_coverage(df, alnfile, 10)
+        df = annotation.get_coverage(df, bw_high_quality, bw_all_quality)
     if runfile is not None:
         length, dist = hmer_run_length_dist
         logger.info("Marking homopolymer runs")
@@ -550,7 +552,8 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = annotation.fill_filter_column(df)
 
     logger.info("Filling filter column")
-    df = annotation.annotate_cycle_skip(df, flow_order=flow_order)
+    if flow_order is not None: 
+        df = annotation.annotate_cycle_skip(df, flow_order=flow_order)
     return df, annots
 
 

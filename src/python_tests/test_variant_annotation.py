@@ -1,8 +1,7 @@
 import pathmagic
 import pytest
 import subprocess
-import pysam
-import pyfaidx
+import pyBigWig as pbw
 import numpy as np
 import pandas as pd
 from os.path import join as pjoin
@@ -12,35 +11,34 @@ from pathmagic import PYTHON_TESTS_PATH, COMMON
 
 class TestVariantAnnotation:
     def test_get_coverage(self, tmpdir):
-        temp_bam_name1 = self._create_temp_bam(tmpdir, "test1.bam")
-        temp_bam_name2 = self._create_temp_bam(tmpdir, "test2.bam")
+        temp_bw_name1 = self._create_temp_bw(tmpdir, "test1.bw", 20)
+        temp_bw_name2 = self._create_temp_bw(tmpdir, "test2.bw", 0)
         df = self._create_test_df_for_coverage()
 
         result = variant_annotation.get_coverage(
-            df.copy(), [temp_bam_name1, temp_bam_name2], 20, True)
+            df.copy(), [temp_bw_name1], [temp_bw_name2])
         expected_total, expected_well_mapped = self._create_expected_coverage()
         assert result.shape == (df.shape[0], df.shape[1] + 3)
         assert 'coverage' in result.columns
         assert 'well_mapped_coverage' in result.columns
         assert 'repetitive_read_coverage' in result.columns
-        assert np.all(result['coverage'] - result['well_mapped_coverage'] == result['repetitive_read_coverage'])
+        assert np.all(result['coverage'] - result['well_mapped_coverage']
+                      == result['repetitive_read_coverage'])
         # we calculate coverage on the same BAM twice, so the coverage should be twice the expected
-        assert np.all(result['coverage'] == 2*expected_total)
-        assert np.all(result['well_mapped_coverage'] == 2*expected_well_mapped)
+        assert np.all(result['coverage'] == expected_total)
+        assert np.all(result['well_mapped_coverage'] == expected_well_mapped)
 
-    def test_get_coverage_empty_dataframe(self, tmpdir): 
-        temp_bam_name1 = self._create_temp_bam(tmpdir, "test1.bam")
-        temp_bam_name2 = self._create_temp_bam(tmpdir, "test2.bam")
-        df = self._create_test_df_for_coverage().iloc[:0,:]
+    def test_get_coverage_empty_dataframe(self, tmpdir):
+        temp_bw_name1 = self._create_temp_bw(tmpdir, "test1.bw", 20)
+        temp_bw_name2 = self._create_temp_bw(tmpdir, "test2.bw", 0)
+        df = self._create_test_df_for_coverage().iloc[:0, :]
 
-        result = variant_annotation.get_coverage(
-            df.copy(), [temp_bam_name1, temp_bam_name2], 20, True)
+        result = variant_annotation.get_coverage(df.copy(), [temp_bw_name1], [temp_bw_name2])
         assert result.shape == (df.shape[0], df.shape[1] + 3)
-
-
 
     # Temporary bam contains read that starts on each location, every second read is duplicate (should be discarded)
     # Every third read is of low mapping quality. _create_expected_coverage generates the expected coverage profile
+    # now instead of BAM we already collect the coverage in the BW
     def _create_temp_bam(self, tmpdir, name):
         header = {'HD': {'VN': '1.0'},
                   'SQ': [{'LN': 100000, 'SN': 'chr20'}]}
@@ -60,10 +58,21 @@ class TestVariantAnnotation:
         subprocess.check_call(['samtools', 'index', pjoin(tmpdir, name)])
         return pjoin(tmpdir, name)
 
-    # creates dataframe that would test coverage 
+    def _create_temp_bw(self, tmpdir, name, quality_threshold):
+        with pbw.open(pjoin(tmpdir, name), 'w') as outf:
+            outf.addHeader([('chr20', 100000)])
+            for loc in range(90000, 91000):
+                outf.addEntries(["chr20"], [loc], ends=[loc+1],
+                                values=[float(((loc+1) % 2) * ((30*(loc % 3)) >= quality_threshold))])
+            outf.addEntries(["chr20"], [91000], ends=[92000], values=[0.0])
+        return pjoin(tmpdir, name)
+
+    # creates dataframe that would test coverage
     def _create_test_df_for_coverage(self):
         df = pd.DataFrame(
             {'chrom': ['chr20'] * 2000, 'pos': np.arange(90000, 92000)+1})  # note  that VCF is one-based
+        df.set_index(
+            df.apply(lambda x: (x['chrom'], x['pos']), axis=1), inplace=True)
         return df
 
     # This creates the expected coverage from the bam simulated by _create_temp_bam
@@ -73,5 +82,6 @@ class TestVariantAnnotation:
         result_well_mapped = result.copy()
         result_well_mapped[((np.arange(90000, 91000)) % 3) == 0] = 0
         result = np.concatenate((result, np.zeros(1000)))
-        result_well_mapped = np.concatenate((result_well_mapped, np.zeros(1000)))
+        result_well_mapped = np.concatenate(
+            (result_well_mapped, np.zeros(1000)))
         return result, result_well_mapped

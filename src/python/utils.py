@@ -1,9 +1,13 @@
 import numpy as np
 import itertools
 import pandas as pd
+import pysam
 from typing import Optional, Union, List
 import os
+from os.path import dirname
+from os.path import join as pjoin
 import json
+import pkgutil
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
     '''Returns values from a distribution
@@ -265,6 +269,30 @@ def get_chr_sizes(sizes_file: str) -> dict:
     return dict([x.strip().split() for x in open(sizes_file)])
 
 
+def contig_lens_from_bam_header(bam_file: str, output_file: str):
+    '''Creates a "sizes" file from contig lengths in bam header.
+    Sizes file is per the UCSC spec: contig <tab> length
+
+    Parameters
+    ----------
+    bam_file: str
+        Bam file
+    output_file: str
+        Output file
+
+    Returns
+    -------
+    None, writes output_file
+    '''
+
+    with pysam.AlignmentFile(bam_file) as infile:
+        with open(output_file, 'w') as outfile:
+            lengths = infile.header.lengths
+            contigs = infile.header.references
+            for c, l in zip(contigs, lengths):
+                outfile.write(f"{c}\t{l}\n")
+
+
 def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
                            pos_label: Optional[Union[str, int]]=1,
                            fn_score: float = -1) -> tuple:
@@ -345,3 +373,18 @@ def isin(pos: int, interval: tuple) -> bool:
     '''
     return pos >= interval[0] and pos < interval[1]
 
+
+def find_scripts_path() -> str:
+    '''Locates the absolute path of the scripts installation
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str
+        The path
+    '''
+    package = pkgutil.get_loader("python")
+    return pjoin(dirname(package.get_filename()), "..", "bash")

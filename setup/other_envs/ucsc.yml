@@ -1,0 +1,21 @@
+name: ucsc
+channels:
+  - defaults
+  - conda-forge
+  - default
+  - bioconda
+dependencies:
+  - _libgcc_mutex=0.1=main
+  - _openmp_mutex=4.5=1_gnu
+  - ca-certificates=2021.7.5=h06a4308_1
+  - libgcc=7.2.0=h69d50b8_2
+  - libgcc-ng=9.3.0=h5101ec6_17
+  - libgomp=9.3.0=h5101ec6_17
+  - libpng=1.6.37=hbc83047_0
+  - libstdcxx-ng=9.3.0=hd4cf53a_17
+  - libuuid=2.32.1=h7f98852_1000
+  - mysql-connector-c=6.1.6=2
+  - openssl=1.0.2u=h7b6447c_0
+  - ucsc-bedgraphtobigwig=377=h199ee4e_0
+  - zlib=1.2.11=h7b6447c_3
+prefix: /home/ec2-user/miniconda3/envs/ucsc
