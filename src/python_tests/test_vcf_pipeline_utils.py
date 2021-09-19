@@ -29,6 +29,7 @@ def test_fix_errors():
                              ((x['gt_ultima'][0] == x['gt_ground_truth'][1]) & (x['gt_ultima'][1] != x['gt_ground_truth'][0])) |
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis=1))
 
+
 class TestVCFevalRun:
     ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
     sample_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.sd.vcf.gz")
@@ -83,6 +84,7 @@ def test_bed_file_length():
     result = vcf_pipeline_utils.bed_file_length(bed1)
     assert result == 3026
 
+
 def test_IntervalFile_init_bed_input(mocker):
     bed1 = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "bed1.bed")
     ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
@@ -97,6 +99,7 @@ def test_IntervalFile_init_bed_input(mocker):
     assert not intervalFile.is_none()
     spy_subprocess.assert_called_once_with(['picard', 'BedToIntervalList',f'I={bed1}', f'O={interval_list_path}', f'SD={ref_genome}.dict'])
     os.remove(interval_list_path)
+
 
 def test_IntervalFile_init_interval_list_input(mocker):
     interval_list = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "interval_list1.interval_list")
@@ -120,4 +123,3 @@ def test_IntervalFile_init_error():
     assert intervalFile.as_bed_file() is None
     assert intervalFile.as_interval_list_file() is None
     assert intervalFile.is_none()
-

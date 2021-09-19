@@ -14,15 +14,15 @@ from shutil import copyfile
 MIN_CONTIG_LENGTH = 100000
 
 
-def _contig_concordance_annotate_reinterpretation(results, contig, reference, aligned_bam, annotate_intervals,
-                                                  runs_intervals, hpol_filter_length_dist, flow_order,
-                                                  base_name_outputfile, concordance_tool, disable_reinterpretation,
-                                                  ignore_low_quality_fps):
+def _contig_concordance_annotate_reinterpretation(results, contig, reference, bw_high_quality, bw_all_quality, 
+    annotate_intervals, runs_intervals, hpol_filter_length_dist, flow_order,
+    base_name_outputfile, concordance_tool, disable_reinterpretation,
+    ignore_low_quality_fps):
     logger.info(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], concordance_tool, contig)
     annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
-        concordance, reference, aligned_bam, annotate_intervals,
+        concordance, reference, bw_high_quality, bw_all_quality, annotate_intervals,
         runs_intervals, hmer_run_length_dist=hpol_filter_length_dist, flow_order=flow_order)
 
     if not disable_reinterpretation:
@@ -57,7 +57,9 @@ if __name__ == "__main__":
                     required=True, type=str)
     ap.add_argument("--reference_dict", help='Reference genome dictionary',
                     required=False, type=str)
-    ap.add_argument("--aligned_bam", help='Aligned bam',
+    ap.add_argument("--coverage_bw_high_quality", help='BigWig file with coverage only on high mapq reads',
+                    required=False, default=None, type=str, action='append')
+    ap.add_argument("--coverage_bw_all_quality", help='BigWig file with coverage on all mapq reads',
                     required=False, default=None, type=str, action='append')
     ap.add_argument("--call_sample_name",
                     help='Name of the call sample', required=True, default='sm1')
@@ -129,7 +131,8 @@ if __name__ == "__main__":
         concordance = vcf_pipeline_utils.vcf2concordance(
             results[0], results[1], args.concordance_tool)
         annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
-            concordance, args.reference, args.aligned_bam, args.annotate_intervals,
+            concordance, args.reference, args.coverage_bw_high_quality, 
+            args.coverage_bw_all_quality, args.annotate_intervals,
             runs_intervals.as_bed_file(), hmer_run_length_dist=args.hpol_filter_length_dist,
             flow_order=args.flow_order)
 
@@ -151,8 +154,10 @@ if __name__ == "__main__":
         base_name_outputfile = os.path.splitext(args.output_file)[0]
         Parallel(n_jobs=args.n_jobs, max_nbytes=None)(
             delayed(_contig_concordance_annotate_reinterpretation)
-            (results, contig, args.reference, args.aligned_bam, args.annotate_intervals, runs_intervals.as_bed_file(),
-             args.hpol_filter_length_dist, args.flow_order, base_name_outputfile, args.concordance_tool,
+            (results, contig, args.reference, args.coverage_bw_high_quality, 
+                args.coverage_bw_all_quality, args.annotate_intervals, 
+                runs_intervals.as_bed_file(), args.hpol_filter_length_dist, 
+                args.flow_order, base_name_outputfile, args.concordance_tool,
              args.disable_reinterpretation, args.is_mutect)
             for contig in tqdm(contigs))
 

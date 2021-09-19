@@ -4,6 +4,7 @@ import pyfaidx
 import python.utils as utils
 import pysam
 import tqdm
+import pyBigWig as pbw
 from typing import List
 
 
@@ -27,7 +28,8 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
         elif len(x['ref']) < max([len(y) for y in x['alleles']]):
             return 'ins'
         return 'del'
-    concordance['indel_classify'] = concordance.apply(classify, axis=1, result_type='reduce')
+    concordance['indel_classify'] = concordance.apply(
+        classify, axis=1, result_type='reduce')
     concordance['indel_length'] = concordance.apply(lambda x: max(
         [abs(len(y) - len(x['ref'])) for y in x['alleles']]), axis=1, result_type='reduce')
     return concordance
@@ -75,7 +77,8 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
             else:
                 return (len(del_seq) + utils.hmer_length(fasta_idx[rec['chrom']],
                                                          rec['pos'] + len(rec['ref']) - 1), del_seq[0])
-    results = concordance.apply(lambda x: _is_hmer(x, fasta_idx), axis=1, result_type='reduce')
+    results = concordance.apply(lambda x: _is_hmer(
+        x, fasta_idx), axis=1, result_type='reduce')
     concordance['hmer_indel_length'] = [x[0] for x in results]
     concordance['hmer_indel_nuc'] = [x[1] for x in results]
     return concordance
@@ -125,7 +128,8 @@ def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> 
         else:
             return _get_motif_around_snp(rec, size, faidx)
     faidx = pyfaidx.Fasta(fasta)
-    tmp = concordance.apply(lambda x: _get_motif(x, motif_size, faidx), axis=1, result_type='reduce')
+    tmp = concordance.apply(lambda x: _get_motif(
+        x, motif_size, faidx), axis=1, result_type='reduce')
     concordance['left_motif'] = [x[0] for x in list(tmp)]
     concordance['right_motif'] = [x[1] for x in list(tmp)]
     return concordance
@@ -156,52 +160,67 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
         seqGC = seq.replace('A', '').replace('T', '')
         return float(len(seqGC)) / len(seq)
     faidx = pyfaidx.Fasta(fasta)
-    tmp = concordance.apply(lambda x: _get_gc(x, window_size, faidx), axis=1, result_type='reduce')
+    tmp = concordance.apply(lambda x: _get_gc(
+        x, window_size, faidx), axis=1, result_type='reduce')
     concordance['gc_content'] = [x for x in list(tmp)]
     return concordance
 
 
-def get_coverage(df: pd.DataFrame, alnfiles: List[str], min_quality: int, filter_dups: bool = False) -> pd.DataFrame:
-    """Adds coverage columns to the variant dataframe. Three columns are added: coverage - totla coverage,
+def get_coverage(df: pd.DataFrame, 
+    bw_coverage_files_high_quality: List[str], 
+    bw_coverage_files_low_quality: List[str]) -> pd.DataFrame:
+    """Adds coverage columns to the variant dataframe. Three columns are added: coverage - total coverage,
     well_mapped_coverage - coverage of reads with mapping quality > min_quality and repetitive_read_coverage -
     which is the difference between the two.
+    bw_coverage_files should be outputs of `coverage_analysis.py` and have .chr??. inside the name
 
     Parameters
     ----------
     df : pd.DataFrame
         Dataframe (VCF or concordance)
-    alnfiles : List[str]
-        List of BAMs that generated the DF (total coverage will be calculate)
-    min_quality : int
-        Minimal read quality to be counted in coverage
-    filter_dups : bool, optional
-        Should duplicates be discarded (default: False)
+    bw_coverage_files_high_quality : List[str]
+        List of BW for the coverage at the high MAPQ quality threshold
+    bw_coverage_files_low_quality : List[str]
+        List of BW for the coverage at the MAPQ threshold 0
+
 
     Returns
     -------
     pd.DataFrame
         Modified dataframe
     """
-    all_results = []
-    for alnfile in alnfiles:
-        with pysam.AlignmentFile(alnfile) as alns:
-            results = []
-            for r in tqdm.tqdm(df.iterrows()):
-                reads = alns.fetch(r[1].chrom, r[1].pos - 1, r[1].pos)
-                count_total = 0
-                count_well = 0
-                for read in reads:
-                    if filter_dups and read.is_duplicate:
-                        continue
-                    if read.mapping_quality > min_quality:
-                        count_well += 1
-                    count_total += 1
-                results.append((count_total, count_well))
-            all_results.append(np.array(results).reshape(-1, 2))
-    all_results_array = np.sum(all_results, axis=0)
-    df['coverage'] = all_results_array[:, 0]
-    df['well_mapped_coverage'] = all_results_array[:, 1]
-    df['repetitive_read_coverage'] = all_results_array[:, 0]-all_results_array[:, 1]
+
+    chrom2f = [(list(pbw.open(f).chroms().keys())[0], f)
+               for f in bw_coverage_files_high_quality]
+    chrom2bw_dict = dict(chrom2f)
+
+    chrom2f = [(list(pbw.open(f).chroms().keys())[0], f)
+               for f in bw_coverage_files_low_quality]
+    for v in chrom2f:
+        chrom2bw_dict[v[0]] = (chrom2bw_dict[v[0]], v[1])
+
+    df.insert(len(df.columns), "coverage", np.NaN)
+    df.insert(len(df.columns), "well_mapped_coverage", np.NaN)
+    df.insert(len(df.columns), "repetitive_read_coverage", np.NaN)
+
+    gdf = df.groupby("chrom")
+
+    for g in gdf.groups:
+        idx = gdf.groups[g]
+        if g in chrom2bw_dict:
+            bw_hq = chrom2bw_dict[g][0]
+            bw_lq = chrom2bw_dict[g][1]
+        else:
+            continue
+
+        with pbw.open(bw_hq) as bw:
+            values_hq = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
+        with pbw.open(bw_lq) as bw:
+            values_lq = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
+        df.loc[gdf.groups[g], "coverage"] = values_lq
+        df.loc[gdf.groups[g], "well_mapped_coverage"] = values_hq
+        df.loc[gdf.groups[g], "repetitive_read_coverage"] = np.array(
+            values_lq) - np.array(values_hq)
     return df
 
 
