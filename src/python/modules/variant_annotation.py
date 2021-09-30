@@ -6,6 +6,7 @@ import pysam
 import tqdm
 import pyBigWig as pbw
 from typing import List
+UNDETERMINED = "NA"
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
@@ -166,9 +167,9 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
     return concordance
 
 
-def get_coverage(df: pd.DataFrame, 
-    bw_coverage_files_high_quality: List[str], 
-    bw_coverage_files_low_quality: List[str]) -> pd.DataFrame:
+def get_coverage(df: pd.DataFrame,
+                 bw_coverage_files_high_quality: List[str],
+                 bw_coverage_files_low_quality: List[str]) -> pd.DataFrame:
     """Adds coverage columns to the variant dataframe. Three columns are added: coverage - total coverage,
     well_mapped_coverage - coverage of reads with mapping quality > min_quality and repetitive_read_coverage -
     which is the difference between the two.
@@ -366,7 +367,7 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     else:
         na_pos = df['indel'] | df.apply(lambda x: is_multiallelic(
             x, gt_field), axis=1) | df.apply(lambda x: is_non_polymorphic(x, gt_field), axis=1)
-    df['cycleskip_status'] = "NA"
+    df['cycleskip_status'] = UNDETERMINED
     snp_pos = ~na_pos
     snps = df.loc[snp_pos].copy()
     left_last = np.array(snps['left_motif']).astype(np.string_)
@@ -388,17 +389,27 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
     ref_seqs = np.char.add(np.char.add(left_last, ref), right_first)
     alt_seqs = np.char.add(np.char.add(left_last, alt), right_first)
 
-    ref_encs = [utils.generateKeyFromSequence(
-        str(np.char.decode(x)), flow_order) for x in ref_seqs]
-    alt_encs = [utils.generateKeyFromSequence(
-        str(np.char.decode(x)), flow_order) for x in alt_seqs]
+    ref_encs = [utils.catch(utils.generateKeyFromSequence,
+                            str(np.char.decode(x)), flow_order, exception_type=ValueError,
+                            handle=lambda x: UNDETERMINED) for x in ref_seqs]
+    alt_encs = [utils.catch(utils.generateKeyFromSequence,
+                            str(np.char.decode(x)), flow_order, exception_type=ValueError,
+                            handle=lambda x: UNDETERMINED) for x in alt_seqs]
 
     cycleskip = np.array([x for x in range(len(ref_encs))
-                          if len(ref_encs[x]) != len(alt_encs[x])])
-    poss_cycleskip = [x for x in range(len(ref_encs)) if len(ref_encs[x]) == len(alt_encs[x])
+                          if type(ref_encs[x]) == np.ndarray and
+                          type(alt_encs[x]) == np.ndarray and
+                          len(ref_encs[x]) != len(alt_encs[x])])
+    poss_cycleskip = [x for x in range(len(ref_encs)) if type(ref_encs[x]) == np.ndarray
+                      and type(alt_encs[x]) == np.ndarray and
+                      len(ref_encs[x]) == len(alt_encs[x])
                       and (np.any(ref_encs[x][ref_encs[x] - alt_encs[x] != 0] == 0) or
                            np.any(alt_encs[x][ref_encs[x] - alt_encs[x] != 0] == 0))]
-    s = set(np.concatenate((cycleskip, poss_cycleskip)))
+
+    undetermined = np.array([x for x in range(
+        len(ref_encs)) if (type(ref_encs[x]) == str and ref_encs[x] == UNDETERMINED) 
+    or (type(alt_encs[x]) == str and alt_encs[x] == UNDETERMINED)])
+    s = set(np.concatenate((cycleskip, poss_cycleskip, undetermined)))
     non_cycleskip = [x for x in range(len(ref_encs)) if x not in s]
 
     vals = [''] * len(snps)
@@ -408,6 +419,8 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
         vals[x] = "possible-cycle-skip"
     for x in non_cycleskip:
         vals[x] = "non-skip"
+    for x in undetermined:
+        vals[x] = UNDETERMINED
     snps["cycleskip_status"] = vals
 
     df.loc[snp_pos, "cycleskip_status"] = snps["cycleskip_status"]
