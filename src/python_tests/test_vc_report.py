@@ -25,7 +25,12 @@ def test_vc_report(tmpdir):
 
         trained_model = threshold_model_recall_precision_ignore_gt_excl_hpol_runs
         h5_output = test.var_report.h5
-        '''
+        model_name_with_gt = untrained_ignore_gt_excl_hpol_runs
+        model_name_without_gt = threshold_model_recall_precision_ignore_gt_excl_hpol_runs
+        model_pkl_with_gt = dummy1.pkl
+        model_pkl_without_gt = dummy2.pkl
+        
+	'''
         config_file.write(strg)
 
     cmd = ['jupyter', 'nbconvert', '--to', 'notebook',
