@@ -2,12 +2,13 @@ import numpy as np
 import itertools
 import pandas as pd
 import pysam
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Callable, Type
 import os
 from os.path import dirname
 from os.path import join as pjoin
 import json
 import pkgutil
+
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
     '''Returns values from a distribution
@@ -43,7 +44,6 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: Optional[i
     np.ndarray
         sequence in key space
     """
-
     flow = flow_order*len(sequence)
 
     key = []
@@ -52,17 +52,17 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: Optional[i
         hcount = 0
         for i in range(pos, len(sequence)):
             if sequence[i] == base:
-                hcount+=1
+                hcount += 1
             else:
                 break
         else:
             key.append(hcount)
-            break # end of sequence
+            break  # end of sequence
 
         key.append(hcount)
         pos += hcount
     if truncate:
-        return np.clip(np.array(key), 0, truncate)    
+        return np.clip(np.array(key), 0, truncate)
     else:
         return np.array(key)
 
@@ -85,9 +85,11 @@ def revcomp(seq: str) -> Union[str, list, np.ndarray]:
         reverse_complement = "".join(complement.get(base, base)
                                      for base in reversed(seq))
     elif type(seq) == list:
-        reverse_complement = [complement.get(base, base) for base in reversed(seq)]
+        reverse_complement = [complement.get(
+            base, base) for base in reversed(seq)]
     elif type(seq) == np.ndarray:
-        reverse_complement = np.array([complement.get(base, base) for base in reversed(seq)])
+        reverse_complement = np.array(
+            [complement.get(base, base) for base in reversed(seq)])
 
     return reverse_complement
 
@@ -103,7 +105,8 @@ def runs_of_one(array, axis=None):
     if not axis:
         sh = [x for x in array.shape if x != 1]
         if len(sh) != 1:
-            raise RuntimeError('runs_of_one - too many non-singleton axes in array')
+            raise RuntimeError(
+                'runs_of_one - too many non-singleton axes in array')
         else:
             array = np.squeeze(array).reshape(1, -1)
             axis = 1
@@ -156,7 +159,8 @@ def depth2bed(depth_file: str, output_bed_file: str, cutoff: int) -> None:
             chrpos = chrpos >= cutoff
             intervals = runs_of_one(chrpos)[0]
             for interval in intervals:
-                out.write("{}\t{}\t{}\n".format(chroms[0], interval[0], interval[1]))
+                out.write("{}\t{}\t{}\n".format(
+                    chroms[0], interval[0], interval[1]))
 
 
 def read_genomecov_vector(bg_file, chrom, start, end):
@@ -205,7 +209,7 @@ def grouper(iterable, n, fillvalue=None):
     return itertools.zip_longest(fillvalue=fillvalue, *args)
 
 
-def shiftarray(arr: np.ndarray, num: int, fill_value: np.float=np.nan) -> np.ndarray:
+def shiftarray(arr: np.ndarray, num: int, fill_value: np.float = np.nan) -> np.ndarray:
     '''Shifts array by num to the right
 
     Parameters
@@ -294,7 +298,7 @@ def contig_lens_from_bam_header(bam_file: str, output_file: str):
 
 
 def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
-                           pos_label: Optional[Union[str, int]]=1,
+                           pos_label: Optional[Union[str, int]] = 1,
                            fn_score: float = -1) -> tuple:
     '''Calculates precision/recall curve from double prediction scores and gtr
 
@@ -324,9 +328,8 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     mask = (tp_counts + fp_counts < 20) | (tp_counts + fn_counts < 20)
     precisions = tp_counts / (tp_counts + fp_counts)
     recalls = tp_counts / (tp_counts + fn_counts)
-    f1 = 2 * (recalls * precisions) / (recalls + precisions + np.finfo(float).eps)
-
-
+    f1 = 2 * (recalls * precisions) / \
+        (recalls + precisions + np.finfo(float).eps)
 
     trim_idx = np.argmax(predictions > fn_score)
     mask = mask[trim_idx:]
@@ -350,7 +353,8 @@ def max_merits(specificity, recall):
 
 def parse_intervals_file(intervalfile, threshold=0):
     '''Parses bed file'''
-    df = pd.read_csv(intervalfile, names=['chromosome', 'start', 'end'], usecols=[0,1,2], index_col=None, sep="\t")
+    df = pd.read_csv(intervalfile, names=['chromosome', 'start', 'end'], usecols=[
+                     0, 1, 2], index_col=None, sep="\t")
     if threshold > 0:
         df = df[df['end'] - df['start'] > threshold]
     df.sort_values(['chromosome', 'start'], inplace=True)
@@ -388,3 +392,26 @@ def find_scripts_path() -> str:
     '''
     package = pkgutil.get_loader("python")
     return pjoin(dirname(package.get_filename()), "..", "bash")
+
+
+def catch(func: Callable, *args, exception_type: Exception = Exception, handle: Callable = lambda e: e, **kwargs):
+    '''From https://stackoverflow.com/a/8915613 general wrapper that
+    catches exception and returns value. Useful for handling error in list comprehension
+
+    Parameters
+    ----------
+    func: Callable
+        Function being wrapped
+    *args:
+        func non-named arguments
+    exception_type:
+        Type of exception to catch
+    handle:
+        How to handle the exception (what value to return)
+    **kwargs:
+        func named arguments
+    '''
+    try:
+        return func(*args, **kwargs)
+    except exception_type as e:
+        return handle(e)

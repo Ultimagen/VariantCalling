@@ -33,7 +33,8 @@ class TestVariantAnnotation:
         temp_bw_name2 = self._create_temp_bw(tmpdir, "test2.bw", 0)
         df = self._create_test_df_for_coverage().iloc[:0, :]
 
-        result = variant_annotation.get_coverage(df.copy(), [temp_bw_name1], [temp_bw_name2])
+        result = variant_annotation.get_coverage(
+            df.copy(), [temp_bw_name1], [temp_bw_name2])
         assert result.shape == (df.shape[0], df.shape[1] + 3)
 
     # Temporary bam contains read that starts on each location, every second read is duplicate (should be discarded)
@@ -85,3 +86,24 @@ class TestVariantAnnotation:
         result_well_mapped = np.concatenate(
             (result_well_mapped, np.zeros(1000)))
         return result, result_well_mapped
+
+    def test_cycleskip_status(self):
+        df, result = self._create_cycleskip_test_dataframe()
+        df = variant_annotation.annotate_cycle_skip(df, "TGCA")
+        assert np.all(np.array(df['cycleskip_status']) == np.array(result))
+
+    def _create_cycleskip_test_dataframe(self):
+        indel_status = [True, False, False, False, False, False]
+        alleles = [('CA',), ('G', 'C'), ('C',), ('C',), ('G',), ('G',)]
+        ref = ['C', 'T', 'A', 'A', 'A', 'C']
+        alleles = [(ref[i],)+alleles[i] for i in range(len(ref))]
+        left_motif = ['TGGCA', 'TGGCA', 'TGGCA', 'TGGCA', 'TGGCT', 'TGGCT']
+        right_motif = ['TGGCA', 'TGGCA', 'AGCTA', 'CGCTA', 'CGGCA', 'AGGCA']
+        cycleskip_status = [variant_annotation.UNDETERMINED,
+                            variant_annotation.UNDETERMINED,
+                            'cycle-skip', 'non-skip', 'cycle-skip',
+                            'possible-cycle-skip']
+        df = pd.DataFrame({'indel': indel_status,
+                           'alleles': alleles, 'ref': ref, 'left_motif': left_motif, 'right_motif': right_motif})
+        result = pd.Series(cycleskip_status)
+        return df, result
