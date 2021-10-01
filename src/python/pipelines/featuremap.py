@@ -43,6 +43,7 @@ from python.auxiliary.format import (
     CYCLE_SKIP,
     POSSIBLE_CYCLE_SKIP,
     NON_CYCLE_SKIP,
+    UNDETERMINED_CYCLE_SKIP
 )
 
 SMALL_SIZE = 12
@@ -392,15 +393,18 @@ def determine_cycle_skip_status(ref: str, alt: str, flow_order: str):
             f"""Invalid inputs ref={ref}, alt={alt}
 expecting input of ref and alt sequences composed of 3 bases where only the 2nd base differs"""
         )
-    ref_key = np.trim_zeros(generateKeyFromSequence(ref, flow_order), "f")
-    alt_key = np.trim_zeros(generateKeyFromSequence(alt, flow_order), "f")
-    if len(ref_key) != len(alt_key):
-        return CYCLE_SKIP
-    else:
-        for r, a in zip(ref_key, alt_key):
-            if (r != a) and ((r == 0) or (a == 0)):
-                return POSSIBLE_CYCLE_SKIP
-        return NON_CYCLE_SKIP
+    try:
+        ref_key = np.trim_zeros(generateKeyFromSequence(ref, flow_order), "f")
+        alt_key = np.trim_zeros(generateKeyFromSequence(alt, flow_order), "f")
+        if len(ref_key) != len(alt_key):
+            return CYCLE_SKIP
+        else:
+            for r, a in zip(ref_key, alt_key):
+                if (r != a) and ((r == 0) or (a == 0)):
+                    return POSSIBLE_CYCLE_SKIP
+            return NON_CYCLE_SKIP
+    except ValueError:
+        return UNDETERMINED_CYCLE_SKIP
 
 
 def get_cycle_skip_dataframe(flow_order: str = "TGCA"):
