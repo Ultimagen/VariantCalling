@@ -40,16 +40,16 @@ def add_h5_to_hdf(input_h5_name, output_h5_name, output_report_key_prefix):
                 output_h5_name, key=output_report_key_prefix + report_key, mode="a")
 
 args = ap.parse_args()
-
-for metric_file in args.metric_files:
-    if os.path.getsize(metric_file) > 0:
-        metric_class, stats, histogram = vc_pipeline_utils.parse_cvg_metrics(
-            metric_file)
-        metric_class = metric_class[metric_class.find("$")+1:]
-        stats.to_hdf(args.output_h5, key=metric_class, mode="a")
-        if histogram is not None:
-            histogram.to_hdf(
-                args.output_h5, key="histogram_" + metric_class, mode="a")
+if args.metric_files is not None:
+    for metric_file in args.metric_files:
+        if os.path.getsize(metric_file) > 0:
+            metric_class, stats, histogram = vc_pipeline_utils.parse_cvg_metrics(
+                metric_file)
+            metric_class = metric_class[metric_class.find("$")+1:]
+            stats.to_hdf(args.output_h5, key=metric_class, mode="a")
+            if histogram is not None:
+                histogram.to_hdf(
+                    args.output_h5, key="histogram_" + metric_class, mode="a")
 
 if args.coverage_h5 is not None:
     cvg_h5_histogram = pd.read_hdf(args.coverage_h5, key="histogram")
