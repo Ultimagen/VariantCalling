@@ -580,9 +580,9 @@ def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
     tuple:
         Trained classifier model, trained regressor model
     '''
-    model = RandomForestClassifier()
+    model = RandomForestClassifier(n_estimators=40,max_depth=8)
 
-    model1 = RandomForestRegressor()
+    model1 = RandomForestRegressor(n_estimators=40,max_depth=8)
     return train_model(concordance, test_train_split,
                    selection, gtr_column, transformer, interval_size, model, model1, annots=annots,
                        exome_weight=exome_weight,

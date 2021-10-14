@@ -131,9 +131,9 @@ try:
                                                     annots=annots,
                                                     exome_weight=args.exome_weight,
                                                     exome_weight_annotation=args.exome_weight_annotation,
-                                                    use_train_test_split=not with_dbsnp_bl)
-    if with_dbsnp_bl:
-        df_tmp['test_train_split'] = False
+                                                    use_train_test_split=True)
+    # if with_dbsnp_bl:
+    #     df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -156,9 +156,9 @@ try:
                                                     annots=annots,
                                                     exome_weight=args.exome_weight,
                                                     exome_weight_annotation=args.exome_weight_annotation,
-                                                    use_train_test_split=not with_dbsnp_bl)
-    if with_dbsnp_bl:
-        df_tmp['test_train_split'] = False
+                                                    use_train_test_split=True)
+    # if with_dbsnp_bl:
+    #     df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -181,9 +181,9 @@ try:
                                                     annots=annots,
                                                     exome_weight=args.exome_weight,
                                                     exome_weight_annotation=args.exome_weight_annotation,
-                                                    use_train_test_split=not with_dbsnp_bl)
-    if with_dbsnp_bl:
-        df_tmp['test_train_split'] = False
+                                                    use_train_test_split=True)
+    # if with_dbsnp_bl:
+    #     df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
