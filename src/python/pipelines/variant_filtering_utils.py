@@ -932,7 +932,7 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
         concordance
 
 
-def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str) -> dict:
+def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str, train=False) -> dict:
     '''Calculate precision/recall for the decision tree classifier
 
     Parameters
@@ -956,8 +956,12 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
     for g in groups:
-        select = (concordance["group_testing"] == g) & \
-            (~concordance["test_train_split"])
+        if train:
+            select = (concordance["group_testing"] == g) & \
+                (concordance["test_train_split"])
+        else:
+            select = (concordance["group_testing"] == g) & \
+                (~concordance["test_train_split"])
 
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
@@ -976,7 +980,7 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
 
 def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
                                              model: MaskedHierarchicalModel,
-                                             classify_column: str) -> dict:
+                                             classify_column: str, train=False) -> dict:
     '''Calculate precision/recall curve for the decision tree regressor
 
     Parameters
@@ -1001,8 +1005,12 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     recalls_precisions = {}
 
     for g in groups:
-        select = (concordance["group_testing"] == g) & \
-                 (~concordance["test_train_split"])
+        if train:
+            select = (concordance["group_testing"] == g) & \
+                (concordance["test_train_split"])
+        else:
+            select = (concordance["group_testing"] == g) & \
+                (~concordance["test_train_split"])
 
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select] ## as type object
