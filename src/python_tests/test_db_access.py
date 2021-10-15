@@ -47,7 +47,7 @@ def test_inputs_outputs_dataframe():
     docs = [x for x in docs if x['metadata']['workflowId'] in hardcoded_wfids]
     all_inputs = pd.concat((db_access.inputs2df(x) for x in docs), axis=0)
     assert all_inputs.equals(pd.read_hdf(
-        pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "expected_inputs_df.h5")))
+        pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "expected_inputs_df.h5"), key="df"))
 
 
 def test_metrics_dataframe():
@@ -59,10 +59,10 @@ def test_metrics_dataframe():
 
     metrics_to_report = ['AlignmentSummaryMetrics', 'Contamination', 'DuplicationMetrics',
                          'GcBiasDetailMetrics', 'GcBiasSummaryMetrics', 'QualityYieldMetrics',
-                         'RawWgsMetrics', 'WgsMetrics', 'stats_coverage', 'short_report_/all_data']
+                         'RawWgsMetrics', 'WgsMetrics', 'stats_coverage', 'short_report_/all_data', 'short_report_/all_data_gt']
 
     all_inputs = pd.concat((db_access.metrics2df(
         x, metrics_to_report) for x in docs), axis=0)
 
     assert all_inputs.equals(pd.read_hdf(
-        pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "expected_metrics_df.h5")))
+        pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "expected_metrics_df.h5"), key="df"))

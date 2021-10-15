@@ -62,7 +62,8 @@ def query_database(query: dict) -> list:
 
 DEFAULT_METRICS_TO_REPORT = ['AlignmentSummaryMetrics', 'Contamination', 'DuplicationMetrics',
                              'GcBiasDetailMetrics', 'GcBiasSummaryMetrics', 'QualityYieldMetrics',
-                             'RawWgsMetrics', 'WgsMetrics', 'stats_coverage', 'short_report_/all_data']
+                             'RawWgsMetrics', 'WgsMetrics', 'stats_coverage', 
+                             'short_report_/all_data', 'short_report_/all_data_gt']
 
 
 def metrics2df(doc: dict, metrics_to_report: list = DEFAULT_METRICS_TO_REPORT) -> pd.DataFrame:
