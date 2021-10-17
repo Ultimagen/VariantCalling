@@ -184,15 +184,20 @@ try:
                                                     use_train_test_split=True)
     # if with_dbsnp_bl:
     #     df_tmp['test_train_split'] = False
-    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_rf_no_gt, classify_clm)
-    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_rf_no_gt, classify_clm)
 
     recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm,train=True)
     recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         df_tmp, models_reg_rf_no_gt, classify_clm,train=True)
+    #thresholds = np.argmax(recall_precision_curve_no_gt_train[g][:, 2])
+
+    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
+        df_tmp, models_rf_no_gt, classify_clm)
+    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        df_tmp, models_reg_rf_no_gt, classify_clm)
+
+
+
 
     results_dict[
         'rf_model_ignore_gt_incl_hpol_runs'] = models_rf_no_gt, models_reg_rf_no_gt
