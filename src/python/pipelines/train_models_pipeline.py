@@ -191,11 +191,11 @@ try:
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         df_tmp, models_reg_rf_no_gt, classify_clm)
 
-    # df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
-    # recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
-    #     df_tmp, models_rf_no_gt, classify_clm, proba=True)
-    # recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-    #     df_tmp, models_reg_rf_no_gt, classify_clm)
+    df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
+    recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
+        df_tmp, models_rf_no_gt, classify_clm, proba=True)
+    recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        df_tmp, models_reg_rf_no_gt, classify_clm)
 
 
 
@@ -206,10 +206,10 @@ try:
         'rf_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
     results_dict[
         'rf_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
-    # results_dict[
-    #     'rf_train_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt_train
-    # results_dict[
-    #     'rf_train_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt_train
+    results_dict[
+        'rf_train_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt_train
+    results_dict[
+        'rf_train_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt_train
 
 
 
@@ -217,7 +217,7 @@ try:
 
     optdict = {}
     prcdict = {}
-    for m in ['dt','nn','threshold','rf']:#,'rf_train']:
+    for m in ['dt','nn','threshold','rf','rf_train']:
         name_optimum = f'{m}_model_recall_precision_ignore_gt_incl_hpol_runs'
         optdict[name_optimum] = results_dict[name_optimum]
         prcdict[name_optimum] = results_dict[name_optimum.replace(

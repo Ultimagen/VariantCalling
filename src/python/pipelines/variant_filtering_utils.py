@@ -89,7 +89,7 @@ class MaskedHierarchicalModel:
         self.threshold = threshold
 
     def predict(self, df: pd.DataFrame,
-                mask_column: Optional[str] = None, proba=False,curve_model=None) -> pd.Series:
+                mask_column: Optional[str] = None, proba=False) -> pd.Series:
         '''Makes prediction on the dataframe, optionally ignoring false-negative calls
 
         Parameters
@@ -114,10 +114,7 @@ class MaskedHierarchicalModel:
         gvecs = [df[self.group_column] == g for g in groups]
         result = pd.Series(['fn'] * df.shape[0], index=df.index)
         for i, g in enumerate(groups):
-            if curve_model is not None:
-                threshold = curve_model[g][np.argmax(curve_model[g][:, 2]),3]
-            else:
-                threshold = self.threshold
+            threshold = self.threshold
             result[(~mask) & (gvecs[i])] = self._predict_by_blocks(
                 self.models[g], apply_df[apply_df[self.group_column] == g],proba=proba,threshold=threshold[g] if (threshold is not None) else threshold)
         return result
@@ -526,7 +523,7 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
             tree_scores, labels, test_train_split, interval_size)
         return model, model1, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,),threshold
     else:
-        return model, model1, None,threshold
+        return model, model1, None, threshold
 
 def train_model_NN(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 selection: pd.Series, gtr_column: str,
@@ -955,7 +952,7 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
         concordance
 
 
-def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str, train=False, proba=False) -> dict:
+def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str, proba=False) -> dict:
     '''Calculate precision/recall for the decision tree classifier
 
     Parameters
@@ -979,12 +976,8 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
     for g in groups:
-        if train:
-            select = (concordance["group_testing"] == g) & \
-                (concordance["test_train_split"])
-        else:
-            select = (concordance["group_testing"] == g) & \
-                (~concordance["test_train_split"])
+        select = (concordance["group_testing"] == g) & \
+            (~concordance["test_train_split"])
 
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
@@ -1000,54 +993,10 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
 
     return recalls_precisions
 
-def test_decision_tree_model_demo(concordance: pd.DataFrame, model: MaskedHierarchicalModel,
-                                  classify_column: str, train=False) -> dict:
-    '''Calculate precision/recall for the decision tree classifier
-    Parameters
-    ----------
-    concordance: pd.DataFrame
-        Input dataframe
-    model: MaskedHierarchicalModel
-        Model
-    classify_column: str
-        Ground truth labels
-    Returns
-    -------
-    dict:
-        Tuple dictionary - recall/precision for each category
-    '''
-
-    concordance = add_grouping_column(
-        concordance, get_testing_selection_functions(), "group_testing")
-    predictions = model.predict(concordance, classify_column, proba=True)
-    groups = set(concordance['group_testing'])
-    recalls_precisions = {}
-    for g in groups:
-        if train:
-            select = (concordance["group_testing"] == g) & \
-                (concordance["test_train_split"])
-        else:
-            select = (concordance["group_testing"] == g) & \
-                (~concordance["test_train_split"])
-
-        group_ground_truth = concordance.loc[select, classify_column]
-        group_predictions = predictions[select]
-        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
-
-        recall = metrics.recall_score(
-            group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        precision = metrics.precision_score(
-            group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        f1 = metrics.f1_score(
-            group_ground_truth, group_predictions, labels=["tp"], average=None)[0]
-        recalls_precisions[g] = (recall, precision, f1)
-
-    return recalls_precisions
-
 
 def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
                                              model: MaskedHierarchicalModel,
-                                             classify_column: str, train=False) -> dict:
+                                             classify_column: str) -> dict:
     '''Calculate precision/recall curve for the decision tree regressor
 
     Parameters
@@ -1068,19 +1017,12 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     concordance = add_grouping_column(
         concordance, get_testing_selection_functions(), "group_testing")
     predictions = model.predict(concordance, classify_column)
-    if train:
-        groups = set(concordance['group'])
-    else:
-        groups = set(concordance['group_testing'])
+    groups = set(concordance['group_testing'])
     recalls_precisions = {}
 
     for g in groups:
-        if train:
-            select = (concordance["group"] == g) & \
-                (concordance["test_train_split"])
-        else:
-            select = (concordance["group_testing"] == g) & \
-                (~concordance["test_train_split"])
+        select = (concordance["group_testing"] == g) & \
+                 (~concordance["test_train_split"])
 
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select] ## as type object
