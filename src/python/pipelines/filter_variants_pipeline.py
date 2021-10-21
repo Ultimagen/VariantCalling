@@ -86,8 +86,8 @@ try:
     if args.blacklist_cg_insertions:
         cg_blacklist = variant_filtering_utils.blacklist_cg_insertions(df)
         blacklist = variant_filtering_utils.merge_blacklists([cg_blacklist, blacklist])
+    predictions = model_clsf.predict(df,proba = model_clsf.threshold is not None)
 
-    predictions = model_clsf.predict(df)
     predictions = np.array(predictions)
     if is_decision_tree:
         logger.info("Applying regressor")
