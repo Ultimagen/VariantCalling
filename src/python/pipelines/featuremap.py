@@ -863,8 +863,31 @@ def intersect_featuremap_with_signature(
     signature_file,
     output_intersection_file,
     append_python_call_to_header=True,
-    force_rewrite_tbi=True,
+    force_overwrite=True,
 ):
+    """
+    Intersect featuremap and signature vcf files on chrom, position, ref and alts (require same alts), keeping all the
+    entries in featuremap. Lines from featuremap propagated to output
+
+    Parameters
+    ----------
+    featuremap_file
+        Of cfDNA
+    signature_file
+        VCF file, tumor variant calling results
+    output_intersection_file
+        Output vcf file, .vcf.gz or .vcf extension
+    append_python_call_to_header
+        Add line to header to indicate this function ran (default True)
+    force_overwrite
+        Force rewrite tbi index of output (if false and output file exists an error will be raised). Default True.
+
+    Returns
+    -------
+
+    """
+    if force_overwrite and os.path.isfile(output_intersection_file):
+        raise OSError(f"Output file {output_intersection_file} already exists and force_overwrite flag set to False")
     # build a set of all signature entries, including alts and ref
     signature_entries = set()
     with pysam.VariantFile(signature_file) as f_sig:
@@ -880,7 +903,7 @@ def intersect_featuremap_with_signature(
                 if (rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries:
                     f_int.write(rec)
     # index output
-    pysam.tabix_index(output_intersection_file, preset="vcf", force=force_rewrite_tbi)
+    pysam.tabix_index(output_intersection_file, preset="vcf", force=force_overwrite)
 
 
 def call_featuremap_to_dataframe(args_in):
