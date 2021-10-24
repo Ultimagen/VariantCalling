@@ -886,7 +886,7 @@ def intersect_featuremap_with_signature(
     -------
 
     """
-    if force_overwrite and os.path.isfile(output_intersection_file):
+    if (not force_overwrite) and os.path.isfile(output_intersection_file):
         raise OSError(f"Output file {output_intersection_file} already exists and force_overwrite flag set to False")
     # build a set of all signature entries, including alts and ref
     signature_entries = set()
