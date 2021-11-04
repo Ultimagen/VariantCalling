@@ -91,7 +91,7 @@ try:
     predictions = np.array(predictions)
     if is_decision_tree:
         logger.info("Applying regressor")
-        predictions_score = model_scor.predict(df)
+        predictions_score = model_clsf.predict(df,proba=True, get_numbers=True)
         prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_scor.tree_score_fpr)
         predictions_score = np.array(predictions_score)
         group = df['group']

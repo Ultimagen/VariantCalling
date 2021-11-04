@@ -137,7 +137,7 @@ try:
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_dt_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_dt_no_gt, classify_clm)
+        df_tmp, models_dt_no_gt, classify_clm, proba=True)
 
     results_dict[
         'dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
@@ -162,7 +162,7 @@ try:
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_nn_no_gt, classify_clm)
+        df_tmp, models_nn_no_gt, classify_clm, proba=True)
 
     results_dict[
         'nn_model_ignore_gt_incl_hpol_runs'] = models_nn_no_gt, models_reg_nn_no_gt
@@ -189,13 +189,13 @@ try:
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm, proba=True)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_rf_no_gt, classify_clm)
+        df_tmp, models_rf_no_gt, classify_clm, proba=True)
 
     df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
     recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm, proba=True)
     recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_rf_no_gt, classify_clm)
+        df_tmp, models_rf_no_gt, classify_clm, proba=True)
 
 
 
