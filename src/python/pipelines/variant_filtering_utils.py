@@ -89,7 +89,7 @@ class MaskedHierarchicalModel:
         self.threshold = threshold
 
     def predict(self, df: pd.DataFrame,
-                mask_column: Optional[str] = None, proba=False) -> pd.Series:
+                mask_column: Optional[str] = None, proba=False, get_numbers=False) -> pd.Series:
         '''Makes prediction on the dataframe, optionally ignoring false-negative calls
 
         Parameters
@@ -116,13 +116,14 @@ class MaskedHierarchicalModel:
         for i, g in enumerate(groups):
             threshold = self.threshold
             result[(~mask) & (gvecs[i])] = self._predict_by_blocks(
-                self.models[g], apply_df[apply_df[self.group_column] == g],proba=proba,threshold=threshold[g] if (threshold is not None) else threshold)
+                self.models[g], apply_df[apply_df[self.group_column] == g],proba=proba,get_numbers=get_numbers,
+                threshold=threshold[g] if (threshold is not None) else threshold)
         return result
 
     def _adjusted_classes(self, y_scores, t):
         return ['tp' if y >= t else 'fp' for y in y_scores]
 
-    def _predict_by_blocks(self, model, df, proba=False, threshold=0):
+    def _predict_by_blocks(self, model, df, proba=False,get_numbers=False, threshold=0):
         predictions = []
         for i in range(0, df.shape[0], 1000000):
             if self.transformer is not None:
@@ -137,7 +138,7 @@ class MaskedHierarchicalModel:
                     predictions.append(model.predict_proba(df.iloc[i:i + 1000000, :])[:,1])
                 else:
                     predictions.append(model.predict(df.iloc[i:i + 1000000, :]))
-        if proba:
+        if proba and not get_numbers:
             predictions = self._adjusted_classes(np.hstack(predictions), threshold)
         return np.hstack(predictions)
 
@@ -512,11 +513,13 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         model.fit(train_data, labels)
         model1.fit(train_data, enclabels)
 
-    tree_scores = model1.predict(train_data)
+    tree_scores = model.predict_proba(train_data)[:,1]
+    #tree_scores = model1.predict(train_data)
     curve = utils.precision_recall_curve(labels.apply(lambda x: 1 if (x =='tp') else 0),tree_scores)
     precision, recall, f1, preditions = curve
     # get the best f1 threshold
     threshold = preditions[np.argmax(f1)]
+    print(threshold)
 
     if gtr_column == 'classify':  ## there is gt
         tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
@@ -996,7 +999,7 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
 
 def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
                                              model: MaskedHierarchicalModel,
-                                             classify_column: str) -> dict:
+                                             classify_column: str, proba=False) -> dict:
     '''Calculate precision/recall curve for the decision tree regressor
 
     Parameters
@@ -1016,7 +1019,10 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
 
     concordance = add_grouping_column(
         concordance, get_testing_selection_functions(), "group_testing")
-    predictions = model.predict(concordance, classify_column)
+    if proba:
+        predictions = model.predict(concordance, classify_column, proba=True, get_numbers=True)
+    else:
+        predictions = model.predict(concordance, classify_column)
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
 
