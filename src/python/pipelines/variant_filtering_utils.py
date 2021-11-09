@@ -315,14 +315,14 @@ def tuple_break(x):
     '''
     if type(x) == tuple:
         return x[0]
-    return 0 if np.isnan(x) else x
+    return 0 if (x is None or np.isnan(x)) else x
 
 def tuple_break_second(x):
     '''Returns the second element in the tuple
     '''
     if type(x) == tuple:
         return x[1]
-    return 0 if np.isnan(x) else x
+    return 0 if (x is None or np.isnan(x)) else x
 
 
 def motif_encode_left(x):

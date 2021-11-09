@@ -349,6 +349,8 @@ def generate_stats_from_histogram(
 ):
     if isinstance(val_count, str) and os.path.isfile(val_count):
         val_count = pd.read_hdf(val_count, key="histogram")
+    if val_count.shape[0] == 0:  # empty input
+        raise ValueError("Empty dataframe - most likely bed files were not created, bam/cram index possibly missing")
     df_percentiles = pd.concat(
         (
             val_count.apply(
