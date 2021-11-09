@@ -17,6 +17,7 @@ import pyBigWig as pbw
 from os.path import dirname, basename, join as pjoin
 from collections.abc import Iterable
 from scipy.interpolate import interp1d
+
 if __name__ == "__main__":
     import pathmagic
 
@@ -43,7 +44,7 @@ from python.auxiliary.format import (
     CYCLE_SKIP,
     POSSIBLE_CYCLE_SKIP,
     NON_CYCLE_SKIP,
-    UNDETERMINED_CYCLE_SKIP
+    UNDETERMINED_CYCLE_SKIP,
 )
 
 SMALL_SIZE = 12
@@ -105,7 +106,7 @@ def _collect_coverage_per_motif(
                 cov = int(spl[3])
                 if pos < 2 * size or cov == 0:
                     continue
-                seq = chrom[pos - size - 1:pos + size]
+                seq = chrom[pos - size - 1 : pos + size]
 
                 if not bool(search(seq)):  # no letters other than ACGT
                     counter[seq] += cov
@@ -113,19 +114,21 @@ def _collect_coverage_per_motif(
     else:  # case of bigWig - we fetch by region
         CHUNK_SIZE = 1000000
         with pbw.open(depth_file) as f:
-            assert len(list(f.chroms().keys())) == 1, "Expected single chromosome per bw"
+            assert (
+                len(list(f.chroms().keys())) == 1
+            ), "Expected single chromosome per bw"
             chrom_name = list(f.chroms().keys())[0]
             chrom_len = f.chroms()[chrom_name]
             start_points = np.arange(0, chrom_len, CHUNK_SIZE).astype(np.int)
             for s in start_points:
-                vals = f.values(chrom_name, s, min(s+CHUNK_SIZE, chrom_len))
+                vals = f.values(chrom_name, s, min(s + CHUNK_SIZE, chrom_len))
                 vals = vals[::N]
-                poss = np.arange(s, min(s+CHUNK_SIZE, chrom_len))[::N]
+                poss = np.arange(s, min(s + CHUNK_SIZE, chrom_len))[::N]
                 for i, pos in enumerate(poss):
                     cov = vals[i]
                     if pos < 2 * size or cov == 0 or np.isnan(cov):
                         continue
-                    seq = chrom[pos - size - 1:pos + size]
+                    seq = chrom[pos - size - 1 : pos + size]
 
                     if not bool(search(seq)):  # no letters other than ACGT
                         counter[seq] += cov
@@ -135,12 +138,11 @@ def _collect_coverage_per_motif(
         .reset_index()
         .rename(columns={"index": f"motif_{size}", 0: "count"})
     )
-    
 
     # edge case of empty dataframe
 
-    if 'count' not in df.columns :
-        df['count'] = []
+    if "count" not in df.columns:
+        df["count"] = []
     return df
 
 
@@ -186,7 +188,7 @@ def collect_coverage_per_motif(
     motif coverage dataframe
 
     """
- 
+
     if not isinstance(depth_files, dict):
         if not isinstance(depth_files, Iterable):
             raise ValueError(f"Expected dictionary or Iterable, got:\n{depth_files}")
@@ -856,6 +858,54 @@ def _plot_snp_error_rate(
         )
 
 
+def intersect_featuremap_with_signature(
+    featuremap_file,
+    signature_file,
+    output_intersection_file,
+    append_python_call_to_header=True,
+    force_overwrite=True,
+):
+    """
+    Intersect featuremap and signature vcf files on chrom, position, ref and alts (require same alts), keeping all the
+    entries in featuremap. Lines from featuremap propagated to output
+
+    Parameters
+    ----------
+    featuremap_file
+        Of cfDNA
+    signature_file
+        VCF file, tumor variant calling results
+    output_intersection_file
+        Output vcf file, .vcf.gz or .vcf extension
+    append_python_call_to_header
+        Add line to header to indicate this function ran (default True)
+    force_overwrite
+        Force rewrite tbi index of output (if false and output file exists an error will be raised). Default True.
+
+    Returns
+    -------
+
+    """
+    if (not force_overwrite) and os.path.isfile(output_intersection_file):
+        raise OSError(f"Output file {output_intersection_file} already exists and force_overwrite flag set to False")
+    # build a set of all signature entries, including alts and ref
+    signature_entries = set()
+    with pysam.VariantFile(signature_file) as f_sig:
+        for rec in f_sig:
+            signature_entries.add((rec.chrom, rec.pos, rec.ref, rec.alts))
+    # Only write entries from featuremap to intersection file if they appear in the signature with the same ref&alts
+    with pysam.VariantFile(featuremap_file) as f_feat:
+        header = f_feat.header
+        if append_python_call_to_header is not None:
+            header.add_line(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}")
+        with pysam.VariantFile(output_intersection_file, "w", header=header) as f_int:
+            for rec in f_feat:
+                if (rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries:
+                    f_int.write(rec)
+    # index output
+    pysam.tabix_index(output_intersection_file, preset="vcf", force=force_overwrite)
+
+
 def call_featuremap_to_dataframe(args_in):
     if args_in.input is None:
         raise ValueError("No input provided")
@@ -907,6 +957,12 @@ def call_calculate_snp_error_rate(args_in):
     )
 
 
+def call_intersect_featuremap_with_signature(args_in):
+    intersect_featuremap_with_signature(
+        args_in.featuremap, args_in.signature, args_in.output,
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
@@ -925,6 +981,10 @@ if __name__ == "__main__":
     parser_calculate_snp_error_rate = subparsers.add_parser(
         name="calculate_snp_error_rate",
         description="""Calculate SNP error rate per motif""",
+    )
+    parser_intersect_featuremap_with_signature = subparsers.add_parser(
+        name="intersect_with_signature",
+        description="""Intersect featuremap and signature vcf files on position and matching ref and alts""",
     )
 
     parser_featuremap_to_dataframe.add_argument(
@@ -1100,6 +1160,29 @@ dataframe df, df['coverage'] = df['count'] * N""",
         help="""single chromosome the featuremap was calculated for (leave blank if all chromosomes were included""",
     )
     parser_calculate_snp_error_rate.set_defaults(func=call_calculate_snp_error_rate)
+
+    parser_intersect_featuremap_with_signature.add_argument(
+        "-f",
+        "--featuremap",
+        type=str,
+        required=True,
+        help="""Featuremap vcf file""",
+    )
+    parser_intersect_featuremap_with_signature.add_argument(
+        "-s",
+        "--signature",
+        type=str,
+        required=True,
+        help="""Signature vcf file""",
+    )
+    parser_intersect_featuremap_with_signature.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=True,
+        help="""Output intersection vcf file (lines from featuremap propagated)""",
+    )
+    parser_intersect_featuremap_with_signature.set_defaults(func=call_intersect_featuremap_with_signature)
 
     args = parser.parse_args()
     args.func(args)

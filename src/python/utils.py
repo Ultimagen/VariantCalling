@@ -8,6 +8,7 @@ from os.path import dirname
 from os.path import join as pjoin
 import json
 import pkgutil
+import re
 
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
@@ -44,6 +45,12 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: Optional[i
     np.ndarray
         sequence in key space
     """
+    # sanitize input
+    sequence = sequence.upper()
+    if bool(re.compile(r'[^ACGT]').search(sequence)):
+        raise ValueError(f"Input contains non ACGTacgt characters" + (f":\n{sequence}" if len(sequence)<=100 else ""))
+    # process
+    flow = flow_order * len(sequence)
     flow = flow_order*len(sequence)
 
     key = []
