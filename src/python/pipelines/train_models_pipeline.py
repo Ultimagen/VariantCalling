@@ -98,9 +98,10 @@ try:
         df['bl_classify'] = 'unknown'
         df['bl_classify'].loc[df['bl'] == True] = 'fp'
         df['bl_classify'].loc[~df['id'].isna()] = 'tp'
+        classify_clm = 'bl_classify'
+        blacklist_statistics = variant_filtering_utils.create_blaklist_statistics_table(df, classify_clm)
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
-        classify_clm = 'bl_classify'
         interval_size = None
     else:
         classify_clm = 'classify'
@@ -160,8 +161,8 @@ try:
                                                     exome_weight=args.exome_weight,
                                                     exome_weight_annotation=args.exome_weight_annotation,
                                                     use_train_test_split=True)
-    if with_dbsnp_bl:
-        df_tmp['test_train_split'] = False
+    # if with_dbsnp_bl:
+    #     df_tmp['test_train_split'] = False
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_nn_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -249,6 +250,9 @@ try:
 
     results_vals.to_hdf(args.output_file_prefix + ".h5",
                         key="recall_precision_curve")
+    if with_dbsnp_bl:
+        blacklist_statistics.to_hdf(args.output_file_prefix + ".h5",
+                            key="blacklist_statistics")
 
     if args.evaluate_concordance:
         if with_dbsnp_bl:
