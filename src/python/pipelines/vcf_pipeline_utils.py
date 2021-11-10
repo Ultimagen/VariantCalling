@@ -496,7 +496,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
                          bw_all_quality: Optional[List[str]] = None, 
                          annotate_intervals: List[str] = [],
                          runfile: Optional[str] = None,
-                         flow_order: Optional[str] = "TACG",
+                         flow_order: Optional[str] = "TGCA",
                          hmer_run_length_dist: tuple = (10, 10)) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
 

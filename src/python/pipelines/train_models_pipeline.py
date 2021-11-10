@@ -32,6 +32,8 @@ ap.add_argument("--annotate_intervals", help='interval files for annotation (mul
                 type=str, default=None, action='append')
 ap.add_argument("--exome_weight", help='weight of exome variants in comparison to whole genome variant',
                 type=int, default=1)
+ap.add_argument("--flow_order",
+                help="Sequencing flow order (4 cycle)", required=False, default="TGCA")
 ap.add_argument("--exome_weight_annotation", help='annotation name by which we decide the weight of exome variants',
                 type=str)
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
@@ -78,6 +80,7 @@ try:
 
     df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference,
                                                          runfile=args.runs_intervals,
+                                                         flow_order=args.flow_order,
                                                          annotate_intervals=args.annotate_intervals)
 
     if args.mutect:
