@@ -36,7 +36,7 @@ ap.add_argument("--output_file", help="Output VCF file",
 ap.add_argument("--is_mutect",
                 help="Is the input a result of mutect", action="store_true")
 ap.add_argument("--flow_order",
-                help="Sequencing flow order (4 cycle)", required=False, default="TACG")
+                help="Sequencing flow order (4 cycle)", required=False, default="TGCA")
 ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                 type=str, default=None, action='append')
 args = ap.parse_args()
@@ -50,6 +50,7 @@ try:
 
     df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference_file,
                                                          runfile=args.runs_file,
+                                                         flow_order=args.flow_order,
                                                          annotate_intervals=args.annotate_intervals)
 
     if args.is_mutect:
