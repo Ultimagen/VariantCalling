@@ -99,7 +99,7 @@ try:
         df['bl_classify'].loc[df['bl'] == True] = 'fp'
         df['bl_classify'].loc[~df['id'].isna()] = 'tp'
         classify_clm = 'bl_classify'
-        blacklist_statistics = variant_filtering_utils.create_blaklist_statistics_table(df, classify_clm)
+        blacklist_statistics = variant_filtering_utils.create_blacklist_statistics_table(df, classify_clm)
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
         interval_size = None
@@ -108,75 +108,24 @@ try:
         interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
 
 
-
     # Thresholding model
-    models_thr_no_gt, models_reg_thr_no_gt, df_tmp = \
+    models_thr_no_gt, df_tmp = \
         variant_filtering_utils.train_threshold_models(
             df.copy(), interval_size, classify_column=classify_clm, annots=annots)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_thr_no_gt, classify_column=classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_reg_thr_no_gt, classify_column=classify_clm)
+        df_tmp, models_thr_no_gt, classify_column=classify_clm)
 
     results_dict[
-        'threshold_model_ignore_gt_incl_hpol_runs'] = models_thr_no_gt, models_reg_thr_no_gt
+        'threshold_model_ignore_gt_incl_hpol_runs'] = models_thr_no_gt
     results_dict[
         'threshold_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
     results_dict[
         'threshold_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
-    # decision tree model
-    models_dt_no_gt, models_reg_dt_no_gt, df_tmp = \
-        variant_filtering_utils.train_model_wrapper(df.copy(),
-                                                    classify_column=classify_clm,
-                                                    interval_size=interval_size,
-                                                    train_function=variant_filtering_utils.train_model_DT,
-                                                    model_name="Decision tree",
-                                                    annots=annots,
-                                                    exome_weight=args.exome_weight,
-                                                    exome_weight_annotation=args.exome_weight_annotation,
-                                                    use_train_test_split=True)
-    # if with_dbsnp_bl:
-    #     df_tmp['test_train_split'] = False
-    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_dt_no_gt, classify_clm)
-    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_dt_no_gt, classify_clm, proba=True)
-
-    results_dict[
-        'dt_model_ignore_gt_incl_hpol_runs'] = models_dt_no_gt, models_reg_dt_no_gt
-    results_dict[
-        'dt_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
-    results_dict[
-        'dt_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
-
-    # NN model
-    models_nn_no_gt, models_reg_nn_no_gt, df_tmp = \
-        variant_filtering_utils.train_model_wrapper(df.copy(),
-                                                    classify_column=classify_clm,
-                                                    interval_size=interval_size,
-                                                    train_function=variant_filtering_utils.train_model_NN,
-                                                    model_name="Neural network",
-                                                    annots=annots,
-                                                    exome_weight=args.exome_weight,
-                                                    exome_weight_annotation=args.exome_weight_annotation,
-                                                    use_train_test_split=True)
-    # if with_dbsnp_bl:
-    #     df_tmp['test_train_split'] = False
-    recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_nn_no_gt, classify_clm)
-    recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_nn_no_gt, classify_clm, proba=True)
-
-    results_dict[
-        'nn_model_ignore_gt_incl_hpol_runs'] = models_nn_no_gt, models_reg_nn_no_gt
-    results_dict[
-        'nn_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
-    results_dict[
-        'nn_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
-
     # RF model
-    models_rf_no_gt, models_reg_rf_no_gt, df_tmp = \
+    models_rf_no_gt, df_tmp = \
         variant_filtering_utils.train_model_wrapper(df.copy(),
                                                     classify_column=classify_clm,
                                                     interval_size=interval_size,
@@ -186,26 +135,21 @@ try:
                                                     exome_weight=args.exome_weight,
                                                     exome_weight_annotation=args.exome_weight_annotation,
                                                     use_train_test_split=True)
-    # if with_dbsnp_bl:
-    #     df_tmp['test_train_split'] = False
-
 
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_rf_no_gt, classify_clm, proba=True)
+        df_tmp, models_rf_no_gt, classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_rf_no_gt, classify_clm, proba=True)
+        df_tmp, models_rf_no_gt, classify_clm)
 
     df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
     recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
-        df_tmp, models_rf_no_gt, classify_clm, proba=True)
+        df_tmp, models_rf_no_gt, classify_clm)
     recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-        df_tmp, models_rf_no_gt, classify_clm, proba=True)
-
-
+        df_tmp, models_rf_no_gt, classify_clm)
 
 
     results_dict[
-        'rf_model_ignore_gt_incl_hpol_runs'] = models_rf_no_gt, models_reg_rf_no_gt
+        'rf_model_ignore_gt_incl_hpol_runs'] = models_rf_no_gt
     results_dict[
         'rf_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
     results_dict[
@@ -221,7 +165,7 @@ try:
 
     optdict = {}
     prcdict = {}
-    for m in ['dt','nn','threshold','rf','rf_train']:
+    for m in ['threshold','rf','rf_train']:
         name_optimum = f'{m}_model_recall_precision_ignore_gt_incl_hpol_runs'
         optdict[name_optimum] = results_dict[name_optimum]
         prcdict[name_optimum] = results_dict[name_optimum.replace(
@@ -268,8 +212,7 @@ try:
             pd.isnull(calls_df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
 
         models = results_dict[args.apply_model]
-        model_clsf = models[0]
-        model_scor = models[1]
+        model_clsf = models
 
         print("Applying classifier", flush=True, file=sys.stderr)
         predictions = model_clsf.predict(
@@ -278,10 +221,10 @@ try:
                                                         "group"))
         print("Applying regressor", flush=True, file=sys.stderr)
 
-        predictions_score = model_scor.predict(
+        predictions_score = model_clsf.predict(
             variant_filtering_utils.add_grouping_column(calls_df,
                                                         variant_filtering_utils.get_training_selection_functions(),
-                                                        "group"))
+                                                        "group"), get_number= True)
 
         calls_df['prediction'] = predictions
         calls_df['tree_score'] = predictions_score
