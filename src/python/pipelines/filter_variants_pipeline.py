@@ -62,13 +62,8 @@ try:
     model_name = args.model_name
     models = models_dict[model_name]
 
-    if type(models) == list or type(models) == tuple:
-        model_clsf = models[0]
-        model_scor = models[1]
-        is_decision_tree = True
-    else:
-        model_clsf = models
-        is_decision_tree = False
+    model_clsf = models[0]
+    is_decision_tree = True
 
     logger.info("Applying classifier")
     df = variant_filtering_utils.add_grouping_column(df,
@@ -87,13 +82,13 @@ try:
     if args.blacklist_cg_insertions:
         cg_blacklist = variant_filtering_utils.blacklist_cg_insertions(df)
         blacklist = variant_filtering_utils.merge_blacklists([cg_blacklist, blacklist])
-    predictions = model_clsf.predict(df,proba = model_clsf.threshold is not None)
+    predictions = model_clsf.predict(df)
 
     predictions = np.array(predictions)
     if is_decision_tree:
         logger.info("Applying regressor")
-        predictions_score = model_clsf.predict(df,proba=True, get_numbers=True)
-        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_scor.tree_score_fpr)
+        predictions_score = model_clsf.predict(df, get_numbers=True)
+        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
         predictions_score = np.array(predictions_score)
         group = df['group']
 
