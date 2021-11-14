@@ -10,6 +10,16 @@ import json
 import pkgutil
 import re
 
+from python.auxiliary.format import (
+    CHROM_DTYPE,
+    CYCLE_SKIP_STATUS,
+    CYCLE_SKIP,
+    POSSIBLE_CYCLE_SKIP,
+    NON_CYCLE_SKIP,
+    UNDETERMINED_CYCLE_SKIP,
+    CYCLE_SKIP_DTYPE
+)
+
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
     '''Returns values from a distribution
@@ -422,3 +432,72 @@ def catch(func: Callable, *args, exception_type: Exception = Exception, handle: 
         return func(*args, **kwargs)
     except exception_type as e:
         return handle(e)
+
+
+def get_cycle_skip_dataframe(flow_order: str):
+    """
+    Generate a dataframe with the cycle skip status of all possible SNPs. The resulting dataframe is 192 rows, with the
+    multi-index "ref_motif" and "alt_motif", which are the ref and alt of a SNP with 1 flanking base on each side
+    (trinucleotide context). This output can be readily joined with a vcf dataframe once the right columns are created.
+
+    Parameters
+    ----------
+    flow_order
+
+    Returns
+    -------
+
+    """
+    # build index composed of all possible SNPs
+    ind = pd.MultiIndex.from_tuples(
+        [
+            x
+            for x in itertools.product(
+                ["".join(x) for x in itertools.product(["A", "C", "G", "T"], repeat=3)],
+                ["A", "C", "G", "T"],
+            )
+            if x[0][1] != x[1]
+        ],
+        names=["ref_motif", "alt_motif"],
+    )
+    df_cskp = pd.DataFrame(index=ind).reset_index()
+    df_cskp.loc[:, "alt_motif"] = (
+        df_cskp["ref_motif"].str.slice(0, 1)
+        + df_cskp["alt_motif"]
+        + df_cskp["ref_motif"].str.slice(-1)
+    )
+    df_cskp.loc[:, CYCLE_SKIP_STATUS] = df_cskp.apply(
+        lambda row: determine_cycle_skip_status(
+            row["ref_motif"], row["alt_motif"], flow_order
+        ),
+        axis=1,
+    ).astype(CYCLE_SKIP_DTYPE)
+    return df_cskp.set_index(["ref_motif", "alt_motif"]).sort_index()
+
+
+def determine_cycle_skip_status(ref: str, alt: str, flow_order: str):
+    """return the cycle skip status, expects input of ref and alt sequences composed of 3 bases where only the 2nd base
+    differs"""
+    if (
+        len(ref) != 3
+        or len(alt) != 3
+        or ref[0] != alt[0]
+        or ref[2] != alt[2]
+        or ref == alt
+    ):
+        raise ValueError(
+            f"""Invalid inputs ref={ref}, alt={alt}
+expecting input of ref and alt sequences composed of 3 bases where only the 2nd base differs"""
+        )
+    try:
+        ref_key = np.trim_zeros(generateKeyFromSequence(ref, flow_order), "f")
+        alt_key = np.trim_zeros(generateKeyFromSequence(alt, flow_order), "f")
+        if len(ref_key) != len(alt_key):
+            return CYCLE_SKIP
+        else:
+            for r, a in zip(ref_key, alt_key):
+                if (r != a) and ((r == 0) or (a == 0)):
+                    return POSSIBLE_CYCLE_SKIP
+            return NON_CYCLE_SKIP
+    except ValueError:
+        return UNDETERMINED_CYCLE_SKIP
