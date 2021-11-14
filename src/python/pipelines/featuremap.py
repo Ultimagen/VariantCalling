@@ -483,6 +483,7 @@ def calculate_snp_error_rate(
     f = interp1d(
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
+        bounds_error=False
     )
     min_coverage = min(
         20, np.round(f(0.5)).astype(int)
