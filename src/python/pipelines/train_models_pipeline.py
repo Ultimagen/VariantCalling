@@ -116,6 +116,12 @@ try:
         df_tmp, models_thr_no_gt, classify_column=classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         df_tmp, models_thr_no_gt, classify_column=classify_clm)
+    df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
+    recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
+        df_tmp, models_thr_no_gt, classify_column=classify_clm)
+    recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        df_tmp, models_thr_no_gt, classify_column=classify_clm)
+
 
     results_dict[
         'threshold_model_ignore_gt_incl_hpol_runs'] = models_thr_no_gt
@@ -123,6 +129,10 @@ try:
         'threshold_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
     results_dict[
         'threshold_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
+    results_dict[
+        'threshold_train_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
+    results_dict[
+        'threshold_train_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
 
     # RF model
     models_rf_no_gt, df_tmp = \
@@ -165,7 +175,7 @@ try:
 
     optdict = {}
     prcdict = {}
-    for m in ['threshold','rf','rf_train']:
+    for m in ['threshold','threshold_train','rf','rf_train']:
         name_optimum = f'{m}_model_recall_precision_ignore_gt_incl_hpol_runs'
         optdict[name_optimum] = results_dict[name_optimum]
         prcdict[name_optimum] = results_dict[name_optimum.replace(
@@ -224,7 +234,7 @@ try:
         predictions_score = model_clsf.predict(
             variant_filtering_utils.add_grouping_column(calls_df,
                                                         variant_filtering_utils.get_training_selection_functions(),
-                                                        "group"), get_number= True)
+                                                        "group"), get_numbers= True)
 
         calls_df['prediction'] = predictions
         calls_df['tree_score'] = predictions_score

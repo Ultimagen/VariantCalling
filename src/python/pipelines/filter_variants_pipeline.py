@@ -62,7 +62,7 @@ try:
     model_name = args.model_name
     models = models_dict[model_name]
 
-    model_clsf = models[0]
+    model_clsf = models
     is_decision_tree = True
 
     logger.info("Applying classifier")
