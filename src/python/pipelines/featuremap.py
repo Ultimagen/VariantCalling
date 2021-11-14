@@ -10,11 +10,10 @@ from matplotlib import pyplot as plt
 from joblib import Parallel, delayed
 import pysam
 import pyfaidx
-import itertools
 import argparse
 import gzip
 import pyBigWig as pbw
-from os.path import dirname, basename, join as pjoin
+from os.path import basename, join as pjoin
 from collections.abc import Iterable
 from scipy.interpolate import interp1d
 
@@ -35,17 +34,15 @@ ch.setFormatter(formatter)
 # add ch to logger
 logger.addHandler(ch)
 
-from python.utils import revcomp, generateKeyFromSequence
+from python.utils import revcomp
 from python.modules.variant_annotation import get_motif_around
 from python.auxiliary.format import (
     CHROM_DTYPE,
-    CYCLE_SKIP_DTYPE,
     CYCLE_SKIP_STATUS,
     CYCLE_SKIP,
-    POSSIBLE_CYCLE_SKIP,
-    NON_CYCLE_SKIP,
-    UNDETERMINED_CYCLE_SKIP,
 )
+from python.utils import get_cycle_skip_dataframe
+
 
 SMALL_SIZE = 12
 
@@ -379,61 +376,6 @@ def featuremap_to_dataframe(
             output_file = featuremap_vcf + ".parquet"
     df.to_parquet(output_file)
     return df
-
-
-def determine_cycle_skip_status(ref: str, alt: str, flow_order: str):
-    """return the cycle skip status, expects input of ref and alt sequences composed of 3 bases where only the 2nd base
-    differs"""
-    if (
-        len(ref) != 3
-        or len(alt) != 3
-        or ref[0] != alt[0]
-        or ref[2] != alt[2]
-        or ref == alt
-    ):
-        raise ValueError(
-            f"""Invalid inputs ref={ref}, alt={alt}
-expecting input of ref and alt sequences composed of 3 bases where only the 2nd base differs"""
-        )
-    try:
-        ref_key = np.trim_zeros(generateKeyFromSequence(ref, flow_order), "f")
-        alt_key = np.trim_zeros(generateKeyFromSequence(alt, flow_order), "f")
-        if len(ref_key) != len(alt_key):
-            return CYCLE_SKIP
-        else:
-            for r, a in zip(ref_key, alt_key):
-                if (r != a) and ((r == 0) or (a == 0)):
-                    return POSSIBLE_CYCLE_SKIP
-            return NON_CYCLE_SKIP
-    except ValueError:
-        return UNDETERMINED_CYCLE_SKIP
-
-
-def get_cycle_skip_dataframe(flow_order: str = "TGCA"):
-    ind = pd.MultiIndex.from_tuples(
-        [
-            x
-            for x in itertools.product(
-                ["".join(x) for x in itertools.product(["A", "C", "G", "T"], repeat=3)],
-                ["A", "C", "G", "T"],
-            )
-            if x[0][1] != x[1]
-        ],
-        names=["ref_motif", "alt_motif"],
-    )
-    df_cskp = pd.DataFrame(index=ind).reset_index()
-    df_cskp["alt_motif"] = (
-        df_cskp["ref_motif"].str.slice(0, 1)
-        + df_cskp["alt_motif"]
-        + df_cskp["ref_motif"].str.slice(-1)
-    )
-    df_cskp[CYCLE_SKIP_STATUS] = df_cskp.apply(
-        lambda row: determine_cycle_skip_status(
-            row["ref_motif"], row["alt_motif"], flow_order
-        ),
-        axis=1,
-    ).astype(CYCLE_SKIP_DTYPE)
-    return df_cskp.set_index(["ref_motif", "alt_motif"])
 
 
 def merge_featuremap_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
