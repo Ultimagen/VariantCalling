@@ -23,6 +23,19 @@ FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
 
 logger = logging.getLogger(__name__)
 
+class SingleModel:
+
+    def __init__(self, threshold_dict: dict, is_greater_then: dict):
+        self.threshold_dict = threshold_dict
+        self.is_greater_then = is_greater_then
+
+    def predict(self, df: pd.DataFrame) -> pd.Series:
+        result_vec = np.ones(df.shape[0], dtype=np.bool)
+        for v in self.threshold_dict:
+            result_vec = result_vec & (
+                (df[v] > self.threshold_dict[v]) == self.is_greater_then[v])
+        return np.where(np.array(result_vec), "tp", 'fp')
+
 class SingleRegressionModel:
 
     def __init__(self, threshold_dict: dict, is_greater_then: dict, score_translation: list):
@@ -231,8 +244,6 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                               'sor': np.array([x[1] for x in rsi.index])},
                                              {'sor': False, 'qual': True},
                                              np.array(rsi['score']))
-    # classifier = SingleModel(dict(zip(['qual', 'sor'], best)), {
-    #                          'sor': False, 'qual': True},regression_model)
     tree_scores = regression_model.predict_proba(train_data)[:,1]
     tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
         tree_scores, labels, test_train_split[selection], interval_size)

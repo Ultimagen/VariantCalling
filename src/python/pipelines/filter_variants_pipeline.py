@@ -63,7 +63,6 @@ try:
     models = models_dict[model_name]
 
     model_clsf = models
-    is_decision_tree = True
 
     logger.info("Applying classifier")
     df = variant_filtering_utils.add_grouping_column(df,
@@ -85,12 +84,12 @@ try:
     predictions = model_clsf.predict(df)
 
     predictions = np.array(predictions)
-    if is_decision_tree:
-        logger.info("Applying regressor")
-        predictions_score = model_clsf.predict(df, get_numbers=True)
-        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
-        predictions_score = np.array(predictions_score)
-        group = df['group']
+
+    logger.info("Applying regressor")
+    predictions_score = model_clsf.predict(df, get_numbers=True)
+    prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
+    predictions_score = np.array(predictions_score)
+    group = df['group']
 
 
     hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
@@ -107,10 +106,9 @@ try:
         if args.blacklist_cg_insertions:
             hdr.filters.add("CG_NON_HMER_INDEL", None, None, "Insertion/deletion of CG")
 
-        if is_decision_tree:
-            hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
-            hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
-            hdr.info.add("VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
+        hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
+        hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
+        hdr.info.add("VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
                 pass_flag = True
@@ -126,10 +124,9 @@ try:
                             pass_flag = False
                 if pass_flag:
                     rec.filter.add("PASS")
-                if is_decision_tree:
-                    rec.info["TREE_SCORE"] = predictions_score[i]
-                    rec.info["FPR"] = prediction_fpr[i]
-                    rec.info["VARIANT_TYPE"] = group[i]
+                rec.info["TREE_SCORE"] = predictions_score[i]
+                rec.info["FPR"] = prediction_fpr[i]
+                rec.info["VARIANT_TYPE"] = group[i]
 
                 # fix the alleles of form <1> that our GATK adds
                 rec.ref = rec.ref if re.match(
