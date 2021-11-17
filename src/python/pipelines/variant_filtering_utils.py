@@ -154,7 +154,7 @@ def train_threshold_models(concordance: pd.DataFrame, interval_size: int, classi
     Returns
     -------
     tuple
-        Tuple of classifier model
+        Classifier model and concordance
     '''
 
     train_selection_functions = get_training_selection_functions()
