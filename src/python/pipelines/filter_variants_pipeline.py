@@ -85,7 +85,7 @@ try:
 
     predictions = np.array(predictions)
 
-    logger.info("Applying regressor")
+    logger.info("Applying classifier proba")
     predictions_score = model_clsf.predict(df, get_numbers=True)
     prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
     predictions_score = np.array(predictions_score)
