@@ -206,12 +206,10 @@ def _get_hmer_length(ref, left_motif, right_motif):
 def read_signature(
     signature_vcf_files,
     output_parquet=None,
-    coverage_bw_files=None,
     sample_name="tumor",
     x_columns_name_dict=None,
     columns_to_drop=None,
     verbose=True,
-    raise_exception_on_sample_not_found=False,
 ):
     """
     Read signature (variant calling output, generally mutect) results to dataframe.
@@ -222,8 +220,6 @@ def read_signature(
         File name or a list of file names
     output_parquet
         File name to save result to, default None
-    coverage_bw_files
-        Coverage bigwig files generated with "coverage_analysis full_analysis", defualt None
     sample_name
         sample name in the vcf to take allele fraction (AF) from. Checked with "a in b" so it doesn't have to be the
         full sample name, but does have to return a unique result. Default: "tumor"
@@ -235,8 +231,6 @@ def read_signature(
         List of columns to drop, as values, if None (default) this value if used: ["X-IC"]
     verbose
         show verbose debug messages
-    raise_exception_on_sample_not_found
-        if True (default False) and the sample name could not be found to determine AF, raise a ValueError
 
 
     Returns
@@ -296,19 +290,15 @@ def read_signature(
                     candidate_sample_name = list(
                         filter(lambda x: sample_name in x, rec.samples.keys())
                     )
-                    if len(candidate_sample_name) == 1:
-                        af_sample = candidate_sample_name[0]
-                    elif raise_exception_on_sample_not_found:
-                        if len(candidate_sample_name) == 0:
-                            raise ValueError(
-                                f"No sample contained input string {sample_name}, sample names: {rec.samples.keys()}"
-                            )
-                        if len(candidate_sample_name) > 1:
-                            raise ValueError(
-                                f"{len(candidate_sample_name)} samples contained input string {sample_name}, expected just 1. Sample names: {rec.samples.keys()}"
-                            )
-                    else:  # leave AF blank
-                        af_sample = "UNKNOWN"
+                    if len(candidate_sample_name) == 0:
+                        raise ValueError(
+                            f"No sample contained input string {sample_name}, sample names: {rec.samples.keys()}"
+                        )
+                    if len(candidate_sample_name) > 1:
+                        raise ValueError(
+                            f"{len(candidate_sample_name)} samples contained input string {sample_name}, expected just 1. Sample names: {rec.samples.keys()}"
+                        )
+                    af_sample = candidate_sample_name[0]
 
                 entries.append(
                     tuple(
@@ -318,8 +308,8 @@ def read_signature(
                             rec.ref,
                             rec.alts[0],
                             rec.id,
-                            getattr(rec.samples[af_sample]["AF"], "AF", [np.nan])[0]
-                            if af_sample != "UNKNOWN"
+                            rec.samples[af_sample]["AF"][0]
+                            if "AF" in rec.samples[af_sample]
                             else np.nan,
                             "MAP_UNIQUE" in rec.info,
                             "LCR" in rec.info,
@@ -359,68 +349,6 @@ def read_signature(
             logger.debug(f"Done converting to dataframe")
 
     df_sig = df_sig.sort_index()
-
-    if coverage_bw_files is not None and len(coverage_bw_files) > 0:  # collect coverage per locus
-        try:
-            logger.debug(f"Reading input from bigwig coverage data")
-            f_bw = [bw.open(x) for x in coverage_bw_files]
-            df_list = list()
-            for chrom, df_tmp in tqdm(df_sig.groupby(level="chrom")):
-                if df_tmp.shape[0] == 0:
-                    continue
-                found_correct_file = False
-                for f_bw_chrom in f_bw:
-                    if chrom in f_bw_chrom.chroms():
-                        found_correct_file = True
-                        break
-                if not found_correct_file:
-                    raise ValueError(
-                        f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}"
-                    )
-                chrom_start = df_tmp.index.get_level_values("pos") - 1
-                chrom_end = df_tmp.index.get_level_values("pos")
-                df_list.append(
-                    df_tmp.assign(
-                        coverage=np.concatenate(
-                            [
-                                f_bw_chrom.values(chrom, x, y, numpy=True)
-                                for x, y in zip(chrom_start, chrom_end)
-                            ]
-                        )
-                    )
-                )
-        finally:
-            if "f_bw" in locals():
-                for f in f_bw:
-                    f.close()
-        df_sig = pd.concat(df_list).astype({"coverage": int})
-
-    logger.debug("Calculating reference hmer")
-    df_sig["hmer"] = (
-        df_sig[["hmer"]]
-        .assign(
-            hmer_calc=df_sig.apply(
-                lambda row: _get_hmer_length(
-                    row["ref"], row["left_motif"], row["right_motif"]
-                ),
-                axis=1,
-            )
-        )
-        .max(axis=1)
-        .fillna(-1)
-        .astype(int)
-    )
-
-    logger.debug("Annotating with mutation type (ref->alt)")
-    ref_is_c_or_t = df_sig["ref"].isin(["C", "T"])
-    df_sig.loc[:, "mutation_type"] = (
-        np.where(ref_is_c_or_t, df_sig["ref"], df_sig["ref"].apply(revcomp))
-        + "->"
-        + np.where(ref_is_c_or_t, df_sig["alt"], df_sig["alt"].apply(revcomp))
-    )
-
-    df_sig.columns = [x.replace("-", "_") for x in df_sig.columns]
-
     if output_parquet is not None:
         if verbose:
             logger.debug(f"Saving output signature/s to {output_parquet}")
@@ -462,6 +390,13 @@ def read_intersection_dataframes(
             for f in intersected_featuremaps_parquet
         )
     )
+    logger.debug("Annotating with mutation type (ref->alt)")
+    ref_is_c_or_t = df_int["ref"].isin(["C", "T"])
+    df_int.loc[:, "mutation_type"] = (
+        np.where(ref_is_c_or_t, df_int["ref"], df_int["ref"].apply(revcomp))
+        + "->"
+        + np.where(ref_is_c_or_t, df_int["alt"], df_int["alt"].apply(revcomp))
+    )
 
     if snp_error_rate is not None:
         logger.debug("Merging with SNP error rate")
@@ -475,7 +410,7 @@ def read_intersection_dataframes(
         )
 
     logger.debug("Setting ref/alt direction to match reference and not read")
-    is_reverse = (df_int["X-FLAGS"] & 16).astype(bool)
+    is_reverse = ~(df_int["X-FLAGS"] & 16).astype(bool)
     for c in ["ref", "alt", "ref_motif", "alt_motif"]:
         df_int.loc[:, c] = df_int[c].where(is_reverse, df_int[c].apply(revcomp))
 
@@ -488,10 +423,144 @@ def read_intersection_dataframes(
         is_reverse, left_motif_reverse
     )
     df_int = df_int.sort_index()
-    df_int.columns = [x.replace("-", "_") for x in df_int.columns]
     if output_parquet is not None:
         df_int.to_parquet(output_parquet)
     return df_int
+
+
+def merge_intersection_dataframes_with_signatures(
+    intersection_dataframe, signature_dataframe, coverage_bw_files=None, output_parquet=None, flow_order=None
+):
+    """
+    Merge signature dataframes with dataframes resulting from featuremap-signature intersections
+
+    Parameters
+    ----------
+    intersection_dataframe
+        Either a filename or the actual dataframe generated by read_intersection_dataframes
+    signature_dataframe
+        Either a filename or the actual dataframe generated by read_signature
+    coverage_bw_files
+        Coverage bigwig files generated with "coverage_analysis full_analysis"
+    output_parquet
+        output file to which the results will be saved
+    flow_order
+        of the run corresponding to the featuremap
+
+    Returns
+    -------
+    dataframe
+
+    """
+    if isinstance(intersection_dataframe, str):
+        logger.debug(f"Reading intersection_dataframe from {intersection_dataframe}")
+        intersection_dataframe = pd.read_parquet(intersection_dataframe)
+
+    if isinstance(signature_dataframe, str):
+        logger.debug(f"Reading signature_dataframe from {signature_dataframe}")
+        signature_dataframe = pd.read_parquet(signature_dataframe)
+
+    logger.debug("Merging dataframes")
+    for c in ["ref_motif", "alt_motif", "cycle_skip_status"]:
+        if c in intersection_dataframe:
+            intersection_dataframe = intersection_dataframe.drop(columns=[c])
+    df = (
+        intersection_dataframe.join(
+            signature_dataframe.drop(columns=["cycle_skip_status"]),
+            how="outer",
+            rsuffix="_SUFFIX",
+        )
+        .reset_index()
+        .astype(
+            {
+                "chrom": str,
+                "pos": int,
+                "rq": float,
+                "map_unique": bool,
+                "lcr": bool,
+                "exome": bool,
+            }
+        )
+        .set_index(["signature", "chrom", "pos"])
+    )
+    for c in [x for x in df.columns if x.endswith("_SUFFIX")]:
+        orig_c = c[: -len("_SUFFIX")]
+        df.loc[:, orig_c] = np.where(df[c].isnull(), df[orig_c], df[c])
+        df = df.drop(columns=[c])
+
+    logger.debug("Calculating reference hmer")
+    df["hmer"] = (
+        df[["hmer"]]
+        .assign(
+            hmer_calc=df.apply(
+                lambda row: _get_hmer_length(
+                    row["ref"], row["left_motif"], row["right_motif"]
+                ),
+                axis=1,
+            )
+        )
+        .max(axis=1)
+        .fillna(-1)
+        .astype(int)
+    )
+
+    if coverage_bw_files is not None:  # collect coverage per locus
+        try:
+            logger.debug(f"Reading input from bigwig coverage data")
+            f_bw = [bw.open(x) for x in coverage_bw_files]
+            df_list = list()
+            for chrom, df_tmp in tqdm(df.groupby(level="chrom")):
+                if df_tmp.shape[0] == 0:
+                    continue
+                found_correct_file = False
+                for f_bw_chrom in f_bw:
+                    if chrom in f_bw_chrom.chroms():
+                        found_correct_file = True
+                        break
+                if not found_correct_file:
+                    raise ValueError(
+                        f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}"
+                    )
+                chrom_start = df_tmp.index.get_level_values("pos") - 1
+                chrom_end = df_tmp.index.get_level_values("pos")
+                df_list.append(
+                    df_tmp.assign(
+                        coverage=np.concatenate(
+                            [
+                                f_bw_chrom.values(chrom, x, y, numpy=True)
+                                for x, y in zip(chrom_start, chrom_end)
+                            ]
+                        )
+                    )
+                )
+        finally:
+            for f in f_bw:
+                f.close()
+        df = pd.concat(df_list).astype({"coverage": int})
+
+    if flow_order is not None:
+        logger.debug("Annotating cycle skip")
+        df.loc[:, "ref_motif"] = (
+            df["left_motif"].str.slice(-1)
+            + df["ref"]
+            + df["right_motif"].str.slice(0, 1)
+        )
+        df.loc[:, "alt_motif"] = (
+            df["left_motif"].str.slice(-1)
+            + df["alt"]
+            + df["right_motif"].str.slice(0, 1)
+        )
+        df = df.merge(
+            get_cycle_skip_dataframe(flow_order),
+            left_on=["ref_motif", "alt_motif"],
+            right_index=True,
+        )
+        df = df.drop(columns=["ref_motif", "alt_motif"])
+
+    df = df.sort_index()
+    if output_parquet is not None:
+        df.to_parquet(output_parquet)
+    return df
 
 
 def prepare_data_from_mrd_pipeline(
@@ -558,11 +627,17 @@ def prepare_data_from_mrd_pipeline(
     )
     signature_dataframe = read_signature(
         signature_vcf_files,
-        coverage_bw_files=coverage_bw_files,
         output_parquet=signatures_dataframe_fname,
         sample_name=sample_name,
     )
-    return signature_dataframe, intersection_dataframe
+    df = merge_intersection_dataframes_with_signatures(
+        intersection_dataframe,
+        signature_dataframe,
+        coverage_bw_files=coverage_bw_files,
+        output_parquet=merged_features_and_signatures_fname,
+        flow_order=flow_order,
+    )
+    return df
 
 
 def call_create_control_signature(args_in):
