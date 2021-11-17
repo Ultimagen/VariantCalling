@@ -32,7 +32,6 @@ logger.addHandler(ch)
 
 
 from python.utils import revcomp, get_cycle_skip_dataframe
-from python.auxiliary.format import CHROM_DTYPE
 
 
 def create_control_signature(
@@ -343,7 +342,7 @@ def read_signature(
                 + [x_columns_name_dict[c] for c in x_columns],
             )
             .reset_index(drop=True)
-            .astype({"chrom": CHROM_DTYPE, "pos": int})
+            .astype({"chrom": str, "pos": int})
             .set_index(["chrom", "pos"])
         )
         if verbose:
@@ -386,7 +385,7 @@ def read_intersection_dataframes(
             pd.read_parquet(f)
             .assign(signature=_get_sample_name_from_file_name(f, split_position=1))
             .reset_index()
-            .astype({"chrom": CHROM_DTYPE, "pos": int,})
+            .astype({"chrom": str, "pos": int,})
             .set_index(["signature", "chrom", "pos"])
             for f in intersected_featuremaps_parquet
         )
@@ -474,11 +473,9 @@ def merge_intersection_dataframes_with_signatures(
         .reset_index()
         .astype(
             {
-                "chrom": CHROM_DTYPE,
+                "chrom": str,
                 "pos": int,
-                "signature": "category",
                 "rq": float,
-                "mutation_type": "category",
                 "map_unique": bool,
                 "lcr": bool,
                 "exome": bool,
@@ -559,14 +556,7 @@ def merge_intersection_dataframes_with_signatures(
             right_index=True,
         )
         df = df.drop(columns=["ref_motif", "alt_motif"])
-    df = df.astype(
-        {
-            "left_motif": "category",
-            "right_motif": "category",
-            "ref": "category",
-            "alt": "category",
-        }
-    )
+
     df = df.sort_index()
     if output_parquet is not None:
         df.to_parquet(output_parquet)
@@ -774,5 +764,4 @@ be the full sample name, but does have to return a unique result. Default: "tumo
     )
 
     args = parser.parse_args()
-    print(args)
     args.func(args)
