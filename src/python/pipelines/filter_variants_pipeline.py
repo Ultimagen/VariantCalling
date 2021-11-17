@@ -36,7 +36,7 @@ ap.add_argument("--output_file", help="Output VCF file",
 ap.add_argument("--is_mutect",
                 help="Is the input a result of mutect", action="store_true")
 ap.add_argument("--flow_order",
-                help="Sequencing flow order (4 cycle)", required=False, default="TACG")
+                help="Sequencing flow order (4 cycle)", required=False, default="TGCA")
 ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                 type=str, default=None, action='append')
 args = ap.parse_args()
@@ -50,6 +50,7 @@ try:
 
     df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference_file,
                                                          runfile=args.runs_file,
+                                                         flow_order=args.flow_order,
                                                          annotate_intervals=args.annotate_intervals)
 
     if args.is_mutect:
@@ -61,13 +62,7 @@ try:
     model_name = args.model_name
     models = models_dict[model_name]
 
-    if type(models) == list or type(models) == tuple:
-        model_clsf = models[0]
-        model_scor = models[1]
-        is_decision_tree = True
-    else:
-        model_clsf = models
-        is_decision_tree = False
+    model_clsf = models
 
     logger.info("Applying classifier")
     df = variant_filtering_utils.add_grouping_column(df,
@@ -86,15 +81,15 @@ try:
     if args.blacklist_cg_insertions:
         cg_blacklist = variant_filtering_utils.blacklist_cg_insertions(df)
         blacklist = variant_filtering_utils.merge_blacklists([cg_blacklist, blacklist])
-
     predictions = model_clsf.predict(df)
+
     predictions = np.array(predictions)
-    if is_decision_tree:
-        logger.info("Applying regressor")
-        predictions_score = model_scor.predict(df)
-        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_scor.tree_score_fpr)
-        predictions_score = np.array(predictions_score)
-        group = df['group']
+
+    logger.info("Applying classifier proba")
+    predictions_score = model_clsf.predict(df, get_numbers=True)
+    prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
+    predictions_score = np.array(predictions_score)
+    group = df['group']
 
 
     hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
@@ -111,10 +106,9 @@ try:
         if args.blacklist_cg_insertions:
             hdr.filters.add("CG_NON_HMER_INDEL", None, None, "Insertion/deletion of CG")
 
-        if is_decision_tree:
-            hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
-            hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
-            hdr.info.add("VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
+        hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
+        hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
+        hdr.info.add("VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
                 pass_flag = True
@@ -130,10 +124,9 @@ try:
                             pass_flag = False
                 if pass_flag:
                     rec.filter.add("PASS")
-                if is_decision_tree:
-                    rec.info["TREE_SCORE"] = predictions_score[i]
-                    rec.info["FPR"] = prediction_fpr[i]
-                    rec.info["VARIANT_TYPE"] = group[i]
+                rec.info["TREE_SCORE"] = predictions_score[i]
+                rec.info["FPR"] = prediction_fpr[i]
+                rec.info["VARIANT_TYPE"] = group[i]
 
                 # fix the alleles of form <1> that our GATK adds
                 rec.ref = rec.ref if re.match(
