@@ -31,6 +31,7 @@ that can be explained by a small number of hmer indel errors.
 import numpy as np
 import pandas as pd
 import pyfaidx
+import re
 import itertools
 from typing import Optional, Tuple, List, Any
 import python.vcftools as vcftools
@@ -232,6 +233,8 @@ def compare_two_sets_of_variants(positions_to_test: list,
             include_ref=False,
             exclude_ref_pos=positions_to_test[i],
         )
+
+
 
         flows_set1 = [utils.generateKeyFromSequence(
             x, DEFAULT_FLOW_ORDER) for x in haplotypes_set1]
@@ -534,6 +537,7 @@ def get_reference_from_region(refidx: pyfaidx.Fasta, region: tuple) -> str:
 
     Parameters
     ----------
+
     refidx : pyfaidx.Fasta
         Indexed fasta (`pyfaidx.Fasta`) - single chromosome
     region : tuple
@@ -542,9 +546,10 @@ def get_reference_from_region(refidx: pyfaidx.Fasta, region: tuple) -> str:
     Returns
     -------
     str
-        Reference string (uppercase, Ns replaced with As)
+        Reference string (uppercase, Ns and other non-standard characters replaced with As)
     """
-    return str(refidx[region[0] - 1: region[1] - 1]).upper().replace("N", "A")
+    unsanitized_ref = str(refidx[region[0] - 1: region[1] - 1]).upper()
+    return re.sub(r'([^.ATCG])', "A", unsanitized_ref)
 
 
 def _select_best_region(interval_starts: list, intervals: list, pos: int) -> Optional[tuple]:
