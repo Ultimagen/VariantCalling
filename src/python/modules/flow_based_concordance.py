@@ -541,8 +541,7 @@ def get_reference_from_region(refidx: pyfaidx.Fasta, region: tuple) -> str:
     refidx : pyfaidx.Fasta
         Indexed fasta (`pyfaidx.Fasta`) - single chromosome
     region : tuple
-        (start, end)
-
+        [start, end), 1-based coordinates of the region!
     Returns
     -------
     str
