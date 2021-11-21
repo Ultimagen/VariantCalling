@@ -529,7 +529,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = annotation.classify_indel(df)
     logger.info("Marking H-INDEL")
     df = annotation.is_hmer_indel(df, fasta)
-    logger.info("Maring motifs")
+    logger.info("Marking motifs")
     df = annotation.get_motif_around(df, 5, fasta)
     logger.info("Marking GC content")
     df = annotation.get_gc_content(df, 10, fasta)

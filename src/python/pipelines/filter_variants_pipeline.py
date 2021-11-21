@@ -88,6 +88,13 @@ try:
     logger.info("Applying classifier proba")
     predictions_score = model_clsf.predict(df, get_numbers=True)
     prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
+    # Do not output FPR if it could not be calculated from the calls
+    output_fpr = True
+    if len(set(prediction_fpr))==1:
+        logger.info("FPR not calculated, skipping")
+        output_fpr = False
+
+
     predictions_score = np.array(predictions_score)
     group = df['group']
 
@@ -107,7 +114,8 @@ try:
             hdr.filters.add("CG_NON_HMER_INDEL", None, None, "Insertion/deletion of CG")
 
         hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
-        hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
+        if output_fpr:
+            hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
         hdr.info.add("VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
@@ -125,7 +133,8 @@ try:
                 if pass_flag:
                     rec.filter.add("PASS")
                 rec.info["TREE_SCORE"] = predictions_score[i]
-                rec.info["FPR"] = prediction_fpr[i]
+                if output_fpr:
+                    rec.info["FPR"] = prediction_fpr[i]
                 rec.info["VARIANT_TYPE"] = group[i]
 
                 # fix the alleles of form <1> that our GATK adds
