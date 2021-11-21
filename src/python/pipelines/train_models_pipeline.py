@@ -62,10 +62,14 @@ except AssertionError as af:
 try:
     with_dbsnp_bl = args.input_file.endswith('vcf.gz')
     if with_dbsnp_bl:
-        df = vcftools.get_vcf_df(args.input_file)
+        if len(args.list_of_contigs_to_read)==0:
+            df = vcftools.get_vcf_df(args.input_file)
+        else:
+            df = pd.concat([vcftools.get_vcf_df(args.input_file, chromosome=x) 
+                for x in args.list_of_contigs_to_read])
 
     else:
-        ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
+        # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         df = []
         annots = []
         with pd.HDFStore(args.input_file) as data:
@@ -78,6 +82,7 @@ try:
 
         df = pd.concat(df, axis=0)
 
+    logger.debug(f"Input frame shape: {df.shape}")
     df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference,
                                                          runfile=args.runs_intervals,
                                                          flow_order=args.flow_order,
