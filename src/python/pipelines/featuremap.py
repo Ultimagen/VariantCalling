@@ -325,7 +325,7 @@ def featuremap_to_dataframe(
         )
 
     if report_read_orientation:
-        is_reverse = ~(df["X-FLAGS"] & 16).astype(bool)
+        is_reverse = (df["X-FLAGS"] & 16).astype(bool)
         for c in ["ref", "alt"]:  # reverse value to match the read direction
             df[c] = df[c].where(is_reverse, df[c].apply(revcomp))
 
