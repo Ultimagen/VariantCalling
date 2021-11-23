@@ -174,7 +174,8 @@ def _parse_single_report(f):
                                 "IndelSummary",
                                 "MetricsCollection",
                                 "ValidationReport",
-                                "VariantSummary"])
+                                "VariantSummary",
+                                "MultiallelicSummary"])
     for l in f:
         is_specific_table = tables_to_read.apply(lambda x: x in f"#:GATKTable:{x}" in l)
         start_table = sum(is_specific_table) > 0
