@@ -15,13 +15,14 @@ import python.utils as utils
 
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length','indel_length',
-            'ad','af', 'fs','qd','mq','pl','gt',
-            'gq','ps','ac','an',
-            'baseqranksum','excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum','xc',
-            'indel','left_motif','right_motif','alleles','cycleskip_status','gc_content']
+            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length', 'indel_length',
+            'ad', 'af', 'fs', 'qd', 'mq', 'pl', 'gt',
+            'gq', 'ps', 'ac', 'an',
+            'baseqranksum', 'excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum', 'xc',
+            'indel', 'left_motif', 'right_motif', 'alleles', 'cycleskip_status', 'gc_content']
 
 logger = logging.getLogger(__name__)
+
 
 class SingleModel:
 
@@ -35,6 +36,7 @@ class SingleModel:
             result_vec = result_vec & (
                 (df[v] > self.threshold_dict[v]) == self.is_greater_then[v])
         return np.where(np.array(result_vec), "tp", 'fp')
+
 
 class SingleRegressionModel:
 
@@ -60,22 +62,18 @@ class SingleTrivialClassifierModel:
     def __init__(self):
         pass
 
-    def predict(self, df: pd.DataFrame) -> pd.Series:
+    def predict(self, df: pd.DataFrame) -> np.array:
         pf = df['filter'].apply(lambda x: 'PASS' in x)
         return np.where(np.array(pf), "tp", "fp")
 
-
-class SingleTrivialRegressorModel:
-
-    def __init__(self):
-        pass
-
-    def predict(self, df: pd.DataFrame) -> pd.Series:
-        return df.tree_score
+    def predict_proba(self, df: pd.DataFrame) -> np.array:
+        res = np.array(df.tree_score.fillna(0))
+        res_comp = 1-res
+        return np.vstack((res_comp, res)).T
 
 
 class MaskedHierarchicalModel:
-
+    BLOCK_SIZE = 1000000
     def __init__(self, _name: str, _group_column: str, _models_dict: dict,
                  transformer: Optional[sklearn_pandas.DataFrameMapper] = None, tree_score_fpr=None, threshold=None):
         self.name = _name
@@ -86,7 +84,8 @@ class MaskedHierarchicalModel:
         self.threshold = threshold
 
     def predict(self, df: pd.DataFrame,
-                mask_column: Optional[str] = None, get_numbers=False) -> pd.Series:
+                mask_column: Optional[str] = None, 
+                get_numbers=False) -> pd.Series:
         '''Makes prediction on the dataframe, optionally ignoring false-negative calls
 
         Parameters
@@ -125,19 +124,34 @@ class MaskedHierarchicalModel:
 
     def _predict_by_blocks(self, model, df, get_numbers=False, threshold=0):
         predictions = []
-        for i in range(0, df.shape[0], 1000000):
-            if self.transformer is not None:
-                predictions.append(model.predict_proba(
-                    self.transformer.fit_transform(df.iloc[i:i + 1000000, :]))[:, 1])
+        for i in range(0, df.shape[0], MaskedHierarchicalModel.BLOCK_SIZE):
+            # This function can be called when the query is classification (get_numbers = False )
+            # or when the query is class probability (get_numbers=True)
+            # In the first case if the model has a threshold, we call "predict_proba" function and
+            # apply the threshold. Otherwise, we call a "predict" function
+            if not get_numbers and threshold is None:  # model with no threshold that just returns class
+                predict_fcn = model.predict
             else:
-                predictions.append(model.predict_proba(df.iloc[i:i + 1000000, :])[:, 1])
-        if not get_numbers:
-            predictions = self._adjusted_classes(np.hstack(predictions), threshold)
-        return np.hstack(predictions)
+                predict_fcn = model.predict_proba
+
+            if self.transformer is not None:
+                predictions.append(predict_fcn(
+                    self.transformer.fit_transform(df.iloc[i:i + MaskedHierarchicalModel.BLOCK_SIZE, :])))
+            else:
+                predictions.append(predict_fcn(df.iloc[i:i + MaskedHierarchicalModel.BLOCK_SIZE, :]))
+        if not get_numbers and threshold is not None:
+            predictions = self._adjusted_classes(np.vstack(predictions)[:, 1], threshold)
+        elif not get_numbers and threshold is None:
+            predictions = np.hstack(predictions)
+        elif get_numbers:
+            predictions = np.vstack(predictions)[:, 1]
+
+        return predictions
 
 
-def train_threshold_models(concordance: pd.DataFrame, interval_size: int, classify_column: str = 'classify', annots: list = [])\
-        -> Tuple[MaskedHierarchicalModel, MaskedHierarchicalModel, pd.DataFrame]:
+def train_threshold_models(concordance: pd.DataFrame, interval_size: Optional[int] = None, 
+                           classify_column: str = 'classify', annots: list = [])\
+                           -> Tuple[MaskedHierarchicalModel, pd.DataFrame]:
     '''Trains threshold classifier and regressor
 
     Parameters
@@ -145,7 +159,7 @@ def train_threshold_models(concordance: pd.DataFrame, interval_size: int, classi
     concordance: pd.DataFrame
         Concordance dataframe
     interval_size: int
-        number of bases in the interval
+        number of bases in the interval on which the labeling exists
     classify_column: str
         Classification column
     annots: list
@@ -821,10 +835,10 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
     transformer = feature_prepare(annots=annots)
     transformer.fit(concordance)
     groups = set(concordance["group"])
-    classifier_models:dict = {}
-    regressor_models:dict = {}
-    fpr_values:dict = {}
-    thresholds:dict = {}
+    classifier_models: dict = {}
+    regressor_models: dict = {}
+    fpr_values: dict = {}
+    thresholds: dict = {}
     for g in groups:
         classifier_models[g], fpr_values[g], thresholds[g] = \
             train_function(concordance, concordance['test_train_split'],
@@ -943,7 +957,7 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
     Returns
     -------
     tuple:
-        MaskedHierarchyclaModel, dict, model and dictionary of recalls_precisions
+        MaskedHierarchicalModel, dict, model and dictionary of recalls_precisions
     '''
 
     selection_functions = get_training_selection_functions()
@@ -1052,6 +1066,7 @@ def blacklist_cg_insertions(df: pd.DataFrame) -> pd.Series:
     blank = blank.where(~ggc_filter, "CG_NON_HMER_INDEL")
     return blank
 
+
 def create_blacklist_statistics_table(df: pd.DataFrame, classify_column: str) -> pd.Series:
     '''
     Creates a table in the following format:
@@ -1068,9 +1083,10 @@ def create_blacklist_statistics_table(df: pd.DataFrame, classify_column: str) ->
     '''
 
     return pd.DataFrame([np.sum(df[classify_column] == 'tp'),
-                       np.sum(df[classify_column] =='unknown'),
-                       np.sum(df[classify_column] == 'fp')], index=['dbsnp','unknown','blacklist'],
-                      columns=['Categories'])
+                         np.sum(df[classify_column] == 'unknown'),
+                         np.sum(df[classify_column] == 'fp')], 
+                         index=['dbsnp', 'unknown', 'blacklist'],
+                         columns=['Categories'])
 
 
 class VariantSelectionFunctions (Enum):

@@ -32,12 +32,9 @@ concordance['group_testing'] = variant_filtering_utils.add_grouping_column(
     concordance, variant_filtering_utils.get_testing_selection_functions(), "group_testing")
 
 trivial_classifier = variant_filtering_utils.SingleTrivialClassifierModel()
-trivial_regressor = variant_filtering_utils.SingleTrivialRegressorModel()
 
 trivial_classifier_set = variant_filtering_utils.MaskedHierarchicalModel(
     'classifier', 'group', {'all': trivial_classifier})
-trivial_regressor_set = variant_filtering_utils.MaskedHierarchicalModel(
-    'regressor', 'group', {'all': trivial_regressor})
 
 recall_precision_dict = {}
 recall_precision_curve_dict = {}
@@ -58,7 +55,7 @@ for exclude_hpols in [False, True]:
         recall_precision_dict[name] = recall_precision
 
         recall_precision_curve = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-            concordance_filtered, trivial_regressor_set, classify_column)
+            concordance_filtered, trivial_classifier_set, classify_column)
         recall_precision_curve_dict[name] = recall_precision_curve
 
 results_vals = (pd.DataFrame(recall_precision_dict)).unstack().reset_index()
