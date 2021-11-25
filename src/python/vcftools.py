@@ -262,6 +262,8 @@ class FilterWrapper:
     # for fp, we filter out all the low_score points, and color the lower 10% of them
     # in grey and the others in blue
     def filtering_fp(self):
+        if not pd.isnull(self.df['tree_score']).all() and pd.isnull(self.df['tree_score']).any():
+            self.df.loc[pd.isnull(self.df['tree_score']), "tree_score"] = 1
         do_filtering = 'filter' in self.df.columns \
                        and 'tree_score' in self.df.columns \
                        and (pd.to_numeric(self.df['tree_score'], errors='coerce').notnull().all())
@@ -285,6 +287,7 @@ class FilterWrapper:
     # converts the h5 format to the BED format
     def BED_format(self, kind=None):
         do_filtering = 'filter' in self.df.columns
+
         if do_filtering:
             if kind == "fp":
                 rgb_color = self.filtering_fp()
@@ -294,7 +297,6 @@ class FilterWrapper:
                 blacklist_color = self.blacklist()
             else:
                 blacklist_color = np.zeros(self.df.shape[0], dtype=np.bool)
-
         hmer_length_column = self.df['hmer_indel_length']
         # end pos
         # we want to add the rgb column, so we need to add all the columns
@@ -305,7 +307,7 @@ class FilterWrapper:
                              hmer_length_column], axis=1)  # name
 
         self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name']
-
+            
         # decide the color by filter column
         if do_filtering:
             rgb_color[rgb_color] = FilteringColors.CLEAR.value
@@ -320,6 +322,7 @@ class FilterWrapper:
             self.df.columns = ['chrom', 'chromStart', 'chromEnd', 'name',
                                'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb']
         self.df.sort_values(['chrom', 'chromStart'], inplace=True)
+
         return self
 
 

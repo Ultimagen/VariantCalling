@@ -11,6 +11,8 @@ ap = argparse.ArgumentParser(prog="evaluate_concordance.py",
                              description="Calculate precision and recall for compared HDF5 ")
 ap.add_argument("--input_file", help="Name of the input h5 file", type=str)
 ap.add_argument("--output_file", help="Output h5 file", type=str, required=True)
+ap.add_argument("--use_for_group_testing", help="Column in the h5 to use for grouping (or generate default groupings)", type=str, required=False)
+
 args = ap.parse_args()
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
@@ -28,8 +30,11 @@ if np.any(pd.isnull(concordance['tree_score'])):
 
 concordance['group'] = 'all'
 concordance['test_train_split'] = False
-concordance['group_testing'] = variant_filtering_utils.add_grouping_column(
-    concordance, variant_filtering_utils.get_testing_selection_functions(), "group_testing")
+if args.use_for_group_testing is None:
+    concordance['group_testing'] = variant_filtering_utils.add_grouping_column(
+        concordance, variant_filtering_utils.get_testing_selection_functions(), "group_testing")
+else:
+    concordance['group_testing'] = concordance[args.use_for_group_testing]
 
 trivial_classifier = variant_filtering_utils.SingleTrivialClassifierModel()
 
