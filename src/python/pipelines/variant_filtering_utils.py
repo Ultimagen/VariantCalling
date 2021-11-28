@@ -246,8 +246,10 @@ class MaskedHierarchicalModel:
         return predictions
 
 
-def train_threshold_models(concordance: pd.DataFrame, interval_size: Optional[int] = None, 
-                           classify_column: str = 'classify', annots: list = [], vtype = "single_sample")\
+def train_threshold_models(concordance: pd.DataFrame,
+                           vtype: "single_sample/joint",
+                           interval_size: Optional[int] = None,
+                           classify_column: str = 'classify', annots: list = [])\
                            -> Tuple[MaskedHierarchicalModel, pd.DataFrame]:
     '''Trains threshold classifier and regressor
 
@@ -275,7 +277,7 @@ def train_threshold_models(concordance: pd.DataFrame, interval_size: Optional[in
         concordance, train_selection_functions, "group")
     concordance = add_testing_train_split_column(
         concordance, "group", "test_train_split", classify_column)
-    transformer = feature_prepare(output_df=True, annots=annots)
+    transformer = feature_prepare(output_df=True, annots=annots, vtype=vtype)
     transformer.fit(concordance)
     groups = set(concordance["group"])
     classifier_models = {}
@@ -299,9 +301,9 @@ def train_threshold_models(concordance: pd.DataFrame, interval_size: Optional[in
 def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series,
                           selection: pd.Series, gtr_column: str,
                           transformer: sklearn_pandas.DataFrameMapper,
+                          vtype: "single_sample/joint",
                           interval_size: int,
-                          annots: list = [],
-                          vtype = "single_sample") -> tuple:
+                          annots: list = []) -> tuple:
     '''Trains threshold regressor and classifier models
 
     Parameters
@@ -338,7 +340,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     labels = concordance[selection & (~fns) & test_train_split][gtr_column]
     _validate_data(labels.to_numpy())
     enclabels = np.array(labels == 'tp')
-    train_qual = train_data['qual']
+    train_qual = train_data[qual_column]
     train_sor = train_data['sor']
 
     qq = (train_qual.to_numpy()[:, np.newaxis] > quals[np.newaxis, :])
@@ -363,9 +365,9 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     rsi = get_r_s_i(results_df, 'var')[-1].copy()
     rsi.sort_values(('precision', 'var'), inplace=True)
     rsi['score'] = np.linspace(0, 1, rsi.shape[0])
-    regression_model = SingleRegressionModel({'qual': np.array([x[0] for x in rsi.index]),
+    regression_model = SingleRegressionModel({qual_column: np.array([x[0] for x in rsi.index]),
                                               'sor': np.array([x[1] for x in rsi.index])},
-                                             {'sor': False, 'qual': True},
+                                             {'sor': False, qual_column: True},
                                              np.array(rsi['score']))
     tree_scores = regression_model.predict_proba(train_data)[:,1]
     tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
@@ -488,7 +490,7 @@ def gt_encode(x):
     return 0
 
 
-def feature_prepare(output_df: bool = False, vtype = "single_sample", annots: list = []) -> sklearn_pandas.DataFrameMapper:
+def feature_prepare(vtype: "single_sample/joint", output_df: bool = False, annots: list = []) -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
     Parameters
@@ -506,7 +508,7 @@ def feature_prepare(output_df: bool = False, vtype = "single_sample", annots: li
         Mapper, list of features
     '''
 
-    _, transform_list, _ = modify_features_based_on_vcf_type()
+    _, transform_list, _ = modify_features_based_on_vcf_type(vtype)
 
     for annot in annots:
         transform_list.append((annot, None))
@@ -521,10 +523,10 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 transformer: sklearn_pandas.DataFrameMapper,
                 interval_size: int,
                 classify_model,
+                vtype: "single_sample/joint",
                 annots: list = [],
                 exome_weight: int = 1,
-                exome_weight_annotation: str = None,
-                vtype = "single_sample") -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+                exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -593,10 +595,10 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
 def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
                    selection: pd.Series, gtr_column: str,
                    transformer: sklearn_pandas.DataFrameMapper,
+                   vtype: "single_sample/joint",
                    interval_size: int, annots: list = [],
                    exome_weight: int = 1,
-                   exome_weight_annotation: str = None,
-                   vtype = "single_sample") -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+                   exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already divided into a testing and training set
 
     Parameters
@@ -870,13 +872,14 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
     concordance[test_train_split_column] = test_train_split_vector
     return concordance
 
-def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interval_size: int, train_function,
-                        model_name: str,
+def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interval_size: int,
+                        train_function, model_name: str,
+                        vtype: "single_sample/joint",
                         annots: list = [],
                         exome_weight: int = 1,
                         exome_weight_annotation: str = None,
-                        use_train_test_split: bool = True,
-                        vtype = "single_sample") -> tuple:
+                        use_train_test_split: bool = True) -> tuple:
+
     '''Train a decision tree model on the dataframe
 
     Parameters
@@ -918,7 +921,7 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
             concordance, "group", "test_train_split", classify_column)
     else:
         concordance['test_train_split'] = True
-    transformer = feature_prepare(annots=annots)
+    transformer = feature_prepare(annots=annots, vtype=vtype)
     transformer.fit(concordance)
     groups = set(concordance["group"])
     classifier_models: dict = {}
@@ -927,11 +930,13 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
     thresholds: dict = {}
     for g in groups:
         classifier_models[g], fpr_values[g], thresholds[g] = \
-            train_function(concordance, concordance['test_train_split'],
-                           concordance['group'] == g, classify_column, transformer, interval_size, annots,
-                           exome_weight=exome_weight,
-                           exome_weight_annotation=exome_weight_annotation,
-                           vtype=vtype)
+            train_function(concordance = concordance,
+                           test_train_split = concordance['test_train_split'],
+                           selection = concordance['group'] == g,
+                           gtr_column = classify_column,
+                           transformer = transformer, vtype=vtype,
+                           interval_size = interval_size, annots = annots,
+                           exome_weight = exome_weight, exome_weight_annotation = exome_weight_annotation)
 
     return MaskedHierarchicalModel(model_name + " classifier", "group", classifier_models, transformer=transformer, threshold=thresholds,
                                    tree_score_fpr=fpr_values), \
