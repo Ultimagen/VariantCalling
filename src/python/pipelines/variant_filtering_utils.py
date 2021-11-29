@@ -943,7 +943,10 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
             concordance
 
 
-def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchicalModel, classify_column: str) -> dict:
+def test_decision_tree_model(concordance: pd.DataFrame,
+                             model: MaskedHierarchicalModel,
+                             classify_column: str,
+                             add_testing_group_column: bool = True) -> dict:
     '''Calculate precision/recall for the decision tree classifier
 
     Parameters
@@ -954,22 +957,31 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
         Model
     classify_column: str
         Ground truth labels
+    add_testing_group_column: bool
+        Should default testing grouping be added (default: True), 
+        if False will look for grouping in group_testing
 
     Returns
     -------
     dict:
         Tuple dictionary - recall/precision for each category
     '''
-    concordance = add_grouping_column(
-        concordance, get_testing_selection_functions(), "group_testing")
+    
+    if add_testing_group_column:
+        concordance = add_grouping_column(
+                concordance, get_testing_selection_functions(), "group_testing")
+    else: 
+        assert "group_testing" in concordance.columns, "group_testing column should be given"
+
     predictions = model.predict(concordance, classify_column)
 
     groups = set(concordance['group_testing'])
     recalls_precisions = {}
     for g in groups:
+        logger.debug("optimal recall and precision on "+g)
         select = (concordance["group_testing"] == g) & \
             (~concordance["test_train_split"])
-
+        logger.debug(f"{g} contains {select.sum()} elements")
         group_ground_truth = concordance.loc[select, classify_column]
         group_predictions = predictions[select]
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
@@ -987,7 +999,8 @@ def test_decision_tree_model(concordance: pd.DataFrame, model: MaskedHierarchica
 
 def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
                                              model: MaskedHierarchicalModel,
-                                             classify_column: str) -> dict:
+                                             classify_column: str, 
+                                             add_testing_group_column: bool = True) -> dict:
     '''Calculate precision/recall curve for the decision tree regressor
 
     Parameters
@@ -998,6 +1011,9 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         Model
     classify_column: str
         Ground truth labels
+    add_testing_group_column: bool
+        Should default testing grouping be added (default: True), 
+        if False will look for grouping in group_testing
 
     Returns
     -------
@@ -1005,8 +1021,12 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         Tuple dictionary - recall/precision for each category
     '''
 
-    concordance = add_grouping_column(
-        concordance, get_testing_selection_functions(), "group_testing")
+    if add_testing_group_column:
+            concordance = add_grouping_column(
+                concordance, get_testing_selection_functions(), "group_testing")
+    else: 
+        assert "group_testing" in concordance.columns, "group_testing column should be given"
+
 
     predictions = model.predict(concordance, classify_column, get_numbers=True)
     groups = set(concordance['group_testing'])
