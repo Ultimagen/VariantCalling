@@ -47,8 +47,9 @@ ap.add_argument("--annotate_intervals", help='interval files for annotation (mul
 args = ap.parse_args()
 
 try:
-    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
-    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=getattr(logging, args.verbosity),
+                        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logger = logging.getLogger(__name__ if __name__ != "__main__" else "filter_variants_pipeline")
 
     logger.info("Reading VCF")
     df = vcftools.get_vcf_df(args.input_file)
