@@ -44,6 +44,7 @@ ap.add_argument("--flow_order",
                 help="Sequencing flow order (4 cycle)", required=False, default="TGCA")
 ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                 type=str, default=None, action='append')
+ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 args = ap.parse_args()
 
 try:
