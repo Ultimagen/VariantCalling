@@ -290,6 +290,7 @@ def read_signature(
                         for k in rec.info.keys()
                         if k.startswith("X-") and k not in columns_to_drop
                     ]
+
                     if verbose:
                         logger.debug(f"Reading x_columns: {x_columns}")
                 if af_sample is None:
@@ -318,9 +319,13 @@ def read_signature(
                             rec.ref,
                             rec.alts[0],
                             rec.id,
-                            getattr(rec.samples[af_sample]["AF"], "AF", [np.nan])[0]
-                            if af_sample != "UNKNOWN"
-                            else np.nan,
+                            (
+                                rec.samples[af_sample]["AF"][0]
+                                if af_sample != "UNKNOWN"
+                                and "AF" in rec.samples[af_sample]
+                                and len(rec.samples[af_sample]) > 0
+                                else np.nan
+                            ),
                             "MAP_UNIQUE" in rec.info,
                             "LCR" in rec.info,
                             "EXOME" in rec.info,
@@ -360,7 +365,9 @@ def read_signature(
 
     df_sig = df_sig.sort_index()
 
-    if coverage_bw_files is not None and len(coverage_bw_files) > 0:  # collect coverage per locus
+    if (
+        coverage_bw_files is not None and len(coverage_bw_files) > 0
+    ):  # collect coverage per locus
         try:
             logger.debug(f"Reading input from bigwig coverage data")
             f_bw = [bw.open(x) for x in coverage_bw_files]
@@ -475,7 +482,7 @@ def read_intersection_dataframes(
         )
 
     logger.debug("Setting ref/alt direction to match reference and not read")
-    is_reverse = (df_int["X-FLAGS"] & 16).astype(bool)
+    is_reverse = (df_int["X_FLAGS"] & 16).astype(bool)
     for c in ["ref", "alt", "ref_motif", "alt_motif"]:
         df_int.loc[:, c] = df_int[c].where(is_reverse, df_int[c].apply(revcomp))
 
@@ -499,7 +506,6 @@ def prepare_data_from_mrd_pipeline(
     signature_vcf_files,
     snp_error_rate_hdf=None,
     coverage_bw_files=None,
-    flow_order=None,
     sample_name="tumor",
     output_dir=None,
     output_basename=None,
@@ -514,8 +520,6 @@ def prepare_data_from_mrd_pipeline(
         snp error rate result generated from featuremap.calculate_snp_error_rate, disabled (None) by default
     coverage_bw_files
         Coverage bigwig files generated with "coverage_analysis full_analysis", disabled (None) by default
-    flow_order
-        of the run corresponding to the featuremap
     sample_name
         sample name in the vcf to take allele fraction (AF) from. Checked with "a in b" so it doesn't have to be the
         full sample name, but does have to return a unique result. Default: "tumor"
@@ -542,11 +546,6 @@ def prepare_data_from_mrd_pipeline(
     )
     signatures_dataframe_fname = (
         pjoin(output_dir, f"{output_basename}.signatures.parquet")
-        if output_dir is not None
-        else None
-    )
-    merged_features_and_signatures_fname = (
-        pjoin(output_dir, f"{output_basename}.merged_features_and_signatures.parquet")
         if output_dir is not None
         else None
     )
@@ -583,7 +582,6 @@ def call_prepare_data_from_mrd_pipeline(args_in):
         signature_vcf_files=args_in.signature_vcf,
         snp_error_rate_hdf=args_in.snp_error_rate,
         coverage_bw_files=args_in.coverage_bw,
-        flow_order=args_in.flow_order,
         sample_name=args_in.sample_name,
         output_dir=args_in.output_dir,
         output_basename=args_in.output_basename,
@@ -654,13 +652,6 @@ If None (default) the input file name is used with a ".control.vcf.gz" suffix"""
         default=None,
         required=False,
         help="Coverage bigwig files generated with 'coverage_analysis full_analysis'",
-    )
-    parser_prepare_data_from_mrd_pipeline.add_argument(
-        "--flow-order",
-        type=str,
-        required=True,
-        default=None,
-        help="""flow order of the run corresponding to the featuremap - required for cycle skip annotation """,
     )
     parser_prepare_data_from_mrd_pipeline.add_argument(
         "--sample-name",
