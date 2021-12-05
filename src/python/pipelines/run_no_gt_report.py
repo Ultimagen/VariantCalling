@@ -174,7 +174,8 @@ def _parse_single_report(f):
                                 "IndelSummary",
                                 "MetricsCollection",
                                 "ValidationReport",
-                                "VariantSummary"])
+                                "VariantSummary",
+                                "MultiallelicSummary"])
     for l in f:
         is_specific_table = tables_to_read.apply(lambda x: x in f"#:GATKTable:{x}" in l)
         start_table = sum(is_specific_table) > 0
@@ -184,21 +185,12 @@ def _parse_single_report(f):
             data[table_name] = df
     return data
 
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser(
-        prog="collect_statistics_no_gt.py", description="Collect metrics for runs without ground truth")
-    ap.add_argument("--input_file", help="Input vcf file",
-                    required=True, type=str)
-    ap.add_argument("--dbsnp", help="dbsnp vcf file",
-                    required=True, type=str)
-    ap.add_argument("--reference", help='Reference genome',
-                    required=True, type=str)
-    ap.add_argument("--output_prefix", help="output file",
-                    required=True, type=str)
+def run_eval_tables_only(args):
+    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix)
+    for eval_table_name in eval_tables.keys():
+        eval_tables[eval_table_name].to_hdf(f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
-    args = ap.parse_args()
-
-
+def run_full_analysis(args):
     eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix)
 
     logger.info("Converting vcf to df")
@@ -223,5 +215,41 @@ if __name__ == "__main__":
     snp_motifs.to_hdf(f"{args.output_prefix}.h5", key="snp_motifs")
     for eval_table_name in eval_tables.keys():
         eval_tables[eval_table_name].to_hdf(f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}")
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(
+        prog="run_no_gt_report.py", description="Collect metrics for runs without ground truth")
+
+    subparsers = ap.add_subparsers()
+    full_analysis = subparsers.add_parser(name='full_analysis',
+                                               description='Run teh full analysis of no_gt_report')
+
+    full_analysis.add_argument("--input_file", help="Input vcf file",
+                    required=True, type=str)
+    full_analysis.add_argument("--dbsnp", help="dbsnp vcf file",
+                    required=True, type=str)
+    full_analysis.add_argument("--reference", help='Reference genome',
+                    required=True, type=str)
+    full_analysis.add_argument("--output_prefix", help="output file",
+                    required=True, type=str)
+    full_analysis.set_defaults(func=run_full_analysis)
+
+    # Run variant eval only - for JC repor
+    parser_eval_tables = subparsers.add_parser(name='variant_eval',
+                                               description='Run variant eval only')
+    parser_eval_tables.add_argument("--input_file", help="Input vcf file",
+                    required=True, type=str)
+    parser_eval_tables.add_argument("--dbsnp", help="dbsnp vcf file",
+                    required=True, type=str)
+    parser_eval_tables.add_argument("--reference", help='Reference genome',
+                    required=True, type=str)
+    parser_eval_tables.add_argument("--output_prefix", help="output file",
+                    required=True, type=str)
+    parser_eval_tables.set_defaults(func=run_eval_tables_only)
+
+    args = ap.parse_args()
+    args.func(args)
+
+
 
 
