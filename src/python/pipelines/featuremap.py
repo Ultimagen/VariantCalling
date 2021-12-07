@@ -269,8 +269,8 @@ def featuremap_to_dataframe(
         alt columns are reverse complemented for reverse strand reads (also motif if calculated).
     x_fields
         fields to extract from featuremap, if default (None) those are extracted:
-        "X-CIGAR", "X-EDIST", "X-FC1", "X-FC2", "X-FILTERED-COUNT", "X-FLAGS", "X-LENGTH", "X-MAPQ", "X-READ-COUNT",
-        "X-RN", "X-SCORE", "rq",
+        "X_CIGAR", "X_EDIST", "X_FC1", "X_FC2", "X_FILTERED-COUNT", "X_FLAGS", "X_LENGTH", "X_MAPQ", "X_READ-COUNT",
+        "X_RN", "X_INDEX", "X_SCORE", "rq",
     show_progress_bar
         displays tqdm progress bar of number of lines read (not in percent)
     flow_order
@@ -282,17 +282,18 @@ def featuremap_to_dataframe(
     """
     if x_fields is None:
         x_fields = [
-            "X-CIGAR",
-            "X-EDIST",
-            "X-FC1",
-            "X-FC2",
-            "X-FILTERED-COUNT",
-            "X-FLAGS",
-            "X-LENGTH",
-            "X-MAPQ",
-            "X-READ-COUNT",
-            "X-RN",
-            "X-SCORE",
+            "X_CIGAR",
+            "X_EDIST",
+            "X_FC1",
+            "X_FC2",
+            "X_READ_COUNT",
+            "X_FILTERED_COUNT",
+            "X_FLAGS",
+            "X_LENGTH",
+            "X_MAPQ",
+            "X_INDEX",
+            "X_RN",
+            "X_SCORE",
             "rq",
         ]
 
@@ -325,7 +326,7 @@ def featuremap_to_dataframe(
         )
 
     if report_read_orientation:
-        is_reverse = ~(df["X-FLAGS"] & 16).astype(bool)
+        is_reverse = (df["X_FLAGS"] & 16).astype(bool)
         for c in ["ref", "alt"]:  # reverse value to match the read direction
             df[c] = df[c].where(is_reverse, df[c].apply(revcomp))
 
@@ -464,9 +465,9 @@ def calculate_snp_error_rate(
     if isinstance(single_substitution_featuremap, pd.DataFrame):
         df = single_substitution_featuremap
         df = df[
-            (df["X-SCORE"] >= min_xscore)
-            & (df["X-READ-COUNT"] >= min_coverage)
-            & (df["X-READ-COUNT"] <= max_coverage)
+            (df["X_SCORE"] >= min_xscore)
+            & (df["X_READ_COUNT"] >= min_coverage)
+            & (df["X_READ_COUNT"] <= max_coverage)
         ]
     else:
         logger.debug(
@@ -475,17 +476,17 @@ def calculate_snp_error_rate(
         df = pd.read_parquet(
             single_substitution_featuremap,
             filters=[
-                ("X-SCORE", ">=", min_xscore),
-                ("X-READ-COUNT", ">=", min_coverage),
-                ("X-READ-COUNT", "<=", max_coverage),
+                ("X_SCORE", ">=", min_xscore),
+                ("X_READ_COUNT", ">=", min_coverage),
+                ("X_READ_COUNT", "<=", max_coverage),
             ],
         )
         if featuremap_chrom is not None:
             logger.debug(f"using only data in {featuremap_chrom}")
             df = df.loc[featuremap_chrom]
     # calculate read filtration ratio in featuremap
-    read_filter_correction_factor = (df["X-FILTERED-COUNT"] + 1).sum() / df[
-        "X-READ-COUNT"
+    read_filter_correction_factor = (df["X_FILTERED_COUNT"] + 1).sum() / df[
+        "X_READ_COUNT"
     ].sum()
     # process 2nd order motifs
     logger.debug(f"Processing motifs")
@@ -499,7 +500,7 @@ def calculate_snp_error_rate(
         {
             **{x: "first" for x in ["ref", "alt", "ref_motif", "alt_motif"]},
             **{
-                "X-SCORE": [
+                "X_SCORE": [
                     lambda a: np.sum(a >= xscore_thresholds[0]).astype(int),
                     lambda a: np.sum(a >= xscore_thresholds[1]).astype(int),
                     lambda a: np.sum(a >= xscore_thresholds[2]).astype(int),
@@ -555,7 +556,7 @@ def calculate_snp_error_rate(
         .dropna(how="all")
     )
 
-    logger.debug(f"Setting non-cycle skip motifs at X-SCORE>=6 to NaN")
+    logger.debug(f"Setting non-cycle skip motifs at X_SCORE>=6 to NaN")
     for th in xscore_thresholds:
         if th >= 6:
             df_motifs_2.loc[:, f"snp_count_thresh{th}"] = df_motifs_2[
@@ -603,7 +604,7 @@ def calculate_snp_error_rate(
 
     # generate plots
     for th in xscore_thresholds:
-        logger.debug(f"Generating plot for X-SCORE>={th}")
+        logger.debug(f"Generating plot for X_SCORE>={th}")
         error_rate_column = f"error_rate_thresh{th}"
         snp_count_column = f"snp_count_thresh{th}"
         _plot_snp_error_rate(
