@@ -332,6 +332,11 @@ def read_signature(
                             rec.info["LONG_HMER"]
                             if "LONG_HMER" in rec.info
                             else np.nan,
+                            rec.info["TLOD"][0]
+                            if "TLOD" in rec.info
+                            and isinstance(rec.info["TLOD"], Iterable)
+                            else np.nan,
+                            rec.info["SOR"] if "SOR" in rec.info else np.nan,
                         ]
                         + [rec.info[c] for c in x_columns]
                     )
@@ -353,6 +358,8 @@ def read_signature(
                     "lcr",
                     "exome",
                     "hmer",
+                    "tlod",
+                    "sor",
                 ]
                 + [x_columns_name_dict[c] for c in x_columns],
             )
