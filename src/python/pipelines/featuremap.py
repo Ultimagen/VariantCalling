@@ -403,9 +403,12 @@ def calculate_snp_error_rate(
 ):
     # init
     if xscore_thresholds is None:
-        xscore_thresholds = [3, 5, 10]
-    assert len(xscore_thresholds) == 3
-    min_xscore = xscore_thresholds[0]
+        xscore_thresholds = [0, 3, 5, 10]
+    assert (
+        len(xscore_thresholds) == 4
+    ), f"Length of xscore_thresholds must be 4, got {xscore_thresholds}"
+    xscore_thresholds = np.array(xscore_thresholds)
+    min_xscore = np.min(xscore_thresholds)
 
     os.makedirs(out_path, exist_ok=True)
     if len(out_basename) > 0 and not out_basename.endswith("."):
@@ -426,7 +429,7 @@ def calculate_snp_error_rate(
     f = interp1d(
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
-        bounds_error=False
+        bounds_error=False,
     )
     min_coverage = min(
         20, np.round(f(0.5)).astype(int)
@@ -504,6 +507,7 @@ def calculate_snp_error_rate(
                     lambda a: np.sum(a >= xscore_thresholds[0]).astype(int),
                     lambda a: np.sum(a >= xscore_thresholds[1]).astype(int),
                     lambda a: np.sum(a >= xscore_thresholds[2]).astype(int),
+                    lambda a: np.sum(a >= xscore_thresholds[3]).astype(int),
                 ]
             },
         }
@@ -831,7 +835,9 @@ def intersect_featuremap_with_signature(
 
     """
     if (not force_overwrite) and os.path.isfile(output_intersection_file):
-        raise OSError(f"Output file {output_intersection_file} already exists and force_overwrite flag set to False")
+        raise OSError(
+            f"Output file {output_intersection_file} already exists and force_overwrite flag set to False"
+        )
     # build a set of all signature entries, including alts and ref
     signature_entries = set()
     with pysam.VariantFile(signature_file) as f_sig:
@@ -841,7 +847,9 @@ def intersect_featuremap_with_signature(
     with pysam.VariantFile(featuremap_file) as f_feat:
         header = f_feat.header
         if append_python_call_to_header is not None:
-            header.add_line(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}")
+            header.add_line(
+                f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}"
+            )
         with pysam.VariantFile(output_intersection_file, "w", header=header) as f_int:
             for rec in f_feat:
                 if (rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries:
@@ -1106,18 +1114,10 @@ dataframe df, df['coverage'] = df['count'] * N""",
     parser_calculate_snp_error_rate.set_defaults(func=call_calculate_snp_error_rate)
 
     parser_intersect_featuremap_with_signature.add_argument(
-        "-f",
-        "--featuremap",
-        type=str,
-        required=True,
-        help="""Featuremap vcf file""",
+        "-f", "--featuremap", type=str, required=True, help="""Featuremap vcf file""",
     )
     parser_intersect_featuremap_with_signature.add_argument(
-        "-s",
-        "--signature",
-        type=str,
-        required=True,
-        help="""Signature vcf file""",
+        "-s", "--signature", type=str, required=True, help="""Signature vcf file""",
     )
     parser_intersect_featuremap_with_signature.add_argument(
         "-o",
@@ -1126,7 +1126,9 @@ dataframe df, df['coverage'] = df['count'] * N""",
         required=True,
         help="""Output intersection vcf file (lines from featuremap propagated)""",
     )
-    parser_intersect_featuremap_with_signature.set_defaults(func=call_intersect_featuremap_with_signature)
+    parser_intersect_featuremap_with_signature.set_defaults(
+        func=call_intersect_featuremap_with_signature
+    )
 
     args = parser.parse_args()
     args.func(args)
