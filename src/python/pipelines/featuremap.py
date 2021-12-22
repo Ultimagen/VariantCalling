@@ -515,7 +515,7 @@ def calculate_snp_error_rate(
     df_motifs_2 = df_motifs_2.dropna(how="all")
 
     df_motifs_2.columns = ["ref", "alt", "ref_motif", "alt_motif"] + [
-        f"snp_count_thresh{th}" for th in xscore_thresholds
+        f"snp_count_bq{th}" for th in xscore_thresholds
     ]
     logger.debug(f"Annotating cycle skip")
     df_motifs_2 = (
@@ -528,6 +528,11 @@ def calculate_snp_error_rate(
         df_motifs_2.reset_index()
         .set_index("ref_motif2")
         .join(df_coverage[["coverage"]])
+    )
+    df_motifs_2.loc[:, "coverage"] = (
+        df_motifs_2["coverage"]
+        * read_filter_correction_factor
+        * coverage_correction_factor
     )
 
     # process 1st order motifs
@@ -559,26 +564,43 @@ def calculate_snp_error_rate(
         )
         .dropna(how="all")
     )
+    # process average error rate regardless of motifs
+    df_sum = (
+        df_motifs_1.assign(
+            coverage_csk=df_motifs_1["coverage"].where(
+                df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP
+            )
+        )
+        .groupby("ref_motif")
+        .agg(
+            {
+                **{"coverage": "first", "coverage_csk": "first"},
+                **{f"snp_count_bq{x}": "sum" for x in xscore_thresholds},
+            }
+        )
+        .sum()
+    )
+    df_avg = df_sum.filter(regex="count").to_frame().T
+    for x in xscore_thresholds:
+        coverage = df_sum["coverage"] if x < 6 else df_sum["coverage_csk"]
+        df_avg.loc[:, f"error_rate_bq{x}"] = df_avg[f"snp_count_bq{x}"] / coverage
+    df_avg = df_avg.filter(regex="error_rate").loc[0]
 
     logger.debug(f"Setting non-cycle skip motifs at X_SCORE>=6 to NaN")
     for th in xscore_thresholds:
         if th >= 6:
-            df_motifs_2.loc[:, f"snp_count_thresh{th}"] = df_motifs_2[
-                f"snp_count_thresh{th}"
+            df_motifs_2.loc[:, f"snp_count_bq{th}"] = df_motifs_2[
+                f"snp_count_bq{th}"
             ].where(df_motifs_2[CYCLE_SKIP_STATUS] == CYCLE_SKIP)
-            df_motifs_1.loc[:, f"snp_count_thresh{th}"] = df_motifs_1[
-                f"snp_count_thresh{th}"
+            df_motifs_1.loc[:, f"snp_count_bq{th}"] = df_motifs_1[
+                f"snp_count_bq{th}"
             ].where(df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP)
 
     logger.debug(f"Assigning error rates")
     for df_tmp in [df_motifs_0, df_motifs_1, df_motifs_2]:
         for th in xscore_thresholds:
-            df_tmp.loc[:, f"error_rate_thresh{th}"] = df_tmp[
-                f"snp_count_thresh{th}"
-            ] / (
+            df_tmp.loc[:, f"error_rate_bq{th}"] = df_tmp[f"snp_count_bq{th}"] / (
                 df_tmp["coverage"]
-                * read_filter_correction_factor
-                * coverage_correction_factor
             )
 
     # save
@@ -602,15 +624,16 @@ def calculate_snp_error_rate(
     df_motifs_0 = df_motifs_0.reset_index().astype(
         {c: "category" for c in ["ref", "alt"]}
     )
-    df_motifs_0.to_hdf(out_snp_rate, key="motif_0", mode="w", format="table")
+    df_avg.to_hdf(out_snp_rate, key="average", mode="w", format="table")
+    df_motifs_0.to_hdf(out_snp_rate, key="motif_0", mode="a", format="table")
     df_motifs_1.to_hdf(out_snp_rate, key="motif_1", mode="a", format="table")
     df_motifs_2.to_hdf(out_snp_rate, key="motif_2", mode="a", format="table")
 
     # generate plots
     for th in xscore_thresholds:
         logger.debug(f"Generating plot for X_SCORE>={th}")
-        error_rate_column = f"error_rate_thresh{th}"
-        snp_count_column = f"snp_count_thresh{th}"
+        error_rate_column = f"error_rate_bq{th}"
+        snp_count_column = f"snp_count_bq{th}"
         _plot_snp_error_rate(
             df_motifs_1.rename(
                 columns={error_rate_column: "error_rate", snp_count_column: "snp_count"}
