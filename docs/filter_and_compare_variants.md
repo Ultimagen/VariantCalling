@@ -1,4 +1,4 @@
-# Filering and comparing the results of variant calling
+# Filtering and comparing the results of variant calling
 
 ## Installation
 
