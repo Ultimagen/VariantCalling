@@ -105,18 +105,19 @@ try:
     skipped_records = 0
     with pysam.VariantFile(args.input_file) as infile:
         hdr = infile.header
-        hdr.info.add("HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
-        hdr.filters.add("LOW_SCORE", None, None, "Low decision tree score")
+
+        protected_add(hdr.info, "HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
+        protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
         for b in blacklists:
-            hdr.filters.add(b.annotation, None, None, b.description)
+            protected_add(hdr.filters, b.annotation, None, None, b.description)
 
         if args.blacklist_cg_insertions:
-            hdr.filters.add("CG_NON_HMER_INDEL", None, None, "Insertion/deletion of CG")
+            protected_add(hdr.filters, "CG_NON_HMER_INDEL", None, None, "Insertion/deletion of CG")
 
-        hdr.info.add("TREE_SCORE", 1, "Float", "Filtering score")
+        protected_add(hdr.info, "TREE_SCORE", 1, "Float", "Filtering score")
         if output_fpr:
-            hdr.info.add("FPR", 1, "Float", "False Positive rate(1/MB)")
-        hdr.info.add("VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
+            protected_add(hdr.info, "FPR", 1, "Float", "False Positive rate(1/MB)")
+        protected_add(hdr.info, "VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
         with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
             for i, rec in tqdm.tqdm(enumerate(infile)):
                 pass_flag = True
@@ -159,3 +160,8 @@ except Exception as err:
     logger.error(*exc_info)
     logger.error("Variant filtering run: failed")
     raise(err)
+
+
+def protected_add(hdr, field, n_vals, type, description):
+    if field not in hdr:
+        hdr.add(field, n_vals, type, description)
