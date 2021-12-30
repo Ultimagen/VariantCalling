@@ -82,7 +82,7 @@ def metrics2df(doc: dict, metrics_to_report: list = DEFAULT_METRICS_TO_REPORT) -
         1xn dataframe with two level index on columns: (metric_type, metric_name)
     '''
 
-    md = pd.DataFrame(pd.DataFrame(doc['metadata']).query(
+    md = pd.DataFrame((pd.DataFrame(_cleanup_metadata(doc['metadata']))).query(
         'workflowEntity=="sample"').loc['entityType']).T
     md.index = [0]
     md = pd.concat({'metadata': md}, axis=1)
@@ -108,8 +108,50 @@ def inputs2df(doc: dict) -> pd.DataFrame:
     pd.DataFrame
         Dataframe of inputs and outputs combined (single row)
     '''
-    md = pd.DataFrame(doc['metadata']).query(
+    md = pd.DataFrame(_cleanup_metadata(doc['metadata'])).query(
         'workflowEntity=="sample"').loc['entityType']
     inputs = pd.Series(doc['inputs'])
     outputs = pd.Series(doc['outputs'])
     return pd.DataFrame(pd.concat((md, inputs, outputs))).T.set_index("workflowId")
+
+
+def _cleanup_metadata(input_dict: dict) -> dict: 
+    '''Cleans up metadata - removes empty lists
+
+    Parameters
+    ----------
+    input_dict: dict
+
+    Returns
+    -------
+    dict
+        Same dictionary without values of type lists (confuses dataframe conversion)
+    '''
+    for k in list(input_dict.keys()):
+        if type(input_dict[k]) == list:
+            del input_dict[k]
+    return input_dict
+
+
+def _flatten_dict(input_dict: dict) -> dict:
+    '''Flattens dictionary of dictionaries and non-dictionaries
+
+    Parameters
+    ----------
+    input_dict: dict
+        Input dictionary of the form {a:value, b:{c:value, d:value}}
+
+    Returns
+    -------
+    dict: 
+        Dictionary like {a:value, b_c:value, b_d:value}
+    '''
+    result = {}
+    for k in input_dict.keys():
+        if type(input_dict[k])==dict:
+            for v in input_dict[k]:
+                result[f"{k}___{v}"] = input_dict[k][v]
+        else:
+            result[k] = input_dict[k]
+    return result
+
