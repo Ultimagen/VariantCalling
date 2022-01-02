@@ -278,7 +278,6 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
     annot = annotfile.split('/')[-1]
     if annot[-4:] == '.bed':
         annot = annot[:-4]
-    print('Annotating ' + annot)
 
     df[annot] = False
     annot_df = utils.parse_intervals_file(annotfile)
