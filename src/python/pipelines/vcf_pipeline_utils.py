@@ -516,11 +516,12 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     only_ref = concordance['alleles'].apply(len) == 1
     concordance = concordance[~only_ref]
 
+    # Marking as false negative variants that appear in concordance but not in the original VCF (even if they do show some genotype)
     missing_variants = concordance_df.index.difference(original.index)
-    logger.debug(f"Identified {len(missing_variants)} variants missing in the input VCF")
+    logger.warning(f"Identified {len(missing_variants)} variants missing in the input VCF")
     missing_variants_non_fn = concordance.loc[missing_variants].query(
         "classify!='fn'").index
-    logger.debug(f"Identified {len(missing_variants)} variants missing in the input VCF and not marked false negatives")
+    logger.warning(f"Identified {len(missing_variants_non_fn)} variants missing in the input VCF and not marked false negatives")
     concordance.loc[missing_variants_non_fn, 'classify'] = 'fn'
     concordance.loc[missing_variants_non_fn, 'classify_gt'] = 'fn'
     return concordance
