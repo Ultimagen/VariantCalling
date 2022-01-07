@@ -30,6 +30,14 @@ def test_fix_errors():
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis=1))
 
 
+def test_vcf2concordance():
+    input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "chr2.vcf.gz")
+    concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "chr2.conc.vcf.gz")
+    result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+    assert pd.isnull(result.query("classify!='fn'").qual).sum() == 0
+    assert pd.isnull(result.query("classify!='fn'").sor).sum() == 0
+
+
 class TestVCFevalRun:
     ref_genome = pjoin(PYTHON_TESTS_PATH, COMMON, "sample.fasta")
     sample_calls = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "sample.sd.vcf.gz")
