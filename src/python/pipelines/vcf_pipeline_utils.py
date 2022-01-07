@@ -438,13 +438,12 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                                       ('ALLELES', x.alleles)]), vf))
 
         columns = ['CHROM', 'POS', 'QUAL', 'REF', 'ALLELES',
-                   'GT_ULTIMA', 'GT_GROUND_TRUTH', 'SYNC', 'CALL', 'BASE', 'STR', 'RU', 'RPA', ]
+                   'GT_ULTIMA', 'GT_GROUND_TRUTH', 'SYNC', 'CALL', 'BASE' ]
         concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[
             x.lower() for x in columns])
 
         column_names = ['chrom', 'pos', 'qual',
-                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base',
-                        'str', 'ru', 'rpa']
+                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
 
     concordance_df = pd.DataFrame(concordance, columns=column_names)
     if format == 'VCFEVAL':
@@ -509,7 +508,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
         concordance_df.drop('qual', axis=1, inplace=True)
 
     drop_candidates = ['chrom', 'pos', 'alleles',
-                       'indel', 'ref', 'str', 'ru', 'rpa']
+                       'indel', 'ref']
     concordance = concordance_df.join(original.drop([x for x in drop_candidates
                                                      if x in original.columns and
                                                      x in concordance_df.columns], axis=1))
