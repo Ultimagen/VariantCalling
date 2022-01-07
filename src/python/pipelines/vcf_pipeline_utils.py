@@ -171,8 +171,8 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     ----------
     input_fn: str
         Input file
-    intervals_fn: IntervalFile
-        Interval_list 
+    intervals_fn: str
+        Interval_list
     output_fn: str
         Output file
 
@@ -188,7 +188,7 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
 
 
 def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: str,
-                             comparison_intervals: Optional[IntervalFile] = None,
+                             comparison_intervals: Optional[str] = None,
                              input_sample: str = 'NA12878', truth_sample='HG001',
                              ignore_filter: bool = False):
     '''Run GenotypeConcordance, correct the bug and reindex
@@ -219,8 +219,8 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
            'TRUTH_VCF={}'.format(truth_file),
            'TRUTH_SAMPLE={}'.format(truth_sample), 'OUTPUT_VCF=true',
            'IGNORE_FILTER_STATUS={}'.format(ignore_filter)]
-    if not comparison_intervals.is_none():
-        cmd += ['INTERVALS={}'.format(comparison_intervals.as_interval_list_file())]
+    if comparison_intervals is not None:
+        cmd += ['INTERVALS={}'.format(comparison_intervals)]
     logger.info(" ".join(cmd))
     subprocess.check_call(cmd)
     fix_vcf_format(f'{output_prefix}.genotype_concordance')
@@ -228,7 +228,7 @@ def run_genotype_concordance(input_file: str, truth_file: str, output_prefix: st
 
 def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str,
                             ref_genome: str,
-                            comparison_intervals: Optional[IntervalFile] = None,
+                            comparison_intervals: Optional[str] = None,
                             input_sample: str = 'NA12878', truth_sample='HG001',
                             ignore_filter: bool = False):
     '''Run vcfevalConcordance
@@ -267,7 +267,7 @@ def run_vcfeval_concordance(input_file: str, truth_file: str, output_prefix: str
     # filter the vcf to be only in the comparison_intervals.
     filtered_truth_file = os.path.join(output_dir, '.'.join(
         (os.path.basename(truth_file), 'filtered', 'vcf.gz')))
-    if not comparison_intervals.is_none():
+    if comparison_intervals is not None:
         intersect_with_intervals(
             truth_file, comparison_intervals, filtered_truth_file)
     else:
@@ -439,6 +439,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
     else:
         vf = pysam.VariantFile(concordance_file).fetch(chromosome)
 
+    # adding the values that the VCFEval outputs and also 
+    # the annotations that we will be using downstream: tandem repeat annotations from VariantAnnotator (str, ru, rpa),
+    # and in the future hmer indel etc.
     if format == 'GC':
         vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
                                         [('GT_ULTIMA', x.samples[0]['GT']), ('GT_GROUND_TRUTH', x.samples[1]['GT'])] +
@@ -447,11 +450,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
 
         columns = ['CHROM', 'POS', 'QUAL', 'REF', 'ALLELES',
                    'GT_ULTIMA', 'GT_GROUND_TRUTH', 'STR', 'RU', 'RPA']
-        concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[
-            x.lower() for x in columns])
-        column_names = ['chrom', 'pos', 'qual',
-                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'str', 'ru', 'rpa']
+        column_names = [x.lower() for x in columns]
 
+        concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=column_names)
     elif format == 'VCFEVAL':
         def call_filter(x): return x['CALL'] is None or (
             (x['CALL'] != 'OUT') and (x['CALL'] != 'IGN'))
@@ -469,11 +470,9 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
 
         columns = ['CHROM', 'POS', 'QUAL', 'REF', 'ALLELES',
                    'GT_ULTIMA', 'GT_GROUND_TRUTH', 'SYNC', 'CALL', 'BASE', 'STR', 'RU', 'RPA', ]
-        concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[
-            x.lower() for x in columns])
+        column_names = [x.lower() for x in columns]
 
-        column_names = ['chrom', 'pos', 'qual',
-                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base', 'str', 'ru', 'rpa']
+        concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=column_names)
 
     concordance_df = pd.DataFrame(concordance, columns=column_names)
     if format == 'VCFEVAL':

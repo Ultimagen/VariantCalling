@@ -6,19 +6,19 @@ from typing import Optional, Tuple
 
 CONCORDANCE_TOOL = "VCFEVAL"
 
+
 def pipeline(n_parts: int, input_prefix: str, 
-             output_dir: str,
              truth_file: str,
-             cmp_intervals: vcf_pipeline_utils.IntervalFile,
+             cmp_intervals: str,
              highconf_intervals: str,
              ref_genome: str,
              call_sample: str,
              truth_sample: str,
+             output_dir: Optional[str] = None,
              header: Optional[str] = None,
              runs_intervals: Optional[str] = None,
              output_suffix: Optional[str] = None,
              ignore_filter: bool = False,
-             annotate_tandem_repeats: bool = False,
              concordance_tool: str = CONCORDANCE_TOOL) -> Tuple[str, str]:
     '''Run comparison between the two sets of calls: input_prefix and truth_file. Creates
     a combined call file and a concordance VCF by either of the concordance tools
@@ -32,8 +32,6 @@ def pipeline(n_parts: int, input_prefix: str,
         Input prefix for the vcf. If the vcf is split into multiple parts, the script
         will look for <input_prefix>.1.vcf, <input_prefix>.2.vcf etc. For the non-split VCF
         will look for <input_prefix>.vcf.gz
-    output_dir : str
-        Output directory for the output 
     truth_file : str, optional
         Truth calls file
     cmp_intervals : vcf_pipeline_utils.IntervalFile, optional
@@ -46,6 +44,8 @@ def pipeline(n_parts: int, input_prefix: str,
         Name of the calls sample
     truth_sample : str, optional
         Name of the truth sample
+    output_dir : str
+        Location for the output
     header : str, optional
         for backward compatibility - to be able to change the header of the VCF. Default None
     runs_intervals : str, optional
@@ -56,8 +56,6 @@ def pipeline(n_parts: int, input_prefix: str,
     ignore_filter : bool, optional
         Should the filter status **of calls only** be ignored. Filter status of truth is always
         taken into account
-    annotate_tandem_repeats: bool, optional
-        Should VariantAnnotator be run to annotate tandem repeats
     concordance_tool : str, optional
         GC - GenotypeConcordance (picard) or VCFEVAL (default)
 
@@ -65,6 +63,9 @@ def pipeline(n_parts: int, input_prefix: str,
     -------
     Tuple[str, str]
     '''
+    if output_dir is None:
+        output_dir = dirname(input_prefix)
+
     input_prefix_basename = basename(input_prefix)
 
     if not output_suffix:
@@ -111,9 +112,8 @@ def pipeline(n_parts: int, input_prefix: str,
                                                     call_sample, truth_sample, ignore_filter)
         output_prefix = f'{output_prefix}.genotype_concordance'
 
-    if annotate_tandem_repeats:
-        vcf_pipeline_utils.annotate_tandem_repeats(output_prefix + ".vcf.gz", ref_genome)
-        output_prefix = f'{output_prefix}.annotated'
+    vcf_pipeline_utils.annotate_tandem_repeats(output_prefix + ".vcf.gz", ref_genome)
+    output_prefix = f'{output_prefix}.annotated'
 
     vcf_pipeline_utils.filter_bad_areas(select_intervals_fn, highconf_intervals, runs_intervals)
     vcf_pipeline_utils.filter_bad_areas(output_prefix + ".vcf.gz", highconf_intervals, runs_intervals)

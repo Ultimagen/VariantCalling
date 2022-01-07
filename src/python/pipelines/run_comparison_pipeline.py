@@ -81,7 +81,6 @@ if __name__ == "__main__":
                     required=False, default='', type=str)
     ap.add_argument("--concordance_tool", help='The concordance method to use (GC or VCFEVAL)',
                     required=False, default='VCFEVAL', type=str)
-    ap.add_argument("--annotate_tandem_repeats", action="store_true", help="Should run VariantAnnotator to annotate tandem repeats")
     ap.add_argument("--disable_reinterpretation",
                     help="Should re-interpretation be run", action="store_true")
     ap.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)",
@@ -112,28 +111,28 @@ if __name__ == "__main__":
 
     output_dir = dirname(args.output_file)
     if args.filter_runs:
-        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix, output_dir,
-                                               args.gtr_vcf, cmp_intervals,
+        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
+                                               args.gtr_vcf, cmp_intervals.as_interval_list(),
                                                highconf_intervals.as_bed_file(),
                                                args.reference, args.call_sample_name,
                                                args.truth_sample_name,
+                                               output_dir,
                                                args.header_file,
                                                runs_intervals.as_bed_file(),
-                                               args.output_suffix, 
+                                               args.output_suffix,
                                                args.ignore_filter_status,
-                                               args.annotate_tandem_repeats,
                                                args.concordance_tool)
     else:
-        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix, output_dir,
-                                               args.gtr_vcf, cmp_intervals,
+        results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
+                                               args.gtr_vcf, cmp_intervals.as_interval_list(),
                                                highconf_intervals.as_bed_file(),
                                                args.reference, args.call_sample_name,
-                                               args.truth_sample_name, 
+                                               args.truth_sample_name,
+                                               output_dir,
                                                args.header_file,
                                                None,
                                                args.output_suffix,
                                                args.ignore_filter_status,
-                                               args.annotate_tandem_repeats,
                                                args.concordance_tool)
 
     # single interval-file concordance - will be saved in a single dataframe
