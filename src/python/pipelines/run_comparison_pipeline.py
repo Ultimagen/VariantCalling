@@ -18,6 +18,7 @@ def _contig_concordance_annotate_reinterpretation(results, contig, reference, bw
     annotate_intervals, runs_intervals, hpol_filter_length_dist, flow_order,
     base_name_outputfile, concordance_tool, disable_reinterpretation,
     ignore_low_quality_fps):
+    logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
     logger.info(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], concordance_tool, contig)
