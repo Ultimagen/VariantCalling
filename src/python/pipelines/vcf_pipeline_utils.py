@@ -520,7 +520,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
     logger.info(f"Identified {len(missing_variants)} variants missing in the input VCF")
     missing_variants_non_fn = concordance.loc[missing_variants].query(
         "classify!='fn'").index
-    logger.info(f"Identified {len(missing_variants_non_fn)} variants missing in the input VCF and not marked false negatives")
+    logger.warning(f"Identified {len(missing_variants_non_fn)} variants missing in the input VCF and not marked false negatives")
     concordance.loc[missing_variants_non_fn, 'classify'] = 'fn'
     concordance.loc[missing_variants_non_fn, 'classify_gt'] = 'fn'
     return concordance
