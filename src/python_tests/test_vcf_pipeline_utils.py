@@ -30,12 +30,20 @@ def test_fix_errors():
                              ((x['gt_ultima'][1] == x['gt_ground_truth'][0]) & (x['gt_ultima'][0] != x['gt_ground_truth'][1])), axis=1))
 
 
-def test_vcf2concordance():
-    input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "chr2.vcf.gz")
-    concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "chr2.conc.vcf.gz")
-    result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
-    assert pd.isnull(result.query("classify!='fn'").qual).sum() == 0
-    assert pd.isnull(result.query("classify!='fn'").sor).sum() == 0
+class TestVCF2Concordance:
+    def test_qual_not_nan(self):
+        input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "chr2.vcf.gz")
+        concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "chr2.conc.vcf.gz")
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        assert pd.isnull(result.query("classify!='fn'").qual).sum() == 0
+        assert pd.isnull(result.query("classify!='fn'").sor).sum() == 0
+
+    def test_filtered_out_missing(self):
+        input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.vcf.gz")
+        concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.conc.vcf.gz")
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        assert (result['call'] =='IGN').sum() == 0 
+        assert (result['base'] == 'IGN').sum() == 0 
 
 
 class TestVCFevalRun:
