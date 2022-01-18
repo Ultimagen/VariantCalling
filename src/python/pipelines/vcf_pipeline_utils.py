@@ -392,7 +392,8 @@ def _fix_errors(df):
     return df
 
 
-def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
+def vcf2concordance(raw_calls_file: str, concordance_file: str, 
+    format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
     '''Generates concordance dataframe
 
     Parameters
@@ -422,11 +423,10 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                         'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
 
     elif format == 'VCFEVAL':
-        def call_filter(x): 'CALL' not in x.info.keys() or (
-            (x.info['CALL'] != 'OUT') and (x.info['CALL'] != 'IGN'))
+        def call_filter(x): return x['CALL'] is None or (
+            (x['CALL'] != 'OUT') and (x['CALL'] != 'IGN'))
 
-        vfi = filter(lambda x:
-                     call_filter,
+        vfi = filter(call_filter,
                      map(lambda x:
                          defaultdict(lambda: None, x.info.items() +
                                      [('GT_ULTIMA', x.samples[1]['GT']),
@@ -517,10 +517,10 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
 
     # Marking as false negative variants that appear in concordance but not in the original VCF (even if they do show some genotype)
     missing_variants = concordance_df.index.difference(original.index)
-    logger.warning(f"Identified {len(missing_variants)} variants missing in the input VCF")
+    logger.info(f"Identified {len(missing_variants)} variants missing in the input VCF")
     missing_variants_non_fn = concordance.loc[missing_variants].query(
         "classify!='fn'").index
-    logger.warning(f"Identified {len(missing_variants_non_fn)} variants missing in the input VCF and not marked false negatives")
+    logger.info(f"Identified {len(missing_variants_non_fn)} variants missing in the input VCF and not marked false negatives")
     concordance.loc[missing_variants_non_fn, 'classify'] = 'fn'
     concordance.loc[missing_variants_non_fn, 'classify_gt'] = 'fn'
     return concordance
