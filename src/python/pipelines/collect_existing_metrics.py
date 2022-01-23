@@ -64,15 +64,16 @@ if args.coverage_h5 is not None:
 if args.short_report_h5 is not None:
     add_h5_to_hdf(args.short_report_h5, args.output_h5, "short_report_")
 
-# if args.extended_report_h5 is not None:
-#     with pd.HDFStore(args.extended_report_h5,'r') as hdf:
-#         hdf_keys = hdf.keys()
-#         for report_key in hdf_keys:
-#             extended_report_h5_pd = pd.read_hdf(args.extended_report_h5, key= report_key)
-#             extended_report_h5_pd_df = pd.DataFrame(extended_report_h5_pd.unstack(level=list(range(extended_report_h5_pd.index.nlevels))))
-#             extended_report_h5_pd_df.index = extended_report_h5_pd_df.index.to_flat_index()
-#             extended_report_h5_pd_df = extended_report_h5_pd_df.T
-#             extended_report_h5_pd_df.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
+if args.extended_report_h5 is not None:
+    with pd.HDFStore(args.extended_report_h5,'r') as hdf:
+        hdf_keys = hdf.keys()
+        for report_key in hdf_keys:
+            extended_report_h5_pd = pd.read_hdf(args.extended_report_h5, key= report_key)
+            extended_report_h5_pd.rename(index={"GC 0-0.2": "GC 0-20", "GC 0.2-0.8": "GC 20-80", "GC 0.8-1": "GC 80-100"})
+            extended_report_h5_pd_df = pd.DataFrame(extended_report_h5_pd.unstack(level=list(range(extended_report_h5_pd.index.nlevels))))
+            extended_report_h5_pd_df.index = extended_report_h5_pd_df.index.to_flat_index()
+            extended_report_h5_pd_df = extended_report_h5_pd_df.T
+            extended_report_h5_pd_df.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
 if args.contamination_stdout is not None:
     contamination_df = pd.DataFrame(
         pd.Series(data=[float(args.contamination_stdout)], index=["contamination"])).T
