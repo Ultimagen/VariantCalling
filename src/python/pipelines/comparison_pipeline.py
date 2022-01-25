@@ -9,14 +9,14 @@ CONCORDANCE_TOOL = "VCFEVAL"
 
 def pipeline(n_parts: int, input_prefix: str, 
              truth_file: str,
-             cmp_intervals: str,
-             highconf_intervals: str,
+             cmp_intervals: vcf_pipeline_utils.IntervalFile,
+             highconf_intervals: vcf_pipeline_utils.IntervalFile,
              ref_genome: str,
              call_sample: str,
              truth_sample: str,
              output_dir: Optional[str] = None,
              header: Optional[str] = None,
-             runs_intervals: Optional[str] = None,
+             runs_intervals: Optional[vcf_pipeline_utils.IntervalFile] = None,
              output_suffix: Optional[str] = None,
              ignore_filter: bool = False,
              concordance_tool: str = CONCORDANCE_TOOL) -> Tuple[str, str]:
@@ -94,7 +94,7 @@ def pipeline(n_parts: int, input_prefix: str,
         select_intervals_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.intsct.vcf.gz")
 
     if not cmp_intervals.is_none():
-        vcf_pipeline_utils.intersect_with_intervals(reheader_fn, cmp_intervals, select_intervals_fn)
+        vcf_pipeline_utils.intersect_with_intervals(reheader_fn, cmp_intervals.as_interval_list_file(), select_intervals_fn)
     else:
         shutil.copy(reheader_fn, select_intervals_fn)
         vcf_pipeline_utils.index_vcf(select_intervals_fn)
@@ -103,20 +103,20 @@ def pipeline(n_parts: int, input_prefix: str,
 
     if concordance_tool == 'VCFEVAL':
         vcf_pipeline_utils.run_vcfeval_concordance(select_intervals_fn, truth_file, output_prefix,
-                                                   ref_genome, cmp_intervals,
+                                                   ref_genome, cmp_intervals.as_interval_list_file(),
                                                    call_sample, truth_sample, ignore_filter)
         output_prefix = f'{output_prefix}.vcfeval_concordance'
     else:
         vcf_pipeline_utils.run_genotype_concordance(select_intervals_fn, truth_file, output_prefix,
-                                                    cmp_intervals,
+                                                    cmp_intervals.as_interval_list_file(),
                                                     call_sample, truth_sample, ignore_filter)
         output_prefix = f'{output_prefix}.genotype_concordance'
 
     vcf_pipeline_utils.annotate_tandem_repeats(output_prefix + ".vcf.gz", ref_genome)
     output_prefix = f'{output_prefix}.annotated'
 
-    vcf_pipeline_utils.filter_bad_areas(select_intervals_fn, highconf_intervals, runs_intervals)
-    vcf_pipeline_utils.filter_bad_areas(output_prefix + ".vcf.gz", highconf_intervals, runs_intervals)
+    vcf_pipeline_utils.filter_bad_areas(select_intervals_fn, highconf_intervals.as_bed_file(), runs_intervals.as_bed_file())
+    vcf_pipeline_utils.filter_bad_areas(output_prefix + ".vcf.gz", highconf_intervals.as_bed_file(), runs_intervals.as_bed_file())
 
     if runs_intervals is not None:
         return select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"), output_prefix + ".runs.vcf.gz"
