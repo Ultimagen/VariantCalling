@@ -112,20 +112,20 @@ if __name__ == "__main__":
     output_dir = dirname(args.output_file)
     if args.filter_runs:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.gtr_vcf, cmp_intervals.as_interval_list(),
-                                               highconf_intervals.as_bed_file(),
+                                               args.gtr_vcf, cmp_intervals,
+                                               highconf_intervals,
                                                args.reference, args.call_sample_name,
                                                args.truth_sample_name,
                                                output_dir,
                                                args.header_file,
-                                               runs_intervals.as_bed_file(),
+                                               runs_intervals,
                                                args.output_suffix,
                                                args.ignore_filter_status,
                                                args.concordance_tool)
     else:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
-                                               args.gtr_vcf, cmp_intervals.as_interval_list(),
-                                               highconf_intervals.as_bed_file(),
+                                               args.gtr_vcf, cmp_intervals,
+                                               highconf_intervals,
                                                args.reference, args.call_sample_name,
                                                args.truth_sample_name,
                                                output_dir,

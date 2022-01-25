@@ -172,7 +172,7 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     input_fn: str
         Input file
     intervals_fn: str
-        Interval_list
+        Interval_list file
     output_fn: str
         Output file
 
