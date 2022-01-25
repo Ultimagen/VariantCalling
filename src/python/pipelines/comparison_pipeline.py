@@ -118,7 +118,7 @@ def pipeline(n_parts: int, input_prefix: str,
     vcf_pipeline_utils.filter_bad_areas(select_intervals_fn, highconf_intervals.as_bed_file(), runs_intervals.as_bed_file())
     vcf_pipeline_utils.filter_bad_areas(output_prefix + ".vcf.gz", highconf_intervals.as_bed_file(), runs_intervals.as_bed_file())
 
-    if runs_intervals is not None:
+    if not runs_intervals.is_none():
         return select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"), output_prefix + ".runs.vcf.gz"
     else:
         return select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"), output_prefix + ".highconf.vcf.gz"
