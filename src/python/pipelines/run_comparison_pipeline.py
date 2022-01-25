@@ -130,7 +130,7 @@ if __name__ == "__main__":
                                                args.truth_sample_name,
                                                output_dir,
                                                args.header_file,
-                                               None,
+                                               vcf_pipeline_utils.IntervalFile(),
                                                args.output_suffix,
                                                args.ignore_filter_status,
                                                args.concordance_tool)

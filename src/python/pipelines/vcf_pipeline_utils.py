@@ -68,7 +68,7 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
 
 
 class IntervalFile:
-    def __init__(self, cmp_intervals: str, ref: str, ref_dict: str):
+    def __init__(self, cmp_intervals: Optional[str]=None, ref: Optional[str]=None, ref_dict: Optional[str]=None):
         # determine the file type and create the other temporary copy
         if cmp_intervals is None:
             self._is_none: bool = True
