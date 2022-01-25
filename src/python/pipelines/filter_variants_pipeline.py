@@ -15,6 +15,11 @@ import python.pipelines.variant_filtering_utils as variant_filtering_utils
 import python.vcftools as vcftools
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 
+def protected_add(hdr, field, n_vals, type, description):
+    if field not in hdr:
+        hdr.add(field, n_vals, type, description)
+
+
 ap = argparse.ArgumentParser(
     prog="filter_variants_pipeline.py", description="Filter VCF")
 ap.add_argument("--input_file", help="Name of the input VCF file",
@@ -162,6 +167,3 @@ except Exception as err:
     raise(err)
 
 
-def protected_add(hdr, field, n_vals, type, description):
-    if field not in hdr:
-        hdr.add(field, n_vals, type, description)
