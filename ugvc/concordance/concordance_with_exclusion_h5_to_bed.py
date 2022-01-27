@@ -10,7 +10,7 @@ def main():
 
     bl_after_column = 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa'
     bl_before_column = 'common_vars_hapmap_2_1_whole_genome_allele_1_again'
-    df: DataFrame = pd.read_hdf(input_h5_file) # df = pd.read_hdf(~/proj/error_correction/concordance/002850-UGAv3-2_40x.hcr_wgs_annot_not_consistency_allele_orig.h5)
+    df: DataFrame = pd.read_hdf(input_h5_file)
 
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
