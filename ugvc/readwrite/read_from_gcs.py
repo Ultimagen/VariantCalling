@@ -20,6 +20,6 @@ def read_hdf(path: str, key: Optional[str]) -> DataFrame:
         df = pd.read_hdf(local_h5_file, key=key)
         os.remove(local_h5_file)
     else:
-        df = pd.read_hdf(path)
+        df = pd.read_hdf(path, key=key)
     return df
 

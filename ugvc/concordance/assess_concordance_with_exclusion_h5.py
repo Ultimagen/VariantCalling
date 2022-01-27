@@ -9,7 +9,7 @@ from pandas import DataFrame
 
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 from readwrite.read_from_gcs import read_hdf
-from systematic_error_correction.concordance.concordance_utils import classify_variants, calculate_results
+from ugvc.concordance.concordance_utils import classify_variants, calculate_results
 
 
 def parse_args():
@@ -31,7 +31,7 @@ def parse_args():
     # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.bed',
     # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.novel.bed'
     parser.add_argument(
-        '--chr', help='chromosome name, in case analysis was done on a single chromosome')
+        '--chr', help='chromosome name, in case h5 contains multiple datasets per chromosome', required=True)
     parser.add_argument(
         '--output_prefix', help='prefix to output files containing stats and info about errors', required=True)
     return parser.parse_args()
