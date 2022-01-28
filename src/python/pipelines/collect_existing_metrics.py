@@ -43,8 +43,6 @@ def add_h5_to_hdf(input_h5_name, output_h5_name, output_report_key_prefix):
                 input_h5_name, key=report_key)
             report_h5_pd_df = pd.DataFrame(report_h5_pd)
             report_h5_unstacked = pd.DataFrame(report_h5_pd_df.unstack(level=list(range(report_h5_pd_df.index.nlevels)))).T
-            preprocess_columns(report_h5_unstacked)
-            report_h5_unstacked.columns = report_h5_unstacked.columns.str.replace("value___", "")
             report_h5_unstacked.to_hdf(
                 output_h5_name, key=output_report_key_prefix + report_key, mode="a")
 
