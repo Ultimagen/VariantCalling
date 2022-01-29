@@ -51,6 +51,7 @@ nohup bcftools view gs://ultimagen-ilya-new/VariantCalling/work/211101/140_sampl
 
 # hg002 chr9 blacklist
 bcftools view gs://concordance/ground-truths-files/HG002_GRCh38_GIAB_1_22_v4.2.1_benchmark.broad-header.vcf.gz chr9 | bedtools intersect -a stdin -b blacklists/blacklist_hapmap2.1_2s_chr9.bed -header > HG002_GRCh38_GIAB_1_22_v4.2.1_benchmark.broad-header.blacklist_hapmap2.1_2s_chr9.vcf.gz
+bcftools view gs://concordance/ground-truths-files/HG002_GRCh38_GIAB_1_22_v4.2.1_benchmark.broad-header.vcf.gz -R blacklists/blacklist_hapmap2.1_2s_exome.bed -Oz > ground_truth/HG002_GRCh38_GIAB_1_22_v4.2.1_benchmark.broad-header.blacklist_hapmap2.1_2s_exome.vcf.gz
 
 # hapmap2.1 2-samples chr9 redlist
 bcftools view gs://ultimagen-ilya-new/VariantCalling/work/211101/140_samples_NYGenomes.vcf.gz chr9 -Oz | bedtools intersect -a stdin -b redlists/discordant_variants_2s.bed -header > ground_truth/140_samples_NYGenomes.redlist_hapmap2.1_2s_chr9.vcf.gz &   

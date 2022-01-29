@@ -1,10 +1,14 @@
 import pandas as pd
 import numpy as np
+from pandas import DataFrame
 
 
-def read_hdf(fname: str):
-    dfs = [pd.read_hdf(fname, key=f"chr{x}") for x in list(range(1, 23)) + ['X']]
-    return pd.concat(dfs)
+def read_hdf(fname: str, key='all') -> DataFrame:
+    if key == 'all':
+        dfs = [pd.read_hdf(fname, key=f"chr{x}") for x in list(range(1, 23)) + ['X']]
+        return pd.concat(dfs)
+    else:
+        return pd.read_hdf(fname, key=key)
 
 
 def classify_variants(vcf_concordance_df: pd.DataFrame, ignore_gt=True) -> pd.DataFrame:
