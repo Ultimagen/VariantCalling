@@ -61,12 +61,15 @@ def main():
     args = parse_args()
     input_file = args.concordance_h5_input  # '/data/mutect2/data_simulation/002850-UGAv3-2_40x.hcr_wgs.h5'  # output of comparison
     ref_genome_file = args.genome_fasta
-    chrom = args.chr
+    if args.chr:
+        key = args.chr
+    else:
+        key = 'all'
     annotation_intervals = args.annotate_intervals.split(',')
     exclude_lists_beds = args.exclude_lists.split(',')
     out_pref = args.output_prefix
-    logger.info(f'read_hdf: {chrom}')
-    df: DataFrame = read_hdf(input_file, key=chrom)
+    logger.info(f'read_hdf: {key}')
+    df: DataFrame = read_hdf(input_file, key=key)
 
     logger.info(f'annotate concordance with annotation_intervals')
     df_annot, annots = vcf_pipeline_utils.annotate_concordance(df, ref_genome_file,
@@ -77,8 +80,9 @@ def main():
     logger.info('classify variants')
     df_annot = classify_variants(df_annot, ignore_gt=True)
     ddf_annot = ddf.from_pandas(df_annot, npartitions=30)
+
     logger.info('extract alleles')
-    called_alleles = ddf_annot.apply(extract_alleles, meta=('str'), axis=1).compute(scheduler='multiprocessing')
+    called_alleles = ddf_annot.apply(extract_alleles, meta='str', axis=1).compute(scheduler='multiprocessing')
     df_annot['alleles_base'] = called_alleles
 
     for exclude_list_bed_file in exclude_lists_beds:
