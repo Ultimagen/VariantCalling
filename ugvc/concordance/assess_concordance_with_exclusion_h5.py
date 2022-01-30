@@ -71,7 +71,7 @@ def write_exclusions_delta_bed_files(df: DataFrame,
     initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
     initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
     initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
-    read_fn_indel = initial_fn_indel[initial_fn_indel[refined_exclude_list_name] & (~initial_fn_indel['call'].isna())]
+    read_fn_indel = initial_fn_indel[initial_fn_indel[refined_exclude_list_name] & (initial_fn_indel['call'].isna())]
     delta_fp_indel = initial_fp_indel[initial_fp_indel['exclude_list_delta']]
     delta_tp_indel = initial_tp_indel[initial_tp_indel['exclude_list_delta']]
     unread_fn_indel = initial_fn_indel[initial_fn_indel['call'].isna()]
@@ -127,6 +127,11 @@ def main():
 
         exclude_list_annot_df = df_annot.copy()
         exclude_list_annot_df.loc[is_in_bl == True, 'classify'] = 'fn'
+        # mark excluded TP as FN
+        exclude_list_annot_df.loc[(exclude_list_annot_df['classify'] == 'tp') & (is_in_bl == True), 'classify'] = 'fn'
+        # remove excluded FP variants from table (true-negatives)
+        exclude_list_annot_df = exclude_list_annot_df.loc[
+            (exclude_list_annot_df['classify'] == 'fn') | (is_in_bl == False)]
         exclude_list_annot_df = classify_variants(exclude_list_annot_df, ignore_gt=True)
         stats_table = calculate_results(exclude_list_annot_df)
 
@@ -141,7 +146,6 @@ def main():
                                              refined_exclude_list_name=exclude_list_name)
         else:
             initial_exclusion_list_name = exclude_list_name
-
 
 
 if __name__ == '__main__':
