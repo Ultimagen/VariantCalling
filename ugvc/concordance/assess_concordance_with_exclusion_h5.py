@@ -71,12 +71,12 @@ def write_exclusions_delta_bed_files(df: DataFrame,
     initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
     initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
     initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
-    delta_fn_indel = initial_fn_indel[initial_fn_indel[refined_exclude_list_name] & (~initial_fn_indel['call'].isna())]
+    read_fn_indel = initial_fn_indel[initial_fn_indel[refined_exclude_list_name] & (~initial_fn_indel['call'].isna())]
     delta_fp_indel = initial_fp_indel[initial_fp_indel['exclude_list_delta']]
     delta_tp_indel = initial_tp_indel[initial_tp_indel['exclude_list_delta']]
     unread_fn_indel = initial_fn_indel[initial_fn_indel['call'].isna()]
 
-    write_bed(delta_fn_indel, f'{output_prefix}_delta_fn.bed')
+    write_bed(read_fn_indel, f'{output_prefix}_read_fn.bed')
     write_bed(delta_fp_indel, f'{output_prefix}_delta_fp.bed')
     write_bed(delta_tp_indel, f'{output_prefix}_delta_tp.bed')
     write_bed(unread_fn_indel, f'{output_prefix}_unread_fn.bed')
