@@ -7,9 +7,8 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
-import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
-from ugvc.readwrite.read_from_gcs import read_hdf
-from ugvc.concordance.concordance_utils import classify_variants, calculate_results
+from python.pipelines.vcf_pipeline_utils import annotate_concordance
+from ugvc.concordance.concordance_utils import classify_variants, calculate_results, read_hdf
 from ugvc import logger
 
 def parse_args():
@@ -17,12 +16,6 @@ def parse_args():
     parser.add_argument(
         '--concordance_h5_input', help='path to h5 file describing comparison of variant calling to ground-truth',
         required=True)
-    parser.add_argument(
-        '--annotate_intervals', help='csv list of bed files to use as annotations', required=True)
-    # 'exome.twist.bed',
-    # 'common_vars_hapmap_2_1_whole_genome_allele_1_again.bed',
-    # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.bed',
-    # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.novel.bed'
     parser.add_argument(
         '--genome_fasta', help='path to fasta file of reference genome', required=True)
     parser.add_argument(
@@ -59,23 +52,26 @@ def get_is_excluded_series(df_annot: DataFrame, exclude_list_df: DataFrame, excl
 
 def main():
     args = parse_args()
-    input_file = args.concordance_h5_input  # '/data/mutect2/data_simulation/002850-UGAv3-2_40x.hcr_wgs.h5'  # output of comparison
+    input_file = args.concordance_h5_input  # '/data/mutect2/data_simulation/002850-UGAv3-2_40x.hcr_wgs.h5'
     ref_genome_file = args.genome_fasta
     if args.chr:
         key = args.chr
     else:
         key = 'all'
-    annotation_intervals = args.annotate_intervals.split(',')
     exclude_lists_beds = args.exclude_lists.split(',')
     out_pref = args.output_prefix
+<<<<<<< HEAD
+=======
+    
+>>>>>>> make assess_concordance_with_exclusion_h5 work on real data
     logger.info(f'read_hdf: {key}')
     df: DataFrame = read_hdf(input_file, key=key)
 
-    logger.info(f'annotate concordance with annotation_intervals')
-    df_annot, annots = vcf_pipeline_utils.annotate_concordance(df, ref_genome_file,
-                                                               runfile=args.hcr,
-                                                               flow_order='TGCA',
-                                                               annotate_intervals=annotation_intervals)
+    logger.info(f'annotate concordance with exclude_lists')
+    df_annot, annots = annotate_concordance(df, ref_genome_file,
+                                            runfile=args.hcr,
+                                            flow_order='TGCA',
+                                            annotate_intervals=exclude_lists_beds)
 
     logger.info('classify variants')
     df_annot = classify_variants(df_annot, ignore_gt=True)
@@ -95,17 +91,15 @@ def main():
 
         is_in_bl = get_is_excluded_series(df_annot, exclude_list_df, exclude_list_name)
 
-        exclude_list_annot_output_file = f'{out_pref}_{exclude_list_name}.h5'
-
-
         exclude_list_annot_df.loc[(exclude_list_annot_df['classify'] == 'tp') & (is_in_bl == True), 'classify'] = 'fn'
         exclude_list_annot_df = exclude_list_annot_df.loc[(exclude_list_annot_df['classify'] == 'fn') |
                                                                 (is_in_bl == False)]
-        exclude_list_annot_df.to_hdf(exclude_list_annot_output_file, 'wgs')
-
         exclude_list_annot_df = classify_variants(exclude_list_annot_df, ignore_gt=True)
         stats_table = calculate_results(exclude_list_annot_df)
         print(stats_table)
+
+    exclude_list_annot_df.to_hdf(f'{out_pref}.h5', key)
+
 
 if __name__ == '__main__':
     main()
