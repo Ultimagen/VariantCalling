@@ -142,5 +142,5 @@ def main():
                                          refined_exclude_list_name=refined_exclude_list_name)
 
 
-        if __name__ == '__main__':
-            main()
+if __name__ == '__main__':
+    main()
