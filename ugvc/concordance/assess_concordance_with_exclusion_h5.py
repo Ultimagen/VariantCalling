@@ -129,7 +129,9 @@ def main():
         exclude_list_annot_df.loc[is_in_bl == True, 'classify'] = 'fn'
         exclude_list_annot_df = classify_variants(exclude_list_annot_df, ignore_gt=True)
         stats_table = calculate_results(exclude_list_annot_df)
-        print(stats_table)
+
+        with open(f'{out_pref}.{exclude_list_name}.stats.tsv', 'w') as stats_file:
+            stats_file.write(f'{stats_table}\n')
 
         exclude_list_annot_df.to_hdf(f'{out_pref}.{exclude_list_name}.h5', key)
         if i > 0:
