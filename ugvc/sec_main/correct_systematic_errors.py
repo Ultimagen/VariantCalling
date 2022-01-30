@@ -110,6 +110,10 @@ class SystematicErrorCorrector:
                                                           ('Number', 1),
                                                           ('Type', 'String'),
                                                           ('Description', 'SECType')])
+        self.gvcf_reader.header.add_meta('FORMAT', items=[('ID', "SPV"),
+                                                          ('Number', 1),
+                                                          ('Type', 'Float'),
+                                                          ('Description', 'SECPValue')])
 
         # Initialize output writers
         vcf_writer = None
@@ -201,6 +205,7 @@ class SystematicErrorCorrector:
         """
         fix_ultima_info(observed_variant, self.gvcf_reader.header)
         sample_info['ST'] = str(call.call_type.value)
+        sample_info['SPV'] = str(call.novel_variant_p_value)
         if call.call_type == SECCallType.reference:
             gt = call.get_genotype_indices_tuple()
             sample_info['GT'] = gt
