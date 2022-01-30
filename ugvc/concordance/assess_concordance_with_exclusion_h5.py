@@ -114,32 +114,32 @@ def main():
     called_alleles = ddf_annot.apply(extract_alleles, meta='str', axis=1).compute(scheduler='multiprocessing')
     df_annot['alleles_base'] = called_alleles
 
-    exclude_list_names = []
-    for exclude_list_bed_file in exclude_lists_beds:
+    initial_exclusion_list_name = ''
+    for i, exclude_list_bed_file in enumerate(exclude_lists_beds):
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
-        exclude_list_names.append(exclude_list_name)
         logger.info(f'exclude calls from {exclude_list_name}')
-        exclude_list_annot_df = df_annot.copy()
+
         exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t', names=['chrom', 'pos', 'pos_1', 'alleles'])
         exclude_list_df['alleles'] = exclude_list_df['alleles'].apply(lambda x: np.array(ast.literal_eval(x)))
         exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos_1'])
 
         is_in_bl = get_is_excluded_series(df_annot, exclude_list_df, exclude_list_name)
 
-        exclude_list_annot_df.loc[(exclude_list_annot_df['classify'] == 'tp') & (is_in_bl == True), 'classify'] = 'fn'
-        exclude_list_annot_df = exclude_list_annot_df.loc[(exclude_list_annot_df['classify'] == 'fn') |
-                                                          (is_in_bl == False)]
+        exclude_list_annot_df = df_annot.copy()
+        exclude_list_annot_df.loc[is_in_bl == True, 'classify'] = 'fn'
         exclude_list_annot_df = classify_variants(exclude_list_annot_df, ignore_gt=True)
         stats_table = calculate_results(exclude_list_annot_df)
         print(stats_table)
 
-    exclude_list_annot_df.to_hdf(f'{out_pref}.h5', key)
-    initial_exclusion_list_name = exclude_list_names[0]
-    for refined_exclude_list_name in exclude_list_names[1:]:
-        write_exclusions_delta_bed_files(df=exclude_list_annot_df,
-                                         output_prefix=f'{out_pref}.{refined_exclude_list_name}',
-                                         initial_exclude_list_name=initial_exclusion_list_name,
-                                         refined_exclude_list_name=refined_exclude_list_name)
+        exclude_list_annot_df.to_hdf(f'{out_pref}.{exclude_list_name}.h5', key)
+        if i > 0:
+            write_exclusions_delta_bed_files(df=exclude_list_annot_df,
+                                             output_prefix=f'{out_pref}.{exclude_list_name}',
+                                             initial_exclude_list_name=initial_exclusion_list_name,
+                                             refined_exclude_list_name=exclude_list_name)
+        else:
+            initial_exclusion_list_name = exclude_list_name
+
 
 
 if __name__ == '__main__':
