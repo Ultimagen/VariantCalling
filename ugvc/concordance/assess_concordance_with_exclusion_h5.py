@@ -168,6 +168,7 @@ def main():
                                              output_prefix=f'{out_pref}.{exclude_list_name}',
                                              initial_exclude_list_name=initial_exclusion_list_name,
                                              refined_exclude_list_name=exclude_list_name)
+            write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}')
         else:
             initial_exclusion_list_name = exclude_list_name
 
