@@ -82,6 +82,22 @@ def write_exclusions_delta_bed_files(df: DataFrame,
     write_bed(unread_fn_indel, f'{output_prefix}_unread_fn.bed')
 
 
+def write_status_bed_files(df: DataFrame,
+                           output_prefix: str):
+    df['pos-1'] = df['pos'] - 1
+    df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
+    initial_fn = df[df['classify'] == 'fn']
+    initial_fp = df[df['classify'] == 'fp']
+    initial_tp = df[df['classify'] == 'tp']
+    initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
+    initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
+    initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
+
+    write_bed(initial_fn_indel, f'{output_prefix}_fn_indel.bed')
+    write_bed(initial_fp_indel, f'{output_prefix}_fp_indel.bed')
+    write_bed(initial_tp_indel, f'{output_prefix}_tp_indel.bed')
+
+
 def write_bed(df: DataFrame, bed_path: str):
     df[['chrom', 'pos-1', 'pos', 'description']].to_csv(bed_path, index=False, sep='\t', header=None)
 
@@ -108,6 +124,12 @@ def main():
 
     logger.info('classify variants')
     df_annot = classify_variants(df_annot, ignore_gt=True)
+
+    write_status_bed_files(df_annot, f'{out_pref}.original')
+    stats_table = calculate_results(df_annot)
+    with open(f'{out_pref}.original.stats.tsv', 'w') as stats_file:
+        stats_file.write(f'{stats_table}\n')
+
     ddf_annot = ddf.from_pandas(df_annot, npartitions=30)
 
     logger.info('extract alleles')
