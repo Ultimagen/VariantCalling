@@ -40,6 +40,8 @@ def get_args(argv: List[str]):
                         help='do not use information on known variants')
     parser.add_argument('--replace_to_known_genotype', default=False, action='store_true',
                         help='in case reads match known genotype from ground-truth, use this genotype')
+    parser.add_argument('--filter_uncorrelated', default=False, action='store_true',
+                        help='filter out variants in positions where ref and alt conditioned genotype have similar distributions')
     args = parser.parse_args(argv)
     return args
 
@@ -57,11 +59,13 @@ class SystematicErrorCorrector:
                  noise_ratio_for_unobserved_indels: float,
                  output_file: str,
                  novel_detection_only: bool,
-                 replace_to_known_genotype: bool):
+                 replace_to_known_genotype: bool,
+                 filter_uncorrelated: bool):
         self.relevant_coords = relevant_coords
         self.distributions_per_chromosome = conditional_allele_distributions.distributions_per_chromosome
         self.gvcf_reader = gvcf_reader
         self.output_file = output_file
+        self.filter_uncorrelated = filter_uncorrelated
         if output_file.endswith('.bed'):
             self.output_bed = True
             self.output_vcf = False
@@ -130,9 +134,8 @@ class SystematicErrorCorrector:
                     log_stream.write(f'{sec_record}\n')
 
                 if self.output_bed:
-                    # output only positions which were decided to have the reference genotype (or uncorrelated, or non-noise allele)
-                    if call.call_type == SECCallType.reference or call.call_type == SECCallType.uncorrelated \
-                            or call.call_type == SECCallType.non_noise_allele:
+                    # output only positions which were decided to have the reference genotype (or uncorrelated)
+                    if call.call_type == SECCallType.reference or (call.call_type == SECCallType.uncorrelated and self.filter_uncorrelated):
                         if len(fields) > 3:
                             bl_alleles = fields[3].strip()
                             bed_writer.write(chrom, pos - 1, pos, bl_alleles)
@@ -190,7 +193,8 @@ def main(argv: List[str]):
                              noise_ratio_for_unobserved_indels=args.noise_ratio_for_unobserved_indels,
                              output_file=args.output_file,
                              novel_detection_only=args.novel_detection_only,
-                             replace_to_known_genotype=args.replace_to_known_genotype).correct_systematic_errors()
+                             replace_to_known_genotype=args.replace_to_known_genotype,
+                             filter_uncorrelated=args.filter_uncorrelated).correct_systematic_errors()
     relevant_coords.close()
 
 
