@@ -94,8 +94,13 @@ class SECCaller:
             # locus has multiple alternative hypothesis (known variant with info on more than one genotype)
             if len(sec_records) > 1:
                 gt_correlation = correlate_sec_records(likelihood_sorted_sec_records)
+                reference_conditioned_sec_record = [r for r in sec_records if Genotype(r.conditioned_genotype).is_reference()]
+                if len(reference_conditioned_sec_record) > 0:
+                    reference_conditioned_sec_record = reference_conditioned_sec_record[0]
+                reference_conditioned_likelihood_ratio = \
+                    reference_conditioned_sec_record.likelihood / best_sec_record.likelihood
                 # ground-truth genotype is not correlated with observed data
-                if gt_correlation < self.min_gt_correlation:
+                if gt_correlation < self.min_gt_correlation and reference_conditioned_likelihood_ratio > 1 / 100:
                     return SECCall(SECCallType.uncorrelated,
                                    observed_alleles,
                                    observed_genotype,
