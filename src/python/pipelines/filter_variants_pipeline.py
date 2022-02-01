@@ -1,4 +1,3 @@
-import pathmagic
 import logging
 import argparse
 import pysam
@@ -10,8 +9,7 @@ import pandas as pd
 import re
 import pickle
 
-import python.modules.blacklist
-import python.modules.variant_annotation as annotation
+import python.modules.filtering.blacklist
 import python.pipelines.variant_filtering_utils as variant_filtering_utils
 import python.vcftools as vcftools
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
@@ -81,14 +79,14 @@ try:
         with open(args.blacklist, "rb") as blf:
             blacklists = pickle.load(blf)
         blacklist_app = [x.apply(df) for x in blacklists]
-        blacklist = python.modules.blacklist.merge_blacklists(blacklist_app)
+        blacklist = python.modules.filtering.blacklist.merge_blacklists(blacklist_app)
     else:
         blacklists = []
         blacklist = pd.Series('PASS', index=df.index, dtype=str)
 
     if args.blacklist_cg_insertions:
-        cg_blacklist = python.modules.blacklist.blacklist_cg_insertions(df)
-        blacklist = python.modules.blacklist.merge_blacklists([cg_blacklist, blacklist])
+        cg_blacklist = python.modules.filtering.blacklist.blacklist_cg_insertions(df)
+        blacklist = python.modules.filtering.blacklist.merge_blacklists([cg_blacklist, blacklist])
     predictions = model_clsf.predict(df)
 
     predictions = np.array(predictions)

@@ -1,5 +1,4 @@
-import pathmagic
-import python.modules.blacklist
+import python.modules.filtering.blacklist
 import python.pipelines.variant_filtering_utils as variant_filtering_utils
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.vcftools as vcftools
@@ -102,7 +101,7 @@ try:
         df['bl_classify'].loc[df['bl'] == True] = 'fp'
         df['bl_classify'].loc[~df['id'].isna()] = 'tp'
         classify_clm = 'bl_classify'
-        blacklist_statistics = python.modules.blacklist.create_blacklist_statistics_table(df, classify_clm)
+        blacklist_statistics = python.modules.filtering.blacklist.create_blacklist_statistics_table(df, classify_clm)
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
         interval_size = None

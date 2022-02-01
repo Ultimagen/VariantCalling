@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
-from python.modules.blacklist import Blacklist
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
 from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics
