@@ -43,7 +43,7 @@ def get_args(argv: List[str]):
     parser.add_argument('--replace_to_known_genotype', default=False, action='store_true',
                         help='in case reads match known genotype from ground-truth, use this genotype')
     parser.add_argument('--filter_uncorrelated', default=False, action='store_true',
-                        help='filter out variants in positions where ref and alt conditioned genotype have similar distributions')
+                        help='filter variants in positions where ref and alt conditioned genotype have similar distributions')
     args = parser.parse_args(argv)
     return args
 
@@ -169,7 +169,6 @@ class SystematicErrorCorrector:
 
                 for sec_record in call.sec_records:
                     log_stream.write(f'{sec_record}\n')
-
 
                 if self.output_type == OutputType.pickle:
                     self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
