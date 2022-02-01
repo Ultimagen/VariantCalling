@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import pickle
 from os.path import join as pjoin
+
+import python.modules.blacklist
 from pathmagic import PYTHON_TESTS_PATH
 from python.pipelines import variant_filtering_utils
 import pytest
@@ -15,7 +17,7 @@ def test_blacklist_cg_insertions():
         {'alleles': [('C', 'T'),
                      ('CCG', 'C'),
                      ('G', 'GGC',)], 'filter': ['PASS', 'PASS', 'PASS']})
-    rows = variant_filtering_utils.blacklist_cg_insertions(rows)
+    rows = python.modules.blacklist.blacklist_cg_insertions(rows)
     filters = list(rows)
     assert filters == ['PASS', 'CG_NON_HMER_INDEL', 'CG_NON_HMER_INDEL']
 
@@ -23,7 +25,7 @@ def test_blacklist_cg_insertions():
 def test_merge_blacklist():
     list1 = pd.Series(["PASS", "FAIL", "FAIL"])
     list2 = pd.Series(["PASS", "FAIL1", "PASS"])
-    merge_list = list(variant_filtering_utils.merge_blacklists([list1, list2]))
+    merge_list = list(python.modules.blacklist.merge_blacklists([list1, list2]))
     assert merge_list == ["PASS;PASS", "FAIL;FAIL1", "FAIL;PASS"]
 
 

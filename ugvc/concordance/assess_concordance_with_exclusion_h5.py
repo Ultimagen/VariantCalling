@@ -7,9 +7,10 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
+from python.modules.blacklist import Blacklist
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
 from ugvc import logger
-from ugvc.concordance.concordance_utils import classify_variants, calculate_results, read_hdf
+from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics
 
 
 def parse_args():
@@ -122,11 +123,8 @@ def main():
                                             flow_order='TGCA',
                                             annotate_intervals=exclude_lists_beds)
 
-    logger.info('classify variants')
-    df_annot = classify_variants(df_annot, ignore_gt=True)
-
     write_status_bed_files(df_annot, f'{out_pref}.original')
-    stats_table = calculate_results(df_annot)
+    stats_table = calc_accuracy_metrics(df_annot, 'classify')
     with open(f'{out_pref}.original.stats.tsv', 'w') as stats_file:
         stats_file.write(f'{stats_table}\n')
 
@@ -138,6 +136,8 @@ def main():
 
     initial_exclusion_list_name = ''
     for i, exclude_list_bed_file in enumerate(exclude_lists_beds):
+        # todo apply blacklist such that filter column is modified
+        # Blacklist()
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
 
@@ -148,16 +148,15 @@ def main():
         is_in_bl = get_is_excluded_series(df_annot, exclude_list_df, exclude_list_name)
 
         # remove non_matching_alleles positions from exclude-list
-        df_annot[exclude_list_name] = is_in_bl
-
         exclude_list_annot_df = df_annot.copy()
+        df_annot.loc[df_annot[is_in_bl].index, 'filter'] = 'BLACKLIST'
+
         # mark excluded TP as FN
         exclude_list_annot_df.loc[(exclude_list_annot_df['classify'] == 'tp') & (is_in_bl == True), 'classify'] = 'fn'
         # remove excluded FP variants from table (true-negatives)
         exclude_list_annot_df = exclude_list_annot_df.loc[
             (exclude_list_annot_df['classify'] == 'fn') | (is_in_bl == False)]
-        exclude_list_annot_df = classify_variants(exclude_list_annot_df, ignore_gt=True)
-        stats_table = calculate_results(exclude_list_annot_df)
+        stats_table = calc_accuracy_metrics(exclude_list_annot_df, 'classify')
 
         with open(f'{out_pref}.{exclude_list_name}.stats.tsv', 'w') as stats_file:
             stats_file.write(f'{stats_table}\n')
