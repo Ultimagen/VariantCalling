@@ -27,7 +27,7 @@ def parse_args():
     # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.bed',
     # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.novel.bed'
     parser.add_argument(
-        '--chr', help='chromosome name, in case h5 contains multiple datasets per chromosome', required=True)
+        '--dataset_key', help='chromosome name, in case h5 contains multiple datasets per chromosome', default='all')
     parser.add_argument('--hcr', help='bed file describing high confidance regions (runs.conservative.bed)', required=True)
     parser.add_argument(
         '--output_prefix', help='prefix to output files containing stats and info about errors', required=True)
@@ -106,10 +106,8 @@ def main():
     args = parse_args()
     input_file = args.concordance_h5_input  # '/data/mutect2/data_simulation/002850-UGAv3-2_40x.hcr_wgs.h5'
     ref_genome_file = args.genome_fasta
-    if args.chr:
-        key = args.chr
-    else:
-        key = 'all'
+    key = args.dataset_key
+
     exclude_lists_beds = [args.initial_exclude_list] + args.refined_exclude_lists.split(',')
     out_pref = args.output_prefix
 
@@ -135,7 +133,7 @@ def main():
 
     initial_exclusion_list_name = ''
     for i, exclude_list_bed_file in enumerate(exclude_lists_beds):
-        # todo apply blacklist such that filter column is modified
+        # todo apply blacklist such that filter column is modified, using Blacklist class
         # Blacklist()
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
@@ -150,8 +148,6 @@ def main():
         exclude_list_annot_df = df_annot.copy()
         df_annot.loc[df_annot[is_in_bl].index, 'filter'] = 'BLACKLIST'
 
-        # mark excluded TP as FN
-        exclude_list_annot_df.loc[(exclude_list_annot_df['classify'] == 'tp') & (is_in_bl == True), 'classify'] = 'fn'
         # remove excluded FP variants from table (true-negatives)
         exclude_list_annot_df = exclude_list_annot_df.loc[
             (exclude_list_annot_df['classify'] == 'fn') | (is_in_bl == False)]
