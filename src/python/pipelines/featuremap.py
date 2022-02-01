@@ -425,7 +425,7 @@ def calculate_snp_error_rate(
         df_coverage_stats = coverage_stats
     else:
         logger.debug(f"Reading input coverage stats from {coverage_stats}")
-        df_coverage_stats = pd.read_hdf(coverage_stats, key="histogram",)["Genome"]
+        df_coverage_stats = pd.read_hdf(coverage_stats, key="histogram",).filter(regex="Genome").iloc[:, 0]
     f = interp1d(
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
