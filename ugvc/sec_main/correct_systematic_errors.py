@@ -170,6 +170,7 @@ class SystematicErrorCorrector:
                 for sec_record in call.sec_records:
                     log_stream.write(f'{sec_record}\n')
 
+
                 if self.output_type == OutputType.pickle:
                     self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
 
@@ -205,7 +206,7 @@ class SystematicErrorCorrector:
         """
         fix_ultima_info(observed_variant, self.gvcf_reader.header)
         sample_info['ST'] = str(call.call_type.value)
-        sample_info['SPV'] = str(call.novel_variant_p_value)
+        sample_info['SPV'] = call.novel_variant_p_value
         if call.call_type == SECCallType.reference:
             gt = call.get_genotype_indices_tuple()
             sample_info['GT'] = gt
