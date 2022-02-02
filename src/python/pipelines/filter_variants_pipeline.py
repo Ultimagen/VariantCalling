@@ -28,7 +28,7 @@ def parse_args():
                     type=str, required=True)
     ap.add_argument("--blacklist", help="Blacklist file", type=str, required=False)
     ap.add_argument("--blacklist_cg_insertions", help="Should CCG/GGC insertions be filtered out?",
-                    action="store_true",)
+                    action="store_true", )
     ap.add_argument("--reference_file",
                     help="Indexed reference FASTA file", type=str, required=True)
     ap.add_argument("--output_file", help="Output VCF file",
@@ -40,6 +40,7 @@ def parse_args():
     ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                     type=str, default=None, action='append')
     return ap.parse_args()
+
 
 def protected_add(hdr, field, n_vals, type, description):
     if field not in hdr:
