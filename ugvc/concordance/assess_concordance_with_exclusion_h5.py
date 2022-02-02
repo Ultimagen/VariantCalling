@@ -32,6 +32,8 @@ def parse_args():
     parser.add_argument('--hcr', help='bed file describing high confidance regions (runs.conservative.bed)', required=True)
     parser.add_argument(
         '--output_prefix', help='prefix to output files containing stats and info about errors', required=True)
+    parser.add_argument('--ignore_genotype', help='ignore genotype when comparing to ground-truth',
+                    action='store_true', default=False)
     return parser.parse_args()
 
 
@@ -59,16 +61,17 @@ def get_is_excluded_series(df_annot: DataFrame, exclude_list_df: DataFrame, excl
 def write_exclusions_delta_bed_files(df: DataFrame,
                                      output_prefix: str,
                                      initial_exclude_list_name: str,
-                                     refined_exclude_list_name: str):
+                                     refined_exclude_list_name: str,
+                                     classify_column: str):
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
 
     # was removed from initial exclude_list by refinement
     df['exclude_list_delta'] = ((df[initial_exclude_list_name]) & ~(df[refined_exclude_list_name]))
 
-    initial_fn = df[df['classify'] == 'fn']
-    initial_fp = df[df['classify'] == 'fp']
-    initial_tp = df[df['classify'] == 'tp']
+    initial_fn = df[df[classify_column] == 'fn']
+    initial_fp = df[df[classify_column] == 'fp']
+    initial_tp = df[df[classify_column] == 'tp']
     initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
     initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
     initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
@@ -84,12 +87,13 @@ def write_exclusions_delta_bed_files(df: DataFrame,
 
 
 def write_status_bed_files(df: DataFrame,
-                           output_prefix: str):
+                           output_prefix: str,
+                           classify_column: str):
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
-    initial_fn = df[df['classify'] == 'fn']
-    initial_fp = df[df['classify'] == 'fp']
-    initial_tp = df[df['classify'] == 'tp']
+    initial_fn = df[df[classify_column] == 'fn']
+    initial_fp = df[df[classify_column] == 'fp']
+    initial_tp = df[df[classify_column] == 'tp']
     initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
     initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
     initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
@@ -109,6 +113,8 @@ def main():
     ref_genome_file = args.genome_fasta
     key = args.dataset_key
 
+    classify_column = 'classify' if args.ignore_genotype else 'classify_gt'
+
     exclude_lists_beds = [args.initial_exclude_list] + args.refined_exclude_lists.split(',')
     out_pref = args.output_prefix
 
@@ -121,8 +127,8 @@ def main():
                                             flow_order='TGCA',
                                             annotate_intervals=exclude_lists_beds)
 
-    write_status_bed_files(df_annot, f'{out_pref}.original')
-    stats_table = calc_accuracy_metrics(df_annot, 'classify')
+    write_status_bed_files(df_annot, f'{out_pref}.original', classify_column)
+    stats_table = calc_accuracy_metrics(df_annot, classify_column)
     with open(f'{out_pref}.original.stats.tsv', 'w') as stats_file:
         stats_file.write(f'{stats_table}\n')
 
@@ -158,8 +164,9 @@ def main():
             write_exclusions_delta_bed_files(df=exclude_list_annot_df,
                                              output_prefix=f'{out_pref}.{exclude_list_name}',
                                              initial_exclude_list_name=initial_exclusion_list_name,
-                                             refined_exclude_list_name=exclude_list_name)
-            write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}')
+                                             refined_exclude_list_name=exclude_list_name,
+                                             classify_column=classify_column)
+            write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', classify_column)
         else:
             initial_exclusion_list_name = exclude_list_name
 
