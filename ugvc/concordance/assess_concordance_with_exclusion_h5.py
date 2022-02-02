@@ -154,7 +154,7 @@ def main():
         # remove non_matching_alleles positions from exclude-list
         exclude_list_annot_df = df_annot.copy()
         exclude_list_annot_df.loc[df_annot[is_in_bl].index, 'filter'] = 'BLACKLIST'
-        stats_table = calc_accuracy_metrics(exclude_list_annot_df, 'classify')
+        stats_table = calc_accuracy_metrics(exclude_list_annot_df, classify_column)
 
         with open(f'{out_pref}.{exclude_list_name}.stats.tsv', 'w') as stats_file:
             stats_file.write(f'{stats_table}\n')
