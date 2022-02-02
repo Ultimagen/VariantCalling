@@ -101,7 +101,7 @@ try:
         df['bl_classify'].loc[df['bl'] == True] = 'fp'
         df['bl_classify'].loc[~df['id'].isna()] = 'tp'
         classify_clm = 'bl_classify'
-        blacklist_statistics = python.modules.filtering.blacklist.create_blacklist_statistics_table(df, classify_clm)
+        blacklist_statistics = variant_filtering_utils.create_blacklist_statistics_table(df, classify_clm)
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
         interval_size = None
@@ -177,24 +177,18 @@ try:
 
     pickle.dump(results_dict, open(args.output_file_prefix + ".pkl", "wb"))
 
-    optdict = {}
+    accuracy_dfs = []
     prcdict = {}
     for m in ['threshold','threshold_train','rf','rf_train']:
         name_optimum = f'{m}_model_recall_precision_ignore_gt_incl_hpol_runs'
-        optdict[name_optimum] = results_dict[name_optimum]
+        accuracy_df_per_model = results_dict[name_optimum]
+        accuracy_df_per_model['model'] = name_optimum
+        accuracy_dfs.append(accuracy_df_per_model)
         prcdict[name_optimum] = results_dict[name_optimum.replace(
             "recall_precision", "recall_precision_curve")]
 
-    results_vals = (pd.DataFrame(optdict)).unstack().reset_index()
-    results_vals.columns = ['model', 'category', 'tmp']
-    results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
-        (np.nan, np.nan, np.nan)]
-    results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[0])
-    results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[1])
-    results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[2])
-    results_vals.drop('tmp', axis=1, inplace=True)
-
-    results_vals.to_hdf(args.output_file_prefix + '.h5',
+    accuracy_df = pd.concat(accuracy_dfs)
+    accuracy_df.to_hdf(args.output_file_prefix + '.h5',
                         key="optimal_recall_precision")
 
     results_vals = (pd.DataFrame(prcdict)).unstack().reset_index()
