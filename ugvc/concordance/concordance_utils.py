@@ -1,3 +1,5 @@
+from typing import Union
+
 import h5py
 import pandas as pd
 import numpy as np
@@ -17,11 +19,6 @@ def read_hdf(file_name: str, key='all') -> DataFrame:
         return pd.concat(dfs)
     else:
         return pd.read_hdf(file_name, key=key)
-
-def filter_df(df):
-    df = df[~((df.classify == "fp") & (df['filter'] == 'LOW_SCORE'))]
-    return df
-
 
 def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: bool = False) -> DataFrame:
     """
