@@ -989,10 +989,9 @@ def test_decision_tree_model(concordance: pd.DataFrame,
         group_df = concordance[select]
 
         # apply filters on classification
-        is_filtered = predictions[select] != 'tp'
-        post_filtering_classification = group_df[classify_column].copy()
-        post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'fp')] = 'tn'
-        post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'tp')] = 'fn'
+        is_filtered: pd.Series = predictions[select] != 'tp'
+
+        post_filtering_classification = apply_filter(group_df[classify_column], is_filtered)
 
         pre_filtering_tp = int((group_df[classify_column] == 'tp').sum())
         pre_filtering_fp = int((group_df[classify_column] == 'fp').sum())
@@ -1023,6 +1022,18 @@ def test_decision_tree_model(concordance: pd.DataFrame,
                                           'initial_f1': pre_filtering_f1
                                           }, ignore_index=True)
     return accuracy_df
+
+
+def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series) -> pd.Series:
+    """
+    :param pre_filtering_classification: classification to 'tp', 'fp', 'fn' before applying filter
+    :param is_filtered:  boolean series denoting which rows where filtered
+    :return: classification to 'tp', 'fp', 'fn', 'tn' after applying filter
+    """
+    post_filtering_classification = pre_filtering_classification.copy()
+    post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'fp')] = 'tn'
+    post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'tp')] = 'fn'
+    return post_filtering_classification
 
 
 def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,

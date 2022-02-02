@@ -5,12 +5,12 @@ from os.path import splitext, basename
 import dask.dataframe as ddf
 import numpy as np
 import pandas as pd
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
-from python.modules.filtering.blacklist import Blacklist
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
+from python.pipelines.variant_filtering_utils import Blacklist, apply_filter
 from ugvc import logger
-from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics
+from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics, validate_and_preprocess_concordance_df
 
 
 def parse_args():
@@ -62,16 +62,16 @@ def write_exclusions_delta_bed_files(df: DataFrame,
                                      output_prefix: str,
                                      initial_exclude_list_name: str,
                                      refined_exclude_list_name: str,
-                                     classify_column: str):
+                                     classification: Series):
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
 
     # was removed from initial exclude_list by refinement
     df['exclude_list_delta'] = ((df[initial_exclude_list_name]) & ~(df[refined_exclude_list_name]))
 
-    initial_fn = df[df[classify_column] == 'fn']
-    initial_fp = df[df[classify_column] == 'fp']
-    initial_tp = df[df[classify_column] == 'tp']
+    initial_fn = df[classification == 'fn']
+    initial_fp = df[classification == 'fp']
+    initial_tp = df[classification == 'tp']
     initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
     initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
     initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
@@ -88,12 +88,12 @@ def write_exclusions_delta_bed_files(df: DataFrame,
 
 def write_status_bed_files(df: DataFrame,
                            output_prefix: str,
-                           classify_column: str):
+                           classification: Series):
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
-    initial_fn = df[df[classify_column] == 'fn']
-    initial_fp = df[df[classify_column] == 'fp']
-    initial_tp = df[df[classify_column] == 'tp']
+    initial_fn = df[classification == 'fn']
+    initial_fp = df[classification == 'fp']
+    initial_tp = df[classification == 'tp']
     initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
     initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
     initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
@@ -121,13 +121,15 @@ def main():
     logger.info(f'read_hdf: {key}')
     df: DataFrame = read_hdf(input_file, key=key)
 
+    validate_and_preprocess_concordance_df(df)
+
     logger.info(f'annotate concordance with exclude_lists')
     df_annot, annots = annotate_concordance(df, ref_genome_file,
                                             runfile=args.hcr,
                                             flow_order='TGCA',
                                             annotate_intervals=exclude_lists_beds)
 
-    write_status_bed_files(df_annot, f'{out_pref}.original', classify_column)
+    write_status_bed_files(df_annot, f'{out_pref}.original', df_annot[classify_column])
     stats_table = calc_accuracy_metrics(df_annot, classify_column)
     with open(f'{out_pref}.original.stats.tsv', 'w') as stats_file:
         stats_file.write(f'{stats_table}\n')
@@ -155,6 +157,8 @@ def main():
         exclude_list_annot_df = df_annot.copy()
         exclude_list_annot_df.loc[df_annot[is_in_bl].index, 'filter'] = 'BLACKLIST'
         stats_table = calc_accuracy_metrics(exclude_list_annot_df, classify_column)
+        is_filtered = exclude_list_annot_df['filter'] != 'PASS'
+        post_filter_classification = apply_filter(exclude_list_annot_df[classify_column], is_filtered)
 
         with open(f'{out_pref}.{exclude_list_name}.stats.tsv', 'w') as stats_file:
             stats_file.write(f'{stats_table}\n')
@@ -165,8 +169,8 @@ def main():
                                              output_prefix=f'{out_pref}.{exclude_list_name}',
                                              initial_exclude_list_name=initial_exclusion_list_name,
                                              refined_exclude_list_name=exclude_list_name,
-                                             classify_column=classify_column)
-            write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', classify_column)
+                                             classification=post_filter_classification)
+            write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', post_filter_classification)
         else:
             initial_exclusion_list_name = exclude_list_name
 
