@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
+from python.modules.filtering.blacklist import Blacklist
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
 from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics
@@ -146,11 +147,7 @@ def main():
 
         # remove non_matching_alleles positions from exclude-list
         exclude_list_annot_df = df_annot.copy()
-        df_annot.loc[df_annot[is_in_bl].index, 'filter'] = 'BLACKLIST'
-
-        # remove excluded FP variants from table (true-negatives)
-        exclude_list_annot_df = exclude_list_annot_df.loc[
-            (exclude_list_annot_df['classify'] == 'fn') | (is_in_bl == False)]
+        exclude_list_annot_df.loc[df_annot[is_in_bl].index, 'filter'] = 'BLACKLIST'
         stats_table = calc_accuracy_metrics(exclude_list_annot_df, 'classify')
 
         with open(f'{out_pref}.{exclude_list_name}.stats.tsv', 'w') as stats_file:

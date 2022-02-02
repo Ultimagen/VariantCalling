@@ -23,42 +23,50 @@ def filter_df(df):
     return df
 
 
-def calc_accuracy_metrics(df: DataFrame, classify_column: str) -> DataFrame:
+def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: bool = False) -> DataFrame:
     """
     Calculate tp, fp, fn, recall, precision, f1, before and after applying filter column
     :param df: concordance dataframe
     :param classify_column: column name which contains tp,fp,fn status before applying filter
+    :param filter_hpol_run: filter variants with HPOL_RUN filter
     :return: data-frame with variant types and their scores
     """
-    trivial_classifier_set = validate_and_preprocess_concordance_df(df)
+    trivial_classifier_set = validate_and_preprocess_concordance_df(df, filter_hpol_run)
     # calc recall,precision, f1 per variant category
     accuracy_df = variant_filtering_utils.test_decision_tree_model(df,
                                                                    trivial_classifier_set,
                                                                    classify_column)
     all_indels = summarize_indel_stats(accuracy_df)
     accuracy_df = accuracy_df.append(all_indels, ignore_index=True)
+    accuracy_df = accuracy_df.round(5)
     return accuracy_df
 
-def calc_recall_precision_curve(df: DataFrame, classify_column: str) -> DataFrame:
+def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol_run: bool = False) -> DataFrame:
     """
     calc recall/precision curve
     :param df: concordance dataframe
     :param classify_column:  column name which contains tp,fp,fn status before applying filter
+    :param filter_hpol_run: filter variants with HPOL_RUN filter
     :return:data-frame with variant types and their recall-precision curves
     """
-    trivial_classifier_set = validate_and_preprocess_concordance_df(df)
+    trivial_classifier_set = validate_and_preprocess_concordance_df(df, filter_hpol_run)
     recall_precision_curve_dict = \
         variant_filtering_utils.get_decision_tree_precision_recall_curve(df, trivial_classifier_set, classify_column)
     recall_precision_curve_df = convert_recall_precision_dict_to_df({'analysis': recall_precision_curve_dict})
     return recall_precision_curve_df
 
 
-def validate_and_preprocess_concordance_df(df):
+def validate_and_preprocess_concordance_df(df: DataFrame, filter_hpol_run: bool = False):
     assert 'tree_score' in df.columns, "Input concordance file should be after applying a model"
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
     if np.any(pd.isnull(df['tree_score'])):
         logger.warning("Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
         df.loc[pd.isnull(df['tree_score']), "tree_score"] = 0
+    print(df['filter'].value_counts())
+    if not filter_hpol_run:
+        df.loc[df[df['filter'] == 'HPOL_RUN'].index, 'filter'] = 'PASS'
+
+    print(df['filter'].value_counts())
     # set for compatability with test_decision_tree_model
     df['group'] = 'all'
     df['test_train_split'] = False

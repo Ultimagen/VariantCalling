@@ -11,6 +11,7 @@ import numpy as np
 import tqdm
 import logging
 from typing import Optional, Tuple, Callable, Union
+from collections import OrderedDict
 from enum import Enum
 import python.utils as utils
 
@@ -792,25 +793,16 @@ def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_
     return fpr_values
 
 
-def get_testing_selection_functions() -> dict:
-    sfs = []
-    sfs.append(('SNP', lambda x: np.logical_not(x.indel)))
-    sfs.append(("Non-hmer INDEL", lambda x: x.indel &
-                                            (x.hmer_indel_length == 0)))
-    sfs.append(("HMER indel <= 4", (lambda x: x.indel & (x.hmer_indel_length > 0) &
-                                              (x.hmer_indel_length < 5))))
-    sfs.append(("HMER indel (4,8)", lambda x: x.indel & (x.hmer_indel_length >= 5) &
-                                              (x.hmer_indel_length < 8)))
-    sfs.append(("HMER indel [8,10]", lambda x: x.indel & (x.hmer_indel_length >= 8) &
-                                               (x.hmer_indel_length <= 10)))
-
-    sfs.append(("HMER indel 11,12", lambda x: x.indel & (x.hmer_indel_length >= 11) &
-                                              (x.hmer_indel_length <= 12)))
-
-    sfs.append(("HMER indel > 12", lambda x: x.indel &
-                                             (x.hmer_indel_length > 12)))
-
-    return dict(sfs)
+def get_testing_selection_functions() -> OrderedDict:
+    sfs = OrderedDict()
+    sfs['SNP'] = lambda x: np.logical_not(x.indel)
+    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x.hmer_indel_length == 0)
+    sfs["HMER indel <= 4"] = (lambda x: x.indel & (x.hmer_indel_length > 0) & (x.hmer_indel_length < 5))
+    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x.hmer_indel_length >= 5) & (x.hmer_indel_length < 8)
+    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x.hmer_indel_length >= 8) & (x.hmer_indel_length <= 10)
+    sfs["HMER indel 11,12"] = lambda x: x.indel & (x.hmer_indel_length >= 11) & (x.hmer_indel_length <= 12)
+    sfs["HMER indel > 12"] =  lambda x: x.indel & (x.hmer_indel_length > 12)
+    return sfs
 
 
 def add_testing_train_split_column(concordance: pd.DataFrame,
@@ -973,10 +965,10 @@ def test_decision_tree_model(concordance: pd.DataFrame,
     concordance = add_grouping_column(
         concordance, get_testing_selection_functions(), "group_testing")
 
-    # get concordance status after applying variant filtering
+    # get filter status as True='tp' False='fp'
     predictions = model.predict(concordance, classify_column)
 
-    groups = set(concordance['group_testing'])
+    groups = list(get_testing_selection_functions().keys())
     accuracy_df = pd.DataFrame(columns=['group',
                                         'tp',
                                         'fp',
@@ -993,9 +985,12 @@ def test_decision_tree_model(concordance: pd.DataFrame,
     for g in groups:
         select = (concordance["group_testing"] == g) & (~concordance["test_train_split"])
         group_df = concordance[select]
-        group_ground_truth = group_df[classify_column]
-        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
-        group_post_filtering_classification = predictions[select]
+
+        # apply filters on classification
+        is_filtered = predictions[select] != 'tp'
+        post_filtering_classification = group_df[classify_column].copy()
+        post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'fp')] = 'tn'
+        post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'tp')] = 'fn'
 
         pre_filtering_tp = int((group_df[classify_column] == 'tp').sum())
         pre_filtering_fp = int((group_df[classify_column] == 'fp').sum())
@@ -1003,26 +998,21 @@ def test_decision_tree_model(concordance: pd.DataFrame,
         pre_filtering_precision = get_precision(pre_filtering_fp, pre_filtering_tp)
         pre_filtering_recall = get_recall(pre_filtering_fn, pre_filtering_tp)
         pre_filtering_f1 = get_f1(pre_filtering_precision, pre_filtering_recall)
-        post_filtering_tp = int((group_post_filtering_classification == 'tp').sum())
-        post_filtering_fp = int((group_post_filtering_classification == 'fp').sum())
-        post_filtering_fn = int((group_post_filtering_classification == 'fn').sum())
+
+        post_filtering_tp = int((post_filtering_classification == 'tp').sum())
+        post_filtering_fp = int((post_filtering_classification == 'fp').sum())
+        post_filtering_fn = int((post_filtering_classification == 'fn').sum())
         post_filtering_precision = get_precision(post_filtering_fp, post_filtering_tp)
         post_filtering_recall = get_recall(post_filtering_fn, post_filtering_tp)
         post_filtering_f1 = get_f1(post_filtering_precision, post_filtering_recall)
 
-        recall = metrics.recall_score(
-            group_ground_truth, group_post_filtering_classification, labels=["tp"], average=None)[0]
-        precision = metrics.precision_score(
-            group_ground_truth, group_post_filtering_classification, labels=["tp"], average=None)[0]
-        f1 = metrics.f1_score(
-            group_ground_truth, group_post_filtering_classification, labels=["tp"], average=None)[0]
         accuracy_df = accuracy_df.append({'group': g,
                                           'tp': post_filtering_tp,
                                           'fp': post_filtering_fp,
                                           'fn': post_filtering_fn,
-                                          'precision': precision,
-                                          'recall': recall,
-                                          'f1': f1,
+                                          'precision': post_filtering_precision,
+                                          'recall': post_filtering_recall,
+                                          'f1': post_filtering_f1,
                                           'initial_tp': pre_filtering_tp,
                                           'initial_fp': pre_filtering_fp,
                                           'initial_fn': pre_filtering_fn,
@@ -1030,7 +1020,6 @@ def test_decision_tree_model(concordance: pd.DataFrame,
                                           'initial_recall': pre_filtering_recall,
                                           'initial_f1': pre_filtering_f1
                                           }, ignore_index=True)
-    accuracy_df = accuracy_df.round(5)
     return accuracy_df
 
 
