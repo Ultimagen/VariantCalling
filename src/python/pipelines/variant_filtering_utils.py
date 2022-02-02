@@ -1,9 +1,8 @@
 from pandas import DataFrame
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-# from sklearn.neural_network import MLPClassifier, MLPRegressor
+
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn import preprocessing
-from sklearn import metrics
 from sklearn import impute
 import sklearn_pandas
 import pandas as pd
@@ -14,6 +13,8 @@ from typing import Optional, Tuple, Callable, Union
 from collections import OrderedDict
 from enum import Enum
 import python.utils as utils
+
+from stats.precision_recall import get_precision, get_recall, get_f1
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
             'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length', 'indel_length',
