@@ -62,11 +62,8 @@ def validate_and_preprocess_concordance_df(df: DataFrame, filter_hpol_run: bool 
     if np.any(pd.isnull(df['tree_score'])):
         logger.warning("Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
         df.loc[pd.isnull(df['tree_score']), "tree_score"] = 0
-    print(df['filter'].value_counts())
     if not filter_hpol_run:
         df.loc[df[df['filter'] == 'HPOL_RUN'].index, 'filter'] = 'PASS'
-
-    print(df['filter'].value_counts())
     # set for compatability with test_decision_tree_model
     df['group'] = 'all'
     df['test_train_split'] = False
