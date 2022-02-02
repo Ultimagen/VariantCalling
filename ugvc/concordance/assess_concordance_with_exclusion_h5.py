@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 
+from python.pipelines.variant_filtering_utils import apply_filter
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
-from python.pipelines.variant_filtering_utils import Blacklist, apply_filter
 from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics, validate_and_preprocess_concordance_df
 
@@ -22,11 +22,8 @@ def parse_args():
         '--genome_fasta', help='path to fasta file of reference genome', required=True)
     parser.add_argument(
         '--initial_exclude_list', help='bed file of initial allele-specific exclude-list', required=True)
-    # 'common_vars_hapmap_2_1_whole_genome_allele_1_again.bed',
     parser.add_argument(
         '--refined_exclude_lists', help='csv list of bed corrected exclude-lists by SEC', required=True)
-    # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.bed',
-    # 'common_vars_hapmap_2_1_whole_genome_allele_1_again_filtered_002850_UGAv3_2_0.85-bwa.novel.bed'
     parser.add_argument(
         '--dataset_key', help='chromosome name, in case h5 contains multiple datasets per chromosome', default='all')
     parser.add_argument('--hcr', help='bed file describing high confidance regions (runs.conservative.bed)', required=True)
@@ -109,7 +106,7 @@ def write_bed(df: DataFrame, bed_path: str):
 
 def main():
     args = parse_args()
-    input_file = args.concordance_h5_input  # '/data/mutect2/data_simulation/002850-UGAv3-2_40x.hcr_wgs.h5'
+    input_file = args.concordance_h5_input
     ref_genome_file = args.genome_fasta
     key = args.dataset_key
 
@@ -142,8 +139,6 @@ def main():
 
     initial_exclusion_list_name = ''
     for i, exclude_list_bed_file in enumerate(exclude_lists_beds):
-        # todo apply blacklist such that filter column is modified, using Blacklist class
-        # Blacklist()
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
 

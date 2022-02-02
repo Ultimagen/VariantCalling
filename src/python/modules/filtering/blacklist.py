@@ -1,7 +1,10 @@
+import ast
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+
+from python.pipelines.variant_filtering_utils import Blacklist, VariantSelectionFunctions
 
 
 def merge_blacklists(blacklists: list) -> Optional[pd.Series]:
@@ -67,3 +70,28 @@ def create_blacklist_statistics_table(df: pd.DataFrame, classify_column: str) ->
                          np.sum(df[classify_column] == 'fp')],
                          index=['dbsnp', 'unknown', 'blacklist'],
                          columns=['Categories'])
+
+def load_blacklist_from_bed(bed_path: str, with_alleles: bool, description: str = None) -> Blacklist:
+    """
+    :param bed_path: path to blacklist bed file
+    :param with_alleles: whether bed file has alleles column, currently IGNORE it
+    :param description: blacklist description
+    :return: blacklist object
+    """
+    if with_alleles:
+        exclude_list_df = pd.read_csv(bed_path, sep='\t', names=['chrom', 'pos-1', 'pos', 'alleles'])
+        exclude_list_df['alleles'] = exclude_list_df['alleles'].apply(lambda x: np.array(ast.literal_eval(x)))
+        exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos'])
+
+        blacklist = Blacklist(set(exclude_list_df.index),
+                              annotation='BLACKLIST',
+                              selection_fcn=VariantSelectionFunctions.ALL,
+                              description=description)
+    else:
+        exclude_list_df = pd.read_csv(bed_path, sep='\t', names=['chrom', 'pos-1', 'pos'])
+        exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos_1'])
+        blacklist = Blacklist(set(exclude_list_df.index),
+                              annotation='BLACKLIST',
+                              selection_fcn=VariantSelectionFunctions.ALL,
+                              description=description)
+    return blacklist

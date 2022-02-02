@@ -1126,7 +1126,8 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
 
 
 class Blacklist(object):
-    '''Class that stores the blacklist.
+    """
+    Class that stores the blacklist.
 
     Attributes
     ----------
@@ -1142,7 +1143,7 @@ class Blacklist(object):
     blacklist: set
     annotation: str
     selection_fcn: Callable
-    '''
+    """
 
     def __init__(self, blacklist: set, annotation: str, selection_fcn: Callable, description: str):
         self.blacklist = blacklist
