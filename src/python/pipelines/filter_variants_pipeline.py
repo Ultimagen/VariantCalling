@@ -46,6 +46,10 @@ ap.add_argument("--annotate_intervals", help='interval files for annotation (mul
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 args = ap.parse_args()
 
+def protected_add(hdr, field, n_vals, type, description):
+    if field not in hdr:
+        hdr.add(field, n_vals, type, description)
+
 try:
     logging.basicConfig(level=getattr(logging, args.verbosity),
                         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -77,7 +81,7 @@ try:
 
     if args.blacklist is not None:
         with open(args.blacklist, "rb") as blf:
-            blacklists = pickle.load(blf)
+            blacklists: python.Blacklist = pickle.load(blf)
         blacklist_app = [x.apply(df) for x in blacklists]
         blacklist = python.modules.filtering.blacklist.merge_blacklists(blacklist_app)
     else:
@@ -166,5 +170,3 @@ except Exception as err:
     logger.error(*exc_info)
     logger.error("Variant filtering run: failed")
     raise(err)
-
-
