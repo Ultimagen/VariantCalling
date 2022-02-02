@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from pandas import DataFrame
 
-from stats.precision_recall import get_recall, get_precision, get_f1
+from ugvc.stats.precision_recall import get_recall, get_precision, get_f1
 from python.pipelines import variant_filtering_utils as variant_filtering_utils
 from ugvc import logger
 
