@@ -1114,7 +1114,59 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
     return result, recalls_precisions
 
 
-class VariantSelectionFunctions(Enum):
+class Blacklist(object):
+    '''Class that stores the blacklist.
+
+    Attributes
+    ----------
+    blacklist: set
+        The blacklist of positions
+    annotation: str
+        Name of the blacklist
+    selection_fcn: Callable
+        The function that selects the relevant calls from the variant dataframe
+
+    Parameters
+    ---------
+    blacklist: set
+    annotation: str
+    selection_fcn: Callable
+    '''
+
+    def __init__(self, blacklist: set, annotation: str, selection_fcn: Callable, description: str):
+        self.blacklist = blacklist
+        self.annotation = annotation
+        self.selection_fcn = selection_fcn
+        self.description = description
+
+    def apply(self, df: pd.DataFrame) -> pd.Series:
+        """Applies the blacklist on the dataframe
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input concordance dataframe
+
+        Returns
+        -------
+        pd.Series
+            Series with string annotation for the blacklist
+        """
+
+        select = self.selection_fcn(df)
+        idx = set(df[select].index)
+        common_with_blacklist = idx & self.blacklist
+        result = pd.Series("PASS", index=df.index, dtype=str)
+        result.loc[common_with_blacklist] = self.annotation
+        return result
+
+    def __str__(self):
+        return f"{self.annotation}: {self.description} with {len(self.blacklist)} elements"
+
+
+
+
+class VariantSelectionFunctions (Enum):
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
 
     def ALL(

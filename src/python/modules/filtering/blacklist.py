@@ -1,58 +1,7 @@
-from typing import Callable, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
-
-
-class Blacklist(object):
-    """
-    Class that stores the blacklist.
-
-    Attributes
-    ----------
-    blacklist: set
-        The blacklist of positions
-    annotation: str
-        Name of the blacklist
-    selection_fcn: Callable
-        The function that selects the relevant calls from the variant dataframe
-
-    Parameters
-    ---------
-    blacklist: set
-    annotation: str
-    selection_fcn: Callable
-    """
-
-    def __init__(self, blacklist: set, annotation: str, selection_fcn: Callable, description: str):
-        self.blacklist = blacklist
-        self.annotation = annotation
-        self.selection_fcn = selection_fcn
-        self.description = description
-
-    def apply(self, df: pd.DataFrame) -> pd.Series:
-        """Applies the blacklist on the dataframe
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Input concordance dataframe
-
-        Returns
-        -------
-        pd.Series
-            Series with string annotation for the blacklist
-        """
-
-        select = self.selection_fcn(df)
-        idx = set(df[select].index)
-        common_with_blacklist = idx & self.blacklist
-        result = pd.Series("PASS", index=df.index, dtype=str)
-        result.loc[common_with_blacklist] = self.annotation
-        return result
-
-    def __str__(self):
-        return f"{self.annotation}: {self.description} with {len(self.blacklist)} elements"
 
 
 def merge_blacklists(blacklists: list) -> Optional[pd.Series]:
@@ -80,7 +29,8 @@ def merge_blacklists(blacklists: list) -> Optional[pd.Series]:
 
 
 def blacklist_cg_insertions(df: pd.DataFrame) -> pd.Series:
-    """Removes CG insertions from calls
+    """
+    Removes CG insertions from calls
 
     Parameters
     ----------
@@ -98,7 +48,7 @@ def blacklist_cg_insertions(df: pd.DataFrame) -> pd.Series:
 
 
 def create_blacklist_statistics_table(df: pd.DataFrame, classify_column: str) -> pd.DataFrame:
-    '''
+    """
     Creates a table in the following format:
     #dbsnp
     #unknown
@@ -110,7 +60,7 @@ def create_blacklist_statistics_table(df: pd.DataFrame, classify_column: str) ->
         Classification column
     @return:
         pd.Series
-    '''
+    """
 
     return pd.DataFrame([np.sum(df[classify_column] == 'tp'),
                          np.sum(df[classify_column] == 'unknown'),
