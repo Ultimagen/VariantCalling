@@ -1,5 +1,3 @@
-from typing import List, Union, Optional
-
 import pandas as pd
 import numpy as np
 import os
@@ -671,8 +669,8 @@ def run_full_coverage_analysis(
     out_path: str,
     ref_fasta: str,
     coverage_intervals_dict: str,
-    regions: Optional[Union[str, List[str]]] = None,
-    windows: Optional[Union[int, List[int]]] = None,
+    regions: str = None,
+    windows: int = None,
     min_bq: int = 0,
     min_mapq: int = 0,
     min_read_length: int = 0,
@@ -708,6 +706,7 @@ def run_full_coverage_analysis(
 
     samtools_depth_args = [
         "-a",
+        "-J",
         ref_str,
         f"-q {min_bq}",
         f"-Q {min_mapq}",

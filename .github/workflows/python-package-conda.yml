@@ -20,8 +20,8 @@ jobs:
           conda env create -f setup/other_envs/cutadapt.yml --name cutadapt
           conda env update --file setup/environment.yml --name base
       - name: Setup file system
-          run: |
-            sudo mkdir /data
+        run: |
+          sudo mkdir /data
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
