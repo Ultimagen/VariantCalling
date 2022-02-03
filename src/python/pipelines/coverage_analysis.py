@@ -1,3 +1,5 @@
+from typing import List, Union, Optional
+
 import pandas as pd
 import numpy as np
 import os
@@ -669,8 +671,8 @@ def run_full_coverage_analysis(
     out_path: str,
     ref_fasta: str,
     coverage_intervals_dict: str,
-    regions: str = None,
-    windows: int = None,
+    regions: Optional[Union[str, List[str]]] = None,
+    windows: Optional[Union[int, List[int]]] = None,
     min_bq: int = 0,
     min_mapq: int = 0,
     min_read_length: int = 0,
