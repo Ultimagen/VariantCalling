@@ -44,7 +44,7 @@ Extract blacklist position from ground-truth files
 nohup bcftools view gs://ultimagen-ilya-new/VariantCalling/work/211101/140_samples_NYGenomes.vcf.gz -R blacklist_v2.sort.bed -Oz > 140_samples_NYGenomes.exome_black_list_v2.vcf.gz &
 
 # hapmap2.1 2-samples exome blacklist
-nohup bcftools view gs://ultimagen-ilya-new/VariantCalling/work/211101/140_samples_NYGenomes.vcf.gz -R blacklists/blacklist_hapmap2.1_2s_exome.bed -Oz > ground_truth/140_samples_NYGenomes.blacklist_hapmap2.1_2s_exome.vcf.gz &
+nohup bcftools view gs://ultimagen-ilya-new/VariantCalling/work/211101/140_samples_NYGenomes.vcf.gz -Oz | bedtools intersect -a stdin -b blacklists/blacklist_hapmap2.1_2s_exome.bed -header > ground_truth/140_samples_NYGenomes.blacklist_hapmap2.1_2s_exome.vcf &
 
 # hapmap2.1 2-samples chr9 blacklist
 nohup bcftools view gs://ultimagen-ilya-new/VariantCalling/work/211101/140_samples_NYGenomes.vcf.gz chr9 -Oz | bedtools intersect -a stdin -b blacklists/blacklist_hapmap2.1_2s_chr9.bed -header > ground_truth/140_samples_NYGenomes.blacklist_hapmap2.1_2s_chr9.vcf.gz &
