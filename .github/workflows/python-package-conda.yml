@@ -12,6 +12,10 @@ jobs:
       - uses: actions/checkout@v2
         with:
           lfs: True
+      - name: Setup file system
+        run: |
+          sudo mkdir -p /data
+          sudo chmod 777 /data
       - name: Add conda to system path
         run: |
           # $CONDA is an environment variable pointing to the root of the miniconda directory
@@ -21,9 +25,6 @@ jobs:
           conda env update --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadapt.yml --name cutadapt
           conda env update --file setup/environment.yml --name base
-      - name: Setup file system
-        run: |
-          sudo mkdir -p /data
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
