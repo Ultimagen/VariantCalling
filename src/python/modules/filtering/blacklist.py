@@ -73,10 +73,10 @@ def create_blacklist_statistics_table(df: pd.DataFrame, classify_column: str) ->
 
 def load_blacklist_from_bed(bed_path: str, with_alleles: bool, description: str = None) -> Blacklist:
     """
-    :param bed_path: path to blacklist bed file
-    :param with_alleles: whether bed file has alleles column, currently IGNORE it
-    :param description: blacklist description
-    :return: blacklist object
+    @param bed_path: path to blacklist bed file
+    @param with_alleles: whether bed file has alleles column, currently IGNORE it
+    @param description: blacklist description
+    @return: blacklist object
     """
     if with_alleles:
         exclude_list_df = pd.read_csv(bed_path, sep='\t', names=['chrom', 'pos-1', 'pos', 'alleles'])

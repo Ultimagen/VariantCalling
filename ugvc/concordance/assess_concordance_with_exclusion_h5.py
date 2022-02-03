@@ -12,6 +12,10 @@ from python.pipelines.vcf_pipeline_utils import annotate_concordance
 from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics, validate_and_preprocess_concordance_df
 
+"""
+Given a concordance h5 input, a blacklist (with alleles), and a list of SEC refined blacklists
+Apply each blacklist (with allele-consistency) on the variants and measure the differences between the results.
+"""
 
 def parse_args():
     parser = argparse.ArgumentParser()
