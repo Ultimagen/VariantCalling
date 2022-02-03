@@ -1,12 +1,12 @@
 import os
+from os.path import join as pjoin
+from tempfile import TemporaryDirectory
+
 import numpy as np
 import pandas as pd
-from os.path import join as pjoin, isfile
-from tempfile import TemporaryDirectory
-from pathmagic import PYTHON_TESTS_PATH, COMMON
-import pathmagic
-from python.pipelines.coverage_analysis import run_full_coverage_analysis
 
+from pathmagic import PYTHON_TESTS_PATH, COMMON
+from python.pipelines.coverage_analysis import run_full_coverage_analysis
 
 f_in = pjoin(
     PYTHON_TESTS_PATH,
