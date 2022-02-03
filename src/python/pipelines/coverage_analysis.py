@@ -122,9 +122,9 @@ def collect_depth(input_bam_file, output_bed_file, samtools_args=None) -> str:
     if samtools_args is None:
         samtools_args = []
     samtools_depth_cmd = (
-        f"samtools depth {' '.join(samtools_args)} {input_bam_file}"
-        + ' | awk \'{print $1"\\t"($2-1)"\\t"$2"\\t"$3}\''
-        + f" > {output_bed_file}"
+            f"samtools depth {' '.join(samtools_args)} {input_bam_file}"
+            + ' | awk \'{print $1"\\t"($2-1)"\\t"$2"\\t"$3}\''
+            + f" > {output_bed_file}"
     )
     _run_shell_command(samtools_depth_cmd)
 
@@ -164,7 +164,7 @@ def depth_to_bigwig(input_depth_file: str, output_bw_file: str, sizes_file: str)
 
 
 def create_coverage_histogram_from_depth_file(
-    input_depth_bed_file, output_tsv, region_bed_file=None
+        input_depth_bed_file, output_tsv, region_bed_file=None
 ):
     """Takes an input input_depth_bed_file (create with "collect_depth") and an optional region bed file, and creates a
     coverage histogram tsv file.
@@ -197,11 +197,11 @@ def create_coverage_histogram_from_depth_file(
 
 
 def create_binned_coverage(
-    input_depth_bed_file,
-    output_binned_depth_bed_file,
-    lines_to_bin,
-    window_size,
-    generate_dataframe=False,
+        input_depth_bed_file,
+        output_binned_depth_bed_file,
+        lines_to_bin,
+        window_size,
+        generate_dataframe=False,
 ):
     """Takes an input input_depth_bed_file (create with "collect_depth" or previously aggregated with
     create_binned_coverage) and creates a windowed version. Optionally generates a parquet dataframe as well, with the
@@ -225,19 +225,19 @@ def create_binned_coverage(
 
     """
     cmd = (
-        f"awk -vn={lines_to_bin} -vm={window_size} "
-        + "'"
-        + r'{sum+=$4} NR%n==1 {chr=$1;start=$2} NR%n==0 {end=$3} (NR%n==0) && (end-start==m) {print chr "\t" start "\t" end "\t" sum/n} NR%n==0 {sum=0}'
-        + "'"
-        + f" {input_depth_bed_file} > {output_binned_depth_bed_file}"
+            f"awk -vn={lines_to_bin} -vm={window_size} "
+            + "'"
+            + r'{sum+=$4} NR%n==1 {chr=$1;start=$2} NR%n==0 {end=$3} (NR%n==0) && (end-start==m) {print chr "\t" start "\t" end "\t" sum/n} NR%n==0 {sum=0}'
+            + "'"
+            + f" {input_depth_bed_file} > {output_binned_depth_bed_file}"
     )
     _run_shell_command(cmd)
     if generate_dataframe:
         output_parquet = (
-            splitext(output_binned_depth_bed_file)[0]
-            if splitext(output_binned_depth_bed_file)[1] in [".bedgraph", ".tsv"]
-            else output_binned_depth_bed_file
-        ) + ".parquet"
+                             splitext(output_binned_depth_bed_file)[0]
+                             if splitext(output_binned_depth_bed_file)[1] in [".bedgraph", ".tsv"]
+                             else output_binned_depth_bed_file
+                         ) + ".parquet"
         pd.read_csv(
             output_binned_depth_bed_file,
             sep="\t",
@@ -287,7 +287,7 @@ def _intervals_to_bed(input_intervals, output_bed_file=None):
     return output_bed_file
 
 
-def _create_coverage_intervals_dataframe(coverage_intervals_dict,):
+def _create_coverage_intervals_dataframe(coverage_intervals_dict, ):
     if isinstance(coverage_intervals_dict, str):
         if coverage_intervals_dict.endswith(TSV):
             sep = "\t"
@@ -326,7 +326,7 @@ Expected {TSV}/{CSV}"""
 
 
 def _get_output_file_name(
-    f_in, f_out, min_bq, min_mapq, min_read_length, region, window, output_format,
+        f_in, f_out, min_bq, min_mapq, min_read_length, region, window, output_format,
 ):
     if f_out is None or "." not in basename(f_out):
         local_f_in = cloud_sync(f_in, dry_run=True)
@@ -344,10 +344,10 @@ def _get_output_file_name(
 
 
 def generate_stats_from_histogram(
-    val_count,
-    q=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]),
-    out_path=None,
-    verbose=True,
+        val_count,
+        q=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]),
+        out_path=None,
+        verbose=True,
 ):
     if isinstance(val_count, str) and os.path.isfile(val_count):
         val_count = pd.read_hdf(val_count, key="histogram")
@@ -362,12 +362,12 @@ def generate_stats_from_histogram(
             ),
             val_count.apply(
                 lambda x: np.sum(val_count.index.values * x.values)
-                / np.sum(x.values)  # np.average gave strange bug
+                          / np.sum(x.values)  # np.average gave strange bug
                 if not x.isnull().all() and x.sum() > 0
                 else np.nan
             )
-            .to_frame()
-            .T,
+                .to_frame()
+                .T,
         ),
         sort=False,
     ).fillna(
@@ -380,11 +380,11 @@ def generate_stats_from_histogram(
     genome_median = df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
     selected_percentiles = (
         df_percentiles.loc[[f"Q{q}" for q in [5, 10, 50]]]
-        .rename(index={"Q50": "median_coverage"})
-        .rename(index={f"Q{q}": f"percentile_{q}" for q in [5, 10, 50]})
+            .rename(index={"Q50": "median_coverage"})
+            .rename(index={f"Q{q}": f"percentile_{q}" for q in [5, 10, 50]})
     )
     selected_percentiles.loc["median_coverage_normalized"] = (
-        selected_percentiles.loc["median_coverage"] / genome_median
+            selected_percentiles.loc["median_coverage"] / genome_median
     )
     df_stats = pd.concat(
         (
@@ -392,25 +392,25 @@ def generate_stats_from_histogram(
             pd.concat(
                 (
                     (val_count[val_count.index >= (genome_median * 0.5)] * 100)
-                    .sum()
-                    .rename("percent_larger_than_05_of_genome_median")
-                    .to_frame()
-                    .T,
+                        .sum()
+                        .rename("percent_larger_than_05_of_genome_median")
+                        .to_frame()
+                        .T,
                     (val_count[val_count.index >= (genome_median * 0.25)] * 100)
-                    .sum()
-                    .rename("percent_larger_than_025_of_genome_median")
-                    .to_frame()
-                    .T,
+                        .sum()
+                        .rename("percent_larger_than_025_of_genome_median")
+                        .to_frame()
+                        .T,
                     (val_count[val_count.index >= 10] * 100)
-                    .sum()
-                    .rename("percent_over_or_equal_to_10x")
-                    .to_frame()
-                    .T,
+                        .sum()
+                        .rename("percent_over_or_equal_to_10x")
+                        .to_frame()
+                        .T,
                     (val_count[val_count.index >= 20] * 100)
-                    .sum()
-                    .rename("percent_over_or_equal_to_20x")
-                    .to_frame()
-                    .T,
+                        .sum()
+                        .rename("percent_over_or_equal_to_20x")
+                        .to_frame()
+                        .T,
                 )
             ),
         )
@@ -435,21 +435,21 @@ def generate_stats_from_histogram(
 
 
 def generate_coverage_boxplot(
-    df_percentiles, color_group=None, out_path=None, title=""
+        df_percentiles, color_group=None, out_path=None, title=""
 ):
     if out_path is not None:
         mpl.use("Agg")
     if isinstance(df_percentiles, str) and os.path.isfile(df_percentiles):
         df_percentiles = pd.read_hdf(df_percentiles, key="percentiles")
     df_percentiles_norm = (
-        df_percentiles / df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
+            df_percentiles / df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
     )
 
     if color_group is None:
         color_group = range(df_percentiles.shape[1])
     elif isinstance(color_group, str) and color_group.endswith(TSV):
         # In this clause we either download the TSV or assume it's a dictionary with the right annotation values as keys
-        color_group = pd.read_csv(cloud_sync(color_group), sep="\t",)["color_group"]
+        color_group = pd.read_csv(cloud_sync(color_group), sep="\t", )["color_group"]
 
     color_list = [
         "#3274a1",
@@ -469,8 +469,8 @@ def generate_coverage_boxplot(
         for k, v in df_percentiles_norm.rename(
             {"Q50": "med", "Q25": "q1", "Q75": "q3", "Q5": "whislo", "Q95": "whishi"}
         )
-        .to_dict()
-        .items()
+            .to_dict()
+            .items()
     ]
 
     logger.debug(f"Generating boxplot")
@@ -556,13 +556,13 @@ def _check_chr_in_file_name(filename):
 
 
 def plot_coverage_profile(
-    input_depth_files,
-    centromere_file=None,
-    reference_gaps_file=None,
-    title="",
-    sub_title="",
-    y_max=3,
-    out_path=None,
+        input_depth_files,
+        centromere_file=None,
+        reference_gaps_file=None,
+        title="",
+        sub_title="",
+        y_max=3,
+        out_path=None,
 ):
     if out_path is not None:
         mpl.use("Agg")
@@ -576,9 +576,9 @@ def plot_coverage_profile(
                 usecols=[0, 1, 2, 4],
                 comment="#",
             )
-            .query("type == 'acen'")
-            .drop(columns=["type"])
-            .set_index("chrom")
+                .query("type == 'acen'")
+                .drop(columns=["type"])
+                .set_index("chrom")
         )
     if reference_gaps_file is not None:
         df_gaps = pd.read_csv(
@@ -667,21 +667,20 @@ def plot_coverage_profile(
 
 
 def run_full_coverage_analysis(
-    bam_file: str,
-    out_path: str,
-    ref_fasta: str,
-    coverage_intervals_dict: str,
-    regions: Optional[Union[str, List[str]]] = None,
-    windows: Optional[Union[int, List[int]]] = None,
-    min_bq: int = 0,
-    min_mapq: int = 0,
-    min_read_length: int = 0,
-    n_jobs: int = -1,
-    progress_bar: bool = True,
-    verbose=False,
-    centromere_file=None,
-    reference_gaps_file=None,
-):
+        bam_file: str,
+        out_path: str,
+        ref_fasta: str,
+        coverage_intervals_dict: str,
+        regions: Optional[Union[str, List[str]]] = None,
+        windows: Optional[Union[int, List[int]]] = None,
+        min_bq: int = 0,
+        min_mapq: int = 0,
+        min_read_length: int = 0,
+        n_jobs: int = -1,
+        progress_bar: bool = True,
+        verbose=False,
+        centromere_file=None,
+        reference_gaps_file=None):
     # check inputs
     os.makedirs(out_path, exist_ok=True)
     if windows is None:
@@ -790,7 +789,7 @@ def run_full_coverage_analysis(
                         out_depth_files, df_coverage_intervals["file"].values
                     )
                     if (_check_chr_in_file_name(x) == _check_chr_in_file_name(y))
-                    or (_check_chr_in_file_name(y) is None)
+                       or (_check_chr_in_file_name(y) is None)
                 ]
             )
 
@@ -816,21 +815,21 @@ def run_full_coverage_analysis(
                                 for tsv_file in glob(pjoin(tmp_region_dir, "*.tsv"))
                             )
                         )
-                        .groupby("coverage")
-                        .sum()
-                        .rename(
+                            .groupby("coverage")
+                            .sum()
+                            .rename(
                             columns={
                                 "count": df_coverage_intervals[
                                     df_coverage_intervals["file"] == original_bed_file
-                                ]["category"].values[0]
+                                    ]["category"].values[0]
                             }
                         )
                         for original_bed_file, tmp_region_dir in tmpdir.items()
                     ),
                     axis=1,
                 )
-                .fillna(0)
-                .astype(int)
+                    .fillna(0)
+                    .astype(int)
             )
         # save coverage in intervals and create boxplot
         df_percentiles, df_stats = generate_stats_from_histogram(
@@ -875,7 +874,7 @@ def run_full_coverage_analysis(
                 delayed(create_binned_coverage)(
                     input_depth_bed_file=depth_file,
                     output_binned_depth_bed_file=depth_file.split(".w")[0]
-                    + f".w{w}.depth.bedgraph",
+                                                 + f".w{w}.depth.bedgraph",
                     lines_to_bin=w // w0,
                     window_size=w,
                     generate_dataframe=True,
@@ -883,7 +882,7 @@ def run_full_coverage_analysis(
                 for depth_file in tqdm(
                     depth_files_to_process,
                     disable=not progress_bar,
-                    desc=f"Binning depth files ({j+1}/{len(windows)}, w={w})",
+                    desc=f"Binning depth files ({j + 1}/{len(windows)}, w={w})",
                 )
             )
 
