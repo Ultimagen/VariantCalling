@@ -8,6 +8,7 @@ from ugvc.sec_main import correct_systematic_errors
 from ugvc.sec.systematic_error_correction_call import SECCallType
 from test import test_dir
 
+
 class TestCorrectSystematicErrors(unittest.TestCase):
 
     def test_main(self):
@@ -59,4 +60,5 @@ class TestCorrectSystematicErrors(unittest.TestCase):
         self.assertEqual(set(), novel_variants.difference(positives))
 
         # FN
-        self.assertEqual(2, len(positives.difference(positives.intersection(novel_variants.union(known_variants).union(unobserved_noise_sites)))))
+        self.assertEqual(2, len(positives.difference(
+            positives.intersection(novel_variants.union(known_variants).union(unobserved_noise_sites)))))
