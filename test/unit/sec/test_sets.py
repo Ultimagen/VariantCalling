@@ -135,6 +135,7 @@ class NoReferenceGenotype(TestSet):
                                           allele_counts={},
                                           num_of_samples_with_observed_alleles=0))
 
+
 class HomVarWithTwoEquivalentHetGenotypes(TestSet):
     def __init__(self):
         super().__init__()

@@ -62,7 +62,7 @@ def query_database(query: dict) -> list:
 
 DEFAULT_METRICS_TO_REPORT = ['AlignmentSummaryMetrics', 'Contamination', 'DuplicationMetrics',
                              'GcBiasDetailMetrics', 'GcBiasSummaryMetrics', 'QualityYieldMetrics',
-                             'RawWgsMetrics', 'WgsMetrics', 'stats_coverage', 
+                             'RawWgsMetrics', 'WgsMetrics', 'stats_coverage',
                              'short_report_/all_data', 'short_report_/all_data_gt']
 
 
@@ -115,7 +115,7 @@ def inputs2df(doc: dict) -> pd.DataFrame:
     return pd.DataFrame(pd.concat((md, inputs, outputs))).T.set_index("workflowId")
 
 
-def _cleanup_metadata(input_dict: dict) -> dict: 
+def _cleanup_metadata(input_dict: dict) -> dict:
     '''Cleans up metadata - removes empty lists
 
     Parameters
@@ -148,10 +148,9 @@ def _flatten_dict(input_dict: dict) -> dict:
     '''
     result = {}
     for k in input_dict.keys():
-        if type(input_dict[k])==dict:
+        if type(input_dict[k]) == dict:
             for v in input_dict[k]:
                 result[f"{k}___{v}"] = input_dict[k][v]
         else:
             result[k] = input_dict[k]
     return result
-
