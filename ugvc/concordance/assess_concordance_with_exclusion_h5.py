@@ -59,39 +59,12 @@ def get_is_excluded_series(df_annot: DataFrame, exclude_list_df: DataFrame, excl
     return is_in_bl
 
 
-def write_exclusions_delta_bed_files(df: DataFrame,
-                                     output_prefix: str,
-                                     initial_exclude_list_name: str,
-                                     refined_exclude_list_name: str,
-                                     classification: Series):
-    df['pos-1'] = df['pos'] - 1
-    df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
-    df.iloc[df['description'].isna, 'description'] = 'missing'
-    # was removed from initial exclude_list by refinement
-    df['exclude_list_delta'] = ((df[initial_exclude_list_name]) & ~(df[refined_exclude_list_name]))
-
-    initial_fn = df[classification == 'fn']
-    initial_fp = df[classification == 'fp']
-    initial_tp = df[classification == 'tp']
-    initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
-    initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
-    initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
-    read_fn_indel = initial_fn_indel[initial_fn_indel[refined_exclude_list_name] & (~initial_fn_indel['call'].isna())]
-    delta_fp_indel = initial_fp_indel[initial_fp_indel['exclude_list_delta']]
-    delta_tp_indel = initial_tp_indel[initial_tp_indel['exclude_list_delta']]
-    unread_fn_indel = initial_fn_indel[initial_fn_indel['call'].isna()]
-
-    write_bed(read_fn_indel, f'{output_prefix}_read_fn.bed')
-    write_bed(delta_fp_indel, f'{output_prefix}_delta_fp.bed')
-    write_bed(delta_tp_indel, f'{output_prefix}_delta_tp.bed')
-    write_bed(unread_fn_indel, f'{output_prefix}_unread_fn.bed')
-
-
 def write_status_bed_files(df: DataFrame,
                            output_prefix: str,
                            classification: Series):
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
+    df.loc[df[df['description'].isna()].index, 'description'] = 'missing'
     initial_fn = df[classification == 'fn']
     initial_fp = df[classification == 'fp']
     initial_tp = df[classification == 'tp']
@@ -164,14 +137,7 @@ def main():
 
         exclude_list_annot_df.to_hdf(f'{out_pref}.{exclude_list_name}.h5', key)
         if i > 0:
-            write_exclusions_delta_bed_files(df=exclude_list_annot_df,
-                                             output_prefix=f'{out_pref}.{exclude_list_name}',
-                                             initial_exclude_list_name=initial_exclusion_list_name,
-                                             refined_exclude_list_name=exclude_list_name,
-                                             classification=post_filter_classification)
             write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', post_filter_classification)
-        else:
-            initial_exclusion_list_name = exclude_list_name
 
 
 if __name__ == '__main__':
