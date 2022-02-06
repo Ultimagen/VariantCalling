@@ -16,6 +16,9 @@ def read_hdf(file_name: str, key='all') -> DataFrame:
         f.close()
         dfs = [pd.read_hdf(file_name, key=key) for key in keys]
         return pd.concat(dfs)
+    elif key == 'all_human_chrs':
+            dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ['X']]
+            return pd.concat(dfs)
     else:
         return pd.read_hdf(file_name, key=key)
 
