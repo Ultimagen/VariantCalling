@@ -1,11 +1,13 @@
 import argparse
 import ast
 from os.path import splitext, basename
+from typing import Tuple
 
 import dask.dataframe as ddf
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
+from simppl.simple_pipeline import SimplePipeline
 
 from python.pipelines.variant_filtering_utils import apply_filter
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
@@ -61,7 +63,7 @@ def get_is_excluded_series(df_annot: DataFrame, exclude_list_df: DataFrame, excl
 
 def write_status_bed_files(df: DataFrame,
                            output_prefix: str,
-                           classification: Series):
+                           classification: Series) -> Tuple[str, str, str]:
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
     df.loc[df[df['description'].isna()].index, 'description'] = 'missing'
@@ -72,9 +74,13 @@ def write_status_bed_files(df: DataFrame,
     initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
     initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
 
-    write_bed(initial_fn_indel, f'{output_prefix}_fn_indel.bed')
-    write_bed(initial_fp_indel, f'{output_prefix}_fp_indel.bed')
-    write_bed(initial_tp_indel, f'{output_prefix}_tp_indel.bed')
+    fn_file = f'{output_prefix}_fn_indel.bed'
+    fp_file = f'{output_prefix}_fp_indel.bed'
+    tp_file = f'{output_prefix}_tp_indel.bed'
+    write_bed(initial_fn_indel, fn_file)
+    write_bed(initial_fp_indel, fp_file)
+    write_bed(initial_tp_indel, tp_file)
+    return fn_file, fp_file, tp_file
 
 
 def write_bed(df: DataFrame, bed_path: str):
@@ -114,6 +120,9 @@ def main():
     called_alleles = ddf_annot.apply(extract_alleles, meta='str', axis=1).compute(scheduler='multiprocessing')
     df_annot['alleles_base'] = called_alleles
 
+    fp_files = [f'{out_pref}.original_fp_indel.bed']
+    fn_files = [f'{out_pref}.original_fn_indel.bed']
+
     for i, exclude_list_bed_file in enumerate(exclude_lists_beds):
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
@@ -135,7 +144,20 @@ def main():
             stats_file.write(f'{stats_table}\n')
 
         exclude_list_annot_df.to_hdf(f'{out_pref}.{exclude_list_name}.h5', key)
-        write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', post_filter_classification)
+        fn_file,fp_file, tp_file = write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', post_filter_classification)
+        fp_files.append(fp_file)
+        fn_files.append(fn_file)
+
+    sp = SimplePipeline(0, 100, False)
+    original_fp_file = fp_files[0]
+    blacklist_fp_file = fp_files[1]
+    sec_fp_file = fp_files[2]
+    original_fn_file = fn_files[0]
+    sec_fn_file = fn_files[2]
+    sp.print_and_run(f'bedtools subtract -a {sec_fp_file} -b {blacklist_fp_file} > {out_pref}.fp_missed.bed')
+    sp.print_and_run(f'bedtools subtract -a {original_fp_file} -b {sec_fp_file} > {out_pref}.fp_corrected.bed')
+    sp.print_and_run(f'bedtools subtract -a {sec_fn_file} -b {original_fn_file} > {out_pref}.fn_added.bed')
+
 
 
 if __name__ == '__main__':
