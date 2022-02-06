@@ -66,7 +66,7 @@ def write_exclusions_delta_bed_files(df: DataFrame,
                                      classification: Series):
     df['pos-1'] = df['pos'] - 1
     df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
-
+    df.iloc[df['description'].isna, 'description'] = 'missing'
     # was removed from initial exclude_list by refinement
     df['exclude_list_delta'] = ((df[initial_exclude_list_name]) & ~(df[refined_exclude_list_name]))
 
