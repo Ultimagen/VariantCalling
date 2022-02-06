@@ -262,6 +262,9 @@ class FilterWrapper:
     # for fp, we filter out all the low_score points, and color the lower 10% of them
     # in grey and the others in blue
     def filtering_fp(self):
+
+        if 'tree_score' not in self.df.columns:
+            self.df['tree_score'] = 1
         if not pd.isnull(self.df['tree_score']).all() and pd.isnull(self.df['tree_score']).any():
             self.df.loc[pd.isnull(self.df['tree_score']), "tree_score"] = 1
         do_filtering = 'filter' in self.df.columns \
