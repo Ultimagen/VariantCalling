@@ -114,7 +114,6 @@ def main():
     called_alleles = ddf_annot.apply(extract_alleles, meta='str', axis=1).compute(scheduler='multiprocessing')
     df_annot['alleles_base'] = called_alleles
 
-    initial_exclusion_list_name = ''
     for i, exclude_list_bed_file in enumerate(exclude_lists_beds):
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
@@ -136,8 +135,7 @@ def main():
             stats_file.write(f'{stats_table}\n')
 
         exclude_list_annot_df.to_hdf(f'{out_pref}.{exclude_list_name}.h5', key)
-        if i > 0:
-            write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', post_filter_classification)
+        write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', post_filter_classification)
 
 
 if __name__ == '__main__':
