@@ -4,6 +4,8 @@ class BedWriter:
         self.fh = open(output_file, 'w')
 
     def write(self, chrom: str, start: int, end: int, description: str = None):
+        if start > end:
+            raise ValueError(f'start > end in write bed file: {start} > {end}')
         self.fh.write(f'{chrom}\t{start}\t{end}')
         if description is not None:
             self.fh.write(f'\t{description}')
