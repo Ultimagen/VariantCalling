@@ -6,7 +6,7 @@ from scipy.stats import chisquare, binom_test
 from ugvc.dna.strand_direction import forward_strand, reverse_strand, StrandDirection
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution, get_allele_counts_list
 from ugvc.sec.read_counts import ReadCounts
-from ugvc.stats.goodness_of_fit import scale_contingency_table, multinomial_likelihood_ratio
+from ugvc.utils.stats_utils import scale_contingency_table, multinomial_likelihood_ratio
 from ugvc.utils.pysam_utils import is_snp
 
 

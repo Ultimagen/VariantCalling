@@ -14,7 +14,7 @@ from collections import OrderedDict
 from enum import Enum
 import python.utils as utils
 
-from ugvc.stats.precision_recall import get_precision, get_recall, get_f1
+from ugvc.utils.stats_utils import get_precision, get_recall, get_f1
 
 
 FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',

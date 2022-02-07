@@ -5,7 +5,7 @@ from pandas import DataFrame
 
 from python.pipelines import variant_filtering_utils as variant_filtering_utils
 from ugvc import logger
-from ugvc.stats.precision_recall import get_recall, get_precision, get_f1
+from utils.stats_utils import get_precision, get_recall, get_f1
 
 
 def read_hdf(file_name: str, key='all') -> DataFrame:
