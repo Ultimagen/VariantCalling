@@ -71,13 +71,3 @@ class TestPysamUtils(unittest.TestCase):
         self.assertTrue(is_snp(['A', 'T', 'C']))
         self.assertFalse(is_snp(['A', 'T', 'AG']))
         self.assertFalse(is_snp(['AT', 'GC']))
-
-    def test_fix_ultima_info(self):
-        print(self.variant.info['AS_RAW_BaseQRankSum'])
-        fix_ultima_info(self.variant, self.vcf.header)
-        print(self.variant.info['AS_RAW_BaseQRankSum'])
-
-
-
-
-
