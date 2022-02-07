@@ -13,113 +13,11 @@ from typing import Optional, Tuple, Callable, Union
 from enum import Enum
 import python.utils as utils
 
-def modify_features_based_on_vcf_type(vtype: "single_sample/joint" = "single_sample"):
-    '''Modify training features based on the type of the vcf
-
-    Parameters
-    ----------
-    vtype: string
-        The type of the input vcf. Either "single_sample" or "joint"
-
-    Returns
-    -------
-    list of features, list of transform, column used for qual (qual or qd)
-    '''
-
-    default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
-    tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
-    tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
-    left_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
-    right_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
-    allele_filter = sklearn_pandas.FunctionTransformer(allele_encode)
-    gt_filter = sklearn_pandas.FunctionTransformer(gt_encode)
-
-    if vtype=="single_sample":
-
-        qual_column = "qual"
-
-        features = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length', 'indel_length',
-            'ad', 'af', 'fs', 'qd', 'mq', 'pl', 'gt',
-            'gq', 'ps', 'ac', 'an',
-            'baseqranksum', 'excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum', 'xc',
-            'indel', 'left_motif', 'right_motif', 'alleles', 'cycleskip_status', 'gc_content']
-
-        transform_list = [(['sor'], default_filler),
-                          (['dp'], default_filler),
-                          ('qual', None),
-                          ('hmer_indel_nuc', preprocessing.LabelEncoder()),
-                          ('inside_hmer_run', None),
-                          ('close_to_hmer_run', None),
-                          (['hmer_indel_length'], default_filler),
-                          (['indel_length'],default_filler),
-                          ('ad', [tuple_filter]),
-                          ('af', [tuple_filter]),
-                          (['fs'], default_filler),
-                          (['qd'], default_filler),
-                          (['mq'], default_filler),
-                          ('pl', [tuple_filter]),
-                          ('gt', [gt_filter]),
-                          (['gq'], default_filler),
-                          (['ps'], default_filler),
-                          ('ac', [tuple_filter]),
-                          (['an'], default_filler),
-                          (['baseqranksum'], default_filler),
-                          (['excesshet'], default_filler),
-                          ('mleac', [tuple_filter]),
-                          ('mleaf', [tuple_filter]),
-                          (['mqranksum'], default_filler),
-                          (['readposranksum'], default_filler),
-                          (['xc'], default_filler),
-                          ('indel', None),
-                          ('left_motif', [left_motif_filter]),
-                          ('right_motif', [right_motif_filter]),
-                          ('cycleskip_status', preprocessing.LabelEncoder()),
-                          ('alleles', [tuple_filter, allele_filter]),
-                          ('alleles', [tuple_filter_second, allele_filter]),
-                          (['gc_content'], default_filler)
-                          ]
-
-    elif vtype=="joint":
-
-        qual_column = "qd"
-
-        features = ['qd', 'sor', 'an', 'baseqranksum', 'dp', 'excesshet', 'fs', 'mq', 'mqranksum', 'readposranksum',
-                    'alleles', 'indel', 'indel_length', 'gc_content', 'cycleskip_status', 'left_motif', 'right_motif',
-                    'hmer_indel_length', 'inside_hmer_run', 'hmer_indel_nuc', 'close_to_hmer_run']
-
-        transform_list = [(['sor'], default_filler),
-                          (['dp'], default_filler),
-                          ('hmer_indel_nuc', preprocessing.LabelEncoder()),
-                          ('inside_hmer_run', None),
-                          ('close_to_hmer_run', None),
-                          (['hmer_indel_length'], default_filler),
-                          (['indel_length'],default_filler),
-                          (['fs'], default_filler),
-                          (['qd'], default_filler),
-                          (['mq'], default_filler),
-                          (['an'], default_filler),
-                          (['baseqranksum'], default_filler),
-                          (['excesshet'], default_filler),
-                          (['mqranksum'], default_filler),
-                          (['readposranksum'], default_filler),
-                          ('indel', None),
-                          ('left_motif', [left_motif_filter]),
-                          ('right_motif', [right_motif_filter]),
-                          ('cycleskip_status', preprocessing.LabelEncoder()),
-                          ('alleles', [tuple_filter, allele_filter]),
-                          ('alleles', [tuple_filter_second, allele_filter]),
-                          (['gc_content'], default_filler)
-                          ]
-
-    else:
-        raise ValueError("Unrecognized VCF type")
-
-    return [features, transform_list, qual_column]
-
-
 logger = logging.getLogger(__name__)
 
+class vcfType (Enum):
+    single_sample = 1
+    joint = 2
 
 class SingleModel:
 
@@ -247,7 +145,7 @@ class MaskedHierarchicalModel:
 
 
 def train_threshold_models(concordance: pd.DataFrame,
-                           vtype: "single_sample/joint",
+                           vtype: vcfType,
                            interval_size: Optional[int] = None,
                            classify_column: str = 'classify', annots: list = [])\
                            -> Tuple[MaskedHierarchicalModel, pd.DataFrame]:
@@ -301,7 +199,7 @@ def train_threshold_models(concordance: pd.DataFrame,
 def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series,
                           selection: pd.Series, gtr_column: str,
                           transformer: sklearn_pandas.DataFrameMapper,
-                          vtype: "single_sample/joint",
+                          vtype: vcfType,
                           interval_size: int,
                           annots: list = []) -> tuple:
     '''Trains threshold regressor and classifier models
@@ -490,7 +388,81 @@ def gt_encode(x):
     return 0
 
 
-def feature_prepare(vtype: "single_sample/joint", output_df: bool = False, annots: list = []) -> sklearn_pandas.DataFrameMapper:
+def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
+    '''Modify training features based on the type of the vcf
+
+    Parameters
+    ----------
+    vtype: string
+        The type of the input vcf. Either "single_sample" or "joint"
+
+    Returns
+    -------
+    list of features, list of transform, column used for qual (qual or qd)
+    '''
+
+    default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
+    tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
+    tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
+    left_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
+    right_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
+    allele_filter = sklearn_pandas.FunctionTransformer(allele_encode)
+    gt_filter = sklearn_pandas.FunctionTransformer(gt_encode)
+
+    features = ['qd', 'sor', 'an', 'baseqranksum', 'dp', 'excesshet', 'fs', 'mq', 'mqranksum', 'readposranksum',
+                'alleles', 'indel', 'indel_length', 'gc_content', 'cycleskip_status', 'left_motif', 'right_motif',
+                'hmer_indel_length', 'inside_hmer_run', 'hmer_indel_nuc', 'close_to_hmer_run']
+
+    transform_list = [(['sor'], default_filler),
+                      (['dp'], default_filler),
+                      ('hmer_indel_nuc', preprocessing.LabelEncoder()),
+                      ('inside_hmer_run', None),
+                      ('close_to_hmer_run', None),
+                      (['hmer_indel_length'], default_filler),
+                      (['indel_length'], default_filler),
+                      (['fs'], default_filler),
+                      (['qd'], default_filler),
+                      (['mq'], default_filler),
+                      (['an'], default_filler),
+                      (['baseqranksum'], default_filler),
+                      (['excesshet'], default_filler),
+                      (['mqranksum'], default_filler),
+                      (['readposranksum'], default_filler),
+                      ('indel', None),
+                      ('left_motif', [left_motif_filter]),
+                      ('right_motif', [right_motif_filter]),
+                      ('cycleskip_status', preprocessing.LabelEncoder()),
+                      ('alleles', [tuple_filter, allele_filter]),
+                      ('alleles', [tuple_filter_second, allele_filter]),
+                      (['gc_content'], default_filler)
+                      ]
+
+    if vtype=="single_sample":
+        qual_column = "qual"
+        features.extend(['qual', 'ps', 'ac', 'ad', 'gt', 'xc', 'gq', 'pl', 'af', 'mleac', 'mleaf'])
+        transform_list.extend([
+            ('qual', None),
+            (['ps'], default_filler),
+            ('ac', [tuple_filter]),
+            ('ad', [tuple_filter]),
+            ('gt', [gt_filter]),
+            (['xc'], default_filler),
+            (['gq'], default_filler),
+            ('pl', [tuple_filter]),
+            ('af', [tuple_filter]),
+            ('mleac', [tuple_filter]),
+            ('mleaf', [tuple_filter])
+        ])
+
+    elif vtype=="joint":
+        qual_column = "qd"
+    else:
+        raise ValueError("Unrecognized VCF type")
+
+    return [features, transform_list, qual_column]
+
+
+def feature_prepare(vtype: vcfType, output_df: bool = False, annots: list = []) -> sklearn_pandas.DataFrameMapper:
     '''Prepare dataframe for analysis (encode features, normalize etc.)
 
     Parameters
@@ -523,7 +495,7 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 transformer: sklearn_pandas.DataFrameMapper,
                 interval_size: int,
                 classify_model,
-                vtype: "single_sample/joint",
+                vtype: vcfType,
                 annots: list = [],
                 exome_weight: int = 1,
                 exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
@@ -595,7 +567,7 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
 def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
                    selection: pd.Series, gtr_column: str,
                    transformer: sklearn_pandas.DataFrameMapper,
-                   vtype: "single_sample/joint",
+                   vtype: vcfType,
                    interval_size: int, annots: list = [],
                    exome_weight: int = 1,
                    exome_weight_annotation: str = None) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
@@ -874,7 +846,7 @@ def add_testing_train_split_column(concordance: pd.DataFrame,
 
 def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interval_size: int,
                         train_function, model_name: str,
-                        vtype: "single_sample/joint",
+                        vtype: vcfType,
                         annots: list = [],
                         exome_weight: int = 1,
                         exome_weight_annotation: str = None,
