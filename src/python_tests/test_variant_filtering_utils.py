@@ -37,8 +37,7 @@ def test_read_blacklist():
 
 
 def test_apply_blacklist():
-    df = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH,
-                           "test.df.h5"), key="variants")
+    df = pd.read_hdf(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "test.df.h5"), key="variants")
     blacklist = pickle.load(
         open(pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "blacklist.test.pkl"), "rb"))
     blacklists_applied = [x.apply(df) for x in blacklist]

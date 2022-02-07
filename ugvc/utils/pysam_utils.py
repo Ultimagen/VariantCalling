@@ -79,15 +79,3 @@ def is_snp(alleles: List[str]):
     @return: are the alleles represent SNP locus (all are of size 1)
     """
     return all([len(a) == 1 for a in alleles])
-
-
-def fix_ultima_info(variant: VariantRecord, vcf_header) -> None:
-    """
-    Some String typed fields are read by pysam as tuple, construct back the intended string
-    @param variant: a pysam variant object
-    @param vcf_header: header object of VariantFile
-    """
-    info = variant.info
-    for key, value in info.items():
-        if vcf_header.info.get(key).type == 'String':
-            variant.info[key] = ','.join(value)

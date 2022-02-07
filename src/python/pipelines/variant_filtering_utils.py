@@ -13,7 +13,6 @@ from typing import Optional, Tuple, Callable, Union
 from collections import OrderedDict
 from enum import Enum
 import python.utils as utils
-
 from ugvc.utils.stats_utils import get_precision, get_recall, get_f1
 
 
