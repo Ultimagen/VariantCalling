@@ -39,7 +39,7 @@ class TestSecRecord(unittest.TestCase):
                                                      'AG': ReadCounts(10, 7)})  # unexpected amount of allele
         sec_record.process()
 
-        self.assertAlmostEqual( 7 * 10 ** -7, sec_record.likelihood_ratio, places=6)
+        self.assertAlmostEqual(7 * 10 ** -7, sec_record.likelihood_ratio, places=6)
         self.assertAlmostEqual(0, sec_record.likelihood, places=3)
         # reverse strand is more expected than forward
         self.assertAlmostEqual(0, sec_record.forward_enrichment_pval, places=3)
