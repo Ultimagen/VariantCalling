@@ -171,6 +171,7 @@ class SystematicErrorCorrector:
                 for sec_record in call.sec_records:
                     log_stream.write(f'{sec_record}\n')
 
+
                 if self.output_type == OutputType.pickle:
                     self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
 
