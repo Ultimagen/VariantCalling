@@ -17,10 +17,11 @@ def read_hdf(file_name: str, key='all') -> DataFrame:
         dfs = [pd.read_hdf(file_name, key=key) for key in keys]
         return pd.concat(dfs)
     elif key == 'all_human_chrs':
-            dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ['X']]
-            return pd.concat(dfs)
+        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ['X']]
+        return pd.concat(dfs)
     else:
         return pd.read_hdf(file_name, key=key)
+
 
 def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: bool = False) -> DataFrame:
     """
@@ -40,6 +41,7 @@ def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: 
     accuracy_df = accuracy_df.append(all_indels, ignore_index=True)
     accuracy_df = accuracy_df.round(5)
     return accuracy_df
+
 
 def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol_run: bool = False) -> DataFrame:
     """
@@ -74,6 +76,7 @@ def validate_and_preprocess_concordance_df(df: DataFrame, filter_hpol_run: bool 
     df['group'] = 'all'
     df['test_train_split'] = False
 
+
 def initialize_trivial_classifier() -> variant_filtering_utils.MaskedHierarchicalModel:
     """
     initialize a classifier that will be used to simply apply filter column on the variants
@@ -84,6 +87,7 @@ def initialize_trivial_classifier() -> variant_filtering_utils.MaskedHierarchica
                                                                              _group_column='group',
                                                                              _models_dict={'all': trivial_classifier})
     return trivial_classifier_set
+
 
 def __convert_recall_precision_dict_to_df(recall_precision_dict):
     results_vals = pd.DataFrame(recall_precision_dict).unstack().reset_index()
@@ -96,6 +100,7 @@ def __convert_recall_precision_dict_to_df(recall_precision_dict):
         results_vals['predictions'] = results_vals['tmp'].apply(lambda x: x[:, 3])
     results_vals.drop('tmp', axis=1, inplace=True)
     return results_vals
+
 
 def __summarize_indel_stats(accuracy_df):
     indel_df = accuracy_df[accuracy_df['group'].str.contains('indel') | accuracy_df['group'].str.contains('INDEL')]

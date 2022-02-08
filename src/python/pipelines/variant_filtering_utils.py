@@ -15,19 +15,13 @@ from enum import Enum
 import python.utils as utils
 from ugvc.utils.stats_utils import get_precision, get_recall, get_f1
 
-
-FEATURES = ['sor', 'dp', 'qual', 'hmer_indel_nuc',
-            'inside_hmer_run', 'close_to_hmer_run', 'hmer_indel_length', 'indel_length',
-            'ad', 'af', 'fs', 'qd', 'mq', 'pl', 'gt',
-            'gq', 'ps', 'ac', 'an',
-            'baseqranksum', 'excesshet', 'mleac', 'mleaf', 'mqranksum', 'readposranksum', 'xc',
-            'indel', 'left_motif', 'right_motif', 'alleles', 'cycleskip_status', 'gc_content']
-
 logger = logging.getLogger(__name__)
 
-class vcfType (Enum):
+
+class vcfType(Enum):
     single_sample = 1
     joint = 2
+
 
 class SingleModel:
 
@@ -156,12 +150,11 @@ class MaskedHierarchicalModel:
         return predictions
 
 
-
 def train_threshold_models(concordance: pd.DataFrame,
                            vtype: vcfType,
                            interval_size: Optional[int] = None,
-                           classify_column: str = 'classify', annots: list = [])\
-                           -> Tuple[MaskedHierarchicalModel, pd.DataFrame]:
+                           classify_column: str = 'classify', annots: list = []) \
+        -> Tuple[MaskedHierarchicalModel, pd.DataFrame]:
     '''Trains threshold classifier and regressor
 
     Parameters
@@ -198,7 +191,7 @@ def train_threshold_models(concordance: pd.DataFrame,
         classifier_models[g], fpr_values[g], thresholds[g] = \
             train_threshold_model(concordance=concordance,
                                   test_train_split=concordance['test_train_split'],
-                                  selection = concordance['group'] == g,
+                                  selection=concordance['group'] == g,
                                   gtr_column=classify_column,
                                   transformer=transformer,
                                   interval_size=interval_size,
@@ -454,7 +447,7 @@ def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
                       (['gc_content'], default_filler)
                       ]
 
-    if vtype=="single_sample":
+    if vtype == "single_sample":
         qual_column = "qual"
         features.extend(['qual', 'ps', 'ac', 'ad', 'gt', 'xc', 'gq', 'pl', 'af', 'mleac', 'mleaf'])
         transform_list.extend([
@@ -471,7 +464,7 @@ def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
             ('mleaf', [tuple_filter])
         ])
 
-    elif vtype=="joint":
+    elif vtype == "joint":
         qual_column = "qd"
     else:
         raise ValueError("Unrecognized VCF type")
@@ -802,7 +795,7 @@ def get_testing_selection_functions() -> OrderedDict:
     sfs["HMER indel (4,8)"] = lambda x: x.indel & (x.hmer_indel_length >= 5) & (x.hmer_indel_length < 8)
     sfs["HMER indel [8,10]"] = lambda x: x.indel & (x.hmer_indel_length >= 8) & (x.hmer_indel_length <= 10)
     sfs["HMER indel 11,12"] = lambda x: x.indel & (x.hmer_indel_length >= 11) & (x.hmer_indel_length <= 12)
-    sfs["HMER indel > 12"] =  lambda x: x.indel & (x.hmer_indel_length > 12)
+    sfs["HMER indel > 12"] = lambda x: x.indel & (x.hmer_indel_length > 12)
     return sfs
 
 
@@ -867,7 +860,6 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
                         exome_weight: int = 1,
                         exome_weight_annotation: str = None,
                         use_train_test_split: bool = True) -> tuple:
-
     '''Train a decision tree model on the dataframe
 
     Parameters
@@ -918,13 +910,13 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
     thresholds: dict = {}
     for g in groups:
         classifier_models[g], fpr_values[g], thresholds[g] = \
-            train_function(concordance = concordance,
-                           test_train_split = concordance['test_train_split'],
-                           selection = concordance['group'] == g,
-                           gtr_column = classify_column,
-                           transformer = transformer, vtype=vtype,
-                           interval_size = interval_size, annots = annots,
-                           exome_weight = exome_weight, exome_weight_annotation = exome_weight_annotation)
+            train_function(concordance=concordance,
+                           test_train_split=concordance['test_train_split'],
+                           selection=concordance['group'] == g,
+                           gtr_column=classify_column,
+                           transformer=transformer, vtype=vtype,
+                           interval_size=interval_size, annots=annots,
+                           exome_weight=exome_weight, exome_weight_annotation=exome_weight_annotation)
 
     return MaskedHierarchicalModel(model_name + " classifier", "group", classifier_models, transformer=transformer,
                                    threshold=thresholds,
@@ -934,7 +926,8 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
 
 def test_decision_tree_model(concordance: pd.DataFrame,
                              model: MaskedHierarchicalModel,
-                             classify_column: str) -> DataFrame:
+                             classify_column: str,
+                             add_testing_group_column: bool = True) -> dict:
     """
     Calculate precision/recall for the decision tree classifier
 
@@ -954,15 +947,14 @@ def test_decision_tree_model(concordance: pd.DataFrame,
     -------
     dict:
         Tuple dictionary - recall/precision for each category
+    """
 
     if add_testing_group_column:
         concordance = add_grouping_column(
-                concordance, get_testing_selection_functions(), "group_testing")
-    else: 
+            concordance, get_testing_selection_functions(), "group_testing")
+    else:
         assert "group_testing" in concordance.columns, "group_testing column should be given"
 
-
-    """
     concordance = add_grouping_column(
         concordance, get_testing_selection_functions(), "group_testing")
 
@@ -1025,9 +1017,9 @@ def test_decision_tree_model(concordance: pd.DataFrame,
 
 def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series) -> pd.Series:
     """
-    :param pre_filtering_classification: classification to 'tp', 'fp', 'fn' before applying filter
-    :param is_filtered:  boolean series denoting which rows where filtered
-    :return: classification to 'tp', 'fp', 'fn', 'tn' after applying filter
+    @param pre_filtering_classification: classification to 'tp', 'fp', 'fn' before applying filter
+    @param is_filtered:  boolean series denoting which rows where filtered
+    @return: classification to 'tp', 'fp', 'fn', 'tn' after applying filter
     """
     post_filtering_classification = pre_filtering_classification.copy()
     post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'fp')] = 'tn'
@@ -1061,11 +1053,10 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     """
 
     if add_testing_group_column:
-            concordance = add_grouping_column(
-                concordance, get_testing_selection_functions(), "group_testing")
-    else: 
+        concordance = add_grouping_column(
+            concordance, get_testing_selection_functions(), "group_testing")
+    else:
         assert "group_testing" in concordance.columns, "group_testing column should be given"
-
 
     predictions = model.predict(concordance, classify_column, get_numbers=True)
     groups = set(concordance['group_testing'])
@@ -1124,7 +1115,7 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
     return result, recalls_precisions
 
 
-class VariantSelectionFunctions (Enum):
+class VariantSelectionFunctions(Enum):
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
 
     def ALL(
