@@ -9,27 +9,42 @@ import logging
 
 ap = argparse.ArgumentParser(prog="evaluate_concordance.py",
                              description="Calculate precision and recall for compared HDF5 ")
-ap.add_argument("--input_file", help="Name of the input h5 file", type=str)
-ap.add_argument("--output_file", help="Output h5 file", type=str, required=True)
+ap.add_argument("--input_file", help="Name of the input h5 file",
+                type=str, required=True)
+ap.add_argument("--output_file", help="Output h5 file",
+                type=str, required=True)
+ap.add_argument("--use_for_group_testing",
+                help="Column in the h5 to use for grouping (or generate default groupings)", type=str)
+ap.add_argument("--verbosity", type=str, default="INFO")
+
 args = ap.parse_args()
 
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=getattr(logging, args.verbosity),
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__ if __name__ != "__main__" else "evaluate_concordance")
 
 concordance = pd.read_hdf(args.input_file, key="concordance")
 assert 'tree_score' in concordance.columns, "Input concordance file should be after applying a model"
 
-concordance.loc[pd.isnull(concordance['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+concordance.loc[pd.isnull(concordance['hmer_indel_nuc']),
+                "hmer_indel_nuc"] = 'N'
 
 if np.any(pd.isnull(concordance['tree_score'])):
-    logger.warning("Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
+    logger.warning(
+        "Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
     concordance.loc[pd.isnull(concordance['tree_score']), "tree_score"] = 0
 
 
 concordance['group'] = 'all'
 concordance['test_train_split'] = False
-concordance['group_testing'] = variant_filtering_utils.add_grouping_column(
-    concordance, variant_filtering_utils.get_testing_selection_functions(), "group_testing")
+if args.use_for_group_testing is None:
+    concordance['group_testing'] = variant_filtering_utils.add_grouping_column(
+        concordance, variant_filtering_utils.get_testing_selection_functions(), "group_testing")
+else:
+    concordance['group_testing'] = concordance[args.use_for_group_testing]
+    removed = pd.isnull(concordance['group_testing'])
+    logger.info(f"Removing {removed.sum()}/{concordance.shape[0]} variants with no type")
+    concordance = concordance[~removed]
 
 trivial_classifier = variant_filtering_utils.SingleTrivialClassifierModel()
 
@@ -38,44 +53,60 @@ trivial_classifier_set = variant_filtering_utils.MaskedHierarchicalModel(
 
 recall_precision_dict = {}
 recall_precision_curve_dict = {}
+
 for exclude_hpols in [False, True]:
     for ignore_gt in [False, True]:
         name = 'untrained_%s_%s' % (['include_gt', 'ignore_gt'][ignore_gt],
                                     ['incl_hpol_runs', 'excl_hpol_runs'][exclude_hpols])
 
         if exclude_hpols:
-            is_hpol_run = concordance['filter'].apply(lambda x: 'HPOL_RUN' in x)
+            is_hpol_run = concordance['filter'].apply(
+                lambda x: 'HPOL_RUN' in x)
             concordance_filtered = concordance[~is_hpol_run].copy()
         else:
             concordance_filtered = concordance.copy()
 
         classify_column = ['classify_gt', 'classify'][ignore_gt]
+        logger.debug(f"{classify_column}, {exclude_hpols}")
+        logger.debug("Optimal precision recall")
         recall_precision = variant_filtering_utils.test_decision_tree_model(
-            concordance_filtered, trivial_classifier_set, classify_column)
+            concordance_filtered, trivial_classifier_set, classify_column, 
+            add_testing_group_column = False)
         recall_precision_dict[name] = recall_precision
-
+        logger.debug("recall precision curve")
+        
         recall_precision_curve = variant_filtering_utils.get_decision_tree_precision_recall_curve(
-            concordance_filtered, trivial_classifier_set, classify_column)
+            concordance_filtered, trivial_classifier_set, classify_column, 
+            add_testing_group_column = False)
         recall_precision_curve_dict[name] = recall_precision_curve
+        logger.debug("Done")
 
 results_vals = (pd.DataFrame(recall_precision_dict)).unstack().reset_index()
-results_vals.columns = ['model', 'category','tmp']
-results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [(np.nan, np.nan, np.nan, np.nan)]
+results_vals.columns = ['model', 'category', 'tmp']
+results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
+    (np.nan, np.nan, np.nan, np.nan)]
 results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[0])
 results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[1])
 results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[2])
-results_vals.drop('tmp',axis=1,inplace=True)
+results_vals.drop('tmp', axis=1, inplace=True)
 
 results_vals.to_hdf(args.output_file, key="optimal_recall_precision")
 
-results_vals = (pd.DataFrame(recall_precision_curve_dict)).unstack().reset_index()
-results_vals.columns = ['model', 'category','tmp']
-results_vals.loc[pd.isnull(results_vals['tmp']),'tmp'] = [np.zeros((0,3))]
-results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[:,0])
-results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[:,1])
-results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[:,2])
-results_vals['predictions'] = results_vals['tmp'].apply(lambda x: x[:,3])
-results_vals.drop('tmp',axis=1,inplace=True)
+results_vals = (pd.DataFrame(recall_precision_curve_dict)
+                ).unstack().reset_index()
+results_vals.columns = ['model', 'category', 'tmp']
+results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [np.zeros((0, 3))]
+results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[:, 0])
+results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[:, 1])
+results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[:, 2])
+results_vals['predictions'] = results_vals['tmp'].apply(lambda x: x[:, 3])
+results_vals.drop('tmp', axis=1, inplace=True)
 
+results_vals['threshold_loc'] = results_vals['f1'].apply(np.argmax)
+results_vals['threshold'] = results_vals.apply(
+    lambda x: x['predictions'][x['threshold_loc']], axis=1)
+results_vals.drop(['threshold_loc'], axis=1, inplace=True)
 results_vals.to_hdf(args.output_file, key="recall_precision_curve")
+
+results_vals[['model', 'category', 'threshold']].to_csv(f"{args.output_file}.thresholds.txt", index=None)
 
