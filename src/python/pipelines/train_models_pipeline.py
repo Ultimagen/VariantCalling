@@ -36,6 +36,8 @@ ap.add_argument("--flow_order",
                 help="Sequencing flow order (4 cycle)", required=False, default="TGCA")
 ap.add_argument("--exome_weight_annotation", help='annotation name by which we decide the weight of exome variants',
                 type=str)
+ap.add_argument("--vcf_type", help='VCF type - "single_sample" or "joint"',
+                type=str, default="single_sample")
 ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG", required=False, default="INFO")
 
 args = ap.parse_args()
@@ -62,14 +64,10 @@ except AssertionError as af:
 try:
     with_dbsnp_bl = args.input_file.endswith('vcf.gz')
     if with_dbsnp_bl:
-        if len(args.list_of_contigs_to_read)==0:
-            df = vcftools.get_vcf_df(args.input_file)
-        else:
-            df = pd.concat([vcftools.get_vcf_df(args.input_file, chromosome=x) 
-                for x in args.list_of_contigs_to_read])
+        df = vcftools.get_vcf_df(args.input_file)
 
     else:
-        # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
+        ## read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         df = []
         annots = []
         with pd.HDFStore(args.input_file) as data:
@@ -82,7 +80,6 @@ try:
 
         df = pd.concat(df, axis=0)
 
-    logger.debug(f"Input frame shape: {df.shape}")
     df, annots = vcf_pipeline_utils.annotate_concordance(df, args.reference,
                                                          runfile=args.runs_intervals,
                                                          flow_order=args.flow_order,
@@ -108,6 +105,7 @@ try:
         df = df[df['bl_classify'] != 'unknown']
         # Decision tree models
         interval_size = None
+        df.to_hdf(args.output_file_prefix + ".fake_gt.h5", key="fake_gt")
     else:
         classify_clm = 'classify'
         interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
@@ -116,7 +114,7 @@ try:
     # Thresholding model
     models_thr_no_gt, df_tmp = \
         variant_filtering_utils.train_threshold_models(
-            df.copy(), interval_size, classify_column=classify_clm, annots=annots)
+            concordance=df.copy(), interval_size=interval_size, classify_column=classify_clm, annots=annots, vtype=args.vcf_type)
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_thr_no_gt, classify_column=classify_clm)
     recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
@@ -149,7 +147,8 @@ try:
                                                     annots=annots,
                                                     exome_weight=args.exome_weight,
                                                     exome_weight_annotation=args.exome_weight_annotation,
-                                                    use_train_test_split=True)
+                                                    use_train_test_split=True,
+                                                    vtype=args.vcf_type)
 
     recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
         df_tmp, models_rf_no_gt, classify_clm)
