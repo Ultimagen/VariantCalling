@@ -88,7 +88,7 @@ def main():
                 vcf_file_per_chr = f'{relevant_gvcf}.{chromosome}.vcf'
                 vcf_per_chr_files.append(vcf_file_per_chr)
                 extract_variants_commands.append(f'{authorize_gcp_command}; '
-                                                 f'bcftools view {gvcf_file} {" ".join(relevant_chromosomes)} -Oz'
+                                                 f'bcftools view {gvcf_file} {chromosome} -Oz'
                                                  f' | bedtools intersect -a stdin -b {relevant_coords_file} -header'
                                                  f' | uniq > {vcf_file_per_chr}')
                 concat_vcf_commands.append(f'bcftools concat {" ".join(vcf_per_chr_files)} --rm-dups both'
@@ -129,9 +129,9 @@ def main():
     # extract variants in relevant coords (often from cloud to local storage)
     sp.run_parallel(extract_variants_commands, max_num_of_processes=args.processes)
 
-    # remove duplicate vcf records with disrupts indexing (is this because of overlap in relevant coords?)
+    # concat vcf per chromosome and remove duplicate vcf records with disrupts indexing (is this because of overlap in relevant coords?)
     try:
-        sp.run_parallel(remove_duplicates_commands, max_num_of_processes=args.processes)
+        sp.run_parallel(conccat_vcf_commands, max_num_of_processes=args.processes)
     except RuntimeError:
         pass
 
