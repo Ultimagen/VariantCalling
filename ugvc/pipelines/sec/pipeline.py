@@ -129,9 +129,10 @@ def main():
     # extract variants in relevant coords (often from cloud to local storage)
     sp.run_parallel(extract_variants_commands, max_num_of_processes=args.processes)
 
-    # concat vcf per chromosome and remove duplicate vcf records with disrupts indexing (is this because of overlap in relevant coords?)
+    # concat vcf per chromosome and remove duplicate vcf records with disrupts indexing
+    # (is this because of overlap in relevant coords?)
     try:
-        sp.run_parallel(conccat_vcf_commands, max_num_of_processes=args.processes)
+        sp.run_parallel(concat_vcf_commands, max_num_of_processes=args.processes)
     except RuntimeError:
         pass
 
