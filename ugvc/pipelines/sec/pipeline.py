@@ -46,8 +46,6 @@ def main():
     novel_detection_only = args.novel_detection_only
     novel_detection_suffix = '_novel' if novel_detection_only else ''
 
-    scripts_dir = f'{base_dir}/../src/bash'
-
     inputs_table = pd.read_csv(args.inputs_table, sep='\t')
     sample_counts = inputs_table['sample_id'].value_counts()
     duplicated_samples = sample_counts[sample_counts > 1]
@@ -59,6 +57,7 @@ def main():
     sp = SimplePipeline(start=args.fc, end=args.lc, debug=args.d, output_stream=sys.stdout)
 
     extract_variants_commands = []
+    concat_vcf_commands = []
     remove_duplicates_commands = []
     training_commands = []
     test_commands = []
@@ -80,23 +79,26 @@ def main():
     model_file = f'{out_dir}/conditional_allele_distribution.pkl'
 
     for sample_id, gvcf_file in zip(sample_ids, gvcf_files):
-        relevant_gvcf = f'{out_dir}/gvcf/{sample_id}.g.vcf'
+        relevant_gvcf = f'{out_dir}/gvcf/{sample_id}.g.vcf.gz'
         allele_distributions = f'{out_dir}/allele_distributions/{sample_id}.tsv'
 
         if not os.path.exists(relevant_gvcf):
-            extract_variants_commands.append(f'{authorize_gcp_command}; '
-                                             f'bcftools view {gvcf_file} {" ".join(relevant_chromosomes)} -Oz | '
-                                             f'bedtools intersect -a stdin -b {relevant_coords_file} -header'
-                                             f'> {relevant_gvcf}')
-
-        remove_duplicates_commands.append(f'sh {scripts_dir}/remove_vcf_duplicates.sh {relevant_gvcf}')
-        nodup_gvcf = f'{out_dir}/gvcf/{sample_id}.g.vcf.nodup.vcf.gz'
+            vcf_per_chr_files = []
+            for chromosome in relevant_chromosomes:
+                vcf_file_per_chr = f'{relevant_gvcf}.{chromosome}.vcf'
+                vcf_per_chr_files.append(vcf_file_per_chr)
+                extract_variants_commands.append(f'{authorize_gcp_command}; '
+                                                 f'bcftools view {gvcf_file} {" ".join(relevant_chromosomes)} -Oz'
+                                                 f' | bedtools intersect -a stdin -b {relevant_coords_file} -header'
+                                                 f' | uniq > {vcf_file_per_chr}')
+                concat_vcf_commands.append(f'bcftools concat {" ".join(vcf_per_chr_files)} --rm-dups both'
+                                           f' -Oz -o {relevant_gvcf}')
 
         if sample_id in training_samples:
             training_commands.append(f'python {sec_main}/error_correction_training.py '
                                      f'--relevant_coords {relevant_coords_file} '
                                      f'--ground_truth_vcf {ground_truth_vcf} '
-                                     f'--gvcf {nodup_gvcf} '
+                                     f'--gvcf {relevant_gvcf} '
                                      f'--sample_id {sample_id} '
                                      f'--output_file {allele_distributions}')
             training_file_per_sample.append(allele_distributions)
@@ -106,14 +108,14 @@ def main():
                 test_commands.append(f'python {sec_main}/correct_systematic_errors.py '
                                      f'--relevant_coords {relevant_coords_file} '
                                      f'--model {model_file} '
-                                     f'--gvcf {nodup_gvcf} '
+                                     f'--gvcf {relevant_gvcf} '
                                      f'--output_file {corrected_vcf} '
                                      '--novel_detection_only')
             else:
                 test_commands.append(f'python {sec_main}/correct_systematic_errors.py '
                                      f'--relevant_coords {relevant_coords_file} '
                                      f'--model {model_file} '
-                                     f'--gvcf {nodup_gvcf} '
+                                     f'--gvcf {relevant_gvcf} '
                                      f'--output_file {corrected_vcf}')
 
             assess_commands.append(f'python {base_dir}/concordance/compare_vcf_to_ground_truth.py '
