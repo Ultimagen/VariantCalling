@@ -1,6 +1,6 @@
 import unittest
 
-from ugvc.dna.strand_direction import forward_strand, reverse_strand
+from dna.strand_direction import StrandDirection
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
 from ugvc.sec.read_counts import ReadCounts
 
@@ -19,10 +19,10 @@ class TestConditionalAlleleDistribution(unittest.TestCase):
         self.assertEqual({'A,AG': {'A': ReadCounts(10, 8), 'AG': ReadCounts(1, 0)}},
                          cad.allele_counts_dict[ref_gt])
         self.assertEqual(1, cad.get_observed_alleles_frequency(ref_gt, 'A,AG'))
-        self.assertEqual(10, cad.get_allele_count(ref_gt, 'A,AG', 'A', forward_strand))
-        self.assertEqual(8, cad.get_allele_count(ref_gt, 'A,AG', 'A', reverse_strand))
-        self.assertEqual(1, cad.get_allele_count(ref_gt, 'A,AG', 'AG', forward_strand))
-        self.assertEqual(0, cad.get_allele_count(ref_gt, 'A,AG', 'AG', reverse_strand))
+        self.assertEqual(10, cad.get_allele_count(ref_gt, 'A,AG', 'A', StrandDirection.FORWARD))
+        self.assertEqual(8, cad.get_allele_count(ref_gt, 'A,AG', 'A', StrandDirection.REVERSE))
+        self.assertEqual(1, cad.get_allele_count(ref_gt, 'A,AG', 'AG', StrandDirection.FORWARD))
+        self.assertEqual(0, cad.get_allele_count(ref_gt, 'A,AG', 'AG', StrandDirection.REVERSE))
         self.assertEqual('A 10,8,0 AG 1,0,0', cad.get_allele_counts_string(ref_gt, 'A,AG'))
 
         # does not return 0 for unobserved alleles

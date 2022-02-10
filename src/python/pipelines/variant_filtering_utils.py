@@ -918,16 +918,18 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
                            interval_size=interval_size, annots=annots,
                            exome_weight=exome_weight, exome_weight_annotation=exome_weight_annotation)
 
-    return MaskedHierarchicalModel(model_name + " classifier", "group", classifier_models, transformer=transformer,
+    return MaskedHierarchicalModel(model_name + " classifier",
+                                   "group",
+                                   classifier_models,
+                                   transformer=transformer,
                                    threshold=thresholds,
-                                   tree_score_fpr=fpr_values), \
-           concordance
+                                   tree_score_fpr=fpr_values), concordance
 
 
 def test_decision_tree_model(concordance: pd.DataFrame,
                              model: MaskedHierarchicalModel,
                              classify_column: str,
-                             add_testing_group_column: bool = True) -> dict:
+                             add_testing_group_column: bool = True) -> DataFrame:
     """
     Calculate precision/recall for the decision tree classifier
 
