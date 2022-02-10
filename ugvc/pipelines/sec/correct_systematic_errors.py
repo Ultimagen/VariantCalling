@@ -155,6 +155,7 @@ class SystematicErrorCorrector:
                 # Check if called alternative allele matches excluded (noise) allele
                 called_non_excluded_alleles = False
                 if len(fields) > 3:
+
                     excluded_refs = ast.literal_eval(fields[3])
                     flat_excluded_refs = list(itertools.chain(*excluded_refs))
                     all_excluded_alts = ast.literal_eval(fields[4])
@@ -165,7 +166,6 @@ class SystematicErrorCorrector:
                                                                                   all_excluded_alts,
                                                                                   called_ref,
                                                                                   called_alts)
-
                 # Call a non_noise_allele in case alternative allele is not excluded
                 # e.g a SNP in a position where the noise in a hmer indel
                 if called_non_excluded_alleles:
