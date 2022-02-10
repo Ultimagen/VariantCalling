@@ -1,6 +1,6 @@
 import unittest
 
-from dna.strand_direction import StrandDirection
+from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
 from ugvc.sec.read_counts import ReadCounts
 

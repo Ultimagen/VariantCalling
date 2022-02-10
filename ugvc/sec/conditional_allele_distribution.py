@@ -1,6 +1,6 @@
 from typing import Dict, Set, List
 
-from dna.strand_direction import StrandDirection
+from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.read_counts import ReadCounts
 
 
