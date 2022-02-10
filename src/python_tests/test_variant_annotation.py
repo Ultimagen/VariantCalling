@@ -1,10 +1,12 @@
-import pathmagic
-import pytest
 import subprocess
-import pyBigWig as pbw
+from os.path import join as pjoin
+
 import numpy as np
 import pandas as pd
-from os.path import join as pjoin
+import pyBigWig as pbw
+import pyfaidx
+import pysam
+
 import python.modules.variant_annotation as variant_annotation
 from pathmagic import PYTHON_TESTS_PATH, COMMON
 

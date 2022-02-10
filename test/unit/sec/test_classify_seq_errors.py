@@ -39,4 +39,3 @@ class TestClassifySeqErrors(unittest.TestCase):
 
         self.assertFalse(ClassifySeqErrors('ATG', 'T', 'C').is_seq_error())
         self.assertFalse(ClassifySeqErrors('GTG', 'T', 'A').is_seq_error())
-

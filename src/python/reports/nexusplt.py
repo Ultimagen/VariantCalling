@@ -1,16 +1,17 @@
 import os
 import matplotlib.pyplot as plt
+
 try:
     import mpld3
 except ImportError as error:
     print("WARNING: mpld3 not available")
-    MPLD3=False
+    MPLD3 = False
     pass
 else:
-    MPLD3=True
+    MPLD3 = True
 
 # supported file formats
-EXTS=['png','html','json']
+EXTS = ['png', 'html', 'json']
 
 
 def fname(fname, outdir=''):

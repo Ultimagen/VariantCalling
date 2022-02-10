@@ -142,14 +142,16 @@ def snp_statistics(df, ref_fasta):
     motifs = (x_f + x_r)["size"]
     return motifs
 
-def variant_eval_statistics(vcf_input, reference, dbsnp, output_prefix):
+def variant_eval_statistics(vcf_input, reference, dbsnp, output_prefix, annotation_names, annotation_conditions):
+    annotation_names_str = [f'--SELECT_NAMES {x}' for x in annotation_names]
+    annotation_conditions_str = [f'--SELECT_EXPS {x}' for x in annotation_conditions]
     cmd = ["gatk", f"VariantEval",
            "--eval", f"{vcf_input}",
            "--reference", f"{reference}",
            "--dbsnp", f"{dbsnp}",
-           "--output", f"{output_prefix}.txt"]
+           "--output", f"{output_prefix}.txt"] + annotation_names_str + annotation_conditions_str
     logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+    subprocess.check_call(" ".join(cmd).split())
 
     with open(f"{output_prefix}.txt") as f:
         data = _parse_single_report(f)
@@ -186,7 +188,8 @@ def _parse_single_report(f):
     return data
 
 def run_eval_tables_only(args):
-    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix)
+    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp,
+                                          args.output_prefix, args.annotation_names, args.annotation_conditions)
     for eval_table_name in eval_tables.keys():
         eval_tables[eval_table_name].to_hdf(f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
@@ -234,7 +237,7 @@ if __name__ == "__main__":
                     required=True, type=str)
     full_analysis.set_defaults(func=run_full_analysis)
 
-    # Run variant eval only - for JC repor
+    # Run variant eval only - for JC report
     parser_eval_tables = subparsers.add_parser(name='variant_eval',
                                                description='Run variant eval only')
     parser_eval_tables.add_argument("--input_file", help="Input vcf file",
@@ -245,6 +248,10 @@ if __name__ == "__main__":
                     required=True, type=str)
     parser_eval_tables.add_argument("--output_prefix", help="output file",
                     required=True, type=str)
+    parser_eval_tables.add_argument("--annotation_names", help="annotation name to filter on",
+                    required=False, nargs='*')
+    parser_eval_tables.add_argument("--annotation_conditions", help="annotation condition as in the vcf",
+                    required=False, nargs='*')
     parser_eval_tables.set_defaults(func=run_eval_tables_only)
 
     args = ap.parse_args()
