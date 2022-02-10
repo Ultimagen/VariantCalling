@@ -24,14 +24,27 @@ def test_allele_freq_hist():
 @mock.patch('subprocess.check_call')
 def test_variant_eval_statistics(mocked_subprocess):
     output_prefix = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "collect_stats_unfiltered")
-    data = run_no_gt_report.variant_eval_statistics('vcf', 'ref', 'db_snp', output_prefix)
+    data = run_no_gt_report.variant_eval_statistics('vcf', 'ref', 'db_snp', output_prefix,
+                                                    ["exome","wgs","extended_exome","high_conf"],
+                                                    ["EXOME==\"TRUE\"", "WHOLE_GENOME==\"TRUE\"",
+                                                     "EXTENDED_EXOME==\"TRUE\"", "HIGH_CONF==\"TRUE\""]
+                                                    )
     subprocess.check_call.assert_called_once_with(['gatk',
                                                    'VariantEval',
                                                    '--eval','vcf',
                                                    '--reference','ref',
                                                    '--dbsnp','db_snp',
                                                    '--output',
-                                                   f'{output_prefix}.txt'])
+                                                   f'{output_prefix}.txt',
+                                                   '--SELECT_NAMES', 'exome',
+                                                   '--SELECT_NAMES', 'wgs',
+                                                   '--SELECT_NAMES', 'extended_exome',
+                                                   '--SELECT_NAMES', 'high_conf',
+                                                   '--SELECT_EXPS', 'EXOME=="TRUE"',
+                                                   '--SELECT_EXPS', 'WHOLE_GENOME=="TRUE"',
+                                                   '--SELECT_EXPS', 'EXTENDED_EXOME=="TRUE"',
+                                                   '--SELECT_EXPS', 'HIGH_CONF=="TRUE"'
+                                                   ])
     for name in ['CompOverlap',
                  'CountVariants',
                  'IndelLengthHistogram',

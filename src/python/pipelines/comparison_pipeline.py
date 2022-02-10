@@ -1,6 +1,6 @@
 from python.pipelines import vcf_pipeline_utils
 import shutil
-from os.path import join as pjoin
+from os.path import join as pjoin, dirname
 from os.path import basename
 from typing import Optional, Tuple
 

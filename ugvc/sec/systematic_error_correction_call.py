@@ -34,7 +34,7 @@ class SECCall:
         return self.alleles.split(',')
 
     def get_genotype_indices_tuple(self):
-        return tuple([int(i) if i is not '.' else None for i in self.genotype.split('/')])
+        return tuple([int(i) if i != '.' else None for i in self.genotype.split('/')])
 
     def __str__(self):
         if self.call_type == SECCallType.reference:
