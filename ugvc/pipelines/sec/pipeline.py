@@ -57,8 +57,8 @@ def main():
     sp = SimplePipeline(start=args.fc, end=args.lc, debug=args.d, output_stream=sys.stdout)
 
     extract_variants_commands = []
+
     concat_vcf_commands = []
-    remove_duplicates_commands = []
     training_commands = []
     test_commands = []
     assess_commands = []
@@ -85,12 +85,12 @@ def main():
         if not os.path.exists(relevant_gvcf):
             vcf_per_chr_files = []
             for chromosome in relevant_chromosomes:
-                vcf_file_per_chr = f'{relevant_gvcf}.{chromosome}.vcf'
+                vcf_file_per_chr = f'{relevant_gvcf}.{chromosome}.vcf.gz'
                 vcf_per_chr_files.append(vcf_file_per_chr)
                 extract_variants_commands.append(f'{authorize_gcp_command}; '
                                                  f'bcftools view {gvcf_file} {chromosome} -Oz'
                                                  f' | bedtools intersect -a stdin -b {relevant_coords_file} -header'
-                                                 f' | uniq > {vcf_file_per_chr}')
+                                                 f' | uniq | bgzip > {vcf_file_per_chr}')
                 concat_vcf_commands.append(f'bcftools concat {" ".join(vcf_per_chr_files)} --rm-dups both'
                                            f' -Oz -o {relevant_gvcf}')
 
