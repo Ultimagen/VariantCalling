@@ -1,20 +1,13 @@
-class StrandDirection:
-
-    def __init__(self, direction: int):
-        self.forward = False
-        self.reverse = False
-        self.unknown = False
-        if direction == 1:
-            self.forward = True
-        elif direction == 0:
-            self.reverse = True
-        else:
-            self.unknown = True
+from enum import Enum
 
 
-forward_strand = StrandDirection(1)
-reverse_strand = StrandDirection(0)
-unknown_strand_direction = StrandDirection(-1)
+class StrandDirection(Enum):
+    """
+    A representation of strand direction
+    """
+    FORWARD = 1
+    REVERSE = 0
+    UNKNOWN = -1
 
 
 def is_forward_strand(allele: str):
