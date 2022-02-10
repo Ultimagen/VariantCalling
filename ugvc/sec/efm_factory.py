@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 from pysam import PileupColumn
 
-from dna.strand_direction import StrandDirection
+from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.allele_counter import count_alleles_in_pileup
 from ugvc.sec.error_frequency_matrix import ErrorFrequencyMatrix
 

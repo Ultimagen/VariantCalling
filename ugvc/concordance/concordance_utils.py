@@ -166,7 +166,7 @@ def __convert_recall_precision_dict_to_df(recall_precision_dict):
 
 
 def __summarize_indel_stats(accuracy_df) -> Dict[str, float]:
-    indel_df = accuracy_df[accuracy_df['indel']]
+    indel_df = accuracy_df[accuracy_df['group'].str.contains('indel') | accuracy_df['group'].str.contains('INDEL')]
     all_indels = indel_df.sum()
     all_indels['group'] = 'INDELS'
     all_indels['recall'] = get_recall(all_indels['fn'], all_indels['tp'])
