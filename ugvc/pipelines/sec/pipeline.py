@@ -57,8 +57,9 @@ def main():
     sp = SimplePipeline(start=args.fc, end=args.lc, debug=args.d, output_stream=sys.stdout)
 
     extract_variants_commands = []
-
+    index_chr_vcfs_commands = []
     concat_vcf_commands = []
+    index_vcf_commands = []
     training_commands = []
     test_commands = []
     assess_commands = []
@@ -82,17 +83,21 @@ def main():
         relevant_gvcf = f'{out_dir}/gvcf/{sample_id}.g.vcf.gz'
         allele_distributions = f'{out_dir}/allele_distributions/{sample_id}.tsv'
 
-        if not os.path.exists(relevant_gvcf):
-            vcf_per_chr_files = []
-            for chromosome in relevant_chromosomes:
-                vcf_file_per_chr = f'{relevant_gvcf}.{chromosome}.vcf.gz'
-                vcf_per_chr_files.append(vcf_file_per_chr)
+        vcf_per_chr_files = []
+        for chromosome in relevant_chromosomes:
+            vcf_file_per_chr = f'{relevant_gvcf}.{chromosome}.vcf.gz'
+            vcf_per_chr_files.append(vcf_file_per_chr)
+            
+            if not os.path.exists(relevant_gvcf):
                 extract_variants_commands.append(f'{authorize_gcp_command}; '
                                                  f'bcftools view {gvcf_file} {chromosome} -Oz'
                                                  f' | bedtools intersect -a stdin -b {relevant_coords_file} -header'
                                                  f' | uniq | bgzip > {vcf_file_per_chr}')
-                concat_vcf_commands.append(f'bcftools concat {" ".join(vcf_per_chr_files)} --rm-dups both'
-                                           f' -Oz -o {relevant_gvcf}')
+                index_chr_vcfs_commands.append(f'tabix -p vcf {vcf_file_per_chr}')
+        if not os.path.exists(relevant_gvcf):
+            concat_vcf_commands.append(f'bcftools concat {" ".join(vcf_per_chr_files)} --rm-dups both -a'
+                                       f' -Oz -o {relevant_gvcf}')
+        index_vcf_commands.append(f'tabix -p vcf {relevant_gvcf}')
 
         if sample_id in training_samples:
             training_commands.append(f'python {sec_main}/error_correction_training.py '
@@ -128,11 +133,13 @@ def main():
 
     # extract variants in relevant coords (often from cloud to local storage)
     sp.run_parallel(extract_variants_commands, max_num_of_processes=args.processes)
+    sp.run_parallel(index_chr_vcfs_commands, max_num_of_processes=args.processes)
 
     # concat vcf per chromosome and remove duplicate vcf records with disrupts indexing
     # (is this because of overlap in relevant coords?)
     try:
         sp.run_parallel(concat_vcf_commands, max_num_of_processes=args.processes)
+        sp.run_parallel(index_vcf_commands, max_num_of_processes=args.processes)
     except RuntimeError:
         pass
 
