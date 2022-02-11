@@ -35,7 +35,7 @@ def main():
     out_dir = args.out_dir
     ground_truth_vcf = args.ground_truth_vcf
 
-    sec_main = f'{base_dir}/sec_main'
+    sec_main = f'{base_dir}/pipelines/sec'
 
     novel_detection_only = args.novel_detection_only
     novel_detection_suffix = '_novel' if novel_detection_only else ''
