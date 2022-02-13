@@ -77,7 +77,7 @@ def main():
 
     relevant_chromosomes = list(pd.read_csv(relevant_coords_file, sep='\t', header=None)[0].unique())
 
-    model_file = f'{out_dir}/conditional_allele_distribution.pickle'
+    model_file = f'{out_dir}/conditional_allele_distribution.pkl'
 
     for sample_id, gvcf_file in zip(sample_ids, gvcf_files):
         relevant_gvcf = f'{out_dir}/gvcf/{sample_id}.g.vcf'
