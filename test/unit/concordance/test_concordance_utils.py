@@ -1,5 +1,5 @@
 import unittest
-
+import numpy as np
 from ugvc.concordance.concordance_utils import *
 
 
@@ -54,6 +54,7 @@ class TestConcordanceUtils(unittest.TestCase):
                                        'hmer_indel_length': [None] * 6
                                        })
         accuracy_df = calc_accuracy_metrics(concordance_df, 'classify')
+        accuracy_df.to_hdf("test.single.h5", key="test")
         expected = {'initial_tp': [3],
                     'initial_fp': [1],
                     'initial_fn': [1],
@@ -80,14 +81,23 @@ class TestConcordanceUtils(unittest.TestCase):
         """
         given concordance dataframe with all rows passing filter, calc recall/precision curve
         """
-        concordance_df = pd.DataFrame({'classify': ['tp', 'tp', 'fp', 'fn', 'tp', 'fp'],
-                                       'filter': ['PASS'] * 6,
-                                       'tree_score': [1, 0.99, 0.98, 0.37, 0.9, 0.92],
-                                       'hmer_indel_nuc': ['N'] * 6,
-                                       'indel': [True] * 6,
-                                       'hmer_indel_length': [2] * 6
+        n_tp = 50
+        tp_range = (0.5, 1)
+        n_fp = 50
+        fp_range = (0, 0.49)
+        n_fn = 20
+        fn_score = -1
+        concordance_df = pd.DataFrame({'classify': ['tp'] * n_tp + ['fp'] * n_fp + ['fn']*n_fn,
+                                       'filter': ['PASS'] * (n_tp + n_fp + n_fn),
+                                       'tree_score': np.concatenate((np.linspace(tp_range[0], tp_range[1], n_tp),
+                                                                np.linspace(fp_range[0], fp_range[1], n_fp),
+                                                                fn_score * np.ones(n_fn))),
+                                       'hmer_indel_nuc': ['N'] * (n_tp+n_fp+n_fn),
+                                       'indel': [True] * (n_fp + n_tp + n_fn),
+                                       'hmer_indel_length': [2] * (n_fp + n_tp + n_fn)
                                        })
         accuracy_df = calc_recall_precision_curve(concordance_df, 'classify')
+        accuracy_df.to_hdf("test.h5", key="test")
         expected = {'initial_tp': [3],
                     'initial_fp': [1],
                     'initial_fn': [1],
@@ -103,7 +113,7 @@ class TestConcordanceUtils(unittest.TestCase):
                     }
         # DataFrame dict contains index->value dictionaries per each column
         expected_indels = {'group': {7: 'INDELS'}}
-        expected_hmer_indel_lt_4 = {'group': {2: 'HMER indel <= 4'}}
+        expected_hmer_indel_lt_4 = {'category': {2: 'HMER indel <= 4'}}
         for expected_key, expected_value in expected.items():
             expected_hmer_indel_lt_4[expected_key] = {2: expected_value[0]}
             expected_indels[expected_key] = {7: expected_value[0]}

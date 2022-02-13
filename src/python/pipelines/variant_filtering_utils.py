@@ -13,7 +13,7 @@ from typing import Optional, Tuple, Callable, Union
 from collections import OrderedDict
 from enum import Enum
 import python.utils as utils
-from ugvc.utils.stats_utils import get_precision, get_recall, get_f1
+from ugvc.utils.stats_utils import get_precision, get_recall, get_f1, precision_recall_curve
 
 logger = logging.getLogger(__name__)
 
@@ -562,7 +562,7 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         model.fit(train_data, labels)
 
     tree_scores = model.predict_proba(train_data)[:, 1]
-    curve = utils.precision_recall_curve(labels.apply(lambda x: 1 if (x == 'tp') else 0), tree_scores)
+    curve = precision_recall_curve(labels.apply(lambda x: 1 if (x == 'tp') else 0), tree_scores)
     precision, recall, f1, preditions = curve
     # get the best f1 threshold
     threshold = preditions[np.argmax(f1)]
@@ -1078,10 +1078,10 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         group_ground_truth = classification.copy()
         group_ground_truth[classification == 'fn'] = 'tp'
 
-        curve = utils.precision_recall_curve(np.array(group_ground_truth),
-                                             np.array(group_predictions),
-                                             pos_label="tp",
-                                             fn_score=-1)
+        curve = precision_recall_curve(np.array(group_ground_truth),
+                                                   np.array(group_predictions),
+                                                   pos_label="tp",
+                                                   fn_score=-1)
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
