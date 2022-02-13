@@ -90,14 +90,13 @@ class TestConcordanceUtils(unittest.TestCase):
         concordance_df = pd.DataFrame({'classify': ['tp'] * n_tp + ['fp'] * n_fp + ['fn']*n_fn,
                                        'filter': ['PASS'] * (n_tp + n_fp + n_fn),
                                        'tree_score': np.concatenate((np.linspace(tp_range[0], tp_range[1], n_tp),
-                                                                np.linspace(fp_range[0], fp_range[1], n_fp),
-                                                                fn_score * np.ones(n_fn))),
-                                       'hmer_indel_nuc': ['N'] * (n_tp+n_fp+n_fn),
+                                                                     np.linspace(fp_range[0], fp_range[1], n_fp),
+                                                                     fn_score * np.ones(n_fn))),
+                                       'hmer_indel_nuc': ['N'] * (n_tp + n_fp + n_fn),
                                        'indel': [True] * (n_fp + n_tp + n_fn),
                                        'hmer_indel_length': [2] * (n_fp + n_tp + n_fn)
                                        })
         accuracy_df = calc_recall_precision_curve(concordance_df, 'classify')
-        accuracy_df.to_hdf("test.h5", key="test")
         expected = {'initial_tp': [3],
                     'initial_fp': [1],
                     'initial_fn': [1],
