@@ -1,9 +1,11 @@
 import argparse
+import ast
+import itertools
 import os.path
 import pickle
 import sys
 from enum import Enum
-from typing import List, TextIO
+from typing import List, TextIO, Set
 
 import pysam
 
@@ -153,9 +155,15 @@ class SystematicErrorCorrector:
                 # Check if called alternative allele matches excluded (noise) allele
                 called_non_excluded_alt = False
                 if len(fields) > 3:
-                    excluded_alleles = fields[3].replace('[', '').replace(']', '').replace("'", "").strip().split(',')
+                    excluded_refs = ast.literal_eval(fields[3])
+                    flat_excluded_refs = list(itertools.chain(*excluded_refs))
+                    all_excluded_alts = ast.literal_eval(fields[4])
+                    called_ref = observed_variant.ref
                     called_alts = set(get_filtered_alleles_list(sample_info)).intersection(observed_variant.alts)
-                    called_non_excluded_alt = len(called_alts.difference(excluded_alleles)) > 0
+                    called_non_excluded_alt = not self.called_excluded_alleles(flat_excluded_refs,
+                                                                               all_excluded_alts,
+                                                                               called_ref,
+                                                                               called_alts)
 
                 # Call a non_noise_allele in case alternative allele is not excluded
                 # e.g a SNP in a position where the noise in a hmer indel
@@ -197,6 +205,22 @@ class SystematicErrorCorrector:
             with open(self.output_file, 'wb') as out_pickle_file:
                 pickle.dump(exclusion_filter, out_pickle_file)
         log_stream.close()
+
+    @staticmethod
+    def called_excluded_alleles(excluded_refs: List[str],
+                                all_excluded_alts: List[List[str]],
+                                called_ref: str,
+                                called_alts: Set[str]):
+        """
+        search for each called ref->alt pair in excluded alleles
+        """
+        called_excluded_alleles = False
+        for excluded_ref, excluded_alts in zip(excluded_refs, all_excluded_alts):
+            if called_ref == excluded_ref:
+                non_excluded_alts = called_alts.difference(excluded_alts)
+                if len(non_excluded_alts) == 0:
+                    called_excluded_alleles = True
+        return called_excluded_alleles
 
     def __process_call_vcf_output(self, call, observed_variant, sample_info, vcf_writer):
         """
