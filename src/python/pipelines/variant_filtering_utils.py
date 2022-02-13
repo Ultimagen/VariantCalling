@@ -33,7 +33,7 @@ class SingleModel:
         result_vec = np.ones(df.shape[0], dtype=np.bool)
         for v in self.threshold_dict:
             result_vec = result_vec & (
-                    (df[v] > self.threshold_dict[v]) == self.is_greater_then[v])
+                (df[v] > self.threshold_dict[v]) == self.is_greater_then[v])
         return np.where(np.array(result_vec), "tp", 'fp')
 
 
@@ -48,7 +48,7 @@ class SingleRegressionModel:
         results = []
         for v in self.threshold_dict:
             result_v = (np.array(df[v])[:, np.newaxis] > self.threshold_dict[v]
-            [np.newaxis, :]) == self.is_greater_then[v]
+                        [np.newaxis, :]) == self.is_greater_then[v]
             results.append(result_v)
         result_vec = np.all(results, axis=0)
         scores = result_vec.mean(axis=1)
@@ -116,7 +116,8 @@ class MaskedHierarchicalModel:
         for i, g in enumerate(groups):
             threshold = self.threshold
             result[(~mask) & (gvecs[i])] = self._predict_by_blocks(
-                self.models[g], apply_df[apply_df[self.group_column] == g], get_numbers=get_numbers,
+                self.models[g], apply_df[apply_df[self.group_column]
+                                         == g], get_numbers=get_numbers,
                 threshold=threshold[g] if (threshold is not None) else threshold)
         return result
 
@@ -139,9 +140,11 @@ class MaskedHierarchicalModel:
                 predictions.append(predict_fcn(
                     self.transformer.fit_transform(df.iloc[i:i + MaskedHierarchicalModel.BLOCK_SIZE, :])))
             else:
-                predictions.append(predict_fcn(df.iloc[i:i + MaskedHierarchicalModel.BLOCK_SIZE, :]))
+                predictions.append(predict_fcn(
+                    df.iloc[i:i + MaskedHierarchicalModel.BLOCK_SIZE, :]))
         if not get_numbers and threshold is not None:
-            predictions = self._adjusted_classes(np.vstack(predictions)[:, 1], threshold)
+            predictions = self._adjusted_classes(
+                np.vstack(predictions)[:, 1], threshold)
         elif not get_numbers and threshold is None:
             predictions = np.hstack(predictions)
         elif get_numbers:
@@ -199,7 +202,7 @@ def train_threshold_models(concordance: pd.DataFrame,
 
     return MaskedHierarchicalModel("Threshold classifier", "group", classifier_models, transformer=transformer,
                                    tree_score_fpr=fpr_values, threshold=thresholds), \
-           concordance
+        concordance
 
 
 def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series,
@@ -237,7 +240,8 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                                 for i in range(len(quals)) for j in range(len(sors))]
 
     fns = np.array(concordance[gtr_column] == 'fn')
-    train_data = concordance[selection & (~fns) & test_train_split][features + annots]
+    train_data = concordance[selection & (
+        ~fns) & test_train_split][features + annots]
 
     train_data = transformer.transform(train_data)
     _validate_data(train_data.to_numpy())
@@ -252,7 +256,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
     predictions_tp = (qq[..., np.newaxis] & ss[:, np.newaxis, :])
     tps = (predictions_tp & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
     fns = ((~predictions_tp) & enclabels[
-                               :, np.newaxis, np.newaxis]).sum(axis=0)
+        :, np.newaxis, np.newaxis]).sum(axis=0)
     fps = (predictions_tp & (
         ~enclabels[:, np.newaxis, np.newaxis])).sum(axis=0)
 
@@ -262,7 +266,7 @@ def train_threshold_model(concordance: pd.DataFrame, test_train_split: pd.Series
                               index=pairs_qual_sor_threshold, columns=[('recall', 'var'), ('precision', 'var')])
 
     f1 = 2 * results_df[('recall', 'var')] * results_df[('precision', 'var')] / \
-         (results_df[('recall', 'var')] + results_df[('precision', 'var')])
+        (results_df[('recall', 'var')] + results_df[('precision', 'var')])
     results_df['f1'] = f1
     best = results_df['f1'].idxmax()
 
@@ -413,7 +417,8 @@ def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
 
     default_filler = impute.SimpleImputer(strategy='constant', fill_value=0)
     tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
-    tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
+    tuple_filter_second = sklearn_pandas.FunctionTransformer(
+        tuple_break_second)
     left_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
     right_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
     allele_filter = sklearn_pandas.FunctionTransformer(allele_encode)
@@ -449,7 +454,8 @@ def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
 
     if vtype == "single_sample":
         qual_column = "qual"
-        features.extend(['qual', 'ps', 'ac', 'ad', 'gt', 'xc', 'gq', 'pl', 'af', 'mleac', 'mleaf'])
+        features.extend(['qual', 'ps', 'ac', 'ad', 'gt', 'xc',
+                         'gq', 'pl', 'af', 'mleac', 'mleaf'])
         transform_list.extend([
             ('qual', None),
             (['ps'], default_filler),
@@ -509,7 +515,7 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
                 annots: list = [],
                 exome_weight: int = 1,
                 exome_weight_annotation: str = None) -> Tuple[
-    DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+        DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -542,7 +548,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
     features, _, _ = modify_features_based_on_vcf_type(vtype)
 
     fns = np.array(concordance[gtr_column] == 'fn')
-    train_data = concordance[test_train_split & selection & (~fns)][features + annots]
+    train_data = concordance[test_train_split &
+                             selection & (~fns)][features + annots]
 
     labels = concordance[test_train_split & selection & (~fns)][gtr_column]
     train_data = transformer.transform(train_data)
@@ -554,7 +561,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
 
     if exome_weight != 1 and (exome_weight_annotation is not None) and \
             isinstance(model, RandomForestClassifier):
-        sample_weight = concordance[test_train_split & selection & (~fns)][features + annots][exome_weight_annotation]
+        sample_weight = concordance[test_train_split & selection & (
+            ~fns)][features + annots][exome_weight_annotation]
         sample_weight = sample_weight.apply(lambda x: exome_weight if x else 1)
 
         model.fit(train_data, labels, sample_weight=sample_weight)
@@ -562,12 +570,13 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         model.fit(train_data, labels)
 
     tree_scores = model.predict_proba(train_data)[:, 1]
-    curve = precision_recall_curve(labels.apply(lambda x: 1 if (x == 'tp') else 0), tree_scores)
+    curve = precision_recall_curve(labels.apply(
+        lambda x: 1 if (x == 'tp') else 0), tree_scores)
     precision, recall, f1, preditions = curve
     # get the best f1 threshold
     threshold = preditions[np.argmax(f1)]
 
-    if gtr_column == 'classify':  ## there is gt
+    if gtr_column == 'classify':  # there is gt
         tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
             tree_scores, labels, test_train_split, interval_size)
         return model, pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1, ), threshold
@@ -582,7 +591,7 @@ def train_model_RF(concordance: pd.DataFrame, test_train_split: np.ndarray,
                    interval_size: int, annots: list = [],
                    exome_weight: int = 1,
                    exome_weight_annotation: str = None) -> Tuple[
-    DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+        DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     '''Trains model on a subset of dataframe that is already divided into a testing and training set
 
     Parameters
@@ -720,11 +729,11 @@ def find_thresholds(concordance: pd.DataFrame, classify_column: str = 'classify'
 
     for group in set(concordance['group']):
         results_df[('recall', group)] = results_df.get(('tp', group), 0) / \
-                                        (results_df.get(('tp', group), 0) +
-                                         results_df.get(('fn', group), 0) + 1)
+            (results_df.get(('tp', group), 0) +
+             results_df.get(('fn', group), 0) + 1)
         results_df[('precision', group)] = results_df.get(('tp', group), 0) / \
-                                           (results_df.get(('tp', group), 0) +
-                                            results_df.get(('fp', group), 0) + 1)
+            (results_df.get(('tp', group), 0) +
+             results_df.get(('fp', group), 0) + 1)
         results_df.index = pairs
     return results_df
 
@@ -791,10 +800,14 @@ def get_testing_selection_functions() -> OrderedDict:
     sfs = OrderedDict()
     sfs['SNP'] = lambda x: np.logical_not(x.indel)
     sfs["Non-hmer INDEL"] = lambda x: x.indel & (x.hmer_indel_length == 0)
-    sfs["HMER indel <= 4"] = (lambda x: x.indel & (x.hmer_indel_length > 0) & (x.hmer_indel_length < 5))
-    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x.hmer_indel_length >= 5) & (x.hmer_indel_length < 8)
-    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x.hmer_indel_length >= 8) & (x.hmer_indel_length <= 10)
-    sfs["HMER indel 11,12"] = lambda x: x.indel & (x.hmer_indel_length >= 11) & (x.hmer_indel_length <= 12)
+    sfs["HMER indel <= 4"] = (lambda x: x.indel & (
+        x.hmer_indel_length > 0) & (x.hmer_indel_length < 5))
+    sfs["HMER indel (4,8)"] = lambda x: x.indel & (
+        x.hmer_indel_length >= 5) & (x.hmer_indel_length < 8)
+    sfs["HMER indel [8,10]"] = lambda x: x.indel & (
+        x.hmer_indel_length >= 8) & (x.hmer_indel_length <= 10)
+    sfs["HMER indel 11,12"] = lambda x: x.indel & (
+        x.hmer_indel_length >= 11) & (x.hmer_indel_length <= 12)
     sfs["HMER indel > 12"] = lambda x: x.indel & (x.hmer_indel_length > 12)
     return sfs
 
@@ -978,27 +991,34 @@ def test_decision_tree_model(concordance: pd.DataFrame,
                                         'initial_recall',
                                         'initial_f1'])
     for g in groups:
-        select = (concordance["group_testing"] == g) & (~concordance["test_train_split"])
+        select = (concordance["group_testing"] == g) & (
+            ~concordance["test_train_split"])
         group_df = concordance[select]
 
         # apply filters on classification
         is_filtered: pd.Series = predictions[select] != 'tp'
 
-        post_filtering_classification = apply_filter(group_df[classify_column], is_filtered)
+        post_filtering_classification = apply_filter(
+            group_df[classify_column], is_filtered)
 
         pre_filtering_tp = int((group_df[classify_column] == 'tp').sum())
         pre_filtering_fp = int((group_df[classify_column] == 'fp').sum())
         pre_filtering_fn = int((group_df[classify_column] == 'fn').sum())
-        pre_filtering_precision = get_precision(pre_filtering_fp, pre_filtering_tp)
+        pre_filtering_precision = get_precision(
+            pre_filtering_fp, pre_filtering_tp)
         pre_filtering_recall = get_recall(pre_filtering_fn, pre_filtering_tp)
-        pre_filtering_f1 = get_f1(pre_filtering_precision, pre_filtering_recall)
+        pre_filtering_f1 = get_f1(
+            pre_filtering_precision, pre_filtering_recall)
 
         post_filtering_tp = int((post_filtering_classification == 'tp').sum())
         post_filtering_fp = int((post_filtering_classification == 'fp').sum())
         post_filtering_fn = int((post_filtering_classification == 'fn').sum())
-        post_filtering_precision = get_precision(post_filtering_fp, post_filtering_tp)
-        post_filtering_recall = get_recall(post_filtering_fn, post_filtering_tp)
-        post_filtering_f1 = get_f1(post_filtering_precision, post_filtering_recall)
+        post_filtering_precision = get_precision(
+            post_filtering_fp, post_filtering_tp)
+        post_filtering_recall = get_recall(
+            post_filtering_fn, post_filtering_tp)
+        post_filtering_f1 = get_f1(
+            post_filtering_precision, post_filtering_recall)
 
         accuracy_df = accuracy_df.append({'group': g,
                                           'tp': post_filtering_tp,
@@ -1024,8 +1044,10 @@ def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series
     @return: classification to 'tp', 'fp', 'fn', 'tn' after applying filter
     """
     post_filtering_classification = pre_filtering_classification.copy()
-    post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'fp')] = 'tn'
-    post_filtering_classification.iloc[is_filtered & (post_filtering_classification == 'tp')] = 'fn'
+    post_filtering_classification.iloc[is_filtered & (
+        post_filtering_classification == 'fp')] = 'tn'
+    post_filtering_classification.iloc[is_filtered & (
+        post_filtering_classification == 'tp')] = 'fn'
     return post_filtering_classification
 
 
@@ -1063,6 +1085,12 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     predictions = model.predict(concordance, classify_column, get_numbers=True)
     groups = list(get_testing_selection_functions().keys())
     recalls_precisions = {}
+    accuracy_df = pd.DataFrame(columns=['group',
+                                        'predictions',
+                                        'precision',
+                                        'recall',
+                                        'f1',
+                                        ])
 
     for g in groups:
         select = (concordance["group_testing"] == g) & \
@@ -1079,16 +1107,23 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         group_ground_truth[classification == 'fn'] = 'tp'
 
         curve = precision_recall_curve(np.array(group_ground_truth),
-                                                   np.array(group_predictions),
-                                                   pos_label="tp",
-                                                   fn_score=-1)
+                                       np.array(group_predictions),
+                                       pos_label="tp",
+                                       fn_score=-1)
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
         precision, recall, f1, predictions = curve
-        recalls_precisions[g] = np.vstack((recall, precision, f1, predictions)).T
+        recalls_precisions[g] = np.vstack(
+            (recall, precision, f1, predictions)).T
 
-    return recalls_precisions
+        accuracy_df = accuracy_df.append({'group': g, 'predictions': predictions,
+                                          'precision': precision,
+                                          'recall': recall,
+                                          'f1': f1
+                                          }, ignore_index=True)
+        
+    return accuracy_df
 
 
 def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
@@ -1126,10 +1161,10 @@ class VariantSelectionFunctions(Enum):
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
 
     def ALL(
-            df: pd.DataFrame) -> np.ndarray: return np.ones(df.shape[0], dtype=np.bool)
+        df: pd.DataFrame) -> np.ndarray: return np.ones(df.shape[0], dtype=np.bool)
 
     def HMER_INDEL(
-            df: pd.DataFrame) -> np.ndarray: return np.array(df.hmer_indel_length > 0)
+        df: pd.DataFrame) -> np.ndarray: return np.array(df.hmer_indel_length > 0)
 
     def ALL_except_HMER_INDEL_greater_than_or_equal_5(
-            df: pd.DataFrame) -> np.ndarray: return np.array(~ ((df.hmer_indel_length >= 5)))
+        df: pd.DataFrame) -> np.ndarray: return np.array(~ ((df.hmer_indel_length >= 5)))
