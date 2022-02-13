@@ -93,7 +93,7 @@ class SystematicErrorCorrector:
             self.output_type = OutputType.bed
         elif output_file.endswith('.vcf') or output_file.endswith('.vcf.gz'):
             self.output_type = OutputType.vcf
-        elif output_file.endswith('.pickle'):
+        elif output_file.endswith('.pickle') or output_file.endswith('.pkl'):
             self.output_type = OutputType.pickle
         else:
             raise ValueError('output file must end with bed/vcf/vcf.gz/pickle suffixes')
