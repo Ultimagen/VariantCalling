@@ -123,17 +123,17 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol
     """
     validate_and_preprocess_concordance_df(df, filter_hpol_run)
     trivial_classifier_set = initialize_trivial_classifier()
-    recall_precision_curve_dict = \
+    recall_precision_curve_df = \
         variant_filtering_utils.get_decision_tree_precision_recall_curve(
             df, trivial_classifier_set, classify_column)
-    recall_precision_curve_df = __convert_recall_precision_dict_to_df(
-        {'analysis': recall_precision_curve_dict})
+    # recall_precision_curve_df = __convert_recall_precision_dict_to_df(
+    #    {'analysis': recall_precision_curve_dict})
 
 
-    # Add summary for indels 
+    # Add summary for indels
     df_indels = df.copy()
     df_indels['group_testing'] = np.where(df_indels['indel'], 'INDELS', 'SNP')
-    all_indels = variant_filtering_utils.test_decision_tree_model(
+    all_indels = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         df_indels,
         trivial_classifier_set,
         classify_column,
@@ -142,8 +142,9 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol
     # fix boundary case when there are no indels
     all_indels = all_indels.query("group=='INDELS'")
     if all_indels.shape[0] == 0:
-        all_indels.append(variant_filtering_utils.get_empty_recall_precision('INDELS'),
+        all_indels.append(variant_filtering_utils.get_empty_recall_precision_curve('INDELS'),
                           ignore_index=True)
+    recall_precision_curve_df = recall_precision_curve_df.append(all_indels, ignore_index=True)
 
     return recall_precision_curve_df
 
