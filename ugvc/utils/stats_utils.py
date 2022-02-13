@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Union
 
 import numpy as np
 from scipy.stats import multinomial
@@ -125,3 +125,48 @@ def get_f1(precision: float, recall: float) -> float:
     The F1 score of the experiment
     """
     return safe_divide(2 * precision * recall, precision + recall)
+
+
+def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
+                           pos_label: Optional[Union[str, int]] = 1,
+                           fn_score: float = -1,
+                           min_class_counts_to_output: int = 20) -> tuple:
+    '''Calculates precision/recall curve from double prediction scores and gtr
+
+    Parameters
+    ----------
+    gtr: np.ndarray
+        String array of ground truth
+    predictions: np.ndarray
+        Array of prediction scores
+    pos_label: str or 0
+        Label of true call, otherwise 1s will be considered
+    fn_score: float
+        Score of false negative. Should be such that they are the lowest scoring variants
+    min_class_counts_to_output: int
+        Limit on the count of classes (denominator) below which the results are too noisy and not calculated
+
+    Returns
+    -------
+    tuple
+        precisions, recalls, prediction_values
+    '''
+    asidx = np.argsort(predictions)
+    predictions = predictions[asidx]
+    gtr = gtr[asidx]
+    gtr = gtr == pos_label
+
+    tp_counts = np.cumsum(gtr[::-1])[::-1]
+    fn_counts = np.cumsum(predictions == fn_score)
+    fp_counts = np.cumsum((gtr == 0)[::-1])[::-1]
+    mask = (tp_counts + fp_counts < min_class_counts_to_output) |\
+           (tp_counts + fn_counts < min_class_counts_to_output)
+    precisions = tp_counts / (tp_counts + fp_counts)
+    recalls = tp_counts / (tp_counts + fn_counts)
+    f1 = 2 * (recalls * precisions) / \
+        (recalls + precisions + np.finfo(float).eps)
+
+    trim_idx = np.argmax(predictions > fn_score)
+    mask = mask[trim_idx:]
+    return precisions[trim_idx:][~mask], recalls[trim_idx:][~mask], \
+        f1[trim_idx:][~mask], predictions[trim_idx:][~mask]
