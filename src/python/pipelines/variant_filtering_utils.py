@@ -1061,7 +1061,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         assert "group_testing" in concordance.columns, "group_testing column should be given"
 
     predictions = model.predict(concordance, classify_column, get_numbers=True)
-    groups = set(concordance['group_testing'])
+    groups = list(get_testing_selection_functions().keys())
     recalls_precisions = {}
 
     for g in groups:
@@ -1082,8 +1082,8 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         #    group_predictions), pos_label="tp")
 
         precision, recall, f1, preditions = curve
-
-        recalls_precisions[g] = np.vstack((recall, precision, f1, preditions)).T
+        if len(curve[0]) > 0:
+            recalls_precisions[g] = np.vstack((recall, precision, f1, preditions)).T
 
     return recalls_precisions
 
