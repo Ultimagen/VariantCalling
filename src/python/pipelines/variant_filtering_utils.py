@@ -1068,11 +1068,15 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         select = (concordance["group_testing"] == g) & \
                  (~concordance["test_train_split"])
 
-        group_ground_truth = concordance.loc[select, classify_column]
-        group_predictions = predictions[select]  ## as type object
-        group_predictions[group_ground_truth == 'fn'] = -1
-        # this is a change to calculate recall correctly
-        group_ground_truth[group_ground_truth == 'fn'] = 'tp'
+        if select.sum() == 0:
+            continue
+
+        classification = concordance.loc[select, classify_column]
+        group_predictions = predictions[select]
+        group_predictions[classification == 'fn'] = -1
+
+        group_ground_truth = classification.copy()
+        group_ground_truth[classification == 'fn'] = 'tp'
 
         curve = utils.precision_recall_curve(np.array(group_ground_truth),
                                              np.array(group_predictions),
@@ -1082,8 +1086,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         #    group_predictions), pos_label="tp")
 
         precision, recall, f1, preditions = curve
-        if len(curve[0]) > 0:
-            recalls_precisions[g] = np.vstack((recall, precision, f1, preditions)).T
+        recalls_precisions[g] = np.vstack((recall, precision, f1, preditions)).T
 
     return recalls_precisions
 
