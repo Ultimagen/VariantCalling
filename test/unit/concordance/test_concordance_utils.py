@@ -82,7 +82,7 @@ class TestConcordanceUtils(unittest.TestCase):
         """
         concordance_df = pd.DataFrame({'classify': ['tp', 'tp', 'fp', 'fn', 'tp', 'fp'],
                                        'filter': ['PASS'] * 6,
-                                       'tree_score': [1] * 6,
+                                       'tree_score': [1, 0.99, 0.98, 0.37, 0.9, 0.92],
                                        'hmer_indel_nuc': ['N'] * 6,
                                        'indel': [True] * 6,
                                        'hmer_indel_length': [2] * 6

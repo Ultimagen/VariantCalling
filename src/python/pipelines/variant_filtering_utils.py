@@ -1085,8 +1085,8 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
-        precision, recall, f1, preditions = curve
-        recalls_precisions[g] = np.vstack((recall, precision, f1, preditions)).T
+        precision, recall, f1, predictions = curve
+        recalls_precisions[g] = np.vstack((recall, precision, f1, predictions)).T
 
     return recalls_precisions
 
