@@ -1072,7 +1072,7 @@ def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series
 def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
                                              model: MaskedHierarchicalModel,
                                              classify_column: str,
-                                             add_testing_group_column: bool = True) -> dict:
+                                             add_testing_group_column: bool = True) -> pd.DataFrame:
     """
     Calculate precision/recall curve for the decision tree regressor
 
@@ -1090,8 +1090,8 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
 
     Returns
     -------
-    dict:
-        Tuple dictionary - recall/precision for each category
+    pd.DataFrame:
+        DataFrame of recall/precision in each category
     """
 
     if add_testing_group_column:

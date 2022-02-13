@@ -97,25 +97,25 @@ class TestConcordanceUtils(unittest.TestCase):
                                        'hmer_indel_length': [2] * (n_fp + n_tp + n_fn)
                                        })
         accuracy_df = calc_recall_precision_curve(concordance_df, 'classify')
-        expected = {'initial_tp': [3],
-                    'initial_fp': [1],
-                    'initial_fn': [1],
-                    'initial_precision': [0.75],
-                    'initial_recall': [0.75],
-                    'initial_f1': [0.75],
-                    'tp': [3],
-                    'fp': [1],
-                    'fn': [1],
-                    'precision': [0.75],
-                    'recall': [0.75],
-                    'f1': [0.75]
+
+        def safemax(lst):
+            return max(lst) if len(lst) > 0 else np.nan
+
+        for col in ['precision', 'recall', 'f1']:
+            accuracy_df[col] = accuracy_df[col].apply(safemax)
+        accuracy_df.drop('predictions', inplace=True, axis=1)
+        accuracy_df = accuracy_df.round(5)
+
+        expected = {'precision': 1.0,
+                    'recall': np.round(n_tp/(n_tp + n_fn), 5),
+                    'f1': np.round(get_f1(n_tp/(n_tp + n_fn), 1.0), 5)
                     }
         # DataFrame dict contains index->value dictionaries per each column
         expected_indels = {'group': {7: 'INDELS'}}
-        expected_hmer_indel_lt_4 = {'category': {2: 'HMER indel <= 4'}}
+        expected_hmer_indel_lt_4 = {'group': {2: 'HMER indel <= 4'}}
         for expected_key, expected_value in expected.items():
-            expected_hmer_indel_lt_4[expected_key] = {2: expected_value[0]}
-            expected_indels[expected_key] = {7: expected_value[0]}
+            expected_hmer_indel_lt_4[expected_key] = {2: expected_value}
+            expected_indels[expected_key] = {7: expected_value}
 
         self.assertEqual(expected_hmer_indel_lt_4, accuracy_df[accuracy_df['group'] == 'HMER indel <= 4'].to_dict())
         self.assertEqual(expected_indels, accuracy_df[accuracy_df['group'] == 'INDELS'].to_dict())
