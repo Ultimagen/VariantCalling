@@ -2,7 +2,7 @@ from typing import Dict
 
 from pysam import PileupColumn, VariantRecord
 
-from ugvc.dna.strand_direction import is_forward_strand, forward_strand, reverse_strand
+from ugvc.dna.strand_direction import is_forward_strand, StrandDirection
 from ugvc.sec.read_counts import ReadCounts
 from ugvc.utils.pysam_utils import get_filtered_alleles_list
 
@@ -15,11 +15,11 @@ def count_alleles_in_pileup(pc: PileupColumn) -> Dict[str, ReadCounts]:
 
         upper_seq = seq.upper()
         if is_forward_strand(seq):
-            strand_direction = forward_strand
+            strand_direction = StrandDirection.FORWARD
             forward_reads_count = quality
             reverse_reads_count = 0
         else:
-            strand_direction = reverse_strand
+            strand_direction = StrandDirection.REVERSE
             forward_reads_count = 0
             reverse_reads_count = quality
 

@@ -1,7 +1,8 @@
 from typing import Dict, Set, List
 
-from ugvc.dna.strand_direction import StrandDirection, forward_strand, reverse_strand
+from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.read_counts import ReadCounts
+
 
 class ConditionalAlleleDistribution:
     """
@@ -119,8 +120,8 @@ def get_allele_counts_list(actual_allele_counts: Dict[str, ReadCounts], observed
     actual_distribution_list = []
     for i, allele in enumerate(observed_alleles.split(',')):
         if allele in actual_allele_counts:
-            actual_distribution_list.append(actual_allele_counts[allele].get_count(forward_strand))
-            actual_distribution_list.append(actual_allele_counts[allele].get_count(reverse_strand))
+            actual_distribution_list.append(actual_allele_counts[allele].get_count(StrandDirection.FORWARD))
+            actual_distribution_list.append(actual_allele_counts[allele].get_count(StrandDirection.REVERSE))
         else:
             actual_distribution_list.extend([0, 0])
     return actual_distribution_list

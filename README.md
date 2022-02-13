@@ -39,5 +39,4 @@ git-lfs track "*.new_suffix"
 4. Open a pull-request through github
    1. Add at least one code reviewer
    2. Wait for CI tests to pass (green V sign) 
-
-
+   
