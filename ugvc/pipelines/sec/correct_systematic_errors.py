@@ -153,21 +153,21 @@ class SystematicErrorCorrector:
                     continue
 
                 # Check if called alternative allele matches excluded (noise) allele
-                called_non_excluded_alt = False
+                called_non_excluded_alleles = False
                 if len(fields) > 3:
                     excluded_refs = ast.literal_eval(fields[3])
                     flat_excluded_refs = list(itertools.chain(*excluded_refs))
                     all_excluded_alts = ast.literal_eval(fields[4])
                     called_ref = observed_variant.ref
                     called_alts = set(get_filtered_alleles_list(sample_info)).intersection(observed_variant.alts)
-                    called_non_excluded_alt = not self.called_excluded_alleles(flat_excluded_refs,
-                                                                               all_excluded_alts,
-                                                                               called_ref,
-                                                                               called_alts)
+                    called_non_excluded_alleles = not called_excluded_alleles(flat_excluded_refs,
+                                                                              all_excluded_alts,
+                                                                              called_ref,
+                                                                              called_alts)
 
                 # Call a non_noise_allele in case alternative allele is not excluded
                 # e.g a SNP in a position where the noise in a hmer indel
-                if called_non_excluded_alt:
+                if called_non_excluded_alleles:
                     observed_alleles = get_filtered_alleles_str(observed_variant)
                     call = SECCall(SECCallType.non_noise_allele, observed_alleles, get_genotype(sample_info), [])
                 # Execute SEC caller on the observed variant and expected_distribution loaded from the memDB (pickle)
@@ -205,22 +205,6 @@ class SystematicErrorCorrector:
             with open(self.output_file, 'wb') as out_pickle_file:
                 pickle.dump(exclusion_filter, out_pickle_file)
         log_stream.close()
-
-    @staticmethod
-    def called_excluded_alleles(excluded_refs: List[str],
-                                all_excluded_alts: List[List[str]],
-                                called_ref: str,
-                                called_alts: Set[str]):
-        """
-        search for each called ref->alt pair in excluded alleles
-        """
-        called_excluded_alleles = False
-        for excluded_ref, excluded_alts in zip(excluded_refs, all_excluded_alts):
-            if called_ref == excluded_ref:
-                non_excluded_alts = called_alts.difference(excluded_alts)
-                if len(non_excluded_alts) == 0:
-                    called_excluded_alleles = True
-        return called_excluded_alleles
 
     def __process_call_vcf_output(self, call, observed_variant, sample_info, vcf_writer):
         """
@@ -270,6 +254,22 @@ class OutputType(Enum):
     vcf = 1
     bed = 2
     pickle = 3
+
+
+def called_excluded_alleles(excluded_refs: List[str],
+                            all_excluded_alts: List[List[str]],
+                            called_ref: str,
+                            called_alts: Set[str]):
+    """
+    search for each called ref->alt pair in excluded alleles
+    """
+    has_excluded_alleles = False
+    for excluded_ref, excluded_alts in zip(excluded_refs, all_excluded_alts):
+        if called_ref == excluded_ref:
+            non_excluded_alts = called_alts.difference(excluded_alts)
+            if len(non_excluded_alts) == 0:
+                has_excluded_alleles = True
+    return has_excluded_alleles
 
 
 def main(argv: List[str]):
