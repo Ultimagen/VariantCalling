@@ -967,16 +967,15 @@ def test_decision_tree_model(concordance: pd.DataFrame,
     if add_testing_group_column:
         concordance = add_grouping_column(
             concordance, get_testing_selection_functions(), "group_testing")
+        groups = list(get_testing_selection_functions().keys())
+
     else:
         assert "group_testing" in concordance.columns, "group_testing column should be given"
-
-    concordance = add_grouping_column(
-        concordance, get_testing_selection_functions(), "group_testing")
+        groups = list(set(concordance['group_testing']))
 
     # get filter status as True='tp' False='fp'
     predictions = model.predict(concordance, classify_column)
 
-    groups = list(get_testing_selection_functions().keys())
     accuracy_df = pd.DataFrame(columns=['group',
                                         'tp',
                                         'fp',
@@ -1037,6 +1036,25 @@ def test_decision_tree_model(concordance: pd.DataFrame,
     return accuracy_df
 
 
+def get_empty_recall_precision(category: str) -> dict:
+    """ Return empty recall precision dictionary for category given """
+    return {'group': category,
+            'tp': 0,
+            'fp': 0,
+            'fn': 0,
+            'precision': 1.0,
+            'recall': 1.0,
+            'f1': 1.0,
+            'initial_tp': 0,
+            'initial_fp': 0,
+            'initial_fn': 0,
+            'initial_precision': 1.0,
+            'initial_recall': 1.0,
+            'initial_f1': 1.0
+            }
+
+
+
 def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series) -> pd.Series:
     """
     @param pre_filtering_classification: classification to 'tp', 'fp', 'fn' before applying filter
@@ -1079,11 +1097,13 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     if add_testing_group_column:
         concordance = add_grouping_column(
             concordance, get_testing_selection_functions(), "group_testing")
+        groups = list(get_testing_selection_functions().keys())
+
     else:
         assert "group_testing" in concordance.columns, "group_testing column should be given"
+        groups = list(set(concordance['group_testing']))
 
     predictions = model.predict(concordance, classify_column, get_numbers=True)
-    groups = list(get_testing_selection_functions().keys())
     recalls_precisions = {}
     accuracy_df = pd.DataFrame(columns=['group',
                                         'predictions',
@@ -1097,6 +1117,12 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
                  (~concordance["test_train_split"])
 
         if select.sum() == 0:
+            accuracy_df = accuracy_df.append({'group': g,
+                                              'predictions': [],
+                                              'precision': [],
+                                              'recall': [],
+                                              'f1': [],
+                                              }, ignore_index=True)
             continue
 
         classification = concordance.loc[select, classify_column]
@@ -1120,10 +1146,19 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         accuracy_df = accuracy_df.append({'group': g, 'predictions': predictions,
                                           'precision': precision,
                                           'recall': recall,
-                                          'f1': f1
+                                          'f1': f1,
                                           }, ignore_index=True)
-        
+
     return accuracy_df
+
+
+def get_empty_recall_precision_curve(category: str) -> dict:
+    """ Return empty recall precision curve dictionary for category given """
+    return {'group': category,
+            'precision': [],
+            'recall': [],
+            'f1': [],
+            }
 
 
 def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) -> tuple:

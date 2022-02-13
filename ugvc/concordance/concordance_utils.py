@@ -84,7 +84,21 @@ def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: 
     accuracy_df = variant_filtering_utils.test_decision_tree_model(df,
                                                                    trivial_classifier_set,
                                                                    classify_column)
-    all_indels = __summarize_indel_stats(accuracy_df)
+
+    # Add summary for indels
+    df_indels = df.copy()
+    df_indels['group_testing'] = np.where(df_indels['indel'], 'INDELS', 'SNP')
+    all_indels = variant_filtering_utils.test_decision_tree_model(
+        df_indels,
+        trivial_classifier_set,
+        classify_column,
+        add_testing_group_column=False)
+
+    # fix boundary case when there are no indels
+    all_indels = all_indels.query("group=='INDELS'")
+    if all_indels.shape[0] == 0:
+        all_indels.append(variant_filtering_utils.get_empty_recall_precision('INDELS'),
+                          ignore_index=True)
     accuracy_df = accuracy_df.append(all_indels, ignore_index=True)
     accuracy_df = accuracy_df.round(5)
     return accuracy_df
@@ -102,7 +116,7 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol
         column name which contains tp,fp,fn status before applying filter
     filter_hpol_run: bool
          filter variants with HPOL_RUN filter
-         
+
     Returns
     -------
     data-frame with variant types and their recall-precision curves
@@ -110,8 +124,27 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol
     validate_and_preprocess_concordance_df(df, filter_hpol_run)
     trivial_classifier_set = initialize_trivial_classifier()
     recall_precision_curve_dict = \
-        variant_filtering_utils.get_decision_tree_precision_recall_curve(df, trivial_classifier_set, classify_column)
-    recall_precision_curve_df = __convert_recall_precision_dict_to_df({'analysis': recall_precision_curve_dict})
+        variant_filtering_utils.get_decision_tree_precision_recall_curve(
+            df, trivial_classifier_set, classify_column)
+    recall_precision_curve_df = __convert_recall_precision_dict_to_df(
+        {'analysis': recall_precision_curve_dict})
+
+
+    # Add summary for indels 
+    df_indels = df.copy()
+    df_indels['group_testing'] = np.where(df_indels['indel'], 'INDELS', 'SNP')
+    all_indels = variant_filtering_utils.test_decision_tree_model(
+        df_indels,
+        trivial_classifier_set,
+        classify_column,
+        add_testing_group_column=False)
+
+    # fix boundary case when there are no indels
+    all_indels = all_indels.query("group=='INDELS'")
+    if all_indels.shape[0] == 0:
+        all_indels.append(variant_filtering_utils.get_empty_recall_precision('INDELS'),
+                          ignore_index=True)
+
     return recall_precision_curve_df
 
 
@@ -129,7 +162,8 @@ def validate_and_preprocess_concordance_df(df: DataFrame, filter_hpol_run: bool 
     assert 'tree_score' in df.columns, "Input concordance file should be after applying a model"
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
     if np.any(pd.isnull(df['tree_score'])):
-        logger.warning("Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
+        logger.warning(
+            "Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
         df.loc[pd.isnull(df['tree_score']), "tree_score"] = 0
     if not filter_hpol_run:
         df.loc[df[df['filter'] == 'HPOL_RUN'].index, 'filter'] = 'PASS'
@@ -156,24 +190,30 @@ def initialize_trivial_classifier() -> variant_filtering_utils.MaskedHierarchica
 def __convert_recall_precision_dict_to_df(recall_precision_dict):
     results_vals = pd.DataFrame(recall_precision_dict).unstack().reset_index()
     results_vals.columns = ['model', 'category', 'tmp']
-    results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [(np.nan, np.nan, np.nan, np.nan)]
+    results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
+        (np.nan, np.nan, np.nan, np.nan)]
     results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[0])
     results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[1])
     results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[2])
     if len(results_vals['tmp'].values[0]) > 3:
-        results_vals['predictions'] = results_vals['tmp'].apply(lambda x: x[:, 3])
+        results_vals['predictions'] = results_vals['tmp'].apply(
+            lambda x: x[:, 3])
     results_vals.drop('tmp', axis=1, inplace=True)
     return results_vals
 
 
-def __summarize_indel_stats(accuracy_df) -> Dict[str, float]:
-    indel_df = accuracy_df[accuracy_df['group'].str.contains('indel') | accuracy_df['group'].str.contains('INDEL')]
-    all_indels = indel_df.sum()
-    all_indels['group'] = 'INDELS'
-    all_indels['recall'] = get_recall(all_indels['fn'], all_indels['tp'])
-    all_indels['precision'] = get_precision(all_indels['fp'], all_indels['tp'])
-    all_indels['f1'] = get_f1(all_indels['precision'], all_indels['recall'])
-    all_indels['initial_recall'] = get_recall(all_indels['initial_fn'], all_indels['initial_tp'])
-    all_indels['initial_precision'] = get_precision(all_indels['initial_fp'], all_indels['initial_tp'])
-    all_indels['initial_f1'] = get_f1(all_indels['initial_precision'], all_indels['initial_recall'])
-    return all_indels
+# def __summarize_indel_stats(accuracy_df) -> Dict[str, float]:
+#     indel_df = accuracy_df[accuracy_df['group'].str.contains(
+#         'indel') | accuracy_df['group'].str.contains('INDEL')]
+#     all_indels = indel_df.sum()
+#     all_indels['group'] = 'INDELS'
+#     all_indels['recall'] = get_recall(all_indels['fn'], all_indels['tp'])
+#     all_indels['precision'] = get_precision(all_indels['fp'], all_indels['tp'])
+#     all_indels['f1'] = get_f1(all_indels['precision'], all_indels['recall'])
+#     all_indels['initial_recall'] = get_recall(
+#         all_indels['initial_fn'], all_indels['initial_tp'])
+#     all_indels['initial_precision'] = get_precision(
+#         all_indels['initial_fp'], all_indels['initial_tp'])
+#     all_indels['initial_f1'] = get_f1(
+#         all_indels['initial_precision'], all_indels['initial_recall'])
+#     return all_indels
