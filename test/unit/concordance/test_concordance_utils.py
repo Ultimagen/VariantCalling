@@ -54,7 +54,7 @@ class TestConcordanceUtils(unittest.TestCase):
                                        'hmer_indel_length': [None] * 6
                                        })
         accuracy_df = calc_accuracy_metrics(concordance_df, 'classify')
-        accuracy_df.to_hdf("test.single.h5", key="test")
+
         expected = {'initial_tp': [3],
                     'initial_fp': [1],
                     'initial_fn': [1],
