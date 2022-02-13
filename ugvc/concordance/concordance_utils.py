@@ -129,7 +129,6 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol
     # recall_precision_curve_df = __convert_recall_precision_dict_to_df(
     #    {'analysis': recall_precision_curve_dict})
 
-
     # Add summary for indels
     df_indels = df.copy()
     df_indels['group_testing'] = np.where(df_indels['indel'], 'INDELS', 'SNP')
@@ -188,33 +187,3 @@ def initialize_trivial_classifier() -> variant_filtering_utils.MaskedHierarchica
     return trivial_classifier_set
 
 
-def __convert_recall_precision_dict_to_df(recall_precision_dict):
-    results_vals = pd.DataFrame(recall_precision_dict).unstack().reset_index()
-    results_vals.columns = ['model', 'category', 'tmp']
-    results_vals.loc[pd.isnull(results_vals['tmp']), 'tmp'] = [
-        (np.nan, np.nan, np.nan, np.nan)]
-    results_vals['recall'] = results_vals['tmp'].apply(lambda x: x[0])
-    results_vals['precision'] = results_vals['tmp'].apply(lambda x: x[1])
-    results_vals['f1'] = results_vals['tmp'].apply(lambda x: x[2])
-    if len(results_vals['tmp'].values[0]) > 3:
-        results_vals['predictions'] = results_vals['tmp'].apply(
-            lambda x: x[:, 3])
-    results_vals.drop('tmp', axis=1, inplace=True)
-    return results_vals
-
-
-# def __summarize_indel_stats(accuracy_df) -> Dict[str, float]:
-#     indel_df = accuracy_df[accuracy_df['group'].str.contains(
-#         'indel') | accuracy_df['group'].str.contains('INDEL')]
-#     all_indels = indel_df.sum()
-#     all_indels['group'] = 'INDELS'
-#     all_indels['recall'] = get_recall(all_indels['fn'], all_indels['tp'])
-#     all_indels['precision'] = get_precision(all_indels['fp'], all_indels['tp'])
-#     all_indels['f1'] = get_f1(all_indels['precision'], all_indels['recall'])
-#     all_indels['initial_recall'] = get_recall(
-#         all_indels['initial_fn'], all_indels['initial_tp'])
-#     all_indels['initial_precision'] = get_precision(
-#         all_indels['initial_fp'], all_indels['initial_tp'])
-#     all_indels['initial_f1'] = get_f1(
-#         all_indels['initial_precision'], all_indels['initial_recall'])
-#     return all_indels
