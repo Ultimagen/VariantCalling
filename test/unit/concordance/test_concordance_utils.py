@@ -80,7 +80,7 @@ class TestConcordanceUtils(unittest.TestCase):
         """
         given concordance dataframe with all rows passing filter, calc recall/precision curve
         """
-        concordance_df = pd.DataFrame({'classify': ['tp', 'tp', 'fp', 'fn', 'tp', 'tn'],
+        concordance_df = pd.DataFrame({'classify': ['tp', 'tp', 'fp', 'fn', 'tp', 'fp'],
                                        'filter': ['PASS'] * 6,
                                        'tree_score': [1] * 6,
                                        'hmer_indel_nuc': ['N'] * 6,
