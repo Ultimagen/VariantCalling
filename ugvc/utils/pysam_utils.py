@@ -7,8 +7,15 @@ default_filter = ['<NON_REF>']
 
 def get_alleles_str(variant: VariantRecord) -> str:
     """
-    @param variant: a pysam variant object
-    @return: comma joined alleles string,
+    Get a string representing the possible alleles of a variant
+
+    Parameters
+    ----------
+    variant : a pysam VariantRecord
+
+    Returns
+    -------
+    comma joined alleles string,
         e.g: ref=A alt=G.*
         get_alleles_str(v) = 'A,G,*'
     """
@@ -17,12 +24,18 @@ def get_alleles_str(variant: VariantRecord) -> str:
 
 def get_filtered_alleles_list(variant: VariantRecord, filter_list: List[str] = None) -> List[str]:
     """
-    @param variant: a variant
-    @param filter_list: a list of alleles to filter
-    @return: list of alleles,
-        excluding the filter_list (initialized to default_filter), and * as minor allele
+    Get a filtered list of alleles of a variant
+
+    Parameters
+    ----------
+    variant : a pysam VariantRecord
+    filter_list : a list of alleles to be filtered, initialized to default_filter (global var)
+
+    Returns
+    -------
+    list of alleles, excluding the filter_list (initialized to default_filter), and * as minor allele
         e.g: ref=A alt=G,* filter_list=['*']
-            get_alleles_str(v) = ['A','G']
+             get_alleles_str(v) = ['A','G']
     """
     if filter_list is None:
         filter_list = default_filter
@@ -36,21 +49,34 @@ def get_filtered_alleles_list(variant: VariantRecord, filter_list: List[str] = N
 
 def get_filtered_alleles_str(variant: VariantRecord, filter_list: List[str] = None) -> str:
     """
-    @param variant: a variant
-    @param filter_list: a list of alleles to filter
-    @return: comma joined alleles string,
-        excluding the filter_list (initialized to default_filter), and * as minor allele
-         e.g: ref=A alt=G,* filter_list=['*']
-              get_alleles_str(v) = ['A','G']
+    Get a filtered list of alleles of a variant (as string)
+
+    Parameters
+    ----------
+    variant : a pysam VariantRecord
+    filter_list : a list of alleles to be filtered, initialized to default_filter (global var)
+
+    Returns
+    -------
+    Comma joined alleles string, excluding the filter_list (initialized to default_filter), and * as minor allele
+        e.g: ref=A alt=G,* filter_list=['*']
+             get_alleles_str(v) = 'A,G'
     """
     return ','.join(get_filtered_alleles_list(variant, filter_list))
 
 
 def get_genotype(variant_record_sample: VariantRecordSample) -> str:
     """
-    @param variant_record_sample: a sample record of a variant (genotype, AD, GQ, etc)
-    @return: genotype of sample
-        e.g: ref=A, alt=T, GT=0/1 -> 'A/T'
+    Get genotype string for a specific sample in a specific variant.
+    e.g: ref=A, alt=T, GT=0/1 -> 'A/T'
+
+    Parameters
+    ----------
+    variant_record_sample: a pysam sample record of a variant (genotype, AD, GQ, etc)
+
+    Returns
+    -------
+    genotype of sample
     """
     alleles = ['.' if a is None else str(a) for a in variant_record_sample.alleles]
     return '/'.join(alleles)
@@ -58,16 +84,26 @@ def get_genotype(variant_record_sample: VariantRecordSample) -> str:
 
 def get_genotype_indices(variant_record_sample: VariantRecordSample) -> str:
     """
-     @param variant_record_sample: a sample record of a variant (genotype, AD, GQ, etc)
-     @return: genotype of sample
-         e.g: ref=A, alt=T, GT=0/1 -> '0/1'
-     """
+    Get genotype indices string for a specific sample in a specific variant.
+    e.g: ref=A, alt=T, GT=0/1 -> '0/1'
+
+    Parameters
+    ----------
+    variant_record_sample: a pysam sample record of a variant (genotype, AD, GQ, etc)
+
+    Returns
+    -------
+    genotype indices of sample as string
+    """
     allele_indices = ['.' if a is None else str(a) for a in variant_record_sample.allele_indices]
     return '/'.join(sorted(allele_indices))
 
+
 def has_candidate_alternatives(variant: VariantRecord) -> bool:
     """
-    Return True iff position has a candidate alternative allele (besides <NON_REF>)
+    Returns
+    -------
+    True iff position has a candidate alternative allele (besides <NON_REF>)
     """
     candidate_alleles_str = get_filtered_alleles_str(variant)
     return ',' in candidate_alleles_str
@@ -75,7 +111,17 @@ def has_candidate_alternatives(variant: VariantRecord) -> bool:
 
 def is_snp(alleles: List[str]):
     """
-    @param alleles: list of alleles
-    @return: are the alleles represent SNP locus (all are of size 1)
+    Return True if alleles represent a SNP
+    - If the SNP locus is also within a deletion (* allele), still return True.
+    - Ignored <NON_REF> allele
+
+    Parameters
+    ----------
+    alleles : list of alleles
+
+    Returns
+    -------
+    True iff the alleles represent SNP locus (all are of size 1)
     """
-    return all([len(a) == 1 for a in alleles])
+    __alleles = [a for a in alleles if a != '<NON_REF>']
+    return len(__alleles) >= 2 and all([len(a) == 1 for a in __alleles])

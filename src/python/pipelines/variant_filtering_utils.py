@@ -918,16 +918,18 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
                            interval_size=interval_size, annots=annots,
                            exome_weight=exome_weight, exome_weight_annotation=exome_weight_annotation)
 
-    return MaskedHierarchicalModel(model_name + " classifier", "group", classifier_models, transformer=transformer,
+    return MaskedHierarchicalModel(model_name + " classifier",
+                                   "group",
+                                   classifier_models,
+                                   transformer=transformer,
                                    threshold=thresholds,
-                                   tree_score_fpr=fpr_values), \
-           concordance
+                                   tree_score_fpr=fpr_values), concordance
 
 
 def test_decision_tree_model(concordance: pd.DataFrame,
                              model: MaskedHierarchicalModel,
                              classify_column: str,
-                             add_testing_group_column: bool = True) -> dict:
+                             add_testing_group_column: bool = True) -> DataFrame:
     """
     Calculate precision/recall for the decision tree classifier
 
@@ -1072,8 +1074,10 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         # this is a change to calculate recall correctly
         group_ground_truth[group_ground_truth == 'fn'] = 'tp'
 
-        curve = utils.precision_recall_curve(np.array(group_ground_truth), np.array(
-            group_predictions), pos_label="tp", fn_score=-1)
+        curve = utils.precision_recall_curve(np.array(group_ground_truth),
+                                             np.array(group_predictions),
+                                             pos_label="tp",
+                                             fn_score=-1)
         # curve = metrics.precision_recall_curve(np.array(group_ground_truth), np.array(
         #    group_predictions), pos_label="tp")
 
