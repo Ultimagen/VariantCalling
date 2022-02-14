@@ -1,5 +1,7 @@
 #!/env/python
+import pathmagic
 import argparse
+
 
 from pandas import DataFrame
 
@@ -27,7 +29,13 @@ def main():
     out_pref = args.output_prefix
     ignore_genotype = args.ignore_genotype
     filter_hpol_run = args.filter_hpol_run
-    df: DataFrame = read_hdf(args.input_file, key=ds_key)
+
+    # comparison dataframes often contain dataframes that we do not want to read
+    if ds_key == 'all':
+        skip = ['concordance', 'scored_concordance', 'input_args', 'comparison_result']
+    else:
+        skip = []
+    df: DataFrame = read_hdf(args.input_file, key=ds_key, skip_keys = skip)
 
     classify_column = 'classify' if ignore_genotype else 'classify_gt'
 
