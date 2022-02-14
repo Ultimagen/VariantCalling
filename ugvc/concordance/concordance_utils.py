@@ -10,7 +10,7 @@ from ugvc import logger
 from ugvc.utils.stats_utils import get_precision, get_recall, get_f1
 
 
-def read_hdf(file_name: str, key: str = 'all') -> DataFrame:
+def read_hdf(file_name: str, key: str = 'all', skip_keys: list = []) -> DataFrame:
     """
     Read data-frame or data-frames from an h5 file
 
@@ -24,15 +24,18 @@ def read_hdf(file_name: str, key: str = 'all') -> DataFrame:
         1. all - read all data-frames from the file and concat them
         2. all_human_chrs - read chr1, ..., chr22, chrX keys, and concat them
         3. all_somatic_chrs - chr1, ..., chr22
-
+    skip_keys: list
+        List of keys to skip from reading the H5 (e.g. concordance, input_args ... )
     Returns
     -------
     data-frame or concat data-frame read from the h5 file according to key
     """
     if key == 'all':
-        f = h5py.File(file_name, 'r')
-        keys = list(f.keys())
-        f.close()
+        with h5py.File(file_name, 'r') as f:
+            keys = list(f.keys())
+        for k in skip_keys:
+            if k in keys:
+                keys.remove(k)
         dfs = [pd.read_hdf(file_name, key=key) for key in keys]
         return pd.concat(dfs)
     elif key == 'all_human_chrs':
@@ -161,9 +164,13 @@ def validate_and_preprocess_concordance_df(df: DataFrame, filter_hpol_run: bool 
     """
     assert 'tree_score' in df.columns, "Input concordance file should be after applying a model"
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
+    if np.any(pd.isnull(df['filter'])):
+        logger.warning(
+            f"Null values in filter column (n={pd.isnull(df['filter']).sum()}). Setting them as PASS, but it is suspicious")
+        df.loc[pd.isnull(df['filter']),'filter'] = 'PASS'
     if np.any(pd.isnull(df['tree_score'])):
         logger.warning(
-            "Null values in concordance dataframe tree_score. Setting them as zero, but it is suspicious")
+            f"Null values in concordance dataframe tree_score (n={pd.isnull(df['tree_score']).sum()}). Setting them as zero, but it is suspicious")
         df.loc[pd.isnull(df['tree_score']), "tree_score"] = 0
     if not filter_hpol_run:
         df.loc[df[df['filter'] == 'HPOL_RUN'].index, 'filter'] = 'PASS'
