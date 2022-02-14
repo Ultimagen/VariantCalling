@@ -1,3 +1,5 @@
+import os
+
 import pysam
 
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
@@ -20,6 +22,8 @@ class TestSet:
                                                   ('Description', 'Strand bias vector')])
 
         self.vcf = pysam.VariantFile('empty.vcf', 'w', header=self.vcf_header)
+        # cleanup file, which is not needed, it's just a side effect of initializing VariantFile
+        os.remove('empty.vcf')
 
 
 class NoVariantWithNoise(TestSet):

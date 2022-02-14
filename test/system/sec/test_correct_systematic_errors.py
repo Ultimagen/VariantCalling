@@ -4,7 +4,7 @@ from os.path import dirname
 
 import pysam
 
-from ugvc.sec_main import correct_systematic_errors
+from ugvc.pipelines.sec import correct_systematic_errors
 from ugvc.sec.systematic_error_correction_call import SECCallType
 from test import test_dir
 

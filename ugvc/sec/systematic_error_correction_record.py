@@ -3,10 +3,10 @@ from typing import Dict
 import numpy as np
 from scipy.stats import chisquare, binom_test
 
-from ugvc.dna.strand_direction import forward_strand, reverse_strand, StrandDirection
+from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution, get_allele_counts_list
 from ugvc.sec.read_counts import ReadCounts
-from ugvc.stats.goodness_of_fit import scale_contingency_table, multinomial_likelihood_ratio
+from ugvc.utils.stats_utils import scale_contingency_table, multinomial_likelihood_ratio
 from ugvc.utils.pysam_utils import is_snp
 
 
@@ -79,8 +79,8 @@ class SECRecord:
                                                f_exp=self.scaled_expected_distribution_list)
 
     def __calc_strand_enrichment(self):
-        self.forward_enrichment_pval = self.__single_strand_binomial_test(forward_strand)
-        self.reverse_enrichment_pval = self.__single_strand_binomial_test(reverse_strand)
+        self.forward_enrichment_pval = self.__single_strand_binomial_test(StrandDirection.FORWARD)
+        self.reverse_enrichment_pval = self.__single_strand_binomial_test(StrandDirection.REVERSE)
         # each strand is tested independently
         self.strand_enrichment_pval = self.forward_enrichment_pval * self.reverse_enrichment_pval
 
@@ -109,7 +109,7 @@ class SECRecord:
         return scale_contingency_table(self.expected_distribution_list, self.num_of_observations_actual)
 
     def __single_strand_binomial_test(self, strand: StrandDirection) -> float:
-        if strand == forward_strand:
+        if strand == StrandDirection.FORWARD:
             ref_index = 0
             alt_index = 2
         else:

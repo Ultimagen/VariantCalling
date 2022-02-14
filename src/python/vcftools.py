@@ -330,7 +330,8 @@ class FilterWrapper:
 
 
 def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', create_gt_diff: bool = True) -> None:
-    '''Create a set of bed file tracks that are often used in the
+    """
+    Create a set of bed file tracks that are often used in the
     debugging and the evaluation of the variant calling results
 
     Parameters
@@ -347,7 +348,7 @@ def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = 'w', crea
     Returns
     -------
     None
-    '''
+    """
 
     basename, file_extension = os.path.splitext(output_file)
 
