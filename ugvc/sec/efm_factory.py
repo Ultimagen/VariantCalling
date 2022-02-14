@@ -3,9 +3,9 @@ from typing import Tuple
 import numpy as np
 from pysam import PileupColumn
 
+from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.allele_counter import count_alleles_in_pileup
 from ugvc.sec.error_frequency_matrix import ErrorFrequencyMatrix
-from ugvc.dna.strand_direction import reverse_strand, forward_strand
 
 
 def pileup_to_efm(pc: PileupColumn, true_genotype: Tuple[str, str]) -> ErrorFrequencyMatrix:
@@ -13,8 +13,8 @@ def pileup_to_efm(pc: PileupColumn, true_genotype: Tuple[str, str]) -> ErrorFreq
     allele_counts = count_alleles_in_pileup(pc)
     for allele, read_counts in allele_counts.items():
         error_type = get_error_type(allele, true_genotype)
-        matrix[error_type, 0] += read_counts.get_count(reverse_strand)
-        matrix[error_type, 1] += read_counts.get_count(forward_strand)
+        matrix[error_type, 0] += read_counts.get_count(StrandDirection.REVERSE)
+        matrix[error_type, 1] += read_counts.get_count(StrandDirection.FORWARD)
     return ErrorFrequencyMatrix(matrix)
 
 

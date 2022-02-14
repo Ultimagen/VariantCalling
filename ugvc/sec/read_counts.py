@@ -1,4 +1,4 @@
-from ugvc.dna.strand_direction import StrandDirection, forward_strand, reverse_strand, unknown_strand_direction
+from ugvc.dna.strand_direction import StrandDirection
 
 
 class ReadCounts:
@@ -9,22 +9,22 @@ class ReadCounts:
         self.__unknown_strand_support = unknown_strand_support
 
     def add_count(self, num_of_reads, strand: StrandDirection):
-        if strand.forward:
+        if strand == StrandDirection.FORWARD:
             self.__forward_support += num_of_reads
-        elif strand.reverse:
+        elif strand.REVERSE:
             self.__reverse_support += num_of_reads
         else:
             self.__unknown_strand_support += num_of_reads
 
     def add_counts(self, read_counts):
-        self.__forward_support += read_counts.get_count(forward_strand)
-        self.__reverse_support += read_counts.get_count(reverse_strand)
-        self.__unknown_strand_support += read_counts.get_count(unknown_strand_direction)
+        self.__forward_support += read_counts.get_count(StrandDirection.FORWARD)
+        self.__reverse_support += read_counts.get_count(StrandDirection.REVERSE)
+        self.__unknown_strand_support += read_counts.get_count(StrandDirection.UNKNOWN)
 
     def get_count(self, strand: StrandDirection) -> int:
-        if strand.forward:
+        if strand == StrandDirection.FORWARD:
             return self.__forward_support
-        elif strand.reverse:
+        elif strand == StrandDirection.REVERSE:
             return self.__reverse_support
         else:
             return self.__unknown_strand_support

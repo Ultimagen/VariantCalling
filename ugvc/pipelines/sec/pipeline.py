@@ -10,10 +10,16 @@ from simppl.simple_pipeline import SimplePipeline
 from ugvc import base_dir
 
 
+"""
+SEC (Systematic Error Correction) training and validation pipeline
+"""
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--out_dir', required=True)
-    parser.add_argument('--inputs_table', required=True, help='see hap_map2_inputs.csv')
+    parser.add_argument('--inputs_table', required=True,
+                        help='A tsv file containing [Workflow ID, sample_id, gvcf, train_test_split')
     parser.add_argument('--relevant_coords', required=True, help='bed file with relevant analysis coordinates')
     parser.add_argument('--ground_truth_vcf', required=True,
                         help='vcf file containing ground_truth genotypes for training-set')
@@ -35,7 +41,7 @@ def main():
     out_dir = args.out_dir
     ground_truth_vcf = args.ground_truth_vcf
 
-    sec_main = f'{base_dir}/sec_main'
+    sec_main = f'{base_dir}/pipelines/sec'
 
     novel_detection_only = args.novel_detection_only
     novel_detection_suffix = '_novel' if novel_detection_only else ''

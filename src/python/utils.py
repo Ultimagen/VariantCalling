@@ -314,45 +314,6 @@ def contig_lens_from_bam_header(bam_file: str, output_file: str):
                 outfile.write(f"{c}\t{l}\n")
 
 
-def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
-                           pos_label: Optional[Union[str, int]] = 1,
-                           fn_score: float = -1) -> tuple:
-    '''Calculates precision/recall curve from double prediction scores and gtr
-
-    Parameters
-    ----------
-    gtr: np.ndarray
-        String array of ground truth
-    predictions: np.ndarray
-        Array of prediction scores
-    pos_label: str or 0
-        Label of true call, otherwise 1s will be considered
-    fn_score: float
-        Score of false negative. Should be such that they are the lowest scoring variants
-    Returns
-    -------
-    tuple
-        precisions, recalls, prediction_values
-    '''
-    asidx = np.argsort(predictions)
-    predictions = predictions[asidx]
-    gtr = gtr[asidx]
-    gtr = gtr == pos_label
-
-    tp_counts = np.cumsum(gtr[::-1])[::-1]
-    fn_counts = np.cumsum(gtr)
-    fp_counts = np.cumsum((gtr == 0)[::-1])[::-1]
-    mask = (tp_counts + fp_counts < 20) | (tp_counts + fn_counts < 20)
-    precisions = tp_counts / (tp_counts + fp_counts)
-    recalls = tp_counts / (tp_counts + fn_counts)
-    f1 = 2 * (recalls * precisions) / \
-        (recalls + precisions + np.finfo(float).eps)
-
-    trim_idx = np.argmax(predictions > fn_score)
-    mask = mask[trim_idx:]
-    return precisions[trim_idx:][~mask], recalls[trim_idx:][~mask], f1[trim_idx:][~mask], predictions[trim_idx:][~mask]
-
-
 def max_merits(specificity, recall):
     '''Finds ROC envelope from multiple sets of specificity and recall
     '''

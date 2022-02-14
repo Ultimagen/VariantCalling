@@ -4,7 +4,7 @@ import logging
 import sys
 from os.path import dirname
 
-logger = logging.getLogger('systematic_error_correction')
+logger = logging.getLogger('ugvc')
 logger.setLevel(logging.INFO)
 
 # create formatter

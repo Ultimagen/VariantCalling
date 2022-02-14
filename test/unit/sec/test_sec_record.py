@@ -2,7 +2,7 @@ import unittest
 
 from ugvc.sec.read_counts import ReadCounts
 from ugvc.sec.systematic_error_correction_record import SECRecord
-from test.unit.sec.test_sets import KnownHetIns
+from test.unit.sec.variant_test_examples import KnownHetIns
 
 
 class TestSecRecord(unittest.TestCase):

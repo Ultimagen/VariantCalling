@@ -2,7 +2,7 @@ import unittest
 
 from ugvc.sec.systematic_error_correction_call import SECCallType
 from ugvc.sec.systematic_error_correction_caller import SECCaller
-from test.unit.sec.test_sets import KnownHetIns, NoVariantWithNoise, UncorrelatedSnp, NoReferenceGenotype, \
+from test.unit.sec.variant_test_examples import KnownHetIns, NoVariantWithNoise, UncorrelatedSnp, NoReferenceGenotype, \
     HomVarWithTwoEquivalentHetGenotypes
 
 

@@ -2,7 +2,7 @@ from typing import List
 
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
 from ugvc.sec.systematic_error_correction_record import SECRecord
-from ugvc.stats.goodness_of_fit import scale_contingency_table, multinomial_likelihood_ratio
+from ugvc.utils.stats_utils import scale_contingency_table, multinomial_likelihood_ratio
 
 
 def correlate_sec_records(sec_records: List[SECRecord], min_scale: int = 50) -> float:
