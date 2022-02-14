@@ -31,4 +31,7 @@ srcvm/
 .ruffus*
 .idea
 *.png
-*.pytest_cache
+
+*.pytest_cache*
+test/test_outputs
+

@@ -1,8 +1,9 @@
-from python.pipelines import vcf_pipeline_utils
 import shutil
-from os.path import join as pjoin, dirname
-from os.path import basename
+
+from os.path import join as pjoin, dirname, basename
 from typing import Optional, Tuple
+
+from python.pipelines import vcf_pipeline_utils
 
 CONCORDANCE_TOOL = "VCFEVAL"
 
@@ -20,7 +21,8 @@ def pipeline(n_parts: int, input_prefix: str,
              output_suffix: Optional[str] = None,
              ignore_filter: bool = False,
              concordance_tool: str = CONCORDANCE_TOOL) -> Tuple[str, str]:
-    '''Run comparison between the two sets of calls: input_prefix and truth_file. Creates
+    """
+    Run comparison between the two sets of calls: input_prefix and truth_file. Creates
     a combined call file and a concordance VCF by either of the concordance tools
 
     Parameters
@@ -62,7 +64,7 @@ def pipeline(n_parts: int, input_prefix: str,
     Returns
     -------
     Tuple[str, str]
-    '''
+    """
     if output_dir is None:
         output_dir = dirname(input_prefix)
 

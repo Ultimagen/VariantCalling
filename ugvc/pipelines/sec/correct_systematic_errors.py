@@ -7,7 +7,8 @@ from typing import List, TextIO
 
 import pysam
 
-from python.pipelines.variant_filtering_utils import Blacklist, VariantSelectionFunctions
+from python.modules.filtering.blacklist import Blacklist
+from python.pipelines.variant_filtering_utils import VariantSelectionFunctions
 from ugvc import logger
 from ugvc.readwrite.bed_writer import BedWriter
 from ugvc.readwrite.buffered_variant_reader import BufferedVariantReader
@@ -15,7 +16,7 @@ from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistribut
 from ugvc.sec.systematic_error_correction_call import SECCallType, SECCall
 from ugvc.sec.systematic_error_correction_caller import SECCaller
 from ugvc.sec.systematic_error_correction_record import SECRecord
-from ugvc.utils.pysam_utils import fix_ultima_info, get_genotype, get_filtered_alleles_str, \
+from ugvc.utils.pysam_utils import get_genotype, get_filtered_alleles_str, \
     get_filtered_alleles_list
 
 
@@ -43,7 +44,7 @@ def get_args(argv: List[str]):
     parser.add_argument('--replace_to_known_genotype', default=False, action='store_true',
                         help='in case reads match known genotype from ground-truth, use this genotype')
     parser.add_argument('--filter_uncorrelated', default=False, action='store_true',
-                        help='filter out variants in positions where ref and alt conditioned genotype have similar distributions')
+                        help='filter variants in positions where ref and alt conditioned genotype have similar distributions')
     args = parser.parse_args(argv)
     return args
 
@@ -110,6 +111,10 @@ class SystematicErrorCorrector:
                                                           ('Number', 1),
                                                           ('Type', 'String'),
                                                           ('Description', 'SECType')])
+        self.gvcf_reader.header.add_meta('FORMAT', items=[('ID', "SPV"),
+                                                          ('Number', 1),
+                                                          ('Type', 'Float'),
+                                                          ('Description', 'SECPValue')])
 
         # Initialize output writers
         vcf_writer = None
@@ -140,8 +145,8 @@ class SystematicErrorCorrector:
 
                 # Handle no-call
                 if None in sample_info['GT']:
+
                     if self.output_type == OutputType.vcf:
-                        fix_ultima_info(observed_variant, self.gvcf_reader.header)
                         vcf_writer.write(observed_variant)
                     continue
 
@@ -165,6 +170,7 @@ class SystematicErrorCorrector:
 
                 for sec_record in call.sec_records:
                     log_stream.write(f'{sec_record}\n')
+
 
                 if self.output_type == OutputType.pickle:
                     self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
@@ -199,8 +205,8 @@ class SystematicErrorCorrector:
         2. updated GQ whenever appropriate (known variants)
         3. Corrected genotype, to ref genotype when filtered the variant
         """
-        fix_ultima_info(observed_variant, self.gvcf_reader.header)
         sample_info['ST'] = str(call.call_type.value)
+        sample_info['SPV'] = call.novel_variant_p_value
         if call.call_type == SECCallType.reference:
             gt = call.get_genotype_indices_tuple()
             sample_info['GT'] = gt
