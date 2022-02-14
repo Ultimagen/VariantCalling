@@ -180,7 +180,6 @@ class SystematicErrorCorrector:
                 for sec_record in call.sec_records:
                     log_stream.write(f'{sec_record}\n')
 
-
                 if self.output_type == OutputType.pickle:
                     self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
 
@@ -236,8 +235,10 @@ class SystematicErrorCorrector:
         if call.call_type == SECCallType.reference or (
                 call.call_type == SECCallType.uncorrelated and self.filter_uncorrelated):
             if len(fields) > 3:
-                bl_alleles = fields[3].strip()
-                bed_writer.write(chrom, pos - 1, pos, bl_alleles)
+                bl_ref_alleles = fields[3]
+                bl_alt_alleles = fields[4]
+                bl_counts = fields[5].strip()
+                bed_writer.write(chrom, pos - 1, pos, f'{bl_ref_alleles}\t{bl_alt_alleles}\t{bl_counts}')
             else:
                 bed_writer.write(chrom, pos - 1, pos, call.call_type.value)
 
