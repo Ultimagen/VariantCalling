@@ -194,7 +194,7 @@ def run_eval_tables_only(args):
         eval_tables[eval_table_name].to_hdf(f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 def run_full_analysis(args):
-    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix)
+    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix, [], [])
 
     logger.info("Converting vcf to df")
     df = vcftools.get_vcf_df(args.input_file)
