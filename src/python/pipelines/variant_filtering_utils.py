@@ -1138,10 +1138,8 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
                                        fn_score=-1)
 
         precision, recall, f1, prediction_values = curve
-        recalls_precisions[g] = np.vstack(
-            (recall, precision, f1, prediction_values)).T
 
-        accuracy_df = accuracy_df.append({'group': g, 'predictions': np.array(group_predictions),
+        accuracy_df = accuracy_df.append({'group': g, 'predictions': prediction_values,
                                           'precision': precision,
                                           'recall': recall,
                                           'f1': f1,
