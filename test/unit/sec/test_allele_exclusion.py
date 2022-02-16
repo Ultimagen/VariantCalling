@@ -1,6 +1,6 @@
 import unittest
 
-from ugvc.sec_main.correct_systematic_errors import called_excluded_alleles
+from ugvc.pipelines.sec.correct_systematic_errors import called_excluded_alleles
 
 
 class TestAlleleExclusion(unittest.TestCase):
