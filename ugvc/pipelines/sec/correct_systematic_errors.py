@@ -1,7 +1,7 @@
 import argparse
 import ast
-import itertools
 import glob
+import itertools
 import os.path
 import pickle
 import sys
@@ -15,7 +15,6 @@ from python.pipelines.variant_filtering_utils import VariantSelectionFunctions
 from ugvc import logger
 from ugvc.readwrite.bed_writer import BedWriter
 from ugvc.readwrite.buffered_variant_reader import BufferedVariantReader
-from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistributions
 from ugvc.sec.systematic_error_correction_call import SECCallType, SECCall
 from ugvc.sec.systematic_error_correction_caller import SECCaller
 from ugvc.sec.systematic_error_correction_record import SECRecord
@@ -76,7 +75,7 @@ class SystematicErrorCorrector:
 
     def __init__(self,
                  relevant_coords: TextIO,
-                 conditional_allele_distributions: ConditionalAlleleDistributions,
+                 conditional_allele_distribution_files: List[str],
                  gvcf_reader: BufferedVariantReader,
                  strand_enrichment_pval_thresh: float,
                  lesser_strand_enrichment_pval_thresh: float,
@@ -88,7 +87,9 @@ class SystematicErrorCorrector:
                  replace_to_known_genotype: bool,
                  filter_uncorrelated: bool):
         self.relevant_coords = relevant_coords
-        self.distributions_per_chromosome = conditional_allele_distributions.distributions_per_chromosome
+        # map chromosome name to cad file name
+        self.cad_files_dict = {f.split('.')[-2]: f for f in conditional_allele_distribution_files}
+        self.distributions_per_chromosome = None
         self.gvcf_reader = gvcf_reader
         self.output_file = output_file
         self.filter_uncorrelated = filter_uncorrelated
@@ -134,10 +135,18 @@ class SystematicErrorCorrector:
 
         log_stream = open(f'{self.output_file}.log', 'w')
 
+        current_chr = ''
         # For each position in the relevant-coords bed file, compare observation to expected distribution of alleles
         for line in self.relevant_coords:
             fields = line.split('\t')
             chrom, start, end = fields[0], fields[1], fields[2]
+
+            # Load a new chromosome every-time a new chromosome in relevant_coords is encountered
+            # IMPORTANT - relevant_coords must be sorted by chr,pos
+            if chrom != current_chr:
+                with open(self.cad_files_dict[chrom], 'rb') as cad_fh:
+                    self.distributions_per_chromosome = pickle.load(cad_fh)
+                    current_chr = chrom
 
             for pos in range(int(start) + 1, int(end) + 1):
                 observed_variant = self.gvcf_reader.get_variant(chrom, pos)
@@ -176,8 +185,7 @@ class SystematicErrorCorrector:
                     call = SECCall(SECCallType.non_noise_allele, observed_alleles, get_genotype(sample_info), [])
                 # Execute SEC caller on the observed variant and expected_distribution loaded from the memDB (pickle)
                 else:
-                    distributions_per_pos = self.distributions_per_chromosome.get(chrom, {})
-                    expected_distribution = distributions_per_pos.get(pos, None)
+                    expected_distribution = self.distributions_per_chromosome.get(pos, None)
                     call = self.caller.call(observed_variant, expected_distribution)
 
                 for sec_record in call.sec_records:
@@ -294,10 +302,9 @@ def main(argv: List[str]):
         pickle_files = glob.glob(args.model)
     else:
         pickle_files = [args.model]
-    conditional_allele_distributions = ConditionalAlleleDistributions(pickle_files)
 
     SystematicErrorCorrector(relevant_coords=relevant_coords,
-                             conditional_allele_distributions=conditional_allele_distributions,
+                             conditional_allele_distribution_files=pickle_files,
                              gvcf_reader=gvcf_reader,
                              strand_enrichment_pval_thresh=args.strand_enrichment_pval_thresh,
                              lesser_strand_enrichment_pval_thresh=args.lesser_strand_enrichment_pval_thresh,
