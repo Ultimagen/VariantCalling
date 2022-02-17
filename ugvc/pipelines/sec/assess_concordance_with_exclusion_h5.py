@@ -103,7 +103,7 @@ def main():
 
         # apply SEC filter
         exclude_list_annot_df = df_annot.copy()
-        exclude_list_annot_df.loc[df_annot[exclude_list_name].index, 'filter'] = 'SEC'
+        exclude_list_annot_df.loc[df_annot[exclude_list_name], 'filter'] = 'SEC'
         stats_table = calc_accuracy_metrics(exclude_list_annot_df, classify_column)
         is_filtered = exclude_list_annot_df['filter'] != 'PASS'
         post_filter_classification = apply_filter(exclude_list_annot_df[classify_column], is_filtered)
