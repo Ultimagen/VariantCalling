@@ -1,14 +1,25 @@
-from typing import Dict, Tuple
+import pickle
+from typing import Dict, Tuple, List
 
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
 
 
 class ConditionalAlleleDistributions:
+
     """
     chromosome -> position -> conditioned_genotype -> ConditionalAlleleDistribution
     """
-    def __init__(self):
+    def __init__(self, pickle_files: List[str] = None):
+        """
+        Construct a new, or existing (from pickles_prefix) ConditionalAlleleDistributions object
+        """
         self.distributions_per_chromosome: Dict[str, Dict[int, ConditionalAlleleDistribution]] = {}
+
+        if pickle_files is not None:
+            for pickle_file in pickle_files:
+                chr_name = pickle_file.split('.')[-2]
+                with open(pickle_file, 'rb') as fh:
+                    self.distributions_per_chromosome[chr_name] = pickle.load(fh)
 
     def add_counts(self, chrom: str, pos: int, conditional_allele_distribution: ConditionalAlleleDistribution):
         if chrom not in self.distributions_per_chromosome:

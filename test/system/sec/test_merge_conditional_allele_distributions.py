@@ -1,5 +1,5 @@
+import glob
 import os
-import pickle
 import unittest
 from os.path import dirname
 
@@ -18,21 +18,26 @@ class TestMergeConditionalAlleleDistributions(unittest.TestCase):
         test_outputs_dir = f'{test_dir}/test_outputs/sec/test_merge_conditional_allele_distribution'
         os.makedirs(test_outputs_dir, exist_ok=True)
         cad_files_path = f'{test_outputs_dir}/conditional_distribution_files.txt'
-        output_file = f'{test_outputs_dir}/conditional_allele_distributions.pkl'
+        output_prefix = f'{test_outputs_dir}/conditional_allele_distributions'
         with open(cad_files_path, 'w') as cad_files_fh:
             cad_files_fh.write(f'{proj_dir}/HG00096.head.tsv\n')
             cad_files_fh.write(f'{proj_dir}/HG00140.head.tsv\n')
 
         merge_conditional_allele_distributions(['--conditional_allele_distribution_files', cad_files_path,
-                                                '--output_file', output_file])
+                                                '--output_prefix', output_prefix])
+        pickle_files = glob.glob(f'{output_prefix}.*.pkl')
+        cads = ConditionalAlleleDistributions(pickle_files)
 
-        with open(output_file, 'rb') as db:
-            cads: ConditionalAlleleDistributions = pickle.load(db)
+        cads_list_chr1 = [cad for cad in cads.distributions_per_chromosome['chr1'].values()]
+        cads_list_chr2 = [cad for cad in cads.distributions_per_chromosome['chr2'].values()]
+        cads_list_chr3 = [cad for cad in cads.distributions_per_chromosome['chr3'].values()]
 
-        cads_list = [cad for cad in cads.distributions_per_chromosome['chr1'].values()]
+        # 87 common records (chr, pos)
+        self.assertEqual(119, len(cads_list_chr1 + cads_list_chr2 + cads_list_chr3))
 
-        # 87 common records (chr, pos, gt_alleles, called_alleles)
-        self.assertEqual(113, len(cads_list))
+        # few records from chr2, and chr3 were read
+        self.assertEqual(7, len(cads_list_chr2))
+        self.assertEqual(6, len(cads_list_chr3))
 
         cad = cads.get_distributions_per_locus('chr1', 930192)
         self.assertEqual({'T,TG'}, cad.get_possible_observed_alleles('0/0'))
