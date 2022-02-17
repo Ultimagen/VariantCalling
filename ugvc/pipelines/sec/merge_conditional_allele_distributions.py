@@ -1,27 +1,29 @@
 import argparse
 import os.path
 import pickle
+import sys
+from typing import List
 
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
 from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistributions
 from ugvc.sec.read_counts import ReadCounts
 
 
-def get_args():
+def get_args(argv: List[str]):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--conditional_allele_distribution_files',
         help='file containing paths to synced conditional allele distribution files (tsv)', required=True)
     parser.add_argument('--output_file', help='pickle file of serialized ConditionalAlleleDistributions', required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     return args
 
 
-def merge_conditional_allele_distributions():
+def merge_conditional_allele_distributions(argv: List[str]):
     """
     stack together conditional_allele_distributions from multiple samples into a single file
     """
-    args = get_args()
+    args = get_args(argv)
 
     conditional_allele_distributions = ConditionalAlleleDistributions()
     for file_name in open(args.conditional_allele_distribution_files):
@@ -53,4 +55,4 @@ def merge_conditional_allele_distributions():
 
 
 if __name__ == '__main__':
-    merge_conditional_allele_distributions()
+    merge_conditional_allele_distributions(sys.argv[1:])
