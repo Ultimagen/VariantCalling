@@ -3,7 +3,7 @@ import os
 import unittest
 from os.path import dirname
 
-from sec.conditional_allele_distributions import ConditionalAlleleDistributions
+from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistributions
 from test import test_dir
 from ugvc.pipelines.sec.merge_conditional_allele_distributions import merge_conditional_allele_distributions
 

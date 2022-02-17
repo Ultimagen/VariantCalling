@@ -35,4 +35,6 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Test with pytest
         run: |
-          python -m pytest --ignore src/python_tests/test_db_access.py
+          python -m pytest test/unit
+          python -m pytest src/python_tests --ignore src/python_tests/test_db_access.py
+          python -m pytest test/system
