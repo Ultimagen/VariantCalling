@@ -16,7 +16,8 @@ class ConditionalAlleleDistributions:
         dist_per_chrom = self.distributions_per_chromosome[chrom]
         if pos not in dist_per_chrom:
             dist_per_chrom[pos] = conditional_allele_distribution
-        dist_per_chrom[pos].update_distribution(conditional_allele_distribution)
+        else:
+            dist_per_chrom[pos].update_distribution(conditional_allele_distribution)
 
     def get_distributions_per_locus(self, chrom: str, pos: int) -> ConditionalAlleleDistribution:
         return self.distributions_per_chromosome[chrom][pos]

@@ -36,12 +36,12 @@ class TestMergeConditionalAlleleDistributions(unittest.TestCase):
 
         cad = cads.get_distributions_per_locus('chr1', 930192)
         self.assertEqual({'T,TG'}, cad.get_possible_observed_alleles('0/0'))
-        self.assertEqual((19, 85, 0), cad.get_allele_counts('0/0', 'T,TG', 'T').get_counts())
-        self.assertEqual((60, 0, 0), cad.get_allele_counts('0/0', 'T,TG', 'TG').get_counts())
+        self.assertEqual((13, 55, 0), cad.get_allele_counts('0/0', 'T,TG', 'T').get_counts())
+        self.assertEqual((42, 0, 0), cad.get_allele_counts('0/0', 'T,TG', 'TG').get_counts())
 
         cad = cads.get_distributions_per_locus('chr1', 942741)
         self.assertEqual({'CGG,C', 'CG,C'}, cad.get_possible_observed_alleles('0/0'))
-        self.assertEqual((10, 6, 0), cad.get_allele_counts('0/0', 'CGG,C', 'CGG').get_counts())
-        self.assertEqual((10, 0, 0), cad.get_allele_counts('0/0', 'CGG,C', 'C').get_counts())
+        self.assertEqual((5, 3, 0), cad.get_allele_counts('0/0', 'CGG,C', 'CGG').get_counts())
+        self.assertEqual((5, 0, 0), cad.get_allele_counts('0/0', 'CGG,C', 'C').get_counts())
         self.assertEqual((1, 7, 0), cad.get_allele_counts('0/0', 'CG,C', 'CG').get_counts())
         self.assertEqual((1, 0, 0), cad.get_allele_counts('0/0', 'CG,C', 'C').get_counts())
