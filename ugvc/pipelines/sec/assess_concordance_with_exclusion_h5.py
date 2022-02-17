@@ -88,7 +88,7 @@ def main():
     stats_table = calc_accuracy_metrics(df_annot, classify_column)
     is_filtered = df_annot['filter'] != 'PASS'
     post_filter_classification = apply_filter(df_annot[classify_column], is_filtered)
-    write_status_bed_files(df_annot, f'{out_pref}.original', df_annot[classify_column], post_filter_classification)
+    write_status_bed_files(df_annot, f'{out_pref}.original', post_filter_classification)
 
     with open(f'{out_pref}.original.stats.tsv', 'w') as stats_file:
         stats_file.write(f'{stats_table}\n')
