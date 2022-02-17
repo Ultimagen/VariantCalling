@@ -1,10 +1,7 @@
 import argparse
-import ast
 from os.path import splitext, basename
 from typing import Tuple
 
-import dask.dataframe as ddf
-import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from simppl.simple_pipeline import SimplePipeline
@@ -15,9 +12,10 @@ from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics, validate_and_preprocess_concordance_df
 
 """
-Given a concordance h5 input, a blacklist (with alleles), and a list of SEC refined blacklists
-Apply each blacklist (with allele-consistency) on the variants and measure the differences between the results.
+Given a concordance h5 input, a blacklist, and a list of SEC refined blacklists
+Apply each blacklist on the variants and measure the differences between the results.
 """
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -38,27 +36,6 @@ def parse_args():
     parser.add_argument('--ignore_genotype', help='ignore genotype when comparing to ground-truth',
                     action='store_true', default=False)
     return parser.parse_args()
-
-
-def extract_alleles(x):
-    if x['gt_ultima'] == (None,):
-        return [x['alleles'][0]]
-    return np.asarray(pd.Series(x['alleles']).loc[pd.Series(x['gt_ultima']).apply(lambda x: 0 if np.isnan(x) else x)])
-
-
-def get_is_excluded_series(df_annot: DataFrame, exclude_list_df: DataFrame, exclude_list_name: str):
-    is_in_bl = []
-    for ind, variant in df_annot.iterrows():
-        if (variant[exclude_list_name] == False) | (ind not in exclude_list_df.index):
-            is_in_bl.append(False)
-        else:
-            bed_var = exclude_list_df.loc[[ind]]
-            result = np.any(
-                np.asarray(pd.Series(variant['alleles_base']).apply(lambda x: x in bed_var.iloc[0]['alleles'])))
-            is_in_bl.append(result)
-    is_in_bl = pd.Series(is_in_bl)
-    is_in_bl.index = df_annot.index
-    return is_in_bl
 
 
 def write_status_bed_files(df: DataFrame,
@@ -114,12 +91,6 @@ def main():
     with open(f'{out_pref}.original.stats.tsv', 'w') as stats_file:
         stats_file.write(f'{stats_table}\n')
 
-    ddf_annot = ddf.from_pandas(df_annot, npartitions=30)
-
-    logger.info('extract alleles')
-    called_alleles = ddf_annot.apply(extract_alleles, meta='str', axis=1).compute(scheduler='multiprocessing')
-    df_annot['alleles_base'] = called_alleles
-
     fp_files = [f'{out_pref}.original_fp_indel.bed']
     fn_files = [f'{out_pref}.original_fn_indel.bed']
 
@@ -127,15 +98,12 @@ def main():
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
 
-        exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t', names=['chrom', 'pos', 'pos_1', 'alleles'])
-        exclude_list_df['alleles'] = exclude_list_df['alleles'].apply(lambda x: np.array(ast.literal_eval(x)))
+        exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t', names=['chrom', 'pos', 'pos_1'])
         exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos_1'])
 
-        is_in_bl = get_is_excluded_series(df_annot, exclude_list_df, exclude_list_name)
-
-        # remove non_matching_alleles positions from exclude-list
+        # apply SEC filter
         exclude_list_annot_df = df_annot.copy()
-        exclude_list_annot_df.loc[df_annot[is_in_bl].index, 'filter'] = 'BLACKLIST'
+        exclude_list_annot_df.loc[df_annot[exclude_list_name].index, 'filter'] = 'SEC'
         stats_table = calc_accuracy_metrics(exclude_list_annot_df, classify_column)
         is_filtered = exclude_list_annot_df['filter'] != 'PASS'
         post_filter_classification = apply_filter(exclude_list_annot_df[classify_column], is_filtered)
@@ -157,7 +125,6 @@ def main():
     sp.print_and_run(f'bedtools subtract -a {sec_fp_file} -b {blacklist_fp_file} > {out_pref}.fp_missed.bed')
     sp.print_and_run(f'bedtools subtract -a {original_fp_file} -b {sec_fp_file} > {out_pref}.fp_corrected.bed')
     sp.print_and_run(f'bedtools subtract -a {sec_fn_file} -b {original_fn_file} > {out_pref}.fn_added.bed')
-
 
 
 if __name__ == '__main__':
