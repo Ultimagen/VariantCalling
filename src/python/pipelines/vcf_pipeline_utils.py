@@ -396,6 +396,15 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
 
 
 def _fix_errors(df):
+    """Fixes errors that complicated VCFEVAL VCF format introduces"""
+
+    # remove genotypes of variants that were filtered out and thus are false negatives
+    # (VCFEVAL outputs UG genotype for ignored genotypes too and they are classified downstream
+    # as true positives if we do not make this modification)
+    fix_tp_fn_loc = (df['call'] == 'IGN') & ((df['base'] == 'FN') | (df['base'] == 'FN_CA'))
+    replace = df.loc[fix_tp_fn_loc, 'gt_ultima'].apply(lambda x: (None, ))
+    df.loc[replace.index, 'gt_ultima'] = replace
+
     # fix all the places in which vcfeval returns a good result, but the genotype is not adequate
     # in these cases we change the genotype of the gt to be adequate with the classify function as follow:
     # (TP,TP), (TP,None) - should put the values of ultima in the gt
@@ -415,8 +424,8 @@ def _fix_errors(df):
     return df
 
 
-def vcf2concordance(raw_calls_file: str, concordance_file: str, 
-    format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
+def vcf2concordance(raw_calls_file: str, concordance_file: str,
+                    format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
     '''Generates concordance dataframe
 
     Parameters
@@ -454,8 +463,12 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
 
         concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=column_names)
     elif format == 'VCFEVAL':
-        def call_filter(x): return x['CALL'] is None or (
-            (x['CALL'] != 'OUT') and (x['CALL'] != 'IGN'))
+        def call_filter(x):
+            # Remove variants that were ignored (either outside of comparison intervals or 
+            # filtered out).
+            return not ((x['CALL'] in ['IGN', 'OUT'] and x['BASE'] is None) or
+                        (x['CALL'] in ['IGN', 'OUT'] and x['BASE'] in ['IGN', 'OUT']) or
+                        (x['CALL'] is None and x['BASE'] in ['IGN', 'OUT']))
 
         vfi = filter(call_filter,
                      map(lambda x:
@@ -501,6 +514,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
                 return 'fp'
             else:
                 return 'fn'
+
     concordance_df['classify'] = concordance_df.apply(
         classify, axis=1, result_type='reduce')
 
@@ -523,7 +537,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
 
     concordance_df['classify_gt'] = concordance_df.apply(
         classify_gt, axis=1, result_type='reduce')
-
     concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
         concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
@@ -544,7 +557,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
     concordance = concordance[~only_ref]
 
     # Marking as false negative variants that appear in concordance but not in the original VCF (even if they do show some genotype)
-    missing_variants = concordance_df.index.difference(original.index)
+    missing_variants = concordance.index.difference(original.index)
     logger.info(f"Identified {len(missing_variants)} variants missing in the input VCF")
     missing_variants_non_fn = concordance.loc[missing_variants].query(
         "classify!='fn'").index
@@ -552,7 +565,6 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str,
     concordance.loc[missing_variants_non_fn, 'classify'] = 'fn'
     concordance.loc[missing_variants_non_fn, 'classify_gt'] = 'fn'
     return concordance
-
 
 def annotate_concordance(df: pd.DataFrame, fasta: str,
                          bw_high_quality: Optional[List[str]] = None,

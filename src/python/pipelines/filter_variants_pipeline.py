@@ -1,3 +1,4 @@
+import pathmagic
 import argparse
 import logging
 import pickle
