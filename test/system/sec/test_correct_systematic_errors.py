@@ -11,7 +11,7 @@ from test import test_dir
 
 class TestCorrectSystematicErrors(unittest.TestCase):
 
-    def test_main(self):
+    def test_correct_systematic_errors(self):
         proj_dir = f'{test_dir}/resources/sec'
         output_file = f'{test_dir}/test_outputs/exome_hg001_10s/correction/HG00239.vcf.gz'
         os.makedirs(dirname(output_file), exist_ok=True)
