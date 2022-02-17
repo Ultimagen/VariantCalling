@@ -1,6 +1,7 @@
 import argparse
 import ast
 import itertools
+import glob
 import os.path
 import pickle
 import sys
@@ -27,7 +28,8 @@ def get_args(argv: List[str]):
     parser.add_argument('--relevant_coords', help='path to bed file describing relevant genomic subset to analyze',
                         required=True)
     parser.add_argument('--model', required=True,
-                        help='path to pickle file containing conditional allele distributions per position of interest')
+                        help='path to pickle file containing conditional allele distributions per position of interest'
+                             ', supports glob pattern for multiple pkl files')
     parser.add_argument('--gvcf', required=True,
                         help='path to gvcf file, (for getting the raw aligned reads information)')
     parser.add_argument('--output_file', help='path to output file (vcf/vcf.gz/bed/pickle)')
@@ -46,7 +48,8 @@ def get_args(argv: List[str]):
     parser.add_argument('--replace_to_known_genotype', default=False, action='store_true',
                         help='in case reads match known genotype from ground-truth, use this genotype')
     parser.add_argument('--filter_uncorrelated', default=False, action='store_true',
-                        help='filter variants in positions where ref and alt conditioned genotype have similar distributions')
+                        help='filter variants in positions where ref and alt '
+                             'conditioned genotype have similar distributions')
     args = parser.parse_args(argv)
     return args
 
@@ -98,7 +101,7 @@ class SystematicErrorCorrector:
         elif output_file.endswith('.pickle') or output_file.endswith('.pkl'):
             self.output_type = OutputType.pickle
         else:
-            raise ValueError('output file must end with bed/vcf/vcf.gz/pickle suffixes')
+            raise ValueError('output file must end with bed/vcf/vcf.gz/pickle/pkl suffixes')
 
         self.caller = SECCaller(strand_enrichment_pval_thresh,
                                 lesser_strand_enrichment_pval_thresh,
@@ -287,8 +290,11 @@ def main(argv: List[str]):
 
     relevant_coords = open(args.relevant_coords, 'r')
 
-    with open(args.model, 'rb') as fh:
-        conditional_allele_distributions: ConditionalAlleleDistributions = pickle.load(fh)
+    if '*' in args.model:
+        pickle_files = glob.glob(args.model)
+    else:
+        pickle_files = [args.model]
+    conditional_allele_distributions = ConditionalAlleleDistributions(pickle_files)
 
     SystematicErrorCorrector(relevant_coords=relevant_coords,
                              conditional_allele_distributions=conditional_allele_distributions,
