@@ -27,8 +27,8 @@ def get_args(argv: List[str]):
     parser.add_argument('--relevant_coords', help='path to bed file describing relevant genomic subset to analyze',
                         required=True)
     parser.add_argument('--model', required=True,
-                        help='path to pickle file containing conditional allele distributions per position of interest'
-                             ', supports glob pattern for multiple pkl files')
+                        help='path to pkl file containing conditional allele distributions per position of interest'
+                             ', supports glob pattern for multiple pkl files, and multiple assignments', action='append')
     parser.add_argument('--gvcf', required=True,
                         help='path to gvcf file, (for getting the raw aligned reads information)')
     parser.add_argument('--output_file', help='path to output file (vcf/vcf.gz/bed/pickle)')
@@ -298,10 +298,12 @@ def main(argv: List[str]):
 
     relevant_coords = open(args.relevant_coords, 'r')
 
-    if '*' in args.model:
-        pickle_files = glob.glob(args.model)
-    else:
-        pickle_files = [args.model]
+    pickle_files = []
+    for model_file_name in args.model:
+        if '*' in model_file_name:
+            pickle_files.extend(glob.glob(model_file_name))
+        else:
+            pickle_files.append(model_file_name)
 
     SystematicErrorCorrector(relevant_coords=relevant_coords,
                              conditional_allele_distribution_files=pickle_files,
