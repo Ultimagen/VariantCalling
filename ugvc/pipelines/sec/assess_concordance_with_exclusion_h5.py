@@ -12,6 +12,7 @@ from python.pipelines.variant_filtering_utils import apply_filter
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
 from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics, validate_and_preprocess_concordance_df
+from utils.stats_utils import get_recall, get_precision
 
 """
 Given a concordance h5 input, an exclude-list, and SEC refined exclude-list
@@ -109,12 +110,10 @@ def main():
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
 
-        if i == 0:
-            exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t', names=['chrom', 'pos-1', 'pos'])
-            exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos'])
-        else:
+        exclude_list_df = None
+        if i == 1:
             exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t',
-                                          names=['chrom', 'pos-1', 'pos', 'sec_call_type'])
+                                          names=['chrom', 'pos-1', 'pos', 'sec_call_type', 'spv'])
             exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos'])
             relevant_exclude_list_loci = exclude_list_df.index.intersection(df.index)
             # correct SEC filter, since non reference annotated positions should PASS SEC filter
@@ -132,6 +131,21 @@ def main():
         stats_table = calc_accuracy_metrics(exclude_list_annot_df, classify_column)
         is_filtered = exclude_list_annot_df['filter'] != 'PASS'
         post_filter_classification = apply_filter(exclude_list_annot_df[classify_column], is_filtered)
+
+        if i == 1:
+            sec_pass_tp = exclude_list_df[(exclude_list_df[classify_column] == 'tp') &
+                                          (exclude_list_df['sec_call_type'].isin({'novel', 'known', 'unobserved'}))]
+            sec_filter_tp = exclude_list_df[(exclude_list_df[classify_column] == 'fn') &
+                                            (exclude_list_df['sec_call_type'].isin({'reference'}))]
+            sec_pass_fp = exclude_list_df[(exclude_list_df[classify_column] == 'fp') &
+                                          (exclude_list_df['sec_call_type'] != 'out_of_exclude_list')]
+            sec_filter_fp = exclude_list_df[(exclude_list_df[classify_column] == 'fn') &
+                                            (exclude_list_df['sec_call_type'] != 'out_of_exclude_list')]
+            print('filtered-tp,passed-tp,filtered-fp,passed-fp,SEC-recall,SEC-precision')
+            sec_recall = get_recall(fn=sec_filter_tp, tp=sec_pass_tp)
+            sec_precision = get_precision(fp=sec_pass_fp, tp=sec_filter_fp)
+            print(f'{sec_filter_tp.shape[0]},{sec_pass_tp.shape[0]},{sec_filter_fp.sjape[0]},{sec_pass_fp.shape[0]},'
+                  f'{sec_recall},{sec_precision}')
 
         with open(f'{out_pref}.{exclude_list_name}.stats.tsv', 'w') as stats_file:
             stats_file.write(f'{stats_table}\n')
