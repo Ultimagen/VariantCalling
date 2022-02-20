@@ -116,13 +116,15 @@ def main():
             exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t',
                                           names=['chrom', 'pos-1', 'pos', 'sec_call_type'])
             exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos'])
-            relevant_exclude_list_loci = set(exclude_list_df.index).intersection(set(df.index))
+            relevant_exclude_list_loci = exclude_list_df.index.intersection(df.index)
             # correct SEC filter, since non reference annotated positions should PASS SEC filter
-            unfiltered = exclude_list_df[exclude_list_df['sec_call_type'] != 'reference']
-            relevant_unfiltered_loci = set(df.index).intersection(set(unfiltered.index))
-            df_annot.loc[relevant_unfiltered_loci, exclude_list_name] = False
+            filtered = exclude_list_df[exclude_list_df['sec_call_type'] == 'reference']
+            relevant_filtered_loci = df.index.intersection(filtered.index)
+            df_annot[exclude_list_name] = False
+            df_annot.loc[relevant_filtered_loci, exclude_list_name] = True
             df_annot['sec_call_type'] = 'out_of_exclude_list'
-            df_annot.loc[relevant_exclude_list_loci, 'sec_call_type'] = exclude_list_df.loc[relevant_exclude_list_loci, 'sec_call_type']
+            df_annot.loc[relevant_exclude_list_loci, 'sec_call_type'] = \
+                exclude_list_df.loc[relevant_exclude_list_loci, 'sec_call_type']
 
         # apply filter
         exclude_list_annot_df = df_annot.copy()
