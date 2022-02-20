@@ -174,10 +174,10 @@ class SystematicErrorCorrector:
                     called_ref = observed_variant.ref
                     called_alts = set(get_filtered_alleles_list(sample_info)).intersection(observed_variant.alts)
                     if len(called_alts) > 0:
-                        called_non_excluded_alleles = not called_excluded_alleles(flat_excluded_refs,
-                                                                                  all_excluded_alts,
-                                                                                  called_ref,
-                                                                                  called_alts)
+                        called_non_excluded_alleles = not _called_excluded_alleles(flat_excluded_refs,
+                                                                                   all_excluded_alts,
+                                                                                   called_ref,
+                                                                                   called_alts)
                 # Call a non_noise_allele in case alternative allele is not excluded
                 # e.g a SNP in a position where the noise in a hmer indel
                 if called_non_excluded_alleles:
@@ -269,10 +269,10 @@ class OutputType(Enum):
     pickle = 3
 
 
-def called_excluded_alleles(excluded_refs: List[str],
-                            all_excluded_alts: List[List[str]],
-                            called_ref: str,
-                            called_alts: Set[str]):
+def _called_excluded_alleles(excluded_refs: List[str],
+                             all_excluded_alts: List[List[str]],
+                             called_ref: str,
+                             called_alts: Set[str]) -> bool:
     """
     search for each called ref->alt pair in excluded alleles
     """
@@ -281,7 +281,7 @@ def called_excluded_alleles(excluded_refs: List[str],
         if called_ref == excluded_ref:
             non_excluded_alts = called_alts.difference(excluded_alts)
             if len(non_excluded_alts) == 0:
-                has_excluded_alleles = True
+                return True
     return has_excluded_alleles
 
 
