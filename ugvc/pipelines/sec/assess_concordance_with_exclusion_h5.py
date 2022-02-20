@@ -1,5 +1,6 @@
 import argparse
-from os.path import splitext, basename
+import os
+from os.path import splitext, basename, dirname
 from typing import Tuple
 
 import numpy as np
@@ -48,7 +49,7 @@ def write_status_bed_files(df: DataFrame,
         df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str) + '_' + df['sec_call_type']
     else:
         df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
-    df.loc[df[df['description'].isna()].index, 'description'] = 'missing'
+    df.loc[df['description'].isna(), 'description'] = 'missing'
     fn = df[classification == 'fn']
     fp = df[classification == 'fp']
     tp = df[classification == 'tp']
@@ -80,6 +81,8 @@ def main():
 
     exclude_lists_beds = [args.raw_exclude_list, args.sec_exclude_list]
     out_pref = args.output_prefix
+
+    os.makedirs(dirname(out_pref), exist_ok=True)
 
     logger.info(f'read_hdf: {key}')
     df: DataFrame = read_hdf(input_file, key=key)
@@ -113,11 +116,13 @@ def main():
             exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t',
                                           names=['chrom', 'pos-1', 'pos', 'sec_call_type'])
             exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos'])
-            filtered = exclude_list_df[exclude_list_df['sec_call_type']] == 'reference'
-            df_annot[exclude_list_name] = False
-            df_annot.loc[filtered.index, exclude_list_name] = True
-            df_annot['sec_call_type'] = np.nan
-            df_annot[filtered.index, 'sec_call_type'] = exclude_list_df['sec_call_type']
+            relevant_exclude_list_loci = set(exclude_list_df.index).intersection(set(df.index))
+            # correct SEC filter, since non reference annotated positions should PASS SEC filter
+            unfiltered = exclude_list_df[exclude_list_df['sec_call_type'] != 'reference']
+            relevant_unfiltered_loci = set(df.index).intersection(set(unfiltered.index))
+            df_annot.loc[relevant_unfiltered_loci, exclude_list_name] = False
+            df_annot['sec_call_type'] = 'out_of_exclude_list'
+            df_annot.loc[relevant_exclude_list_loci, 'sec_call_type'] = exclude_list_df.loc[relevant_exclude_list_loci, 'sec_call_type']
 
         # apply filter
         exclude_list_annot_df = df_annot.copy()
@@ -141,11 +146,10 @@ def main():
     sec_fp_file = fp_files[2]
     original_fn_file = fn_files[0]
     sec_fn_file = fn_files[2]
-    for sct in ['non_noise_alleles', 'uncorrelated', 'novel|known|unobserved']:
+    for sct in ['non_noise_allele', 'uncorrelated', 'novel', 'known', 'unobserved']:
         sp.print_and_run(f'bedtools subtract -a {sec_fp_file} -b {blacklist_fp_file} '
-                         f'| grep {sct} > {out_pref}.fp_missed.{sct}.bed')
-        sp.print_and_run(f'bedtools subtract -a {original_fp_file} -b {sec_fp_file} | grep {sct} '
-                         f'> {out_pref}.fp_corrected.bed')
+                         f'| grep {sct} || true > {out_pref}.fp_missed.{sct}.bed')
+    sp.print_and_run(f'bedtools subtract -a {original_fp_file} -b {sec_fp_file} > {out_pref}.fp_corrected.bed')
     sp.print_and_run(f'bedtools subtract -a {sec_fn_file} -b {original_fn_file} > {out_pref}.fn_added.bed')
 
 
