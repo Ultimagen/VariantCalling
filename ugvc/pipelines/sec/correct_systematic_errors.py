@@ -9,6 +9,7 @@ from enum import Enum
 from typing import List, TextIO, Set
 
 import pysam
+from pysam import VariantFile, VariantRecord
 
 from python.modules.filtering.blacklist import Blacklist
 from python.pipelines.variant_filtering_utils import VariantSelectionFunctions
@@ -219,7 +220,7 @@ class SystematicErrorCorrector:
         log_stream.close()
 
     @staticmethod
-    def __process_call_vcf_output(call, observed_variant, sample_info, vcf_writer):
+    def __process_call_vcf_output(call: SECCall, observed_variant: VariantRecord, sample_info, vcf_writer: VariantFile):
         """
         Write all vcf lines with additional:
         1. ST field: (reference, novel, known, uncorrelated, non_noise_allele)
@@ -240,13 +241,13 @@ class SystematicErrorCorrector:
         vcf_writer.write(observed_variant)
 
     @staticmethod
-    def __process_call_bed_output(bed_writer, call, chrom, pos):
+    def __process_call_bed_output(bed_writer: BedWriter, call: SECCall, chrom: str, pos: int):
         """
         output all positions with sec_call_type, for assess_concordance_with_exclusion_h5.py
         """
-        bed_writer.write(chrom, pos - 1, pos, call.call_type.value)
+        bed_writer.write(chrom, pos - 1, pos, call.call_type.value, call.novel_variant_p_value)
 
-    def __process_call_pickle_output(self, call, chr_pos_tuples, chrom, pos):
+    def __process_call_pickle_output(self, call: SECCall, chr_pos_tuples: List[tuple], chrom: str, pos: int):
         """
         output only positions which were decided to have the reference genotype
         (or uncorrelated if directed to filter them)
