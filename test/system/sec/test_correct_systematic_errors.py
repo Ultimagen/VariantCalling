@@ -10,15 +10,17 @@ from test import test_dir
 
 
 class TestCorrectSystematicErrors(unittest.TestCase):
+    test_outputs_dir = f'{test_dir}/test_outputs/sec/test_corrrect_systematic_errors'
+    os.makedirs(test_outputs_dir, exist_ok=True)
 
-    def test_main(self):
+    def test_correct_systematic_errors_glob(self):
         proj_dir = f'{test_dir}/resources/sec'
-        output_file = f'{test_dir}/test_outputs/exome_hg001_10s/correction/HG00239.vcf.gz'
+        output_file = f'{self.test_outputs_dir}/HG00239.vcf.gz'
         os.makedirs(dirname(output_file), exist_ok=True)
 
         correct_systematic_errors.main(
             ['--relevant_coords', f'{proj_dir}/blacklist_hg001_10s.bed',
-             '--model', f'{proj_dir}/conditional_allele_distribution.pickle',
+             '--model', f'{proj_dir}/conditional_allele_distribution.*.pkl',
              '--gvcf', f'{proj_dir}/HG00239.g.vcf.nodup.vcf.gz',
              '--output_file', output_file]
         )
@@ -62,3 +64,33 @@ class TestCorrectSystematicErrors(unittest.TestCase):
         # FN
         self.assertEqual(2, len(positives.difference(
             positives.intersection(novel_variants.union(known_variants).union(unobserved_noise_sites)))))
+
+    def test_correct_systematic_errors_single_chr(self):
+        proj_dir = f'{test_dir}/resources/sec'
+        output_file = f'{self.test_outputs_dir}/HG00239.chr3.vcf.gz'
+
+        correct_systematic_errors.main(
+            ['--relevant_coords', f'{proj_dir}/blacklist_hg001_10s.chr3.bed',
+             '--model', f'{proj_dir}/conditional_allele_distribution.chr3.pkl',
+             '--gvcf', f'{proj_dir}/HG00239.g.vcf.nodup.vcf.gz',
+             '--output_file', output_file]
+        )
+        vcf = pysam.VariantFile(output_file)
+        sec_types = {}
+        known_variants = set()
+        novel_variants = set()
+        unobserved_noise_sites = set()
+        for record in vcf:
+            sec_type = record.samples[0]['ST']
+            if sec_type in sec_types:
+                sec_types[sec_type] += 1
+            else:
+                sec_types[sec_type] = 1
+            if sec_type == SECCallType.known.value:
+                known_variants.add(record.pos)
+            elif sec_type == SECCallType.novel.value:
+                novel_variants.add(record.pos)
+            elif sec_type == SECCallType.unobserved.value:
+                unobserved_noise_sites.add(record.pos)
+
+        self.assertEqual({'reference': 936, 'unobserved': 2}, sec_types)

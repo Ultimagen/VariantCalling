@@ -1,14 +1,16 @@
+import os
 import unittest
+from os.path import dirname
 
-from ugvc.readwrite.bed_writer import BedWriter
-from ugvc.readwrite.buffered_variant_reader import BufferedVariantReader
 from test import test_dir
+from ugvc.readwrite.bed_writer import BedWriter
 
 
 class TestBedWriter(unittest.TestCase):
 
     def test_write(self):
-        file_name = f'{test_dir}/test_outputs/example.bed'
+        file_name = f'{test_dir}/test_outputs/readwrite/test_bed_writer/example.bed'
+        os.makedirs(dirname(file_name), exist_ok=True)
         writer = BedWriter(file_name)
         writer.write('chr2', 100, 102, 'hmer-indel')
         writer.write('chr3', 120, 123, 'snp')
