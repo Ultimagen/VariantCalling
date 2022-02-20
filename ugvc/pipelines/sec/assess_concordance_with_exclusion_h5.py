@@ -2,6 +2,7 @@ import argparse
 from os.path import splitext, basename
 from typing import Tuple
 
+import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series
 from simppl.simple_pipeline import SimplePipeline
@@ -12,8 +13,8 @@ from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics, validate_and_preprocess_concordance_df
 
 """
-Given a concordance h5 input, a blacklist, and a list of SEC refined blacklists
-Apply each blacklist on the variants and measure the differences between the results.
+Given a concordance h5 input, an exclude-list, and SEC refined exclude-list
+Apply each exclude-list on the variants and measure the differences between the results.
 """
 
 
@@ -25,16 +26,17 @@ def parse_args():
     parser.add_argument(
         '--genome_fasta', help='path to fasta file of reference genome', required=True)
     parser.add_argument(
-        '--initial_exclude_list', help='bed file of initial allele-specific exclude-list', required=True)
+        '--raw_exclude_list', help='bed file containing raw exclude-list (SEC input)', required=True)
     parser.add_argument(
-        '--refined_exclude_lists', help='csv list of bed corrected exclude-lists by SEC', required=True)
+        '--sec_exclude_list', help=' bed file with sec_call_types written by SEC', required=True)
     parser.add_argument(
         '--dataset_key', help='chromosome name, in case h5 contains multiple datasets per chromosome', default='all')
-    parser.add_argument('--hcr', help='bed file describing high confidance regions (runs.conservative.bed)', required=True)
+    parser.add_argument('--hcr', help='bed file describing high confidence regions (runs.conservative.bed)',
+                        required=True)
     parser.add_argument(
         '--output_prefix', help='prefix to output files containing stats and info about errors', required=True)
     parser.add_argument('--ignore_genotype', help='ignore genotype when comparing to ground-truth',
-                    action='store_true', default=False)
+                        action='store_true', default=False)
     return parser.parse_args()
 
 
@@ -42,21 +44,25 @@ def write_status_bed_files(df: DataFrame,
                            output_prefix: str,
                            classification: Series) -> Tuple[str, str, str]:
     df['pos-1'] = df['pos'] - 1
-    df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
+    if 'sec_call_type' in df.columns:
+        df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str) + '_' + df['sec_call_type']
+    else:
+        df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
     df.loc[df[df['description'].isna()].index, 'description'] = 'missing'
-    initial_fn = df[classification == 'fn']
-    initial_fp = df[classification == 'fp']
-    initial_tp = df[classification == 'tp']
-    initial_fn_indel = initial_fn[~initial_fn['indel_classify'].isna()]
-    initial_fp_indel = initial_fp[~initial_fp['indel_classify'].isna()]
-    initial_tp_indel = initial_tp[~initial_tp['indel_classify'].isna()]
+    fn = df[classification == 'fn']
+    fp = df[classification == 'fp']
+    tp = df[classification == 'tp']
+    fn_indel = fn[~fn['indel_classify'].isna()]
+    fp_indel = fp[~fp['indel_classify'].isna()]
+    tp_indel = tp[~tp['indel_classify'].isna()]
 
     fn_file = f'{output_prefix}_fn_indel.bed'
     fp_file = f'{output_prefix}_fp_indel.bed'
     tp_file = f'{output_prefix}_tp_indel.bed'
-    write_bed(initial_fn_indel, fn_file)
-    write_bed(initial_fp_indel, fp_file)
-    write_bed(initial_tp_indel, tp_file)
+
+    write_bed(fn_indel, fn_file)
+    write_bed(fp_indel, fp_file)
+    write_bed(tp_indel, tp_file)
     return fn_file, fp_file, tp_file
 
 
@@ -72,7 +78,7 @@ def main():
 
     classify_column = 'classify' if args.ignore_genotype else 'classify_gt'
 
-    exclude_lists_beds = [args.initial_exclude_list] + args.refined_exclude_lists.split(',')
+    exclude_lists_beds = [args.raw_exclude_list, args.sec_exclude_list]
     out_pref = args.output_prefix
 
     logger.info(f'read_hdf: {key}')
@@ -100,12 +106,22 @@ def main():
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
         logger.info(f'exclude calls from {exclude_list_name}')
 
-        exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t', names=['chrom', 'pos', 'pos_1'])
-        exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos_1'])
+        if i == 0:
+            exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t', names=['chrom', 'pos-1', 'pos'])
+            exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos'])
+        else:
+            exclude_list_df = pd.read_csv(exclude_list_bed_file, sep='\t',
+                                          names=['chrom', 'pos-1', 'pos', 'sec_call_type'])
+            exclude_list_df.index = zip(exclude_list_df['chrom'], exclude_list_df['pos'])
+            filtered = exclude_list_df[exclude_list_df['sec_call_type']] == 'reference'
+            df_annot[exclude_list_name] = False
+            df_annot.loc[filtered.index, exclude_list_name] = True
+            df_annot['sec_call_type'] = np.nan
+            df_annot[filtered.index, 'sec_call_type'] = exclude_list_df['sec_call_type']
 
-        # apply SEC filter
+        # apply filter
         exclude_list_annot_df = df_annot.copy()
-        exclude_list_annot_df.loc[df_annot[exclude_list_name], 'filter'] = 'SEC'
+        exclude_list_annot_df.loc[df_annot[exclude_list_name], 'filter'] = ['BLACKLIST', 'SEC'][i]
         stats_table = calc_accuracy_metrics(exclude_list_annot_df, classify_column)
         is_filtered = exclude_list_annot_df['filter'] != 'PASS'
         post_filter_classification = apply_filter(exclude_list_annot_df[classify_column], is_filtered)
@@ -114,7 +130,8 @@ def main():
             stats_file.write(f'{stats_table}\n')
 
         exclude_list_annot_df.to_hdf(f'{out_pref}.{exclude_list_name}.h5', key)
-        fn_file,fp_file, tp_file = write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}', post_filter_classification)
+        fn_file, fp_file, tp_file = write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}',
+                                                           post_filter_classification)
         fp_files.append(fp_file)
         fn_files.append(fn_file)
 
@@ -124,8 +141,11 @@ def main():
     sec_fp_file = fp_files[2]
     original_fn_file = fn_files[0]
     sec_fn_file = fn_files[2]
-    sp.print_and_run(f'bedtools subtract -a {sec_fp_file} -b {blacklist_fp_file} > {out_pref}.fp_missed.bed')
-    sp.print_and_run(f'bedtools subtract -a {original_fp_file} -b {sec_fp_file} > {out_pref}.fp_corrected.bed')
+    for sct in ['non_noise_alleles', 'uncorrelated', 'novel|known|unobserved']:
+        sp.print_and_run(f'bedtools subtract -a {sec_fp_file} -b {blacklist_fp_file} '
+                         f'| grep {sct} > {out_pref}.fp_missed.{sct}.bed')
+        sp.print_and_run(f'bedtools subtract -a {original_fp_file} -b {sec_fp_file} | grep {sct} '
+                         f'> {out_pref}.fp_corrected.bed')
     sp.print_and_run(f'bedtools subtract -a {sec_fn_file} -b {original_fn_file} > {out_pref}.fn_added.bed')
 
 
