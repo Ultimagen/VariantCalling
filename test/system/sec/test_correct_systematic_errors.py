@@ -13,14 +13,14 @@ class TestCorrectSystematicErrors(unittest.TestCase):
     test_outputs_dir = f'{test_dir}/test_outputs/sec/test_corrrect_systematic_errors'
     os.makedirs(test_outputs_dir, exist_ok=True)
 
-    def test_correct_systematic_errors_multiple_chrs(self):
+    def test_correct_systematic_errors_glob(self):
         proj_dir = f'{test_dir}/resources/sec'
         output_file = f'{self.test_outputs_dir}/HG00239.vcf.gz'
         os.makedirs(dirname(output_file), exist_ok=True)
 
         correct_systematic_errors.main(
             ['--relevant_coords', f'{proj_dir}/blacklist_hg001_10s.bed',
-             '--model', f'{proj_dir}/conditional_allele_distribution.*pkl',
+             '--model', f'{proj_dir}/conditional_allele_distribution.*.pkl',
              '--gvcf', f'{proj_dir}/HG00239.g.vcf.nodup.vcf.gz',
              '--output_file', output_file]
         )
