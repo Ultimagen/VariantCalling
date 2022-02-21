@@ -40,30 +40,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def write_status_bed_files(df: DataFrame,
-                           output_prefix: str,
-                           classification: Series) -> Tuple[str, str, str]:
-    df['pos-1'] = df['pos'] - 1
-    if 'sec_call_type' in df.columns:
-        df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str) + '_' + df['sec_call_type']
-    else:
-        df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
-    df.loc[df['description'].isna(), 'description'] = 'missing'
-    indels = df['indel']
-    fn_indel = indels[classification == 'fn']
-    fp_indel = indels[classification == 'fp']
-    tp_indel = indels[classification == 'tp']
-
-    fn_file = f'{output_prefix}_fn_indel.bed'
-    fp_file = f'{output_prefix}_fp_indel.bed'
-    tp_file = f'{output_prefix}_tp_indel.bed'
-
-    write_bed(fn_indel, fn_file)
-    write_bed(fp_indel, fp_file)
-    write_bed(tp_indel, tp_file)
-    return fn_file, fp_file, tp_file
-
-
 def write_bed(df: DataFrame, bed_path: str):
     df[['chrom', 'pos-1', 'pos', 'description']].to_csv(bed_path, index=False, sep='\t', header=None)
 
@@ -90,17 +66,17 @@ class AssessSECConcordance:
 
     def assess_sec_concordance(self):
         logger.info(f'annotate concordance with exclude_lists')
-        df_annot, annots = annotate_concordance(self.df,
-                                                self.ref_genome_file,
-                                                runfile=self.hcr,
-                                                flow_order='TGCA',
-                                                annotate_intervals=self.exclude_lists_beds)
+        self.df, annots = annotate_concordance(self.df,
+                                               self.ref_genome_file,
+                                               runfile=self.hcr,
+                                               flow_order='TGCA',
+                                               annotate_intervals=self.exclude_lists_beds)
 
-        stats_table = calc_accuracy_metrics(df_annot, self.classify_column)
+        stats_table = calc_accuracy_metrics(self.df, self.classify_column)
         stats_table.to_csv(f'{self.out_pref}.original.stats.csv', sep=';', index=False)
         # Apply original filters
-        df_annot[self.classify_column] = apply_filter(df_annot[self.classify_column], df_annot['filter'] != 'PASS')
-        write_status_bed_files(df_annot, f'{self.out_pref}.original', df_annot[self.classify_column])
+        self.df[self.classify_column] = apply_filter(self.df[self.classify_column], self.df['filter'] != 'PASS')
+        self.write_status_bed_files(f'{self.out_pref}.original', self.df[self.classify_column])
 
         for i, exclude_list_bed_file in enumerate(self.exclude_lists_beds):
             exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
@@ -111,15 +87,17 @@ class AssessSECConcordance:
                 self.__dissect_and_print_sec_quality_metrics(exclude_list_annot_df)
             else:
                 # update simple blacklist filter
-                exclude_list_annot_df = df_annot.copy()
-                exclude_list_annot_df.loc[df_annot[exclude_list_name], 'filter'] = 'BLACKLIST'
+                exclude_list_annot_df = self.df.copy()
+                exclude_list_annot_df.loc[self.df[exclude_list_name], 'filter'] = 'BLACKLIST'
 
             stats_table = calc_accuracy_metrics(exclude_list_annot_df, self.classify_column)
             is_filtered = exclude_list_annot_df['filter'] != 'PASS'
-            exclude_list_annot_df[self.classify_column] = apply_filter(exclude_list_annot_df[self.classify_column], is_filtered)
+            exclude_list_annot_df[self.classify_column] = apply_filter(exclude_list_annot_df[self.classify_column],
+                                                                       is_filtered)
 
             stats_table.to_csv(f'{self.out_pref}.{exclude_list_name}.stats.csv', sep=';', index=False)
             exclude_list_annot_df.to_hdf(f'{self.out_pref}.{exclude_list_name}.h5', self.dataset_key)
+            self.write_status_bed_files(f'{self.out_pref}.{exclude_list_name}', self.df[self.classify_column])
 
     def __update_sec_call_type_and_sec_filter(self) -> DataFrame:
         sec_exclude_list_name = splitext(basename(self.sec_exclude_list))[0]
@@ -180,6 +158,29 @@ class AssessSECConcordance:
                     fh.write(f'{sec_call_type},{variant_type},{pass_tp},{pass_fp},{precision}\n')
                     write_bed(pass_tp_df, '{out_pref}.{variant_type}.{sec_call_type}_passed_tp.bed')
                     write_bed(pass_fp_df, '{out_pref}.{variant_type}.{sec_call_type}_passed_fp.bed')
+
+    def write_status_bed_files(self, out_pref: str, classification: Series) -> Tuple[str, str, str]:
+        df = self.df
+        df['pos-1'] = df['pos'] - 1
+        if 'sec_call_type' in df.columns:
+            df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str) + '_' + df[
+                'sec_call_type']
+        else:
+            df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
+        df.loc[df['description'].isna(), 'description'] = 'missing'
+        indels = df['indel']
+        fn_indel = indels[classification == 'fn']
+        fp_indel = indels[classification == 'fp']
+        tp_indel = indels[classification == 'tp']
+
+        fn_file = f'{out_pref}_fn_indel.bed'
+        fp_file = f'{out_pref}_fp_indel.bed'
+        tp_file = f'{out_pref}_tp_indel.bed'
+
+        write_bed(fn_indel, fn_file)
+        write_bed(fp_indel, fp_file)
+        write_bed(tp_indel, tp_file)
+        return fn_file, fp_file, tp_file
 
 
 def main():
