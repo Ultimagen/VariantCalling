@@ -76,7 +76,7 @@ class AssessSECConcordance:
         stats_table.to_csv(f'{self.out_pref}.original.stats.csv', sep=';', index=False)
         # Apply original filters
         self.df[self.classify_column] = apply_filter(self.df[self.classify_column], self.df['filter'] != 'PASS')
-        self.write_status_bed_files(f'{self.out_pref}.original', self.df[self.classify_column])
+        self.write_status_bed_files(self.df, f'{self.out_pref}.original', self.df[self.classify_column])
 
         for i, exclude_list_bed_file in enumerate(self.exclude_lists_beds):
             exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
@@ -97,7 +97,7 @@ class AssessSECConcordance:
 
             stats_table.to_csv(f'{self.out_pref}.{exclude_list_name}.stats.csv', sep=';', index=False)
             exclude_list_annot_df.to_hdf(f'{self.out_pref}.{exclude_list_name}.h5', self.dataset_key)
-            self.write_status_bed_files(f'{self.out_pref}.{exclude_list_name}', self.df[self.classify_column])
+            self.write_status_bed_files(exclude_list_annot_df, f'{self.out_pref}.{exclude_list_name}', exclude_list_annot_df[self.classify_column])
 
     def __update_sec_call_type_and_sec_filter(self) -> DataFrame:
         sec_exclude_list_name = splitext(basename(self.sec_exclude_list))[0]
@@ -159,8 +159,7 @@ class AssessSECConcordance:
                     write_bed(pass_tp_df, '{out_pref}.{variant_type}.{sec_call_type}_passed_tp.bed')
                     write_bed(pass_fp_df, '{out_pref}.{variant_type}.{sec_call_type}_passed_fp.bed')
 
-    def write_status_bed_files(self, out_pref: str, classification: Series) -> Tuple[str, str, str]:
-        df = self.df
+    def write_status_bed_files(self, df: DataFrame, out_pref: str, classification: Series) -> Tuple[str, str, str]:
         df['pos-1'] = df['pos'] - 1
         if 'sec_call_type' in df.columns:
             df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str) + '_' + df[
@@ -168,7 +167,7 @@ class AssessSECConcordance:
         else:
             df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
         df.loc[df['description'].isna(), 'description'] = 'missing'
-        indels = df['indel']
+        indels = df[df['indel']]
         fn_indel = indels[classification == 'fn']
         fp_indel = indels[classification == 'fp']
         tp_indel = indels[classification == 'tp']
@@ -177,6 +176,7 @@ class AssessSECConcordance:
         fp_file = f'{out_pref}_fp_indel.bed'
         tp_file = f'{out_pref}_tp_indel.bed'
 
+        print(df)
         write_bed(fn_indel, fn_file)
         write_bed(fp_indel, fp_file)
         write_bed(tp_indel, tp_file)
