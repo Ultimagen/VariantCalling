@@ -12,7 +12,7 @@ from python.pipelines.variant_filtering_utils import apply_filter
 from python.pipelines.vcf_pipeline_utils import annotate_concordance
 from ugvc import logger
 from ugvc.concordance.concordance_utils import read_hdf, calc_accuracy_metrics, validate_and_preprocess_concordance_df
-from utils.stats_utils import get_recall, get_precision
+from ugvc.utils.stats_utils import get_recall, get_precision
 
 """
 Given a concordance h5 input, an exclude-list, and SEC refined exclude-list
@@ -51,12 +51,10 @@ def write_status_bed_files(df: DataFrame,
     else:
         df['description'] = df['variant_type'] + '_' + df['hmer_indel_length'].astype(str)
     df.loc[df['description'].isna(), 'description'] = 'missing'
-    fn = df[classification == 'fn']
-    fp = df[classification == 'fp']
-    tp = df[classification == 'tp']
-    fn_indel = fn[~fn['indel_classify'].isna()]
-    fp_indel = fp[~fp['indel_classify'].isna()]
-    tp_indel = tp[~tp['indel_classify'].isna()]
+    indels = df['indel']
+    fn_indel = df[classification == 'fn']
+    fp_indel = df[classification == 'fp']
+    tp_indel = df[classification == 'tp']
 
     fn_file = f'{output_prefix}_fn_indel.bed'
     fp_file = f'{output_prefix}_fp_indel.bed'
@@ -96,15 +94,11 @@ def main():
                                             flow_order='TGCA',
                                             annotate_intervals=exclude_lists_beds)
     stats_table = calc_accuracy_metrics(df_annot, classify_column)
-    is_filtered = df_annot['filter'] != 'PASS'
-    post_filter_classification = apply_filter(df_annot[classify_column], is_filtered)
-    write_status_bed_files(df_annot, f'{out_pref}.original', post_filter_classification)
+    stats_table.to_csv(f'{out_pref}.original.stats.csv', sep=';', index=False)
+    # Apply original filters 
+    df_annot[classify_column] = apply_filter(df_annot[classify_column], df_annot['filter'] != 'PASS')
+    write_status_bed_files(df_annot, f'{out_pref}.original', df_annot[classify_column])
 
-    with open(f'{out_pref}.original.stats.tsv', 'w') as stats_file:
-        stats_file.write(f'{stats_table}\n')
-
-    fp_files = [f'{out_pref}.original_fp_indel.bed']
-    fn_files = [f'{out_pref}.original_fn_indel.bed']
 
     for i, exclude_list_bed_file in enumerate(exclude_lists_beds):
         exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
@@ -130,43 +124,45 @@ def main():
         exclude_list_annot_df.loc[df_annot[exclude_list_name], 'filter'] = ['BLACKLIST', 'SEC'][i]
         stats_table = calc_accuracy_metrics(exclude_list_annot_df, classify_column)
         is_filtered = exclude_list_annot_df['filter'] != 'PASS'
-        post_filter_classification = apply_filter(exclude_list_annot_df[classify_column], is_filtered)
+        exclude_list_annot_df[classify_column] = apply_filter(exclude_list_annot_df[classify_column], is_filtered)
 
         if i == 1:
-            sec_pass_tp = exclude_list_df[(exclude_list_df[classify_column] == 'tp') &
-                                          (exclude_list_df['sec_call_type'].isin({'novel', 'known', 'unobserved'}))]
-            sec_filter_tp = exclude_list_df[(exclude_list_df[classify_column] == 'fn') &
-                                            (exclude_list_df['sec_call_type'].isin({'reference'}))]
-            sec_pass_fp = exclude_list_df[(exclude_list_df[classify_column] == 'fp') &
-                                          (exclude_list_df['sec_call_type'] != 'out_of_exclude_list')]
-            sec_filter_fp = exclude_list_df[(exclude_list_df[classify_column] == 'fn') &
-                                            (exclude_list_df['sec_call_type'] != 'out_of_exclude_list')]
-            print('filtered-tp,passed-tp,filtered-fp,passed-fp,SEC-recall,SEC-precision')
-            sec_recall = get_recall(fn=sec_filter_tp, tp=sec_pass_tp)
-            sec_precision = get_precision(fp=sec_pass_fp, tp=sec_filter_fp)
-            print(f'{sec_filter_tp.shape[0]},{sec_pass_tp.shape[0]},{sec_filter_fp.sjape[0]},{sec_pass_fp.shape[0]},'
-                  f'{sec_recall},{sec_precision}')
+            sec_call_types = {'novel', 'known', 'unobserved'}
+            sec_pass_tp_df = exclude_list_annot_df[(df_annot[classify_column] == 'tp') & (exclude_list_annot_df['sec_call_type'].isin(sec_call_types))]
+            sec_filter_tp_df = exclude_list_annot_df[(df_annot[classify_column] == 'tp') & (exclude_list_annot_df['sec_call_type'] == 'reference')]
+            sec_pass_fp_df = exclude_list_annot_df[(df_annot[classify_column] == 'fp') & (exclude_list_annot_df['sec_call_type'].isin(sec_call_types))]
+            sec_filter_fp_df = exclude_list_annot_df[(df_annot[classify_column] == 'fp') & (exclude_list_annot_df['sec_call_type'] == 'reference')]
+            
+            with open(f'{out_pref}.sec.stats.csv', 'w') as fh:
+                fh.write('variant_type,filtered-tp,passed-tp,filtered-fp,passed-fp,SEC-recall,SEC-precision\n')
+                sec_dfs = [sec_pass_tp_df, sec_filter_tp_df, sec_pass_fp_df, sec_filter_fp_df]
+                for variant_type in ['snp', 'h-indel', 'non-h-indel']:
+                    sec_dfs_var_type = [df[df['variant_type'] == variant_type] for df in sec_dfs]
+                    sec_pass_tp, sec_filter_tp, sec_pass_fp, sec_filter_fp = (df.shape[0] for df in sec_dfs_var_type)
+                    sec_recall = get_recall(fn=sec_filter_tp, tp=sec_pass_tp)
+                    sec_precision = get_precision(fp=sec_pass_fp, tp=sec_filter_fp)
+                    fh.write(f'{variant_type},{sec_filter_tp},{sec_pass_tp},{sec_filter_fp},{sec_pass_fp},{sec_recall},{sec_precision}\n')
+                    write_bed(sec_dfs_var_type[0], f'{out_pref}.{variant_type}.sec_passed_tp.bed')
+                    write_bed(sec_dfs_var_type[1], f'{out_pref}.{variant_type}.sec_filtered_tp.bed')
+                    write_bed(sec_dfs_var_type[2], f'{out_pref}.{variant_type}.sec_passed_fp.bed')
+                    write_bed(sec_dfs_var_type[3], f'{out_pref}.{variant_type}.sec_filtered_fp.bed')
+            with open(f'{out_pref}.all_types.stats.csv', 'w') as fh:
+                fh.write('sec_call_type,variant_type,passed-tp,passed-fp,precision\n')
+                for sec_call_type in ['non_noise_allele', 'uncorrelated', 'unobserved', 'known', 'novel']:
+                    for variant_type in ['snp', 'h-indel', 'non-h-indel']:
+                        pass_tp_df = exclude_list_annot_df[(df_annot[classify_column] == 'tp') & (exclude_list_annot_df['sec_call_type'] == sec_call_type)]
+                        pass_fp_df = exclude_list_annot_df[(df_annot[classify_column] == 'fp') & (exclude_list_annot_df['sec_call_type'] == sec_call_type)]
+                        pass_tp_df, pass_fp_df = (df[df['variant_type'] == variant_type] for df in [pass_tp_df, pass_fp_df])
+                        pass_tp = pass_tp_df.shape[0]
+                        pass_fp = pass_fp_df.shape[0]
+                        precision =  get_precision(fp=pass_fp, tp=pass_tp)
+                        fh.write(f'{sec_call_type},{variant_type},{pass_tp},{pass_fp},{precision}\n')
+                        write_bed(pass_tp_df, '{out_pref}.{variant_type}.{sec_call_type}_passed_tp.bed')
+                        write_bed(pass_fp_df, '{out_pref}.{variant_type}.{sec_call_type}_passed_fp.bed')
 
-        with open(f'{out_pref}.{exclude_list_name}.stats.tsv', 'w') as stats_file:
-            stats_file.write(f'{stats_table}\n')
-
+        stats_table.to_csv(f'{out_pref}.{exclude_list_name}.stats.csv', sep=';', index=False)
         exclude_list_annot_df.to_hdf(f'{out_pref}.{exclude_list_name}.h5', key)
-        fn_file, fp_file, tp_file = write_status_bed_files(exclude_list_annot_df, f'{out_pref}.{exclude_list_name}',
-                                                           post_filter_classification)
-        fp_files.append(fp_file)
-        fn_files.append(fn_file)
 
-    sp = SimplePipeline(0, 100, False)
-    original_fp_file = fp_files[0]
-    blacklist_fp_file = fp_files[1]
-    sec_fp_file = fp_files[2]
-    original_fn_file = fn_files[0]
-    sec_fn_file = fn_files[2]
-    for sct in ['non_noise_allele', 'uncorrelated', 'novel', 'known', 'unobserved']:
-        sp.print_and_run(f'bedtools subtract -a {sec_fp_file} -b {blacklist_fp_file} '
-                         f'| grep {sct} || true > {out_pref}.fp_missed.{sct}.bed')
-    sp.print_and_run(f'bedtools subtract -a {original_fp_file} -b {sec_fp_file} > {out_pref}.fp_corrected.bed')
-    sp.print_and_run(f'bedtools subtract -a {sec_fn_file} -b {original_fn_file} > {out_pref}.fn_added.bed')
 
 
 if __name__ == '__main__':
