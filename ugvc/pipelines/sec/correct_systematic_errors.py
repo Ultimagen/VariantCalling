@@ -9,6 +9,7 @@ from enum import Enum
 from typing import List, TextIO, Set
 
 import pysam
+from pysam import VariantFile, VariantRecord
 
 from python.modules.filtering.blacklist import Blacklist
 from python.pipelines.variant_filtering_utils import VariantSelectionFunctions
@@ -63,14 +64,15 @@ class SystematicErrorCorrector:
     1. Regular - use all available information from the expected distributions model
     2. Novel detection only - do not use information on expected distributions given known alternative genotypes.
 
-    Sites where the model is ambiguous, (observation can be explained equally well by two different ground-truth genotypes)
+    Sites where the model is ambiguous,
+    (observation can be explained equally well by two different ground-truth genotypes)
     are identified as uncorrelated sites.
     The default behaviour is to keep such variants as they are, since the method has no info about them.
 
 
     --filter_uncorrelated will cause calling these sites as reference.
         Notice this will filter out only sites where one of the ground-truth genotypes is the reference genotype
-        Since if both alternatives are non-ref, than wither way the variant is probably real.
+        Since if both alternatives are non-ref, then either way the variant is probably real.
     """
 
     def __init__(self,
@@ -195,7 +197,7 @@ class SystematicErrorCorrector:
                     self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
 
                 if self.output_type == OutputType.bed:
-                    self.__process_call_bed_output(bed_writer, call, chrom, fields, pos)
+                    self.__process_call_bed_output(bed_writer, call, chrom, pos)
 
                 if self.output_type == OutputType.vcf:
                     self.__process_call_vcf_output(call, observed_variant, sample_info, vcf_writer)
@@ -217,7 +219,8 @@ class SystematicErrorCorrector:
                 pickle.dump(exclusion_filter, out_pickle_file)
         log_stream.close()
 
-    def __process_call_vcf_output(self, call, observed_variant, sample_info, vcf_writer):
+    @staticmethod
+    def __process_call_vcf_output(call: SECCall, observed_variant: VariantRecord, sample_info, vcf_writer: VariantFile):
         """
         Write all vcf lines with additional:
         1. ST field: (reference, novel, known, uncorrelated, non_noise_allele)
@@ -237,23 +240,14 @@ class SystematicErrorCorrector:
             sample_info['GQ'] = call.genotype_quality
         vcf_writer.write(observed_variant)
 
-    def __process_call_bed_output(self, bed_writer, call, chrom, fields, pos):
+    @staticmethod
+    def __process_call_bed_output(bed_writer: BedWriter, call: SECCall, chrom: str, pos: int):
         """
-        output only positions which were decided to have the reference genotype
-        (or uncorrelated if directed to filter them)
+        output all positions with sec_call_type, for assess_concordance_with_exclusion_h5.py
         """
+        bed_writer.write(chrom, pos - 1, pos, call.call_type.value, call.novel_variant_p_value)
 
-        if call.call_type == SECCallType.reference or (
-                call.call_type == SECCallType.uncorrelated and self.filter_uncorrelated):
-            if len(fields) > 3:
-                bl_ref_alleles = fields[3]
-                bl_alt_alleles = fields[4]
-                bl_counts = fields[5].strip()
-                bed_writer.write(chrom, pos - 1, pos, f'{bl_ref_alleles}\t{bl_alt_alleles}\t{bl_counts}')
-            else:
-                bed_writer.write(chrom, pos - 1, pos, call.call_type.value)
-
-    def __process_call_pickle_output(self, call, chr_pos_tuples, chrom, pos):
+    def __process_call_pickle_output(self, call: SECCall, chr_pos_tuples: List[tuple], chrom: str, pos: int):
         """
         output only positions which were decided to have the reference genotype
         (or uncorrelated if directed to filter them)
