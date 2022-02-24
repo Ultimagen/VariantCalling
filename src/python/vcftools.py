@@ -50,7 +50,6 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
     concordance_df.index = [(x[1]['chrom'], x[1]['pos'])
                             for x in concordance_df.iterrows()]
 
-
     return concordance_df
 
 

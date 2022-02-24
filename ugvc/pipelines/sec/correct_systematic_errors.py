@@ -1,18 +1,21 @@
 import argparse
+import ast
+import glob
+import itertools
 import os.path
 import pickle
 import sys
 from enum import Enum
-from typing import List, TextIO
+from typing import List, TextIO, Set
 
 import pysam
+from pysam import VariantFile, VariantRecord
 
 from python.modules.filtering.blacklist import Blacklist
 from python.pipelines.variant_filtering_utils import VariantSelectionFunctions
 from ugvc import logger
 from ugvc.readwrite.bed_writer import BedWriter
 from ugvc.readwrite.buffered_variant_reader import BufferedVariantReader
-from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistributions
 from ugvc.sec.systematic_error_correction_call import SECCallType, SECCall
 from ugvc.sec.systematic_error_correction_caller import SECCaller
 from ugvc.sec.systematic_error_correction_record import SECRecord
@@ -25,13 +28,14 @@ def get_args(argv: List[str]):
     parser.add_argument('--relevant_coords', help='path to bed file describing relevant genomic subset to analyze',
                         required=True)
     parser.add_argument('--model', required=True,
-                        help='path to pickle file containing conditional allele distributions per position of interest')
+                        help='path to pkl file containing conditional allele distributions per position of interest'
+                             ', supports glob pattern for multiple pkl files, and multiple assignments', action='append')
     parser.add_argument('--gvcf', required=True,
                         help='path to gvcf file, (for getting the raw aligned reads information)')
     parser.add_argument('--output_file', help='path to output file (vcf/vcf.gz/bed/pickle)')
-    parser.add_argument('--strand_enrichment_pval_thresh', default=0.000001, type=float,
+    parser.add_argument('--strand_enrichment_pval_thresh', default=0.00001, type=float,
                         help='p-value threshold for strand enrichment of alt-alleles (forward_pval * reverse_pval)')
-    parser.add_argument('--lesser_strand_enrichment_pval_thresh', default=0.001, type=float,
+    parser.add_argument('--lesser_strand_enrichment_pval_thresh', default=0.05, type=float,
                         help='p-value threshold for the strand with higher p-value max(forward_pval, reverse_pval)')
     parser.add_argument('--min_gt_correlation', default=0.99, type=float,
                         help="don't call loci with lower correlation between ground-truth and observed genotypes")
@@ -44,7 +48,8 @@ def get_args(argv: List[str]):
     parser.add_argument('--replace_to_known_genotype', default=False, action='store_true',
                         help='in case reads match known genotype from ground-truth, use this genotype')
     parser.add_argument('--filter_uncorrelated', default=False, action='store_true',
-                        help='filter variants in positions where ref and alt conditioned genotype have similar distributions')
+                        help='filter variants in positions where ref and alt '
+                             'conditioned genotype have similar distributions')
     args = parser.parse_args(argv)
     return args
 
@@ -59,19 +64,20 @@ class SystematicErrorCorrector:
     1. Regular - use all available information from the expected distributions model
     2. Novel detection only - do not use information on expected distributions given known alternative genotypes.
 
-    Sites where the model is ambiguous, (observation can be explained equally well by two different ground-truth genotypes)
+    Sites where the model is ambiguous,
+    (observation can be explained equally well by two different ground-truth genotypes)
     are identified as uncorrelated sites.
     The default behaviour is to keep such variants as they are, since the method has no info about them.
 
 
     --filter_uncorrelated will cause calling these sites as reference.
         Notice this will filter out only sites where one of the ground-truth genotypes is the reference genotype
-        Since if both alternatives are non-ref, than wither way the variant is probably real.
+        Since if both alternatives are non-ref, then either way the variant is probably real.
     """
 
     def __init__(self,
                  relevant_coords: TextIO,
-                 conditional_allele_distributions: ConditionalAlleleDistributions,
+                 conditional_allele_distribution_files: List[str],
                  gvcf_reader: BufferedVariantReader,
                  strand_enrichment_pval_thresh: float,
                  lesser_strand_enrichment_pval_thresh: float,
@@ -83,20 +89,20 @@ class SystematicErrorCorrector:
                  replace_to_known_genotype: bool,
                  filter_uncorrelated: bool):
         self.relevant_coords = relevant_coords
-        self.distributions_per_chromosome = conditional_allele_distributions.distributions_per_chromosome
+        # map chromosome name to cad file name
+        self.cad_files_dict = {f.split('.')[-2]: f for f in conditional_allele_distribution_files}
+        self.distributions_per_chromosome = None
         self.gvcf_reader = gvcf_reader
         self.output_file = output_file
         self.filter_uncorrelated = filter_uncorrelated
 
         self.output_type = None
-        if output_file.endswith('.bed'):
-            self.output_type = OutputType.bed
-        elif output_file.endswith('.vcf') or output_file.endswith('.vcf.gz'):
+        if output_file.endswith('.vcf') or output_file.endswith('.vcf.gz'):
             self.output_type = OutputType.vcf
-        elif output_file.endswith('.pickle'):
+        elif output_file.endswith('.pickle') or output_file.endswith('.pkl'):
             self.output_type = OutputType.pickle
         else:
-            raise ValueError('output file must end with bed/vcf/vcf.gz/pickle suffixes')
+            raise ValueError('output file must end with bed/vcf/vcf.gz/pickle/pkl suffixes')
 
         self.caller = SECCaller(strand_enrichment_pval_thresh,
                                 lesser_strand_enrichment_pval_thresh,
@@ -118,21 +124,27 @@ class SystematicErrorCorrector:
 
         # Initialize output writers
         vcf_writer = None
-        bed_writer = None
+        bed_writer = BedWriter(f'{self.output_file}.bed')
         if self.output_type == OutputType.vcf:
             vcf_writer = pysam.libcbcf.VariantFile(self.output_file, mode='w', header=self.gvcf_reader.header)
-        if self.output_type == OutputType.bed:
-            bed_writer = BedWriter(self.output_file)
 
         # Initialize (chr, pos) tuples, relevant only for pickle output
         chr_pos_tuples = []
 
         log_stream = open(f'{self.output_file}.log', 'w')
 
+        current_chr = ''
         # For each position in the relevant-coords bed file, compare observation to expected distribution of alleles
         for line in self.relevant_coords:
             fields = line.split('\t')
             chrom, start, end = fields[0], fields[1], fields[2]
+
+            # Load a new chromosome every-time a new chromosome in relevant_coords is encountered
+            # IMPORTANT - relevant_coords must be sorted by chr,pos
+            if chrom != current_chr:
+                with open(self.cad_files_dict[chrom], 'rb') as cad_fh:
+                    self.distributions_per_chromosome = pickle.load(cad_fh)
+                    current_chr = chrom
 
             for pos in range(int(start) + 1, int(end) + 1):
                 observed_variant = self.gvcf_reader.get_variant(chrom, pos)
@@ -145,49 +157,50 @@ class SystematicErrorCorrector:
 
                 # Handle no-call
                 if None in sample_info['GT']:
-
                     if self.output_type == OutputType.vcf:
                         vcf_writer.write(observed_variant)
                     continue
 
                 # Check if called alternative allele matches excluded (noise) allele
-                called_non_excluded_alt = False
+                called_non_excluded_alleles = False
                 if len(fields) > 3:
-                    excluded_alleles = fields[3].replace('[', '').replace(']', '').replace("'", "").strip().split(',')
+                    excluded_refs = ast.literal_eval(fields[3])
+                    flat_excluded_refs = list(itertools.chain(*excluded_refs))
+                    all_excluded_alts = ast.literal_eval(fields[4])
+                    called_ref = observed_variant.ref
                     called_alts = set(get_filtered_alleles_list(sample_info)).intersection(observed_variant.alts)
-                    called_non_excluded_alt = len(called_alts.difference(excluded_alleles)) > 0
-
+                    if len(called_alts) > 0:
+                        called_non_excluded_alleles = not _are_all_called_alleles_excluded(flat_excluded_refs,
+                                                                                           all_excluded_alts,
+                                                                                           called_ref,
+                                                                                           called_alts)
                 # Call a non_noise_allele in case alternative allele is not excluded
                 # e.g a SNP in a position where the noise in a hmer indel
-                if called_non_excluded_alt:
+                if called_non_excluded_alleles:
                     observed_alleles = get_filtered_alleles_str(observed_variant)
                     call = SECCall(SECCallType.non_noise_allele, observed_alleles, get_genotype(sample_info), [])
                 # Execute SEC caller on the observed variant and expected_distribution loaded from the memDB (pickle)
                 else:
-                    distributions_per_pos = self.distributions_per_chromosome.get(chrom, {})
-                    expected_distribution = distributions_per_pos.get(pos, None)
+                    expected_distribution = self.distributions_per_chromosome.get(pos, None)
                     call = self.caller.call(observed_variant, expected_distribution)
 
                 for sec_record in call.sec_records:
                     log_stream.write(f'{sec_record}\n')
 
-
                 if self.output_type == OutputType.pickle:
                     self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
 
-                if self.output_type == OutputType.bed:
-                    self.__process_call_bed_output(bed_writer, call, chrom, fields, pos)
-
                 if self.output_type == OutputType.vcf:
                     self.__process_call_vcf_output(call, observed_variant, sample_info, vcf_writer)
+
+                self.__process_call_bed_output(bed_writer, call, chrom, pos)
 
                 log_stream.write(f'{chrom}\t{pos}\t{call}\n\n')
 
         if self.output_type == OutputType.vcf:
             vcf_writer.close()
             pysam.tabix_index(self.output_file, preset='vcf', force=True)
-        if self.output_type == OutputType.bed:
-            bed_writer.close()
+
         if self.output_type == OutputType.pickle:
             exclusion_filter = Blacklist(blacklist=set(chr_pos_tuples),
                                          annotation='SEC',
@@ -195,10 +208,12 @@ class SystematicErrorCorrector:
                                          description='Variant is filtered since alt alleles have high likelihood to be '
                                                      'generated by a systematic error')
             with open(self.output_file, 'wb') as out_pickle_file:
-                pickle.dump(exclusion_filter, out_pickle_file)
+                pickle.dump([exclusion_filter], out_pickle_file)
+        bed_writer.close()
         log_stream.close()
 
-    def __process_call_vcf_output(self, call, observed_variant, sample_info, vcf_writer):
+    @staticmethod
+    def __process_call_vcf_output(call: SECCall, observed_variant: VariantRecord, sample_info, vcf_writer: VariantFile):
         """
         Write all vcf lines with additional:
         1. ST field: (reference, novel, known, uncorrelated, non_noise_allele)
@@ -218,21 +233,14 @@ class SystematicErrorCorrector:
             sample_info['GQ'] = call.genotype_quality
         vcf_writer.write(observed_variant)
 
-    def __process_call_bed_output(self, bed_writer, call, chrom, fields, pos):
+    @staticmethod
+    def __process_call_bed_output(bed_writer: BedWriter, call: SECCall, chrom: str, pos: int):
         """
-        output only positions which were decided to have the reference genotype
-        (or uncorrelated if directed to filter them)
+        output all positions with sec_call_type, for assess_concordance_with_exclusion_h5.py
         """
+        bed_writer.write(chrom, pos - 1, pos, call.call_type.value, call.novel_variant_p_value)
 
-        if call.call_type == SECCallType.reference or (
-                call.call_type == SECCallType.uncorrelated and self.filter_uncorrelated):
-            if len(fields) > 3:
-                bl_alleles = fields[3].strip()
-                bed_writer.write(chrom, pos - 1, pos, bl_alleles)
-            else:
-                bed_writer.write(chrom, pos - 1, pos, call.call_type.value)
-
-    def __process_call_pickle_output(self, call, chr_pos_tuples, chrom, pos):
+    def __process_call_pickle_output(self, call: SECCall, chr_pos_tuples: List[tuple], chrom: str, pos: int):
         """
         output only positions which were decided to have the reference genotype
         (or uncorrelated if directed to filter them)
@@ -244,8 +252,28 @@ class SystematicErrorCorrector:
 
 class OutputType(Enum):
     vcf = 1
-    bed = 2
-    pickle = 3
+    pickle = 2
+
+
+def _are_all_called_alleles_excluded(excluded_refs: List[str],
+                                     all_excluded_alts: List[List[str]],
+                                     called_ref: str,
+                                     called_alts: Set[str]) -> bool:
+    """
+    search for each called ref->alt pair in excluded alleles
+    Return True iff ALL the called ref->alt pairs are excluded
+    Example:
+        if A->G is excluded, and called A->G return True
+        if A->G is excluded, and called A->C return False
+        if A->G is excluded, and called A->G/C return False
+        if A->G, A->C are excluded, and called A->G/C return True
+    """
+    for excluded_ref, excluded_alts in zip(excluded_refs, all_excluded_alts):
+        if called_ref == excluded_ref:
+            non_excluded_alts = called_alts.difference(excluded_alts)
+            if len(non_excluded_alts) == 0:
+                return True
+    return False
 
 
 def main(argv: List[str]):
@@ -261,11 +289,15 @@ def main(argv: List[str]):
 
     relevant_coords = open(args.relevant_coords, 'r')
 
-    with open(args.model, 'rb') as fh:
-        conditional_allele_distributions: ConditionalAlleleDistributions = pickle.load(fh)
+    pickle_files = []
+    for model_file_name in args.model:
+        if '*' in model_file_name:
+            pickle_files.extend(glob.glob(model_file_name))
+        else:
+            pickle_files.append(model_file_name)
 
     SystematicErrorCorrector(relevant_coords=relevant_coords,
-                             conditional_allele_distributions=conditional_allele_distributions,
+                             conditional_allele_distribution_files=pickle_files,
                              gvcf_reader=gvcf_reader,
                              strand_enrichment_pval_thresh=args.strand_enrichment_pval_thresh,
                              lesser_strand_enrichment_pval_thresh=args.lesser_strand_enrichment_pval_thresh,
