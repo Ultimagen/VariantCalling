@@ -33,7 +33,7 @@ def get_args(argv: List[str]):
     parser.add_argument('--gvcf', required=True,
                         help='path to gvcf file, (for getting the raw aligned reads information)')
     parser.add_argument('--output_file', help='path to output file (vcf/vcf.gz/bed/pickle)')
-    parser.add_argument('--strand_enrichment_pval_thresh', default=0.000001, type=float,
+    parser.add_argument('--strand_enrichment_pval_thresh', default=0.00001, type=float,
                         help='p-value threshold for strand enrichment of alt-alleles (forward_pval * reverse_pval)')
     parser.add_argument('--lesser_strand_enrichment_pval_thresh', default=0.001, type=float,
                         help='p-value threshold for the strand with higher p-value max(forward_pval, reverse_pval)')
