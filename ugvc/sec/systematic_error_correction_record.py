@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 from scipy.stats import chisquare, binom_test
@@ -81,15 +81,30 @@ class SECRecord:
     def __calc_strand_enrichment(self):
         self.forward_enrichment_pval = self.__single_strand_binomial_test(StrandDirection.FORWARD)
         self.reverse_enrichment_pval = self.__single_strand_binomial_test(StrandDirection.REVERSE)
-        # each strand is tested independently
-        self.strand_enrichment_pval = self.forward_enrichment_pval * self.reverse_enrichment_pval
+
+        if self.forward_enrichment_pval is None and self.reverse_enrichment_pval is None:
+            self.strand_enrichment_pval = 1
+            self.lesser_strand_enrichment_pval = 1
+            # represent NA as -1 in logs
+            self.forward_enrichment_pval = -1
+            self.reverse_enrichment_pval = -1
+        elif self.forward_enrichment_pval is None:
+            self.strand_enrichment_pval = self.reverse_enrichment_pval
+            self.lesser_strand_enrichment_pval = self.reverse_enrichment_pval
+            self.forward_enrichment_pval = -1  # represent NA as -1 in logs
+        elif self.reverse_enrichment_pval is None:
+            self.strand_enrichment_pval = self.forward_enrichment_pval
+            self.lesser_strand_enrichment_pval = self.forward_enrichment_pval
+            self.reverse_enrichment_pval = -1 # represent NA as -1 in logs
+        else:
+            # each strand is tested independently
+            self.strand_enrichment_pval = self.forward_enrichment_pval * self.reverse_enrichment_pval
+            self.lesser_strand_enrichment_pval = max(self.forward_enrichment_pval,
+                                                     self.reverse_enrichment_pval)
 
         # scale p-value by observed_alleles_frequency
         self.frequency_scaled_strand_enrichment_pval = \
             self.observed_alleles_frequency * self.strand_enrichment_pval
-
-        self.lesser_strand_enrichment_pval = max(self.forward_enrichment_pval,
-                                                 self.reverse_enrichment_pval)
 
     def __calc_alt_enrichment(self):
         expected_alt = sum(self.expected_distribution_list[2:])
@@ -108,7 +123,7 @@ class SECRecord:
     def __scale_expected_distribution_list(self):
         return scale_contingency_table(self.expected_distribution_list, self.num_of_observations_actual)
 
-    def __single_strand_binomial_test(self, strand: StrandDirection) -> float:
+    def __single_strand_binomial_test(self, strand: StrandDirection) -> Optional[float]:
         if strand == StrandDirection.FORWARD:
             ref_index = 0
             alt_index = 2
@@ -126,10 +141,16 @@ class SECRecord:
         expected_total = expected_ref + expected_alt
         actual_total = actual_alt + actual_ref
 
-        if expected_total > 0:
-            p_alt_f = (expected_alt + 1) / (expected_total + 2)  # add-one correction
+        if actual_total == 0:
+            return None  # need to ignore this strand
+        # Expect to see alt reads on this strand
+        if expected_alt > 0:
+            p_alt_f = expected_alt / expected_total
+        # expect to see only ref reads on this strand, do add-one correction
+        elif expected_total > 0:
+            p_alt_f = 1 / (expected_total + 2)
+        # Expect no reads on this strand, look for moderate alt enrichment
         else:
-            # when no reads on this strand were expected, look for moderate alt enrichment
             if is_snp(self.observed_alleles.split(',')):
                 p_alt_f = self.noise_ratio_for_unobserved_snps
             else:

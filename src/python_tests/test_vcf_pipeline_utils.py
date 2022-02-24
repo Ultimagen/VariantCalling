@@ -42,8 +42,31 @@ class TestVCF2Concordance:
         input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.vcf.gz")
         concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.conc.vcf.gz")
         result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
-        assert (result['call'] =='IGN').sum() == 0 
-        assert (result['base'] == 'IGN').sum() == 0 
+        assert ((result['call'] == 'IGN') & (pd.isnull(result['base']))).sum() == 0
+
+    def test_filtered_out_tp_became_fn(self):
+        input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.vcf.gz")
+        concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.conc.vcf.gz")
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        assert ((result['call'] == 'IGN') & (result['base'] == 'FN')).sum() > 0
+        take = result[(result['call'] == 'IGN') & (result['base'] == 'FN')]
+        assert (take['classify'] == 'fn').all()
+
+    def test_excluded_regions_are_ignored(self):
+        input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.excluded.vcf.gz")
+        concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.excluded.conc.vcf.gz")
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        assert ((result['call'] == 'OUT')).sum() == 0
+        assert ((result['base'] == 'OUT')).sum() == 0
+
+    def test_all_ref_never_false_negative(self):
+        input_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.allref.vcf.gz")
+        concordance_vcf = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "hg002.allref.conc.vcf.gz")
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        calls = result[result['gt_ground_truth'] == (0, 0)].classify_gt.value_counts()
+        assert 'fn' not in calls.index
+
+
 
 
 class TestVCFevalRun:

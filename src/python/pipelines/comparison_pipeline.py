@@ -1,6 +1,6 @@
 import shutil
-
-from os.path import join as pjoin, dirname, basename
+from os.path import join as pjoin
+from os.path import basename, dirname, splitext
 from typing import Optional, Tuple
 
 from python.pipelines import vcf_pipeline_utils
@@ -16,6 +16,7 @@ def pipeline(n_parts: int, input_prefix: str,
              call_sample: str,
              truth_sample: str,
              output_dir: Optional[str] = None,
+             output_file_name: Optional[str] = None,
              header: Optional[str] = None,
              runs_intervals: Optional[vcf_pipeline_utils.IntervalFile] = None,
              output_suffix: Optional[str] = None,
@@ -48,6 +49,9 @@ def pipeline(n_parts: int, input_prefix: str,
         Name of the truth sample
     output_dir : str
         Location for the output
+    output_file_name: str, optional
+        Name of the output file - will determine the name of the vcfeval output directory. 
+        The output_file_name should include the output_dir and output_dir and output_file_name are mutually exclusive
     header : str, optional
         for backward compatibility - to be able to change the header of the VCF. Default None
     runs_intervals : str, optional
@@ -65,8 +69,13 @@ def pipeline(n_parts: int, input_prefix: str,
     -------
     Tuple[str, str]
     """
+
+    assert output_dir is None or output_file_name is None, ""
     if output_dir is None:
-        output_dir = dirname(input_prefix)
+        if output_file_name is not None: 
+            output_dir = dirname(output_file_name)
+        else:
+            output_dir = dirname(input_prefix)
 
     input_prefix_basename = basename(input_prefix)
 
@@ -101,7 +110,10 @@ def pipeline(n_parts: int, input_prefix: str,
         shutil.copy(reheader_fn, select_intervals_fn)
         vcf_pipeline_utils.index_vcf(select_intervals_fn)
 
-    output_prefix = select_intervals_fn[:select_intervals_fn.index(".intsct.vcf.gz")]
+    if output_file_name is None:
+        output_prefix = select_intervals_fn[:select_intervals_fn.index(".intsct.vcf.gz")]
+    else:
+        output_prefix = splitext(output_file_name)[0]
 
     if concordance_tool == 'VCFEVAL':
         vcf_pipeline_utils.run_vcfeval_concordance(select_intervals_fn, truth_file, output_prefix,
