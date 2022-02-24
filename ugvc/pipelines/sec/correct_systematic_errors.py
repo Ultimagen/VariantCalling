@@ -165,7 +165,6 @@ class SystematicErrorCorrector:
 
                 # Handle no-call
                 if None in sample_info['GT']:
-
                     if self.output_type == OutputType.vcf:
                         vcf_writer.write(observed_variant)
                     continue
@@ -173,7 +172,6 @@ class SystematicErrorCorrector:
                 # Check if called alternative allele matches excluded (noise) allele
                 called_non_excluded_alleles = False
                 if len(fields) > 3:
-
                     excluded_refs = ast.literal_eval(fields[3])
                     flat_excluded_refs = list(itertools.chain(*excluded_refs))
                     all_excluded_alts = ast.literal_eval(fields[4])

@@ -126,10 +126,14 @@ class SECRecord:
         expected_total = expected_ref + expected_alt
         actual_total = actual_alt + actual_ref
 
-        if expected_total > 0:
-            p_alt_f = (expected_alt + 1) / (expected_total + 2)  # add-one correction
+        # Expect to see alt reads on this strand
+        if expected_alt > 0:
+            p_alt_f = expected_alt / expected_total
+        # expect to see only ref reads on this strand, do add-one correction
+        elif expected_total > 0:
+            p_alt_f = 1 / (expected_total + 2)
+        # Expect no reads on this strand, look for moderate alt enrichment
         else:
-            # when no reads on this strand were expected, look for moderate alt enrichment
             if is_snp(self.observed_alleles.split(',')):
                 p_alt_f = self.noise_ratio_for_unobserved_snps
             else:
