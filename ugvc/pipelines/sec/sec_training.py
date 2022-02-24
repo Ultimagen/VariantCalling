@@ -1,22 +1,17 @@
-import argparse
 import os
 import random
 import sys
 
 import pandas as pd
+from simppl.cli import get_parser
 
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import base_dir
 
 
-"""
-SEC (Systematic Error Correction) training and validation pipeline
-"""
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
+def parse_args(argv):
+    parser = get_parser('sec_training', run.__doc__)
     parser.add_argument('--out_dir', required=True)
     parser.add_argument('--inputs_table', required=True,
                         help='A tsv file containing [Workflow ID, sample_id, gvcf, train_test_split')
@@ -31,12 +26,15 @@ def parse_args():
     parser.add_argument('-fc', help='index of first command', default=0)
     parser.add_argument('-lc', help='index of last command', default=1000)
     parser.add_argument('-d', action='store_true', help='print only')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     return args
 
 
-def main():
-    args = parse_args()
+def run(argv):
+    """
+    SEC (Systematic Error Correction) training and validation pipeline
+    """
+    args = parse_args(argv)
     relevant_coords_file = args.relevant_coords
     out_dir = args.out_dir
     ground_truth_vcf = args.ground_truth_vcf
@@ -163,4 +161,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    run(sys.argv[1:])
