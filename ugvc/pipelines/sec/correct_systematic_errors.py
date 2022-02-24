@@ -97,9 +97,7 @@ class SystematicErrorCorrector:
         self.filter_uncorrelated = filter_uncorrelated
 
         self.output_type = None
-        if output_file.endswith('.bed'):
-            self.output_type = OutputType.bed
-        elif output_file.endswith('.vcf') or output_file.endswith('.vcf.gz'):
+        if output_file.endswith('.vcf') or output_file.endswith('.vcf.gz'):
             self.output_type = OutputType.vcf
         elif output_file.endswith('.pickle') or output_file.endswith('.pkl'):
             self.output_type = OutputType.pickle
@@ -126,13 +124,7 @@ class SystematicErrorCorrector:
 
         # Initialize output writers
         vcf_writer = None
-
-        # Either output only bed as output_file, or an additional output_file.bed file for assessing concordance
-        if self.output_type == OutputType.bed:
-            bed_writer = BedWriter(self.output_file)
-        else:
-            bed_writer = BedWriter(f'{self.output_file}.bed')
-
+        bed_writer = BedWriter(f'{self.output_file}.bed')
         if self.output_type == OutputType.vcf:
             vcf_writer = pysam.libcbcf.VariantFile(self.output_file, mode='w', header=self.gvcf_reader.header)
 
@@ -260,8 +252,7 @@ class SystematicErrorCorrector:
 
 class OutputType(Enum):
     vcf = 1
-    bed = 2
-    pickle = 3
+    pickle = 2
 
 
 def _are_all_called_alleles_excluded(excluded_refs: List[str],
