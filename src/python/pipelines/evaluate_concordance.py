@@ -1,7 +1,5 @@
 #!/env/python
-import pathmagic
-import argparse
-
+from simppl.cli import get_parser
 
 from pandas import DataFrame
 
@@ -9,9 +7,8 @@ from python import vcftools
 from ugvc.concordance.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve, read_hdf
 
 
-def parse_args():
-    ap = argparse.ArgumentParser(prog="evaluate_concordance.py",
-                                 description="Calculate precision and recall for compared HDF5 ")
+def parse_args(argv):
+    ap = get_parser(prog="evaluate_concordance.py", description=run.__doc__)
     ap.add_argument("--input_file", help="Name of the input h5 file", type=str, required=True)
     ap.add_argument("--output_prefix", help="Prefix to output files", type=str, required=True)
     ap.add_argument('--dataset_key', help='h5 dataset name, such as chromosome name', default='all')
@@ -21,12 +18,13 @@ def parse_args():
     ap.add_argument('--output_bed', help='output bed files of fp/fn/tp per variant-type', action='store_true',
                     default=False)
 
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     return args
 
 
-def main():
-    args = parse_args()
+def run(argv):
+    """Calculate precision and recall for compared HDF5"""
+    args = parse_args(argv)
     ds_key = args.dataset_key
     out_pref = args.output_prefix
     ignore_genotype = args.ignore_genotype
@@ -56,4 +54,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    run()
