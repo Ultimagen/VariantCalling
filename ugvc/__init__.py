@@ -18,9 +18,6 @@ logger.addHandler(ch)
 
 base_dir = dirname(__file__)
 
-if base_dir not in sys.path:
-    sys.path.append(base_dir)
-
 path = f'{dirname(base_dir)}/src'
 if path not in sys.path:
     sys.path.append(path)
