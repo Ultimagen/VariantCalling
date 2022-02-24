@@ -35,7 +35,7 @@ def get_args(argv: List[str]):
     parser.add_argument('--output_file', help='path to output file (vcf/vcf.gz/bed/pickle)')
     parser.add_argument('--strand_enrichment_pval_thresh', default=0.00001, type=float,
                         help='p-value threshold for strand enrichment of alt-alleles (forward_pval * reverse_pval)')
-    parser.add_argument('--lesser_strand_enrichment_pval_thresh', default=0.001, type=float,
+    parser.add_argument('--lesser_strand_enrichment_pval_thresh', default=0.05, type=float,
                         help='p-value threshold for the strand with higher p-value max(forward_pval, reverse_pval)')
     parser.add_argument('--min_gt_correlation', default=0.99, type=float,
                         help="don't call loci with lower correlation between ground-truth and observed genotypes")
