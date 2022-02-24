@@ -12,6 +12,7 @@ class SECCallType(Enum):
     non_noise_allele = 'non_noise_allele'
     unobserved = 'unobserved'
 
+
 class SECCall:
 
     def __init__(self,
@@ -45,4 +46,4 @@ class SECCall:
             return f"don't call uncorrelated variant {self.genotype} gt_corr={self.gt_correlation} " \
                    f"GQ={self.genotype_quality}"
         else:
-            return f'call novel variant {self.alleles} {self.genotype}'
+            return f'call {self.call_type} variant {self.alleles} {self.genotype}'
