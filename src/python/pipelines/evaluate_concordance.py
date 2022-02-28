@@ -18,6 +18,8 @@ def parse_args():
     ap.add_argument('--ignore_genotype', help='ignore genotype when comparing to ground-truth',
                     action='store_true', default=False)
     ap.add_argument('--filter_hpol_run', help='consider filter=HPOL_RUN as not PASS', action='store_true', default=False)
+    ap.add_argument('--output_bed', help='output bed files of fp/fn/tp per variant-type', action='store_true',
+                    default=False)
 
     args = ap.parse_args()
     return args
@@ -29,23 +31,28 @@ def main():
     out_pref = args.output_prefix
     ignore_genotype = args.ignore_genotype
     filter_hpol_run = args.filter_hpol_run
-
+    output_bed = args.output_bed
     # comparison dataframes often contain dataframes that we do not want to read
     if ds_key == 'all':
         skip = ['concordance', 'scored_concordance', 'input_args', 'comparison_result']
     else:
         skip = []
-    df: DataFrame = read_hdf(args.input_file, key=ds_key, skip_keys = skip)
+    df: DataFrame = read_hdf(args.input_file, key=ds_key, skip_keys=skip)
+
+    # Enable evaluating concordance from vcf without tree-score field
+    if all(df['tree_score'].isna()):
+        df['tree_score'] = 1
 
     classify_column = 'classify' if ignore_genotype else 'classify_gt'
 
     accuracy_df = calc_accuracy_metrics(df, classify_column, filter_hpol_run)
     accuracy_df.to_hdf(f'{out_pref}.h5', key="optimal_recall_precision")
-    accuracy_df.to_csv(f'{out_pref}.stats.tsv', sep='\t', index=False)
+    accuracy_df.to_csv(f'{out_pref}.stats.csv', sep=';', index=False)
 
     recall_precision_curve_df = calc_recall_precision_curve(df, classify_column, filter_hpol_run)
     recall_precision_curve_df.to_hdf(f'{out_pref}.h5', key="recall_precision_curve")
-    vcftools.bed_files_output(df, out_pref, mode='w', create_gt_diff=True)
+    if output_bed:
+        vcftools.bed_files_output(df, f'{out_pref}.h5', mode='w', create_gt_diff=True)
 
 
 if __name__ == '__main__':
