@@ -115,8 +115,7 @@ def main():
 
             protected_add(hdr.info, "HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
             protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
-            for b in blacklists:
-                protected_add(hdr.filters, b.annotation, None, None, b.description)
+            protected_add(hdr.info, "BLACKLST", '.', 'String', "blacklist")
 
             if args.blacklist_cg_insertions:
                 protected_add(hdr.filters, "CG_NON_HMER_INDEL", None, None, "Insertion/deletion of CG")
@@ -136,8 +135,7 @@ def main():
                     if blacklist[i] != "PASS":
                         for v in blacklist[i].split(";"):
                             if v != "PASS":
-                                rec.filter.add(v)
-                                pass_flag = False
+                                rec.info['BLACKLST'] = v
                     if pass_flag:
                         rec.filter.add("PASS")
                     rec.info["TREE_SCORE"] = predictions_score[i]
