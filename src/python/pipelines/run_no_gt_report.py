@@ -142,9 +142,9 @@ def snp_statistics(df, ref_fasta):
     motifs = (x_f + x_r)["size"]
     return motifs
 
-def variant_eval_statistics(vcf_input, reference, dbsnp, output_prefix, annotation_names, annotation_conditions):
+def variant_eval_statistics(vcf_input, reference, dbsnp, output_prefix, annotation_names = []):
     annotation_names_str = [f'--SELECT_NAMES {x}' for x in annotation_names]
-    annotation_conditions_str = [f'--SELECT_EXPS {x}' for x in annotation_conditions]
+    annotation_conditions_str = [f'--SELECT_EXPS vc.hasAttribute("{x}")' for x in annotation_names]
     cmd = ["gatk", f"VariantEval",
            "--eval", f"{vcf_input}",
            "--reference", f"{reference}",
@@ -189,12 +189,12 @@ def _parse_single_report(f):
 
 def run_eval_tables_only(args):
     eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp,
-                                          args.output_prefix, args.annotation_names, args.annotation_conditions)
+                                          args.output_prefix, args.annotation_names)
     for eval_table_name in eval_tables.keys():
         eval_tables[eval_table_name].to_hdf(f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 def run_full_analysis(args):
-    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix, [], [])
+    eval_tables = variant_eval_statistics(args.input_file, args.reference, args.dbsnp, args.output_prefix, [])
 
     logger.info("Converting vcf to df")
     df = vcftools.get_vcf_df(args.input_file)
@@ -249,8 +249,6 @@ if __name__ == "__main__":
     parser_eval_tables.add_argument("--output_prefix", help="output file",
                     required=True, type=str)
     parser_eval_tables.add_argument("--annotation_names", help="annotation name to filter on",
-                    required=False, nargs='*')
-    parser_eval_tables.add_argument("--annotation_conditions", help="annotation condition as in the vcf",
                     required=False, nargs='*')
     parser_eval_tables.set_defaults(func=run_eval_tables_only)
 
