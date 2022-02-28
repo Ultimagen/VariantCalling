@@ -19,7 +19,7 @@ class TestSecCaller(unittest.TestCase):
         self.assertEqual(SECCallType.reference, sec_call.call_type)
         self.assertEqual('C,CG', sec_call.alleles)
         self.assertEqual('0/0', sec_call.genotype)
-        self.assertAlmostEqual(0.7635, sec_call.novel_variant_p_value, places=3)
+        self.assertAlmostEqual(0.61867, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(None, sec_call.genotype_quality)
         self.assertEqual(None, sec_call.gt_correlation)
 
@@ -40,7 +40,7 @@ class TestSecCaller(unittest.TestCase):
         self.assertEqual(SECCallType.known, sec_call.call_type)
         self.assertEqual('A,AG', sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual('0/1', sec_call.genotype)
-        self.assertAlmostEqual(0.4893, sec_call.novel_variant_p_value, places=3)
+        self.assertAlmostEqual(0.47308, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(140, sec_call.genotype_quality)
         self.assertEqual(1, sec_call.gt_correlation)
 
@@ -70,7 +70,7 @@ class TestSecCaller(unittest.TestCase):
         self.assertEqual(SECCallType.reference, sec_call.call_type)
         self.assertEqual('C,CGG', sec_call.alleles)
         self.assertEqual('0/0', sec_call.genotype)
-        self.assertAlmostEqual(0.0338, sec_call.novel_variant_p_value, places=3)
+        self.assertAlmostEqual(0.00304, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(None, sec_call.genotype_quality)
         self.assertEqual(None, sec_call.gt_correlation)
 
@@ -90,7 +90,7 @@ class TestSecCaller(unittest.TestCase):
         self.assertEqual(SECCallType.uncorrelated, sec_call.call_type)
         self.assertEqual('A,T', sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual('0/1', sec_call.genotype)
-        self.assertAlmostEqual(0.3643, sec_call.novel_variant_p_value, places=3)
+        self.assertAlmostEqual(0.3558, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(None, sec_call.genotype_quality)
         self.assertAlmostEqual(0.0946, sec_call.gt_correlation, places=3)
 
@@ -103,7 +103,7 @@ class TestSecCaller(unittest.TestCase):
         self.assertEqual(SECCallType.unobserved, sec_call.call_type)
         self.assertEqual('A,G', sec_call.alleles)
         self.assertEqual('0/1', sec_call.genotype)
-        self.assertAlmostEqual(0.90164, sec_call.novel_variant_p_value, places=3)
+        self.assertAlmostEqual(0.90218, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(730, sec_call.genotype_quality)
         self.assertAlmostEqual(1, sec_call.gt_correlation, places=3)
 
@@ -116,6 +116,6 @@ class TestSecCaller(unittest.TestCase):
         self.assertEqual(SECCallType.known, sec_call.call_type)
         self.assertEqual('A,T', sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual('1/1', sec_call.genotype)
-        self.assertAlmostEqual(0.25137, sec_call.novel_variant_p_value, places=3)
+        self.assertAlmostEqual(1.0, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(640, sec_call.genotype_quality)
         self.assertAlmostEqual(1, sec_call.gt_correlation, places=3)

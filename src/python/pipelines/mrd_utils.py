@@ -281,7 +281,7 @@ def read_signature(
         entries = list()
         logger.debug(f"Reading vcf file {signature_vcf_files}")
         with pysam.VariantFile(signature_vcf_files) as f:
-            af_sample = None
+            tumor_sample = None
             x_columns = list()
             for j, rec in enumerate(f):
                 if j == 0:
@@ -293,12 +293,12 @@ def read_signature(
 
                     if verbose:
                         logger.debug(f"Reading x_columns: {x_columns}")
-                if af_sample is None:
+                if tumor_sample is None:
                     candidate_sample_name = list(
                         filter(lambda x: sample_name in x, rec.samples.keys())
                     )
                     if len(candidate_sample_name) == 1:
-                        af_sample = candidate_sample_name[0]
+                        tumor_sample = candidate_sample_name[0]
                     elif raise_exception_on_sample_not_found:
                         if len(candidate_sample_name) == 0:
                             raise ValueError(
@@ -309,7 +309,7 @@ def read_signature(
                                 f"{len(candidate_sample_name)} samples contained input string {sample_name}, expected just 1. Sample names: {rec.samples.keys()}"
                             )
                     else:  # leave AF blank
-                        af_sample = "UNKNOWN"
+                        tumor_sample = "UNKNOWN"
 
                 entries.append(
                     tuple(
@@ -320,10 +320,16 @@ def read_signature(
                             rec.alts[0],
                             rec.id,
                             (
-                                rec.samples[af_sample]["AF"][0]
-                                if af_sample != "UNKNOWN"
-                                and "AF" in rec.samples[af_sample]
-                                and len(rec.samples[af_sample]) > 0
+                                rec.samples[tumor_sample]["AF"][0]
+                                if tumor_sample != "UNKNOWN"
+                                and "AF" in rec.samples[tumor_sample]
+                                and len(rec.samples[tumor_sample]) > 0
+                                else np.nan
+                            ),
+                            (
+                                rec.samples[tumor_sample]["DP"]
+                                if tumor_sample != "UNKNOWN"
+                                and "DP" in rec.samples[tumor_sample]
                                 else np.nan
                             ),
                             "MAP_UNIQUE" in rec.info,
@@ -354,6 +360,7 @@ def read_signature(
                     "alt",
                     "id",
                     "af",
+                    "depth_tumor_sample",
                     "map_unique",
                     "lcr",
                     "exome",

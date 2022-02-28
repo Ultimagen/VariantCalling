@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from ugvc.dna.strand_direction import StrandDirection
 
 
@@ -20,6 +22,9 @@ class ReadCounts:
         self.__forward_support += read_counts.get_count(StrandDirection.FORWARD)
         self.__reverse_support += read_counts.get_count(StrandDirection.REVERSE)
         self.__unknown_strand_support += read_counts.get_count(StrandDirection.UNKNOWN)
+
+    def get_counts(self) -> Tuple[int,int,int]:
+        return self.__forward_support, self.__reverse_support, self.__unknown_strand_support
 
     def get_count(self, strand: StrandDirection) -> int:
         if strand == StrandDirection.FORWARD:

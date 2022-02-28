@@ -40,14 +40,14 @@ class SECCaller:
 
     def call(self,
              observed_variant: VariantRecord,
-             expected_distribution: ConditionalAlleleDistribution)-> SECCall:
+             expected_distribution: ConditionalAlleleDistribution) -> SECCall:
 
         sample_info = observed_variant.samples[0]
         observed_genotype = get_genotype_indices(sample_info)
         observed_alleles = ','.join(observed_variant.alleles)
 
         if not has_candidate_alternatives(observed_variant) or sum(observed_variant.samples[0]['SB']) == 0:
-                return SECCall(SECCallType.reference, observed_alleles, observed_genotype, [], None, 1)
+            return SECCall(SECCallType.reference, observed_alleles, observed_genotype, [], None, 1)
 
         sec_records = evaluate_observation(observed_variant, expected_distribution)
 
@@ -61,7 +61,6 @@ class SECCaller:
                                sec_records,
                                novel_variant_p_value=None,
                                gt_correlation=gt_correlation)
-
 
         if self.novel_detection_only:
             # remove alternative conditioned genotypes
@@ -94,7 +93,8 @@ class SECCaller:
             # locus has multiple alternative hypothesis (known variant with info on more than one genotype)
             if len(sec_records) > 1:
                 gt_correlation = correlate_sec_records(likelihood_sorted_sec_records)
-                reference_conditioned_sec_record = [r for r in sec_records if Genotype(r.conditioned_genotype).is_reference()]
+                reference_conditioned_sec_record = [r for r in sec_records if
+                                                    Genotype(r.conditioned_genotype).is_reference()]
                 if len(reference_conditioned_sec_record) > 0:
                     reference_conditioned_sec_record = reference_conditioned_sec_record[0]
                 reference_conditioned_likelihood_ratio = \
@@ -125,7 +125,7 @@ class SECCaller:
             if Genotype(best_sec_record.conditioned_genotype).is_reference():
                 call_type = SECCallType.reference
                 called_genotype = Genotype(called_genotype).convert_to_reference()
-            elif reference_conditioned_record is None or\
+            elif reference_conditioned_record is None or \
                     not reference_conditioned_record.were_observed_alleles_in_db:
                 call_type = SECCallType.unobserved
             else:
