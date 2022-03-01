@@ -43,7 +43,7 @@ def parse_args():
     return ap.parse_args()
 
 
-def protected_add(hdr, field, n_vals, type, description):
+def protected_add(hdr: pysam.VariantFile.header, field, n_vals, type, description):
     if field not in hdr:
         hdr.add(field, n_vals, type, description)
 
@@ -82,7 +82,6 @@ def main():
             blacklist_app = [x.apply(df) for x in blacklists]
             blacklist = merge_blacklists(blacklist_app)
         else:
-            blacklists = []
             blacklist = pd.Series('PASS', index=df.index, dtype=str)
 
         if args.blacklist_cg_insertions:
@@ -110,6 +109,7 @@ def main():
 
         logger.info("Writing")
         skipped_records = 0
+
         with pysam.VariantFile(args.input_file) as infile:
             hdr = infile.header
 
@@ -133,9 +133,12 @@ def main():
                         rec.filter.add("LOW_SCORE")
                         pass_flag = False
                     if blacklist[i] != "PASS":
+                        blacklists_info = []
                         for v in blacklist[i].split(";"):
                             if v != "PASS":
-                                rec.info['BLACKLST'] = v
+                                blacklists_info.append(v)
+                        if len(blacklists_info) != 0:
+                            rec.info["BLACKLST"] = blacklists_info
                     if pass_flag:
                         rec.filter.add("PASS")
                     rec.info["TREE_SCORE"] = predictions_score[i]

@@ -40,7 +40,7 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
                'VARIANT_TYPE', 'DB', 'AS_SOR', 'AS_SORP', 'FS', 'VQR_VAL', 'QD',
                'GQ', 'PGT', 'PID', 'PS', 'AC', 'AN', 'BaseQRankSum', 'ExcessHet', 'MLEAC', 'MLEAF',
                'MQRankSum', 'ReadPosRankSum', 'XC', 'ID', 'GNOMAD_AF', 'NLOD', 'NALOD', 'X_IC',
-               'X_IL', 'X_HIL', 'X_HIN', 'X_LM', 'X_RM', 'X_GCC', 'X_CSS', 'RPA', 'RU', 'STR']
+               'X_IL', 'X_HIL', 'X_HIN', 'X_LM', 'X_RM', 'X_GCC', 'X_CSS', 'RPA', 'RU', 'STR', 'BLACKLST']
     concordance_df = pd.DataFrame([[x[y] for y in columns] for x in vfi],
         columns=[x.lower() for x in columns])
 
