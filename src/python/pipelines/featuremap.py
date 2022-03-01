@@ -10,13 +10,13 @@ from matplotlib import pyplot as plt
 from joblib import Parallel, delayed
 import pysam
 import pyfaidx
-import itertools
 import argparse
 import gzip
 import pyBigWig as pbw
-from os.path import dirname, basename, join as pjoin
+from os.path import basename, join as pjoin
 from collections.abc import Iterable
 from scipy.interpolate import interp1d
+
 if __name__ == "__main__":
     import pathmagic
 
@@ -34,17 +34,15 @@ ch.setFormatter(formatter)
 # add ch to logger
 logger.addHandler(ch)
 
-from python.utils import revcomp, generateKeyFromSequence
+from python.utils import revcomp
 from python.modules.variant_annotation import get_motif_around
 from python.auxiliary.format import (
     CHROM_DTYPE,
-    CYCLE_SKIP_DTYPE,
     CYCLE_SKIP_STATUS,
     CYCLE_SKIP,
-    POSSIBLE_CYCLE_SKIP,
-    NON_CYCLE_SKIP,
-    UNDETERMINED_CYCLE_SKIP
 )
+from python.utils import get_cycle_skip_dataframe
+
 
 SMALL_SIZE = 12
 
@@ -105,7 +103,7 @@ def _collect_coverage_per_motif(
                 cov = int(spl[3])
                 if pos < 2 * size or cov == 0:
                     continue
-                seq = chrom[pos - size - 1:pos + size]
+                seq = chrom[pos - size - 1 : pos + size]
 
                 if not bool(search(seq)):  # no letters other than ACGT
                     counter[seq] += cov
@@ -113,19 +111,21 @@ def _collect_coverage_per_motif(
     else:  # case of bigWig - we fetch by region
         CHUNK_SIZE = 1000000
         with pbw.open(depth_file) as f:
-            assert len(list(f.chroms().keys())) == 1, "Expected single chromosome per bw"
+            assert (
+                len(list(f.chroms().keys())) == 1
+            ), "Expected single chromosome per bw"
             chrom_name = list(f.chroms().keys())[0]
             chrom_len = f.chroms()[chrom_name]
             start_points = np.arange(0, chrom_len, CHUNK_SIZE).astype(np.int)
             for s in start_points:
-                vals = f.values(chrom_name, s, min(s+CHUNK_SIZE, chrom_len))
+                vals = f.values(chrom_name, s, min(s + CHUNK_SIZE, chrom_len))
                 vals = vals[::N]
-                poss = np.arange(s, min(s+CHUNK_SIZE, chrom_len))[::N]
+                poss = np.arange(s, min(s + CHUNK_SIZE, chrom_len))[::N]
                 for i, pos in enumerate(poss):
                     cov = vals[i]
                     if pos < 2 * size or cov == 0 or np.isnan(cov):
                         continue
-                    seq = chrom[pos - size - 1:pos + size]
+                    seq = chrom[pos - size - 1 : pos + size]
 
                     if not bool(search(seq)):  # no letters other than ACGT
                         counter[seq] += cov
@@ -135,12 +135,11 @@ def _collect_coverage_per_motif(
         .reset_index()
         .rename(columns={"index": f"motif_{size}", 0: "count"})
     )
-    
 
     # edge case of empty dataframe
 
-    if 'count' not in df.columns :
-        df['count'] = []
+    if "count" not in df.columns:
+        df["count"] = []
     return df
 
 
@@ -186,7 +185,7 @@ def collect_coverage_per_motif(
     motif coverage dataframe
 
     """
- 
+
     if not isinstance(depth_files, dict):
         if not isinstance(depth_files, Iterable):
             raise ValueError(f"Expected dictionary or Iterable, got:\n{depth_files}")
@@ -270,8 +269,8 @@ def featuremap_to_dataframe(
         alt columns are reverse complemented for reverse strand reads (also motif if calculated).
     x_fields
         fields to extract from featuremap, if default (None) those are extracted:
-        "X-CIGAR", "X-EDIST", "X-FC1", "X-FC2", "X-FILTERED-COUNT", "X-FLAGS", "X-LENGTH", "X-MAPQ", "X-READ-COUNT",
-        "X-RN", "X-SCORE", "rq",
+        "X_CIGAR", "X_EDIST", "X_FC1", "X_FC2", "X_FILTERED-COUNT", "X_FLAGS", "X_LENGTH", "X_MAPQ", "X_READ-COUNT",
+        "X_RN", "X_INDEX", "X_SCORE", "rq",
     show_progress_bar
         displays tqdm progress bar of number of lines read (not in percent)
     flow_order
@@ -283,17 +282,18 @@ def featuremap_to_dataframe(
     """
     if x_fields is None:
         x_fields = [
-            "X-CIGAR",
-            "X-EDIST",
-            "X-FC1",
-            "X-FC2",
-            "X-FILTERED-COUNT",
-            "X-FLAGS",
-            "X-LENGTH",
-            "X-MAPQ",
-            "X-READ-COUNT",
-            "X-RN",
-            "X-SCORE",
+            "X_CIGAR",
+            "X_EDIST",
+            "X_FC1",
+            "X_FC2",
+            "X_READ_COUNT",
+            "X_FILTERED_COUNT",
+            "X_FLAGS",
+            "X_LENGTH",
+            "X_MAPQ",
+            "X_INDEX",
+            "X_RN",
+            "X_SCORE",
             "rq",
         ]
 
@@ -326,7 +326,7 @@ def featuremap_to_dataframe(
         )
 
     if report_read_orientation:
-        is_reverse = ~(df["X-FLAGS"] & 16).astype(bool)
+        is_reverse = (df["X_FLAGS"] & 16).astype(bool)
         for c in ["ref", "alt"]:  # reverse value to match the read direction
             df[c] = df[c].where(is_reverse, df[c].apply(revcomp))
 
@@ -379,61 +379,6 @@ def featuremap_to_dataframe(
     return df
 
 
-def determine_cycle_skip_status(ref: str, alt: str, flow_order: str):
-    """return the cycle skip status, expects input of ref and alt sequences composed of 3 bases where only the 2nd base
-    differs"""
-    if (
-        len(ref) != 3
-        or len(alt) != 3
-        or ref[0] != alt[0]
-        or ref[2] != alt[2]
-        or ref == alt
-    ):
-        raise ValueError(
-            f"""Invalid inputs ref={ref}, alt={alt}
-expecting input of ref and alt sequences composed of 3 bases where only the 2nd base differs"""
-        )
-    try:
-        ref_key = np.trim_zeros(generateKeyFromSequence(ref, flow_order), "f")
-        alt_key = np.trim_zeros(generateKeyFromSequence(alt, flow_order), "f")
-        if len(ref_key) != len(alt_key):
-            return CYCLE_SKIP
-        else:
-            for r, a in zip(ref_key, alt_key):
-                if (r != a) and ((r == 0) or (a == 0)):
-                    return POSSIBLE_CYCLE_SKIP
-            return NON_CYCLE_SKIP
-    except ValueError:
-        return UNDETERMINED_CYCLE_SKIP
-
-
-def get_cycle_skip_dataframe(flow_order: str = "TGCA"):
-    ind = pd.MultiIndex.from_tuples(
-        [
-            x
-            for x in itertools.product(
-                ["".join(x) for x in itertools.product(["A", "C", "G", "T"], repeat=3)],
-                ["A", "C", "G", "T"],
-            )
-            if x[0][1] != x[1]
-        ],
-        names=["ref_motif", "alt_motif"],
-    )
-    df_cskp = pd.DataFrame(index=ind).reset_index()
-    df_cskp["alt_motif"] = (
-        df_cskp["ref_motif"].str.slice(0, 1)
-        + df_cskp["alt_motif"]
-        + df_cskp["ref_motif"].str.slice(-1)
-    )
-    df_cskp[CYCLE_SKIP_STATUS] = df_cskp.apply(
-        lambda row: determine_cycle_skip_status(
-            row["ref_motif"], row["alt_motif"], flow_order
-        ),
-        axis=1,
-    ).astype(CYCLE_SKIP_DTYPE)
-    return df_cskp.set_index(["ref_motif", "alt_motif"])
-
-
 def merge_featuremap_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
     df = pd.concat(
         Parallel(n_jobs=n_jobs)(delayed(pd.read_parquet)(f) for f in dataframes)
@@ -458,9 +403,12 @@ def calculate_snp_error_rate(
 ):
     # init
     if xscore_thresholds is None:
-        xscore_thresholds = [3, 5, 10]
-    assert len(xscore_thresholds) == 3
-    min_xscore = xscore_thresholds[0]
+        xscore_thresholds = [0, 3, 5, 10]
+    assert (
+        len(xscore_thresholds) == 4
+    ), f"Length of xscore_thresholds must be 4, got {xscore_thresholds}"
+    xscore_thresholds = np.array(xscore_thresholds)
+    min_xscore = np.min(xscore_thresholds)
 
     os.makedirs(out_path, exist_ok=True)
     if len(out_basename) > 0 and not out_basename.endswith("."):
@@ -477,10 +425,11 @@ def calculate_snp_error_rate(
         df_coverage_stats = coverage_stats
     else:
         logger.debug(f"Reading input coverage stats from {coverage_stats}")
-        df_coverage_stats = pd.read_hdf(coverage_stats, key="histogram",)["Genome"]
+        df_coverage_stats = pd.read_hdf(coverage_stats, key="histogram",).filter(regex="Genome").iloc[:, 0]
     f = interp1d(
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
+        bounds_error=False,
     )
     min_coverage = min(
         20, np.round(f(0.5)).astype(int)
@@ -519,9 +468,9 @@ def calculate_snp_error_rate(
     if isinstance(single_substitution_featuremap, pd.DataFrame):
         df = single_substitution_featuremap
         df = df[
-            (df["X-SCORE"] >= min_xscore)
-            & (df["X-READ-COUNT"] >= min_coverage)
-            & (df["X-READ-COUNT"] <= max_coverage)
+            (df["X_SCORE"] >= min_xscore)
+            & (df["X_READ_COUNT"] >= min_coverage)
+            & (df["X_READ_COUNT"] <= max_coverage)
         ]
     else:
         logger.debug(
@@ -530,17 +479,17 @@ def calculate_snp_error_rate(
         df = pd.read_parquet(
             single_substitution_featuremap,
             filters=[
-                ("X-SCORE", ">=", min_xscore),
-                ("X-READ-COUNT", ">=", min_coverage),
-                ("X-READ-COUNT", "<=", max_coverage),
+                ("X_SCORE", ">=", min_xscore),
+                ("X_READ_COUNT", ">=", min_coverage),
+                ("X_READ_COUNT", "<=", max_coverage),
             ],
         )
         if featuremap_chrom is not None:
             logger.debug(f"using only data in {featuremap_chrom}")
             df = df.loc[featuremap_chrom]
     # calculate read filtration ratio in featuremap
-    read_filter_correction_factor = (df["X-FILTERED-COUNT"] + 1).sum() / df[
-        "X-READ-COUNT"
+    read_filter_correction_factor = (df["X_FILTERED_COUNT"] + 1).sum() / df[
+        "X_READ_COUNT"
     ].sum()
     # process 2nd order motifs
     logger.debug(f"Processing motifs")
@@ -554,10 +503,11 @@ def calculate_snp_error_rate(
         {
             **{x: "first" for x in ["ref", "alt", "ref_motif", "alt_motif"]},
             **{
-                "X-SCORE": [
+                "X_SCORE": [
                     lambda a: np.sum(a >= xscore_thresholds[0]).astype(int),
                     lambda a: np.sum(a >= xscore_thresholds[1]).astype(int),
                     lambda a: np.sum(a >= xscore_thresholds[2]).astype(int),
+                    lambda a: np.sum(a >= xscore_thresholds[3]).astype(int),
                 ]
             },
         }
@@ -565,7 +515,7 @@ def calculate_snp_error_rate(
     df_motifs_2 = df_motifs_2.dropna(how="all")
 
     df_motifs_2.columns = ["ref", "alt", "ref_motif", "alt_motif"] + [
-        f"snp_count_thresh{th}" for th in xscore_thresholds
+        f"snp_count_bq{th}" for th in xscore_thresholds
     ]
     logger.debug(f"Annotating cycle skip")
     df_motifs_2 = (
@@ -578,6 +528,11 @@ def calculate_snp_error_rate(
         df_motifs_2.reset_index()
         .set_index("ref_motif2")
         .join(df_coverage[["coverage"]])
+    )
+    df_motifs_2.loc[:, "coverage"] = (
+        df_motifs_2["coverage"]
+        * read_filter_correction_factor
+        * coverage_correction_factor
     )
 
     # process 1st order motifs
@@ -609,26 +564,43 @@ def calculate_snp_error_rate(
         )
         .dropna(how="all")
     )
+    # process average error rate regardless of motifs
+    df_sum = (
+        df_motifs_1.assign(
+            coverage_csk=df_motifs_1["coverage"].where(
+                df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP
+            )
+        )
+        .groupby("ref_motif")
+        .agg(
+            {
+                **{"coverage": "first", "coverage_csk": "first"},
+                **{f"snp_count_bq{x}": "sum" for x in xscore_thresholds},
+            }
+        )
+        .sum()
+    )
+    df_avg = df_sum.filter(regex="count").to_frame().T
+    for x in xscore_thresholds:
+        coverage = df_sum["coverage"] if x < 6 else df_sum["coverage_csk"]
+        df_avg.loc[:, f"error_rate_bq{x}"] = df_avg[f"snp_count_bq{x}"] / coverage
+    df_avg = df_avg.filter(regex="error_rate").loc[0]
 
-    logger.debug(f"Setting non-cycle skip motifs at X-SCORE>=6 to NaN")
+    logger.debug(f"Setting non-cycle skip motifs at X_SCORE>=6 to NaN")
     for th in xscore_thresholds:
         if th >= 6:
-            df_motifs_2.loc[:, f"snp_count_thresh{th}"] = df_motifs_2[
-                f"snp_count_thresh{th}"
+            df_motifs_2.loc[:, f"snp_count_bq{th}"] = df_motifs_2[
+                f"snp_count_bq{th}"
             ].where(df_motifs_2[CYCLE_SKIP_STATUS] == CYCLE_SKIP)
-            df_motifs_1.loc[:, f"snp_count_thresh{th}"] = df_motifs_1[
-                f"snp_count_thresh{th}"
+            df_motifs_1.loc[:, f"snp_count_bq{th}"] = df_motifs_1[
+                f"snp_count_bq{th}"
             ].where(df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP)
 
     logger.debug(f"Assigning error rates")
     for df_tmp in [df_motifs_0, df_motifs_1, df_motifs_2]:
         for th in xscore_thresholds:
-            df_tmp.loc[:, f"error_rate_thresh{th}"] = df_tmp[
-                f"snp_count_thresh{th}"
-            ] / (
+            df_tmp.loc[:, f"error_rate_bq{th}"] = df_tmp[f"snp_count_bq{th}"] / (
                 df_tmp["coverage"]
-                * read_filter_correction_factor
-                * coverage_correction_factor
             )
 
     # save
@@ -652,15 +624,16 @@ def calculate_snp_error_rate(
     df_motifs_0 = df_motifs_0.reset_index().astype(
         {c: "category" for c in ["ref", "alt"]}
     )
-    df_motifs_0.to_hdf(out_snp_rate, key="motif_0", mode="w", format="table")
+    df_avg.to_hdf(out_snp_rate, key="average", mode="w", format="table")
+    df_motifs_0.to_hdf(out_snp_rate, key="motif_0", mode="a", format="table")
     df_motifs_1.to_hdf(out_snp_rate, key="motif_1", mode="a", format="table")
     df_motifs_2.to_hdf(out_snp_rate, key="motif_2", mode="a", format="table")
 
     # generate plots
     for th in xscore_thresholds:
-        logger.debug(f"Generating plot for X-SCORE>={th}")
-        error_rate_column = f"error_rate_thresh{th}"
-        snp_count_column = f"snp_count_thresh{th}"
+        logger.debug(f"Generating plot for X_SCORE>={th}")
+        error_rate_column = f"error_rate_bq{th}"
+        snp_count_column = f"snp_count_bq{th}"
         _plot_snp_error_rate(
             df_motifs_1.rename(
                 columns={error_rate_column: "error_rate", snp_count_column: "snp_count"}
@@ -856,6 +829,58 @@ def _plot_snp_error_rate(
         )
 
 
+def intersect_featuremap_with_signature(
+    featuremap_file,
+    signature_file,
+    output_intersection_file,
+    append_python_call_to_header=True,
+    force_overwrite=True,
+):
+    """
+    Intersect featuremap and signature vcf files on chrom, position, ref and alts (require same alts), keeping all the
+    entries in featuremap. Lines from featuremap propagated to output
+
+    Parameters
+    ----------
+    featuremap_file
+        Of cfDNA
+    signature_file
+        VCF file, tumor variant calling results
+    output_intersection_file
+        Output vcf file, .vcf.gz or .vcf extension
+    append_python_call_to_header
+        Add line to header to indicate this function ran (default True)
+    force_overwrite
+        Force rewrite tbi index of output (if false and output file exists an error will be raised). Default True.
+
+    Returns
+    -------
+
+    """
+    if (not force_overwrite) and os.path.isfile(output_intersection_file):
+        raise OSError(
+            f"Output file {output_intersection_file} already exists and force_overwrite flag set to False"
+        )
+    # build a set of all signature entries, including alts and ref
+    signature_entries = set()
+    with pysam.VariantFile(signature_file) as f_sig:
+        for rec in f_sig:
+            signature_entries.add((rec.chrom, rec.pos, rec.ref, rec.alts))
+    # Only write entries from featuremap to intersection file if they appear in the signature with the same ref&alts
+    with pysam.VariantFile(featuremap_file) as f_feat:
+        header = f_feat.header
+        if append_python_call_to_header is not None:
+            header.add_line(
+                f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}"
+            )
+        with pysam.VariantFile(output_intersection_file, "w", header=header) as f_int:
+            for rec in f_feat:
+                if (rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries:
+                    f_int.write(rec)
+    # index output
+    pysam.tabix_index(output_intersection_file, preset="vcf", force=force_overwrite)
+
+
 def call_featuremap_to_dataframe(args_in):
     if args_in.input is None:
         raise ValueError("No input provided")
@@ -907,6 +932,12 @@ def call_calculate_snp_error_rate(args_in):
     )
 
 
+def call_intersect_featuremap_with_signature(args_in):
+    intersect_featuremap_with_signature(
+        args_in.featuremap, args_in.signature, args_in.output,
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
@@ -925,6 +956,10 @@ if __name__ == "__main__":
     parser_calculate_snp_error_rate = subparsers.add_parser(
         name="calculate_snp_error_rate",
         description="""Calculate SNP error rate per motif""",
+    )
+    parser_intersect_featuremap_with_signature = subparsers.add_parser(
+        name="intersect_with_signature",
+        description="""Intersect featuremap and signature vcf files on position and matching ref and alts""",
     )
 
     parser_featuremap_to_dataframe.add_argument(
@@ -1100,6 +1135,23 @@ dataframe df, df['coverage'] = df['count'] * N""",
         help="""single chromosome the featuremap was calculated for (leave blank if all chromosomes were included""",
     )
     parser_calculate_snp_error_rate.set_defaults(func=call_calculate_snp_error_rate)
+
+    parser_intersect_featuremap_with_signature.add_argument(
+        "-f", "--featuremap", type=str, required=True, help="""Featuremap vcf file""",
+    )
+    parser_intersect_featuremap_with_signature.add_argument(
+        "-s", "--signature", type=str, required=True, help="""Signature vcf file""",
+    )
+    parser_intersect_featuremap_with_signature.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=True,
+        help="""Output intersection vcf file (lines from featuremap propagated)""",
+    )
+    parser_intersect_featuremap_with_signature.set_defaults(
+        func=call_intersect_featuremap_with_signature
+    )
 
     args = parser.parse_args()
     args.func(args)

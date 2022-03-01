@@ -8,6 +8,17 @@ from os.path import dirname
 from os.path import join as pjoin
 import json
 import pkgutil
+import re
+
+from python.auxiliary.format import (
+    CHROM_DTYPE,
+    CYCLE_SKIP_STATUS,
+    CYCLE_SKIP,
+    POSSIBLE_CYCLE_SKIP,
+    NON_CYCLE_SKIP,
+    UNDETERMINED_CYCLE_SKIP,
+    CYCLE_SKIP_DTYPE
+)
 
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
@@ -44,6 +55,12 @@ def generateKeyFromSequence(sequence: str, flow_order: str, truncate: Optional[i
     np.ndarray
         sequence in key space
     """
+    # sanitize input
+    sequence = sequence.upper()
+    if bool(re.compile(r'[^ACGT]').search(sequence)):
+        raise ValueError(f"Input contains non ACGTacgt characters" + (f":\n{sequence}" if len(sequence)<=100 else ""))
+    # process
+    flow = flow_order * len(sequence)
     flow = flow_order*len(sequence)
 
     key = []
@@ -297,45 +314,6 @@ def contig_lens_from_bam_header(bam_file: str, output_file: str):
                 outfile.write(f"{c}\t{l}\n")
 
 
-def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
-                           pos_label: Optional[Union[str, int]] = 1,
-                           fn_score: float = -1) -> tuple:
-    '''Calculates precision/recall curve from double prediction scores and gtr
-
-    Parameters
-    ----------
-    gtr: np.ndarray
-        String array of ground truth
-    predictions: np.ndarray
-        Array of prediction scores
-    pos_label: str or 0
-        Label of true call, otherwise 1s will be considered
-    fn_score: float
-        Score of false negative. Should be such that they are the lowest scoring variants
-    Returns
-    -------
-    tuple
-        precisions, recalls, prediction_values
-    '''
-    asidx = np.argsort(predictions)
-    predictions = predictions[asidx]
-    gtr = gtr[asidx]
-    gtr = gtr == pos_label
-
-    tp_counts = np.cumsum(gtr[::-1])[::-1]
-    fn_counts = np.cumsum(gtr)
-    fp_counts = np.cumsum((gtr == 0)[::-1])[::-1]
-    mask = (tp_counts + fp_counts < 20) | (tp_counts + fn_counts < 20)
-    precisions = tp_counts / (tp_counts + fp_counts)
-    recalls = tp_counts / (tp_counts + fn_counts)
-    f1 = 2 * (recalls * precisions) / \
-        (recalls + precisions + np.finfo(float).eps)
-
-    trim_idx = np.argmax(predictions > fn_score)
-    mask = mask[trim_idx:]
-    return precisions[trim_idx:][~mask], recalls[trim_idx:][~mask], f1[trim_idx:][~mask], predictions[trim_idx:][~mask]
-
-
 def max_merits(specificity, recall):
     '''Finds ROC envelope from multiple sets of specificity and recall
     '''
@@ -415,3 +393,72 @@ def catch(func: Callable, *args, exception_type: Exception = Exception, handle: 
         return func(*args, **kwargs)
     except exception_type as e:
         return handle(e)
+
+
+def get_cycle_skip_dataframe(flow_order: str):
+    """
+    Generate a dataframe with the cycle skip status of all possible SNPs. The resulting dataframe is 192 rows, with the
+    multi-index "ref_motif" and "alt_motif", which are the ref and alt of a SNP with 1 flanking base on each side
+    (trinucleotide context). This output can be readily joined with a vcf dataframe once the right columns are created.
+
+    Parameters
+    ----------
+    flow_order
+
+    Returns
+    -------
+
+    """
+    # build index composed of all possible SNPs
+    ind = pd.MultiIndex.from_tuples(
+        [
+            x
+            for x in itertools.product(
+                ["".join(x) for x in itertools.product(["A", "C", "G", "T"], repeat=3)],
+                ["A", "C", "G", "T"],
+            )
+            if x[0][1] != x[1]
+        ],
+        names=["ref_motif", "alt_motif"],
+    )
+    df_cskp = pd.DataFrame(index=ind).reset_index()
+    df_cskp.loc[:, "alt_motif"] = (
+        df_cskp["ref_motif"].str.slice(0, 1)
+        + df_cskp["alt_motif"]
+        + df_cskp["ref_motif"].str.slice(-1)
+    )
+    df_cskp.loc[:, CYCLE_SKIP_STATUS] = df_cskp.apply(
+        lambda row: determine_cycle_skip_status(
+            row["ref_motif"], row["alt_motif"], flow_order
+        ),
+        axis=1,
+    ).astype(CYCLE_SKIP_DTYPE)
+    return df_cskp.set_index(["ref_motif", "alt_motif"]).sort_index()
+
+
+def determine_cycle_skip_status(ref: str, alt: str, flow_order: str):
+    """return the cycle skip status, expects input of ref and alt sequences composed of 3 bases where only the 2nd base
+    differs"""
+    if (
+        len(ref) != 3
+        or len(alt) != 3
+        or ref[0] != alt[0]
+        or ref[2] != alt[2]
+        or ref == alt
+    ):
+        raise ValueError(
+            f"""Invalid inputs ref={ref}, alt={alt}
+expecting input of ref and alt sequences composed of 3 bases where only the 2nd base differs"""
+        )
+    try:
+        ref_key = np.trim_zeros(generateKeyFromSequence(ref, flow_order), "f")
+        alt_key = np.trim_zeros(generateKeyFromSequence(alt, flow_order), "f")
+        if len(ref_key) != len(alt_key):
+            return CYCLE_SKIP
+        else:
+            for r, a in zip(ref_key, alt_key):
+                if (r != a) and ((r == 0) or (a == 0)):
+                    return POSSIBLE_CYCLE_SKIP
+            return NON_CYCLE_SKIP
+    except ValueError:
+        return UNDETERMINED_CYCLE_SKIP

@@ -27,6 +27,14 @@ ap.add_argument("--output_h5", help='Aggregated Metrics h5 file',
 ap.add_argument("--contamination_stdout", help='Rate of Contamination',
                 required=False, type=str)
 
+def preprocess_columns(dataframe):
+    """Handle multiIndex/ hierarchical .h5 - concatenate the columns for using it as single string in JSON."""
+    if hasattr(dataframe, 'columns'):
+        MULTI_INDEX_SEPARATOR = "___"
+        if isinstance(dataframe.columns, pd.core.indexes.multi.MultiIndex):
+            dataframe.columns = [MULTI_INDEX_SEPARATOR.join(col).rstrip(
+                MULTI_INDEX_SEPARATOR) for col in dataframe.columns.values]
+
 def add_h5_to_hdf(input_h5_name, output_h5_name, output_report_key_prefix):
     with pd.HDFStore(input_h5_name, 'r') as hdf:
         hdf_keys = hdf.keys()
@@ -34,8 +42,7 @@ def add_h5_to_hdf(input_h5_name, output_h5_name, output_report_key_prefix):
             report_h5_pd = pd.read_hdf(
                 input_h5_name, key=report_key)
             report_h5_pd_df = pd.DataFrame(report_h5_pd)
-            report_h5_unstacked = pd.DataFrame(
-                report_h5_pd_df.unstack(level=0)).T
+            report_h5_unstacked = pd.DataFrame(report_h5_pd_df.unstack(level=list(range(report_h5_pd_df.index.nlevels)))).T
             report_h5_unstacked.to_hdf(
                 output_h5_name, key=output_report_key_prefix + report_key, mode="a")
 
@@ -58,21 +65,12 @@ if args.coverage_h5 is not None:
     cvg_df_unstacked.to_hdf(args.output_h5,key="stats_coverage", mode="a")
     cvg_h5_histogram.to_hdf(args.output_h5,key="histogram_coverage", mode="a")
 
-
-
-
 if args.short_report_h5 is not None:
     add_h5_to_hdf(args.short_report_h5, args.output_h5, "short_report_")
 
-# if args.extended_report_h5 is not None:
-#     with pd.HDFStore(args.extended_report_h5,'r') as hdf:
-#         hdf_keys = hdf.keys()
-#         for report_key in hdf_keys:
-#             extended_report_h5_pd = pd.read_hdf(args.extended_report_h5, key= report_key)
-#             extended_report_h5_pd_df = pd.DataFrame(extended_report_h5_pd.unstack(level=list(range(extended_report_h5_pd.index.nlevels))))
-#             extended_report_h5_pd_df.index = extended_report_h5_pd_df.index.to_flat_index()
-#             extended_report_h5_pd_df = extended_report_h5_pd_df.T
-#             extended_report_h5_pd_df.to_hdf(args.output_h5, key="extended_report_" + report_key, mode="a")
+if args.extended_report_h5 is not None:
+    add_h5_to_hdf(args.extended_report_h5, args.output_h5, "extended_report_")
+
 if args.contamination_stdout is not None:
     contamination_df = pd.DataFrame(
         pd.Series(data=[float(args.contamination_stdout)], index=["contamination"])).T

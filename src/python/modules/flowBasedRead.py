@@ -15,14 +15,12 @@ from enum import Enum
 import re
 import pandas as pd
 
-
 DEFAULT_ERROR_MODEL_FN = "/home/ilya/proj/VariantCalling/work/190628/error_model.r2d.hd5"
 MINIMAL_CALL_PROB = 0.1
 DEFAULT_FILLER = 0.0001
 
 
 def get_bam_header(rgid: Optional[str] = None):
-
     if rgid is None:
         rgid = '1'
     dct = {'HQ': {'VN': '0.1', 'SO': 'unsorted'},
@@ -31,6 +29,7 @@ def get_bam_header(rgid: Optional[str] = None):
 
     header = pysam.AlignmentHeader(dct)
     return header
+
 
 class SupportedFormats(Enum):
     MATT = 'matt'
@@ -129,9 +128,9 @@ class FlowBasedRead:
     def from_sam_record(cls, sam_record: pysam.AlignedSegment,
                         error_model: Optional[error_model.ErrorModel] = None,
                         flow_order: str = simulator.DEFAULT_FLOW_ORDER,
-                        motif_size: int = 5, max_hmer_size: int = 9, 
-                        filler=DEFAULT_FILLER, 
-                        min_call_prob: float = MINIMAL_CALL_PROB, 
+                        motif_size: int = 5, max_hmer_size: int = 9,
+                        filler=DEFAULT_FILLER,
+                        min_call_prob: float = MINIMAL_CALL_PROB,
                         format: str = 'ilya'):
         '''Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`,
         `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
@@ -213,9 +212,9 @@ class FlowBasedRead:
         elif format == SupportedFormats.CRAM:
             flow_matrix = cls._matrix_from_qual_tp(
                 dct['key'], np.array(sam_record.query_qualities, dtype=np.int),
-                tp = np.array(sam_record.get_tag("tp"), dtype=np.int), filler=filler,
+                tp=np.array(sam_record.get_tag("tp"), dtype=np.int), filler=filler,
                 min_call_prob=min_call_prob, max_hmer_size=max_hmer_size
-                )
+            )
             dct['_flow_matrix'] = flow_matrix
 
         dct['cigar'] = sam_record.cigartuples
@@ -277,9 +276,9 @@ class FlowBasedRead:
             max_hmer+1 x n_flows flow matrix
         """
 
-        flow_matrix = np.ones((max_hmer_size+1, len(key)))*filler
+        flow_matrix = np.ones((max_hmer_size + 1, len(key))) * filler
 
-        probs = 10**(-qual/10)
+        probs = 10 ** (-qual / 10)
         flow_to_place = np.repeat(np.arange(len(key)), key.astype(np.int))
         place_to_locate = tp + np.repeat(key, key.astype(np.int))
         place_to_locate = np.clip(place_to_locate, None, max_hmer_size)
@@ -291,7 +290,7 @@ class FlowBasedRead:
         flow_matrix[np.clip(key, None, max_hmer_size), np.arange(flow_matrix.shape[1])] = 0
         total = np.sum(flow_matrix, axis=0)
 
-        diff = np.clip(1-total, min_call_prob, None)
+        diff = np.clip(1 - total, min_call_prob, None)
         flow_matrix[np.clip(key, None, max_hmer_size), np.arange(flow_matrix.shape[1])] = diff
         return flow_matrix
 
@@ -413,7 +412,7 @@ class FlowBasedRead:
 
     def _getSingleFlowMatrixOnlyRegressed(self, regressed_signal: np.ndarray, threshold=0.01):
         q1 = 1 / np.add.outer(regressed_signal, -
-                              np.arange(self._max_hmer + 1))**2
+        np.arange(self._max_hmer + 1)) ** 2
         q1 /= q1.sum(axis=-1, keepdims=True)
 
         if threshold is not None:
@@ -466,7 +465,7 @@ class FlowBasedRead:
                        1] != self.flow_order[i], "Something wrong with motifs"
         motifs_right.append("")
         index = [x for x in zip(motifs_left, key, self.flow_order[
-                                :len(key)], motifs_right)]
+                                                  :len(key)], motifs_right)]
         hash_idx = [hash(x) for x in index]
 
         if hasattr(self, '_regressed_signal'):
@@ -600,7 +599,7 @@ class FlowBasedRead:
         kd = np.array(values, dtype=np.float)
         kd = -kd
         kd = kd / 10
-        kd = 10**(kd)
+        kd = 10 ** (kd)
         flow_matrix[row, column] = kd
         return flow_matrix
 
@@ -707,7 +706,7 @@ class FlowBasedRead:
         Modifies `key`, `_flow_matrix`, `flow2base`, `flow_order` attributes
         '''
 
-        assert(hasattr(self, 'cigar')), "Only aligned read can be modified"
+        assert (hasattr(self, 'cigar')), "Only aligned read can be modified"
         attrs_dict = vars(self)
         other = FlowBasedRead(copy.deepcopy(attrs_dict))
         if other.is_reverse and self.direction != 'reference':
@@ -752,11 +751,11 @@ class FlowBasedRead:
             other._regressed_signal = other._regressed_signal[clip_left:original_length - clip_right]
         other.flow2base = other.flow2base[clip_left:original_length - clip_right]
         other.flow_order = other.flow_order[
-            clip_left:original_length - clip_right]
+                           clip_left:original_length - clip_right]
 
         if hasattr(other, '_flow_matrix'):
             other._flow_matrix = other._flow_matrix[:,
-                                                    clip_left:original_length - clip_right]
+                                 clip_left:original_length - clip_right]
 
             if shift_left:
                 other._flow_matrix[:, 0] = utils.shiftarray(
@@ -785,7 +784,7 @@ class FlowBasedRead:
             Log likelihood of the match
         '''
         assert self.direction == read.direction \
-            and self.direction == "reference", \
+               and self.direction == "reference", \
             "Only reads aligned to the reference please"
 
         assert self.start <= read.start and self.end >= read.end, \
@@ -836,7 +835,8 @@ class FlowBasedRead:
         best_alignment = -np.Inf
         for s in starting_points:
             fetch = np.log10(read._flow_matrix[np.clip(key[s:s + len(read.key)], None,
-                                                       read._flow_matrix.shape[0] - 1), np.arange(len(read.key))])[1:-1].sum()
+                                                       read._flow_matrix.shape[0] - 1), np.arange(len(read.key))])[
+                    1:-1].sum()
             if fetch > best_alignment:
                 best_alignment = fetch
         return best_alignment

@@ -31,10 +31,12 @@ that can be explained by a small number of hmer indel errors.
 import numpy as np
 import pandas as pd
 import pyfaidx
+import re
 import itertools
 from typing import Optional, Tuple, List, Any
 import python.vcftools as vcftools
 import python.utils as utils
+
 DEFAULT_FLOW_ORDER = "TACG"
 
 
@@ -87,7 +89,7 @@ def reinterpret_variants(concordance_df: pd.DataFrame, input: dict, fasta: pyfai
     # Convert false positives for which there is a difference of a single
     # flow to hmer indels
     concordance_df = _apply_corrections(concordance_df, input[
-                                        'fps'].index, corrections_fps)
+        'fps'].index, corrections_fps)
 
     # compare haplotypes containing each false negative variant with all haplotypes
     # that the calls around it can generate
@@ -103,7 +105,7 @@ def reinterpret_variants(concordance_df: pd.DataFrame, input: dict, fasta: pyfai
     # flow to hmer indels.
 
     concordance_df = _apply_corrections(concordance_df, input[
-                                        'fns'].index, corrections_fns)
+        'fns'].index, corrections_fns)
 
     # we classify 1->0 deletions as non-hmer indels and thus we need to
     # fix their hmer indel length to 0
@@ -258,12 +260,12 @@ def compare_two_sets_of_variants(positions_to_test: list,
 
 
 def apply_variants_to_reference(
-    reference: str,
-    variants: pd.DataFrame,
-    offset: int,
-    genotype_col: str,
-    include_ref: bool,
-    exclude_ref_pos: Optional[int] = None,
+        reference: str,
+        variants: pd.DataFrame,
+        offset: int,
+        genotype_col: str,
+        include_ref: bool,
+        exclude_ref_pos: Optional[int] = None,
 ) -> list:
     """Collects a reference subsequence, and a list of variants and returns all
     possible haplotypes that can be obtained by applying these variants to the sequence
@@ -417,7 +419,7 @@ def compare_haplotypes(flows: list, flows_variant: list) -> Tuple[int, Any]:
 
 
 def find_best_pairs_of_haplotypes(
-    flows: list, flows_variant: list, best_diff: tuple
+        flows: list, flows_variant: list, best_diff: tuple
 ) -> list:
     """Finds Which pairs of haplotypes in the two sets differ by a single hmer
     with a specified value in the first set. `best_diff` is the result of `compare_haplotypes`
@@ -491,7 +493,7 @@ def _mark_hmer_indels(_df: pd.DataFrame) -> pd.DataFrame:
     relative to the ground truth are set as hmer indels in the fields'''
     hmer_indels = _df.compare_to_gtr_changes == 1
     _df.loc[hmer_indels, "indel"] = True
-    _df.loc[hmer_indels, "hmer_indel_length"] =\
+    _df.loc[hmer_indels, "hmer_indel_length"] = \
         _df.loc[hmer_indels, 'compare_to_gtr_hmer_indel_len']
     return _df
 
@@ -504,7 +506,7 @@ def _apply_corrections(_df: pd.DataFrame, positions: pd.Index, corrections: list
 
     compare_to_gtr_result = [x[0] if x[0] < 3 else 100 for x in corrections]
     hmer_indel_to_gtr = [x[1] if x[0] < 3 else 0 for x in corrections]
-    if len(positions) == 1: # solves a boundary case where there is a single position and hmer_indel_to_gtr is an array
+    if len(positions) == 1:  # solves a boundary case where there is a single position and hmer_indel_to_gtr is an array
         _df.at[positions[0:1], 'compare_to_gtr_hmer_indel_len'] = hmer_indel_to_gtr[0]
         _df['compare_to_gtr_hmer_indel_len'] = _df['compare_to_gtr_hmer_indel_len'].astype(object)
     else:
@@ -517,13 +519,13 @@ def _fix_zero_mer_indels(_df: pd.DataFrame) -> pd.DataFrame:
     '''Fixes 1->0 deletions that corrections show as 1-mer.
     '''
     take = (
-        (_df["indel_classify"] == "del")
-        & (_df["compare_to_gtr_changes"] == 1)
-        & (
-            _df["compare_to_gtr_hmer_indel_len"].apply(
-                lambda x: type(x) != np.ndarray and x == 1
+            (_df["indel_classify"] == "del")
+            & (_df["compare_to_gtr_changes"] == 1)
+            & (
+                _df["compare_to_gtr_hmer_indel_len"].apply(
+                    lambda x: type(x) != np.ndarray and x == 1
+                )
             )
-        )
     )
     _df.loc[take, "compare_to_gtr_hmer_indel_len"] = 0
     return _df
@@ -534,17 +536,18 @@ def get_reference_from_region(refidx: pyfaidx.Fasta, region: tuple) -> str:
 
     Parameters
     ----------
+
     refidx : pyfaidx.Fasta
         Indexed fasta (`pyfaidx.Fasta`) - single chromosome
     region : tuple
-        (start, end)
-
+        [start, end), 1-based coordinates of the region!
     Returns
     -------
     str
-        Reference string (uppercase, Ns replaced with As)
+        Reference string (uppercase, Ns and other non-standard characters replaced with As)
     """
-    return str(refidx[region[0] - 1: region[1] - 1]).upper().replace("N", "A")
+    unsanitized_ref = str(refidx[region[0] - 1: region[1] - 1]).upper()
+    return re.sub(r'([^.ATCG])', "A", unsanitized_ref)
 
 
 def _select_best_region(interval_starts: list, intervals: list, pos: int) -> Optional[tuple]:
