@@ -6,7 +6,7 @@ import subprocess
 
 
 def test_vc_report(tmpdir):
-    path = pathmagic.path
+    path = pathmagic.vc_path
     datadir = pjoin(pathmagic.PYTHON_TESTS_PATH, "reports")
     report_path = pjoin(path, "python", "reports")
     shutil.copy(pjoin(report_path, "createVarReport.ipynb"), tmpdir)

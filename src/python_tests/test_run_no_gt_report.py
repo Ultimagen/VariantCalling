@@ -24,14 +24,23 @@ def test_allele_freq_hist():
 @mock.patch('subprocess.check_call')
 def test_variant_eval_statistics(mocked_subprocess):
     output_prefix = pjoin(PYTHON_TESTS_PATH, CLASS_PATH, "collect_stats_unfiltered")
-    data = run_no_gt_report.variant_eval_statistics('vcf', 'ref', 'db_snp', output_prefix)
+    data = run_no_gt_report.variant_eval_statistics('vcf', 'ref', 'db_snp', output_prefix,
+                                                    ["exome","extended_exome","high_conf"]
+                                                    )
     subprocess.check_call.assert_called_once_with(['gatk',
                                                    'VariantEval',
                                                    '--eval','vcf',
                                                    '--reference','ref',
                                                    '--dbsnp','db_snp',
                                                    '--output',
-                                                   f'{output_prefix}.txt'])
+                                                   f'{output_prefix}.txt',
+                                                   '--SELECT_NAMES', 'exome',
+                                                   '--SELECT_NAMES', 'extended_exome',
+                                                   '--SELECT_NAMES', 'high_conf',
+                                                   '--SELECT_EXPS', 'vc.hasAttribute("exome")',
+                                                   '--SELECT_EXPS', 'vc.hasAttribute("extended_exome")',
+                                                   '--SELECT_EXPS', 'vc.hasAttribute("high_conf")'
+                                                   ])
     for name in ['CompOverlap',
                  'CountVariants',
                  'IndelLengthHistogram',

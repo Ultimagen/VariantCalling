@@ -1,11 +1,12 @@
+from typing import List
+
 import numpy as np
 import pandas as pd
-import pyfaidx
-import python.utils as utils
-import pysam
-import tqdm
 import pyBigWig as pbw
-from typing import List
+import pyfaidx
+
+import python.utils as utils
+
 UNDETERMINED = "NA"
 
 
@@ -29,6 +30,7 @@ def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
         elif len(x['ref']) < max([len(y) for y in x['alleles']]):
             return 'ins'
         return 'del'
+
     concordance['indel_classify'] = concordance.apply(
         classify, axis=1, result_type='reduce')
     concordance['indel_length'] = concordance.apply(lambda x: max(
@@ -78,6 +80,7 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
             else:
                 return (len(del_seq) + utils.hmer_length(fasta_idx[rec['chrom']],
                                                          rec['pos'] + len(rec['ref']) - 1), del_seq[0])
+
     results = concordance.apply(lambda x: _is_hmer(
         x, fasta_idx), axis=1, result_type='reduce')
     concordance['hmer_indel_length'] = [x[0] for x in results]
@@ -111,9 +114,9 @@ def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> 
     def _get_motif_around_non_hmer_indel(rec, size, faidx):
         chrom = faidx[rec['chrom']]
         pos = rec['pos']
-        return chrom[pos - size:pos].seq.upper(),\
-            chrom[pos + len(rec['ref']) - 1:pos +
-                  len(rec['ref']) - 1 + size].seq.upper()
+        return chrom[pos - size:pos].seq.upper(), \
+               chrom[pos + len(rec['ref']) - 1:pos +
+                                               len(rec['ref']) - 1 + size].seq.upper()
 
     def _get_motif_around_hmer_indel(rec, size, faidx):
         chrom = faidx[rec['chrom']]
@@ -128,6 +131,7 @@ def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> 
             return _get_motif_around_non_hmer_indel(rec, size, faidx)
         else:
             return _get_motif_around_snp(rec, size, faidx)
+
     faidx = pyfaidx.Fasta(fasta)
     tmp = concordance.apply(lambda x: _get_motif(
         x, motif_size, faidx), axis=1, result_type='reduce')
@@ -153,6 +157,7 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
     pd.DataFrame
         DataFrame. Adds "left_motif" and right_motif
     '''
+
     def _get_gc(rec, size, faidx):
         chrom = faidx[rec['chrom']]
         beg = rec['pos'] - int(size / 2)
@@ -160,6 +165,7 @@ def get_gc_content(concordance: pd.DataFrame, window_size: int, fasta: str) -> p
         seq = chrom[beg:end].seq.upper()
         seqGC = seq.replace('A', '').replace('T', '')
         return float(len(seqGC)) / len(seq)
+
     faidx = pyfaidx.Fasta(fasta)
     tmp = concordance.apply(lambda x: _get_gc(
         x, window_size, faidx), axis=1, result_type='reduce')
@@ -215,9 +221,9 @@ def get_coverage(df: pd.DataFrame,
             continue
 
         with pbw.open(bw_hq) as bw:
-            values_hq = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
+            values_hq = [bw.values(g, x[1] - 1, x[1])[0] for x in gdf.groups[g]]
         with pbw.open(bw_lq) as bw:
-            values_lq = [bw.values(g, x[1]-1, x[1])[0] for x in gdf.groups[g]]
+            values_lq = [bw.values(g, x[1] - 1, x[1])[0] for x in gdf.groups[g]]
         df.loc[gdf.groups[g], "coverage"] = values_lq
         df.loc[gdf.groups[g], "well_mapped_coverage"] = values_hq
         df.loc[gdf.groups[g], "repetitive_read_coverage"] = np.array(
@@ -278,7 +284,6 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
     annot = annotfile.split('/')[-1]
     if annot[-4:] == '.bed':
         annot = annot[:-4]
-    print('Annotating ' + annot)
 
     df[annot] = False
     annot_df = utils.parse_intervals_file(annotfile)
@@ -383,7 +388,7 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
         snps.loc[snps.nra_idx.isnull(), 'nra_idx'] = 1
         snps['nra_idx'] = snps['nra_idx'].astype(np.int)
         alt = np.array(snps.apply(lambda x: x['alleles'][
-                       x['nra_idx']], axis=1)).astype(np.string_)
+            x['nra_idx']], axis=1)).astype(np.string_)
         snps.drop('nra_idx', axis=1, inplace=True)
 
     ref_seqs = np.char.add(np.char.add(left_last, ref), right_first)
@@ -407,8 +412,8 @@ def annotate_cycle_skip(df: pd.DataFrame, flow_order: str, gt_field: str = None)
                            np.any(alt_encs[x][ref_encs[x] - alt_encs[x] != 0] == 0))]
 
     undetermined = np.array([x for x in range(
-        len(ref_encs)) if (type(ref_encs[x]) == str and ref_encs[x] == UNDETERMINED) 
-    or (type(alt_encs[x]) == str and alt_encs[x] == UNDETERMINED)])
+        len(ref_encs)) if (type(ref_encs[x]) == str and ref_encs[x] == UNDETERMINED)
+                             or (type(alt_encs[x]) == str and alt_encs[x] == UNDETERMINED)])
     s = set(np.concatenate((cycleskip, poss_cycleskip, undetermined)))
     non_cycleskip = [x for x in range(len(ref_encs)) if x not in s]
 

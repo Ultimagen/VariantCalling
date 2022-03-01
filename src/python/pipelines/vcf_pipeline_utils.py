@@ -66,8 +66,9 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
         subprocess.check_call(cmd, stdout=out)
     index_vcf(output_file)
 
+
 class IntervalFile:
-    def __init__(self,cmp_intervals: str, ref: str, ref_dict: str):
+    def __init__(self, cmp_intervals: Optional[str]=None, ref: Optional[str]=None, ref_dict: Optional[str]=None):
         # determine the file type and create the other temporary copy
         if cmp_intervals is None:
             self._is_none: bool = True
@@ -103,16 +104,21 @@ class IntervalFile:
             self._interval_list_file_name = f"{os.path.splitext(cmp_intervals)[0]}.interval_list"
             self._is_none = False
         else:
-            logger.error("the cmp_intervals should be of type interval list or bed")
+            logger.error(
+                "the cmp_intervals should be of type interval list or bed")
             self._is_none = True
             self._interval_list_file_name = None
             self._bed_file_name = None
+
     def as_bed_file(self):
         return self._bed_file_name
+
     def as_interval_list_file(self):
         return self._interval_list_file_name
+
     def is_none(self):
         return self._is_none
+
 
 def intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> None:
     '''Intersects bed files
@@ -153,9 +159,10 @@ def bed_file_length(input_bed: str) -> int:
     '''
 
     df = pd.read_csv(input_bed, sep="\t", header=None)
-    df = df.iloc[:,[0,1,2]]
+    df = df.iloc[:, [0, 1, 2]]
     df.columns = ['chr', 'pos_start', 'pos_end']
     return np.sum(df['pos_end']-df['pos_start']+1)
+
 
 def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:
     '''Intersects VCF with intervalList
@@ -164,8 +171,8 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     ----------
     input_fn: str
         Input file
-            intervals_fn: str
-        Interval_list filename
+    intervals_fn: str
+        Interval_list file
     output_fn: str
         Output file
 
@@ -323,6 +330,29 @@ def fix_vcf_format(output_prefix):
     index_vcf(f'{input_file_handle.name}.gz')
 
 
+def annotate_tandem_repeats(input_file: str, reference_fasta: str) -> None:
+    '''Runs VariantAnnotator on the input file to add tandem repeat annotations (maybe others)
+
+    Parameters
+    ----------
+    input_file: str
+        vcf.gz file
+    reference_fasta: str
+        Reference file (should have .dict file nearby)
+
+    Returns
+    -------
+    None
+        Creates a copy of the input_file with .annotated.vcf.gz and the index
+    '''
+
+    output_file = input_file.replace("vcf.gz", "annotated.vcf.gz")
+    cmd = ['gatk', 'VariantAnnotator', '-V', input_file, '-O',
+           output_file, '-R', reference_fasta, '-A', 'TandemRepeat']
+    logger.info(" ".join(cmd))
+    subprocess.check_call(cmd)
+
+
 def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions: Optional[str]):
     '''Looks at concordance only around high confidence areas and not around runs
 
@@ -366,6 +396,15 @@ def filter_bad_areas(input_file_calls: str, highconf_regions: str, runs_regions:
 
 
 def _fix_errors(df):
+    """Fixes errors that complicated VCFEVAL VCF format introduces"""
+
+    # remove genotypes of variants that were filtered out and thus are false negatives
+    # (VCFEVAL outputs UG genotype for ignored genotypes too and they are classified downstream
+    # as true positives if we do not make this modification)
+    fix_tp_fn_loc = (df['call'] == 'IGN') & ((df['base'] == 'FN') | (df['base'] == 'FN_CA'))
+    replace = df.loc[fix_tp_fn_loc, 'gt_ultima'].apply(lambda x: (None, ))
+    df.loc[replace.index, 'gt_ultima'] = replace
+
     # fix all the places in which vcfeval returns a good result, but the genotype is not adequate
     # in these cases we change the genotype of the gt to be adequate with the classify function as follow:
     # (TP,TP), (TP,None) - should put the values of ultima in the gt
@@ -385,7 +424,8 @@ def _fix_errors(df):
     return df
 
 
-def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
+def vcf2concordance(raw_calls_file: str, concordance_file: str,
+                    format: str = 'GC', chromosome: str = None) -> pd.DataFrame:
     '''Generates concordance dataframe
 
     Parameters
@@ -408,20 +448,44 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
     else:
         vf = pysam.VariantFile(concordance_file).fetch(chromosome)
 
+    # adding the values that the VCFEval outputs and also 
+    # the annotations that we will be using downstream: tandem repeat annotations from VariantAnnotator (str, ru, rpa),
+    # and in the future hmer indel etc.
     if format == 'GC':
-        concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles, x.samples[
-                        0]['GT'], x.samples[1]['GT']) for x in vf]
-        column_names = ['chrom', 'pos', 'qual',
-                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth']
+        vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
+                                        [('GT_ULTIMA', x.samples[0]['GT']), ('GT_GROUND_TRUTH', x.samples[1]['GT'])] +
+                                        [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos),
+                                         ('REF', x.ref), ('ALLELES', x.alleles)]), vf)
 
+        columns = ['CHROM', 'POS', 'QUAL', 'REF', 'ALLELES',
+                   'GT_ULTIMA', 'GT_GROUND_TRUTH', 'STR', 'RU', 'RPA']
+        column_names = [x.lower() for x in columns]
+
+        concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=column_names)
     elif format == 'VCFEVAL':
-        concordance = [(x.chrom, x.pos, x.qual, x.ref, x.alleles,
-                        x.samples[1]['GT'], x.samples[0]['GT'],
-                        x.info.get('SYNC', None), x.info.get('CALL', None), x.info.get('BASE', None))
-                       for x in vf if 'CALL' not in x.info.keys() or
-                       ((x.info['CALL'] != 'OUT') and (x.info['CALL'] != 'IGN'))]
-        column_names = ['chrom', 'pos', 'qual',
-                        'ref', 'alleles', 'gt_ultima', 'gt_ground_truth', 'sync', 'call', 'base']
+        def call_filter(x):
+            # Remove variants that were ignored (either outside of comparison intervals or 
+            # filtered out).
+            return not ((x['CALL'] in ['IGN', 'OUT'] and x['BASE'] is None) or
+                        (x['CALL'] in ['IGN', 'OUT'] and x['BASE'] in ['IGN', 'OUT']) or
+                        (x['CALL'] is None and x['BASE'] in ['IGN', 'OUT']))
+
+        vfi = filter(call_filter,
+                     map(lambda x:
+                         defaultdict(lambda: None, x.info.items() +
+                                     [('GT_ULTIMA', x.samples[1]['GT']),
+                                     ('GT_GROUND_TRUTH', x.samples[0]['GT'])] +
+                                     [('QUAL', x.qual),
+                                     ('CHROM', x.chrom),
+                                     ('POS', x.pos),
+                                      ('REF', x.ref),
+                                      ('ALLELES', x.alleles)]), vf))
+
+        columns = ['CHROM', 'POS', 'QUAL', 'REF', 'ALLELES',
+                   'GT_ULTIMA', 'GT_GROUND_TRUTH', 'SYNC', 'CALL', 'BASE', 'STR', 'RU', 'RPA', ]
+        column_names = [x.lower() for x in columns]
+
+        concordance = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=column_names)
 
     concordance_df = pd.DataFrame(concordance, columns=column_names)
     if format == 'VCFEVAL':
@@ -450,6 +514,7 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
                 return 'fp'
             else:
                 return 'fn'
+
     concordance_df['classify'] = concordance_df.apply(
         classify, axis=1, result_type='reduce')
 
@@ -469,34 +534,44 @@ def vcf2concordance(raw_calls_file: str, concordance_file: str, format: str = 'G
             return 'fp'
         else:
             return 'tp'
-            
+
     concordance_df['classify_gt'] = concordance_df.apply(
         classify_gt, axis=1, result_type='reduce')
-
     concordance_df.loc[(concordance_df['classify_gt'] == 'tp') & (
         concordance_df['classify'] == 'fp'), 'classify_gt'] = 'fp'
 
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
 
-    original = vcftools.get_vcf_df(raw_calls_file,chromosome = chromosome)
+    original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome)
 
     if format != 'VCFEVAL':
         original.drop('qual', axis=1, inplace=True)
     else:
         concordance_df.drop('qual', axis=1, inplace=True)
-    concordance = concordance_df.join(original.drop(['chrom', 'pos', 'alleles', 'indel','ref'], axis=1))
+
+    drop_candidates = ['chrom', 'pos', 'alleles',
+                       'indel', 'ref', 'str', 'ru', 'rpa']
+    concordance = concordance_df.join(original.drop([x for x in drop_candidates
+                                                     if x in original.columns and x in concordance_df.columns], axis=1))
     only_ref = concordance['alleles'].apply(len) == 1
     concordance = concordance[~only_ref]
 
+    # Marking as false negative variants that appear in concordance but not in the original VCF (even if they do show some genotype)
+    missing_variants = concordance.index.difference(original.index)
+    logger.info(f"Identified {len(missing_variants)} variants missing in the input VCF")
+    missing_variants_non_fn = concordance.loc[missing_variants].query(
+        "classify!='fn'").index
+    logger.warning(f"Identified {len(missing_variants_non_fn)} variants missing in the input VCF and not marked false negatives")
+    concordance.loc[missing_variants_non_fn, 'classify'] = 'fn'
+    concordance.loc[missing_variants_non_fn, 'classify_gt'] = 'fn'
     return concordance
-
 
 def annotate_concordance(df: pd.DataFrame, fasta: str,
                          bw_high_quality: Optional[List[str]] = None,
-                         bw_all_quality: Optional[List[str]] = None, 
+                         bw_all_quality: Optional[List[str]] = None,
                          annotate_intervals: List[str] = [],
                          runfile: Optional[str] = None,
-                         flow_order: Optional[str] = "TACG",
+                         flow_order: Optional[str] = "TGCA",
                          hmer_run_length_dist: tuple = (10, 10)) -> pd.DataFrame:
     '''Annotates concordance data with information about SNP/INDELs and motifs
 
@@ -529,7 +604,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = annotation.classify_indel(df)
     logger.info("Marking H-INDEL")
     df = annotation.is_hmer_indel(df, fasta)
-    logger.info("Maring motifs")
+    logger.info("Marking motifs")
     df = annotation.get_motif_around(df, 5, fasta)
     logger.info("Marking GC content")
     df = annotation.get_gc_content(df, 10, fasta)
@@ -552,7 +627,7 @@ def annotate_concordance(df: pd.DataFrame, fasta: str,
     df = annotation.fill_filter_column(df)
 
     logger.info("Filling filter column")
-    if flow_order is not None: 
+    if flow_order is not None:
         df = annotation.annotate_cycle_skip(df, flow_order=flow_order)
     return df, annots
 
@@ -631,3 +706,4 @@ def _get_locations_to_work_on(_df: pd.DataFrame, ignore_low_quality_fps: bool = 
               'pos_gtr': pos_gtr, 'pos_ugi': pos_ugi, 'pos_fns': pos_fns}
 
     return result
+
