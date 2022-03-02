@@ -18,8 +18,8 @@ def test_vc_report(tmpdir):
         [VarReport]
         run_id = 140479-BC21
         pipeline_version = 2.4.1
-        h5_concordance_file = ./test.untrained.h5
-        h5_model_file = ./test.trained.h5
+        h5_concordance_file = ./test.concordance.h5
+        h5_model_file = ./test.model.h5
 
         const_model = untrained_ignore_gt_excl_hpol_runs
 
