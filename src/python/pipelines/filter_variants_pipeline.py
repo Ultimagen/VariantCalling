@@ -82,7 +82,6 @@ def main():
             blacklist_app = [x.apply(df) for x in blacklists]
             blacklist = merge_blacklists(blacklist_app)
         else:
-            blacklists = []
             blacklist = pd.Series('PASS', index=df.index, dtype=str)
 
         if args.blacklist_cg_insertions:
@@ -110,13 +109,13 @@ def main():
 
         logger.info("Writing")
         skipped_records = 0
+
         with pysam.VariantFile(args.input_file) as infile:
             hdr = infile.header
 
             protected_add(hdr.info, "HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
             protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
-            for b in blacklists:
-                protected_add(hdr.filters, b.annotation, None, None, b.description)
+            protected_add(hdr.info, "BLACKLST", '.', 'String', "blacklist")
 
             if args.blacklist_cg_insertions:
                 protected_add(hdr.filters, "CG_NON_HMER_INDEL", None, None, "Insertion/deletion of CG")
@@ -134,10 +133,12 @@ def main():
                         rec.filter.add("LOW_SCORE")
                         pass_flag = False
                     if blacklist[i] != "PASS":
+                        blacklists_info = []
                         for v in blacklist[i].split(";"):
                             if v != "PASS":
-                                rec.filter.add(v)
-                                pass_flag = False
+                                blacklists_info.append(v)
+                        if len(blacklists_info) != 0:
+                            rec.info["BLACKLST"] = blacklists_info
                     if pass_flag:
                         rec.filter.add("PASS")
                     rec.info["TREE_SCORE"] = predictions_score[i]
