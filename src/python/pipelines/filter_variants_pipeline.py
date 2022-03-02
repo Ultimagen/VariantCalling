@@ -43,7 +43,7 @@ def parse_args():
     return ap.parse_args()
 
 
-def protected_add(hdr: pysam.VariantFile.header, field, n_vals, type, description):
+def protected_add(hdr, field, n_vals, type, description):
     if field not in hdr:
         hdr.add(field, n_vals, type, description)
 
