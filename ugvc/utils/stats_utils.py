@@ -1,7 +1,9 @@
 from typing import List, Tuple, Optional, Union
 
+import sys
 import numpy as np
 from scipy.stats import multinomial
+from sklearn import metrics
 
 from ugvc.utils.math_utils import safe_divide
 
@@ -128,21 +130,22 @@ def get_f1(precision: float, recall: float) -> float:
 
 
 def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
+                           fn_mask: np.ndarray,
                            pos_label: Optional[Union[str, int]] = 1,
-                           fn_score: float = -1,
                            min_class_counts_to_output: int = 20) -> tuple:
-    '''Calculates precision/recall curve from double prediction scores and gtr
+    '''Calculates precision/recall curve from double prediction scores and ground truth
+    Similar to sklearn precision_recall curve, but uses mask of variants that were false negatives
 
     Parameters
     ----------
     gtr: np.ndarray
-        String array of ground truth
+        String array of ground truth labels. FN should be labeled 'tp'
     predictions: np.ndarray
         Array of prediction scores
+    fn_mask: np.ndarray
+        Boolean array that has true on the locations that were false negatives
     pos_label: str or 0
         Label of true call, otherwise 1s will be considered
-    fn_score: float
-        Score of false negative. Should be such that they are the lowest scoring variants
     min_class_counts_to_output: int
         Limit on the count of classes (denominator) below which the results are too noisy and not calculated
 
@@ -151,22 +154,31 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     tuple
         precisions, recalls, prediction_values
     '''
-    asidx = np.argsort(predictions)
-    predictions = predictions[asidx]
-    gtr = gtr[asidx]
-    gtr = gtr == pos_label
 
-    tp_counts = np.cumsum(gtr[::-1])[::-1]
-    fn_counts = np.cumsum(predictions == fn_score)
-    fp_counts = np.cumsum((gtr == 0)[::-1])[::-1]
-    mask = (tp_counts + fp_counts < min_class_counts_to_output) |\
-           (tp_counts + fn_counts < min_class_counts_to_output)
-    precisions = tp_counts / (tp_counts + fp_counts)
-    recalls = tp_counts / (tp_counts + fn_counts)
+    assert len(
+        set(gtr)) <= 2, "Only up to two classes of variant labels are possible"
+    assert len(fn_mask) == len(
+        predictions), "FN mask should be of the length of predictions"
+
+    gtr_select = gtr[~fn_mask]
+    gtr_select = (gtr_select == pos_label)
+    predictions_select = predictions[~fn_mask]
+    original_fn_count = fn_mask.sum()
+
+    raw_precision, raw_recall, thresholds = metrics.precision_recall_curve(
+        gtr_select, predictions_select, pos_label=True)
+    recall_correction = gtr_select.sum() / (gtr_select.sum() + original_fn_count)
+    recalls = raw_recall * recall_correction
+    recalls = recalls[:-1]  # remove the 1,0 value that sklearn adds
+    precisions = raw_precision[:-1]
     f1 = 2 * (recalls * precisions) / \
         (recalls + precisions + np.finfo(float).eps)
 
-    trim_idx = np.argmax(predictions > fn_score)
-    mask = mask[trim_idx:]
-    return precisions[trim_idx:][~mask], recalls[trim_idx:][~mask], \
-        f1[trim_idx:][~mask], predictions[trim_idx:][~mask]
+    # Find the score cutoff at which too few calls remain (to remove areas where the precision recall curve is noisy)
+    predictions_select = np.sort(predictions_select)
+    threshold_cutoff = predictions_select[
+        max(0, len(predictions_select) - min_class_counts_to_output)]
+
+    mask = thresholds > threshold_cutoff
+    return precisions[~mask], recalls[~mask], \
+        f1[~mask], thresholds[~mask]
