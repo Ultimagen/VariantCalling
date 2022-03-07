@@ -6,6 +6,7 @@ import python.vcftools as vcftools
 import argparse
 import pandas as pd
 import numpy as np
+from os.path import join as pjoin
 import pickle
 import sys
 import logging

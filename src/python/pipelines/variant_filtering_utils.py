@@ -335,7 +335,7 @@ def get_all_precision_recalls(results: pd.DataFrame) -> dict:
 def tuple_break(x):
     '''Returns the first element in the tuple
     '''
-    if type(x) == tuple:
+    if isinstance(x, tuple):
         return x[0]
     return 0 if (x is None or np.isnan(x)) else x
 
@@ -343,7 +343,7 @@ def tuple_break(x):
 def tuple_break_second(x):
     '''Returns the second element in the tuple
     '''
-    if type(x) == tuple:
+    if isinstance(x, tuple):
         return x[1]
     return 0 if (x is None or np.isnan(x)) else x
 
@@ -570,8 +570,8 @@ def train_model(concordance: pd.DataFrame, test_train_split: np.ndarray,
         model.fit(train_data, labels)
 
     tree_scores = model.predict_proba(train_data)[:, 1]
-    curve = precision_recall_curve(labels.apply(
-        lambda x: 1 if (x == 'tp') else 0), tree_scores)
+    curve = precision_recall_curve(labels, tree_scores,
+                                   fn_mask=(labels == 'fn'), pos_label='tp')
     precision, recall, f1, preditions = curve
     # get the best f1 threshold
     threshold = preditions[np.argmax(f1)]
@@ -918,7 +918,6 @@ def train_model_wrapper(concordance: pd.DataFrame, classify_column: str, interva
     transformer.fit(concordance)
     groups = set(concordance["group"])
     classifier_models: dict = {}
-    regressor_models: dict = {}
     fpr_values: dict = {}
     thresholds: dict = {}
     for g in groups:
@@ -955,7 +954,7 @@ def test_decision_tree_model(concordance: pd.DataFrame,
     classify_column: str
         Ground truth labels
     add_testing_group_column: bool
-        Should default testing grouping be added (default: True), 
+        Should default testing grouping be added (default: True),
         if False will look for grouping in group_testing
 
     Returns
@@ -1054,12 +1053,19 @@ def get_empty_recall_precision(category: str) -> dict:
             }
 
 
-
 def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series) -> pd.Series:
     """
-    @param pre_filtering_classification: classification to 'tp', 'fp', 'fn' before applying filter
-    @param is_filtered:  boolean series denoting which rows where filtered
-    @return: classification to 'tp', 'fp', 'fn', 'tn' after applying filter
+    Parameters
+    ----------
+    pre_filtering_classification : pd.Series
+        classification to 'tp', 'fp', 'fn' before applying filter
+    is_filtered : pd.Series
+        boolean series denoting which rows where filtered
+
+    Returns
+    -------
+    pd.Series
+        classification to 'tp', 'fp', 'fn', 'tn' after applying filter
     """
     post_filtering_classification = pre_filtering_classification.copy()
     post_filtering_classification.iloc[is_filtered & (
@@ -1085,7 +1091,7 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
     classify_column: str
         Ground truth labels
     add_testing_group_column: bool
-        Should default testing grouping be added (default: True), 
+        Should default testing grouping be added (default: True),
         if False will look for grouping in group_testing
 
     Returns
@@ -1104,7 +1110,6 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
         groups = list(set(concordance['group_testing']))
 
     predictions = model.predict(concordance, classify_column, get_numbers=True)
-    recalls_precisions = {}
     accuracy_df = pd.DataFrame(columns=['group',
                                         'predictions',
                                         'precision',
@@ -1131,11 +1136,10 @@ def get_decision_tree_precision_recall_curve(concordance: pd.DataFrame,
 
         group_ground_truth = classification.copy()
         group_ground_truth[classification == 'fn'] = 'tp'
-
         curve = precision_recall_curve(np.array(group_ground_truth),
                                        np.array(group_predictions),
-                                       pos_label="tp",
-                                       fn_score=-1)
+                                       fn_mask=(classification == 'fn'),
+                                       pos_label="tp")
 
         precision, recall, f1, prediction_values = curve
 
@@ -1191,11 +1195,11 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
 class VariantSelectionFunctions(Enum):
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
 
-    def ALL(
-        df: pd.DataFrame) -> np.ndarray: return np.ones(df.shape[0], dtype=np.bool)
+    def ALL(df: pd.DataFrame) -> np.ndarray:
+        return np.ones(df.shape[0], dtype=np.bool)
 
-    def HMER_INDEL(
-        df: pd.DataFrame) -> np.ndarray: return np.array(df.hmer_indel_length > 0)
+    def HMER_INDEL(df: pd.DataFrame) -> np.ndarray:
+        return np.array(df.hmer_indel_length > 0)
 
-    def ALL_except_HMER_INDEL_greater_than_or_equal_5(
-        df: pd.DataFrame) -> np.ndarray: return np.array(~ ((df.hmer_indel_length >= 5)))
+    def ALL_except_HMER_INDEL_greater_than_or_equal_5(df: pd.DataFrame) -> np.ndarray:
+        return np.array(~ ((df.hmer_indel_length >= 5)))
