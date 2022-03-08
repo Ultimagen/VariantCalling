@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Iterable
 
 import h5py
 import numpy as np
@@ -7,10 +7,9 @@ from pandas import DataFrame
 
 from python.pipelines import variant_filtering_utils as variant_filtering_utils
 from ugvc import logger
-from ugvc.utils.stats_utils import get_precision, get_recall, get_f1
 
 
-def read_hdf(file_name: str, key: str = 'all', skip_keys: list = []) -> DataFrame:
+def read_hdf(file_name: str, key: str = 'all', skip_keys: Iterable[str] = ()) -> DataFrame:
     """
     Read data-frame or data-frames from an h5 file
 
@@ -24,8 +23,8 @@ def read_hdf(file_name: str, key: str = 'all', skip_keys: list = []) -> DataFram
         1. all - read all data-frames from the file and concat them
         2. all_human_chrs - read chr1, ..., chr22, chrX keys, and concat them
         3. all_somatic_chrs - chr1, ..., chr22
-    skip_keys: list
-        List of keys to skip from reading the H5 (e.g. concordance, input_args ... )
+    skip_keys: Iterable[str]
+        collection of keys to skip from reading the H5 (e.g. concordance, input_args ... )
     Returns
     -------
     data-frame or concat data-frame read from the h5 file according to key
@@ -65,7 +64,7 @@ def get_h5_keys(file_name: str) -> List[str]:
     return keys
 
 
-def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: bool = False) -> DataFrame:
+def calc_accuracy_metrics(df: DataFrame, classify_column: str, ignored_filters: Iterable[str] = ()) -> DataFrame:
     """
     Parameters
     ----------
@@ -73,16 +72,16 @@ def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: 
         concordance dataframe
     classify_column: str
         column name which contains tp,fp,fn status before applying filter
-    filter_hpol_run: bool
-        filter variants with HPOL_RUN filter
+    ignored_filters: Iterable[str]
+        list of filters to ignore (the ignored filters will not be applied before calculating accuracy)
 
     Returns
     -------
     data-frame with variant types and their scores
     """
 
-    validate_and_preprocess_concordance_df(df, filter_hpol_run)
-    trivial_classifier_set = initialize_trivial_classifier()
+    validate_and_preprocess_concordance_df(df)
+    trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
     # calc recall,precision, f1 per variant category
     accuracy_df = variant_filtering_utils.test_decision_tree_model(df,
                                                                    trivial_classifier_set,
@@ -107,7 +106,7 @@ def calc_accuracy_metrics(df: DataFrame, classify_column: str, filter_hpol_run: 
     return accuracy_df
 
 
-def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol_run: bool = False) -> DataFrame:
+def calc_recall_precision_curve(df: DataFrame, classify_column: str, ignored_filters: Iterable[str] = ()) -> DataFrame:
     """
     calc recall/precision curve
 
@@ -117,20 +116,18 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol
         concordance dataframe
     classify_column: str
         column name which contains tp,fp,fn status before applying filter
-    filter_hpol_run: bool
-         filter variants with HPOL_RUN filter
+    ignored_filters: Iterable[str]
+        list of filters to ignore (the ignored filters will not be applied before calculating accuracy)
 
     Returns
     -------
     data-frame with variant types and their recall-precision curves
     """
-    validate_and_preprocess_concordance_df(df, filter_hpol_run)
-    trivial_classifier_set = initialize_trivial_classifier()
+    validate_and_preprocess_concordance_df(df)
+    trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
     recall_precision_curve_df = \
         variant_filtering_utils.get_decision_tree_precision_recall_curve(
             df, trivial_classifier_set, classify_column)
-    # recall_precision_curve_df = __convert_recall_precision_dict_to_df(
-    #    {'analysis': recall_precision_curve_dict})
 
     # Add summary for indels
     df_indels = df.copy()
@@ -151,7 +148,7 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, filter_hpol
     return recall_precision_curve_df
 
 
-def validate_and_preprocess_concordance_df(df: DataFrame, filter_hpol_run: bool = False) -> None:
+def validate_and_preprocess_concordance_df(df: DataFrame) -> None:
     """
     prepare concordance data-frame for accuracy assessment or fail if it's not possible to do
 
@@ -159,27 +156,25 @@ def validate_and_preprocess_concordance_df(df: DataFrame, filter_hpol_run: bool 
     ----------
     df: DataFrame
         concordance data-frame
-    filter_hpol_run: bool
-        should we consider/ignore HPOL_RUN filter
     """
     assert 'tree_score' in df.columns, "Input concordance file should be after applying a model"
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
     if np.any(pd.isnull(df['filter'])):
         logger.warning(
-            f"Null values in filter column (n={pd.isnull(df['filter']).sum()}). Setting them as PASS, but it is suspicious")
+            f"Null values in filter column (n={pd.isnull(df['filter']).sum()}). "
+            f"Setting them as PASS, but it is suspicious")
         df.loc[pd.isnull(df['filter']),'filter'] = 'PASS'
     if np.any(pd.isnull(df['tree_score'])):
         logger.warning(
-            f"Null values in concordance dataframe tree_score (n={pd.isnull(df['tree_score']).sum()}). Setting them as zero, but it is suspicious")
+            f"Null values in concordance dataframe tree_score (n={pd.isnull(df['tree_score']).sum()}). "
+            f"Setting them as zero, but it is suspicious")
         df.loc[pd.isnull(df['tree_score']), "tree_score"] = 0
-    if not filter_hpol_run:
-        df.loc[df[df['filter'] == 'HPOL_RUN'].index, 'filter'] = 'PASS'
     # set for compatability with test_decision_tree_model
     df['group'] = 'all'
     df['test_train_split'] = False
 
 
-def initialize_trivial_classifier() -> variant_filtering_utils.MaskedHierarchicalModel:
+def initialize_trivial_classifier(ignored_filters: Iterable[str]) -> variant_filtering_utils.MaskedHierarchicalModel:
     """
     initialize a classifier that will be used to simply apply filter column on the variants
 
@@ -187,7 +182,7 @@ def initialize_trivial_classifier() -> variant_filtering_utils.MaskedHierarchica
     -------
     A MaskedHierarchicalModel object representing trivial classifier which applied filter column to the variants
     """
-    trivial_classifier = variant_filtering_utils.SingleTrivialClassifierModel()
+    trivial_classifier = variant_filtering_utils.SingleTrivialClassifierModel(ignored_filters)
     trivial_classifier_set = variant_filtering_utils.MaskedHierarchicalModel(_name='classifier',
                                                                              _group_column='group',
                                                                              _models_dict={'all': trivial_classifier})
