@@ -1,6 +1,7 @@
 import unittest
-import numpy as np
+
 from ugvc.concordance.concordance_utils import *
+from utils.stats_utils import get_f1
 
 
 class TestConcordanceUtils(unittest.TestCase):
