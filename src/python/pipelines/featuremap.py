@@ -425,7 +425,11 @@ def calculate_snp_error_rate(
         df_coverage_stats = coverage_stats
     else:
         logger.debug(f"Reading input coverage stats from {coverage_stats}")
-        df_coverage_stats = pd.read_hdf(coverage_stats, key="histogram",).filter(regex="Genome").iloc[:, 0]
+        df_coverage_stats = (
+            pd.read_hdf(coverage_stats, key="histogram",)
+            .filter(regex="Genome")
+            .iloc[:, 0]
+        )
     f = interp1d(
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
@@ -835,6 +839,7 @@ def intersect_featuremap_with_signature(
     output_intersection_file,
     append_python_call_to_header=True,
     force_overwrite=True,
+    complement=False,
 ):
     """
     Intersect featuremap and signature vcf files on chrom, position, ref and alts (require same alts), keeping all the
@@ -852,6 +857,9 @@ def intersect_featuremap_with_signature(
         Add line to header to indicate this function ran (default True)
     force_overwrite
         Force rewrite tbi index of output (if false and output file exists an error will be raised). Default True.
+    complement
+        If True, only retain features that do not intersect with signature file - meant for removing germline variants
+        from featuremap (default False)
 
     Returns
     -------
@@ -867,16 +875,36 @@ def intersect_featuremap_with_signature(
         for rec in f_sig:
             signature_entries.add((rec.chrom, rec.pos, rec.ref, rec.alts))
     # Only write entries from featuremap to intersection file if they appear in the signature with the same ref&alts
-    with pysam.VariantFile(featuremap_file) as f_feat:
-        header = f_feat.header
-        if append_python_call_to_header is not None:
-            header.add_line(
-                f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}"
-            )
-        with pysam.VariantFile(output_intersection_file, "w", header=header) as f_int:
-            for rec in f_feat:
-                if (rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries:
-                    f_int.write(rec)
+    try:
+        with pysam.VariantFile(featuremap_file) as f_feat:
+            header = f_feat.header
+            if append_python_call_to_header is not None:
+                header.add_line(
+                    f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}"
+                )
+            with pysam.VariantFile(
+                output_intersection_file + ".tmp", "w", header=header
+            ) as f_int:
+                for rec in f_feat:
+                    if (
+                        (not complement)
+                        and (
+                            (rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries
+                        )
+                    ) or (
+                        complement
+                        and (
+                            (rec.chrom, rec.pos, rec.ref, rec.alts)
+                            not in signature_entries
+                        )
+                    ):
+                        f_int.write(rec)
+        os.rename(output_intersection_file + ".tmp", output_intersection_file)
+    finally:
+        if "output_intersection_file" in locals() and os.path.isfile(
+            output_intersection_file + ".tmp"
+        ):
+            os.remove(output_intersection_file + ".tmp")
     # index output
     pysam.tabix_index(output_intersection_file, preset="vcf", force=force_overwrite)
 
