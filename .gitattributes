@@ -9,3 +9,6 @@
 *parquet filter=lfs diff=lfs merge=lfs -text
 *bed filter=lfs diff=lfs merge=lfs -text
 *.pkl filter=lfs diff=lfs merge=lfs -text
+*.bw filter=lfs diff=lfs merge=lfs -text
+*.interval_list filter=lfs diff=lfs merge=lfs -text
+*.bedGraph filter=lfs diff=lfs merge=lfs -text
