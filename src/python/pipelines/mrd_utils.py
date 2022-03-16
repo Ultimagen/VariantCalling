@@ -486,11 +486,9 @@ def read_intersection_dataframes(
 
     if snp_error_rate is not None:
         logger.debug("Merging with SNP error rate")
-        df_snp_error_rate = pd.read_hdf(snp_error_rate, "/motif_1",)
+        df_snp_error_rate = pd.r_ead_hdf(snp_error_rate, "/motif_1",)
         df_int = df_int.merge(
-            df_snp_error_rate.set_index(["ref_motif", "alt"])[
-                ["error_rate_thresh5", "error_rate_thresh10"]
-            ],
+            df_snp_error_rate.set_index(["ref_motif", "alt"]).filter(regex="error_rate_"),
             left_on=["ref_motif", "alt"],
             right_index=True,
         )
