@@ -1,17 +1,21 @@
-import pathmagic
+import sys
+from typing import List
+
+import python.modules.pathmagic
 import python.pipelines.comparison_pipeline as comparison_pipeline
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.vcftools as vcftools
+from ugvc.concordance.concordance_utils import read_hdf
 import argparse
 import pandas as pd
 import pysam
 import os
-from os.path import dirname
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import logging
-from tempfile import NamedTemporaryFile
 from shutil import copyfile
+
+
 MIN_CONTIG_LENGTH = 100000
 
 
@@ -36,7 +40,7 @@ def _contig_concordance_annotate_reinterpretation(
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
 
 
-if __name__ == "__main__":
+def parse_args(argv : List[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
     ap.add_argument(
@@ -91,9 +95,11 @@ if __name__ == "__main__":
                     default=-1)
     ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG",
                     required=False, default="INFO")
+    return ap.parse_args(argv)
 
-    args = ap.parse_args()
 
+def main(argv: List[str]):
+    args = parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.verbosity),
                         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(
@@ -115,7 +121,6 @@ if __name__ == "__main__":
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     pd.DataFrame(args_dict, index=[
         0]).to_hdf(args.output_file, key="input_args")
-
 
     if args.filter_runs:
         results = comparison_pipeline.pipeline(args.n_parts, args.input_prefix,
@@ -187,7 +192,7 @@ if __name__ == "__main__":
 
         # find columns and set the same header for empty dataframes
         for contig in contigs:
-            h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
+            h5_temp = read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             if h5_temp.shape == (0, 0):  # empty dataframes are dropped to save space
                 continue
             else:
@@ -195,7 +200,7 @@ if __name__ == "__main__":
                 break
 
         for contig in contigs:
-            h5_temp = pd.read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
+            h5_temp = read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             if h5_temp.shape == (0, 0):  # empty dataframes get default columns
                 h5_temp = pd.concat((h5_temp, df_columns), axis=1)
             h5_temp.to_hdf(args.output_file, mode='a', key=contig)
@@ -205,8 +210,12 @@ if __name__ == "__main__":
 
         write_mode = 'w'
         for contig in contigs:
-            annotated_concordance = pd.read_hdf(args.output_file, key=contig)
+            annotated_concordance = read_hdf(args.output_file, key=contig)
             vcftools.bed_files_output(
                 annotated_concordance, args.output_file, mode=write_mode,
                 create_gt_diff=(not args.is_mutect))
             write_mode = 'a'
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
