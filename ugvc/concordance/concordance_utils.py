@@ -1,4 +1,4 @@
-from typing import List, Iterable
+from typing import List, Iterable, Optional
 
 import h5py
 import numpy as np
@@ -64,28 +64,33 @@ def get_h5_keys(file_name: str) -> List[str]:
     return keys
 
 
-def calc_accuracy_metrics(df: DataFrame, classify_column: str, ignored_filters: Iterable[str] = ()) -> DataFrame:
+def calc_accuracy_metrics(df: DataFrame,
+                          classify_column_name: str,
+                          ignored_filters: Iterable[str] = (),
+                          group_testing_column_name: Optional[str] = None) -> DataFrame:
     """
     Parameters
     ----------
     df: DataFrame
         concordance dataframe
-    classify_column: str
+    classify_column_name: str
         column name which contains tp,fp,fn status before applying filter
     ignored_filters: Iterable[str]
         list of filters to ignore (the ignored filters will not be applied before calculating accuracy)
+    group_testing_column_name: str
+        column name to be used as grouping column (to output statistics on each group)
 
     Returns
     -------
     data-frame with variant types and their scores
     """
 
-    validate_and_preprocess_concordance_df(df)
+    df = validate_and_preprocess_concordance_df(df, group_testing_column_name)
     trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
     # calc recall,precision, f1 per variant category
     accuracy_df = variant_filtering_utils.test_decision_tree_model(df,
                                                                    trivial_classifier_set,
-                                                                   classify_column)
+                                                                   classify_column_name)
 
     # Add summary for indels
     df_indels = df.copy()
@@ -93,7 +98,7 @@ def calc_accuracy_metrics(df: DataFrame, classify_column: str, ignored_filters: 
     all_indels = variant_filtering_utils.test_decision_tree_model(
         df_indels,
         trivial_classifier_set,
-        classify_column,
+        classify_column_name,
         add_testing_group_column=False)
 
     # fix boundary case when there are no indels
@@ -106,7 +111,10 @@ def calc_accuracy_metrics(df: DataFrame, classify_column: str, ignored_filters: 
     return accuracy_df
 
 
-def calc_recall_precision_curve(df: DataFrame, classify_column: str, ignored_filters: Iterable[str] = ()) -> DataFrame:
+def calc_recall_precision_curve(df: DataFrame,
+                                classify_column_name: str,
+                                ignored_filters: Iterable[str] = (),
+                                group_testing_column_name: Optional[str] = None) -> DataFrame:
     """
     calc recall/precision curve
 
@@ -114,20 +122,22 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, ignored_fil
     ----------
     df: DataFrame
         concordance dataframe
-    classify_column: str
+    classify_column_name: str
         column name which contains tp,fp,fn status before applying filter
     ignored_filters: Iterable[str]
         list of filters to ignore (the ignored filters will not be applied before calculating accuracy)
+    group_testing_column_name: str
+        column name to be used as grouping column (to output statistics on each group)
 
     Returns
     -------
     data-frame with variant types and their recall-precision curves
     """
-    validate_and_preprocess_concordance_df(df)
+    df = validate_and_preprocess_concordance_df(df, group_testing_column_name)
     trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
     recall_precision_curve_df = \
         variant_filtering_utils.get_decision_tree_precision_recall_curve(
-            df, trivial_classifier_set, classify_column)
+            df, trivial_classifier_set, classify_column_name)
 
     # Add summary for indels
     df_indels = df.copy()
@@ -135,7 +145,7 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, ignored_fil
     all_indels = variant_filtering_utils.get_decision_tree_precision_recall_curve(
         df_indels,
         trivial_classifier_set,
-        classify_column,
+        classify_column_name,
         add_testing_group_column=False)
 
     # fix boundary case when there are no indels
@@ -148,7 +158,7 @@ def calc_recall_precision_curve(df: DataFrame, classify_column: str, ignored_fil
     return recall_precision_curve_df
 
 
-def validate_and_preprocess_concordance_df(df: DataFrame) -> None:
+def validate_and_preprocess_concordance_df(df: DataFrame, group_testing_column_name: Optional[str]) -> DataFrame:
     """
     prepare concordance data-frame for accuracy assessment or fail if it's not possible to do
 
@@ -156,6 +166,8 @@ def validate_and_preprocess_concordance_df(df: DataFrame) -> None:
     ----------
     df: DataFrame
         concordance data-frame
+    group_testing_column_name:
+        name of column to use later for group_testing
     """
     assert 'tree_score' in df.columns, "Input concordance file should be after applying a model"
     df.loc[pd.isnull(df['hmer_indel_nuc']), "hmer_indel_nuc"] = 'N'
@@ -169,9 +181,18 @@ def validate_and_preprocess_concordance_df(df: DataFrame) -> None:
             f"Null values in concordance dataframe tree_score (n={pd.isnull(df['tree_score']).sum()}). "
             f"Setting them as zero, but it is suspicious")
         df.loc[pd.isnull(df['tree_score']), "tree_score"] = 0
+
     # set for compatability with test_decision_tree_model
     df['group'] = 'all'
     df['test_train_split'] = False
+
+    # add non-default group_testing column
+    if group_testing_column_name is not None:
+        df['group_testing'] = df[group_testing_column_name]
+        removed = pd.isnull(df['group_testing'])
+        logger.info(f"Removing {removed.sum()}/{df.shape[0]} variants with no type")
+        df = df[~removed]
+    return df
 
 
 def initialize_trivial_classifier(ignored_filters: Iterable[str]) -> variant_filtering_utils.MaskedHierarchicalModel:
@@ -187,5 +208,3 @@ def initialize_trivial_classifier(ignored_filters: Iterable[str]) -> variant_fil
                                                                              _group_column='group',
                                                                              _models_dict={'all': trivial_classifier})
     return trivial_classifier_set
-
-

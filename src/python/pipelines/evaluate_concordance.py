@@ -20,6 +20,8 @@ def parse_args():
     ap.add_argument('--ignore_filters', help='comma separated list of filters to ignore', default='HPOL_RUN')
     ap.add_argument('--output_bed', help='output bed files of fp/fn/tp per variant-type', action='store_true',
                     default=False)
+    ap.add_argument("--use_for_group_testing",
+                    help="Column in the h5 to use for grouping (or generate default groupings)", type=str)
 
     args = ap.parse_args()
     return args
@@ -32,6 +34,8 @@ def main():
     ignore_genotype = args.ignore_genotype
     ignored_filters = args.ignore_filters.split(',')
     output_bed = args.output_bed
+    group_testing_column = args.use_for_group_testing
+
     # comparison dataframes often contain dataframes that we do not want to read
     if ds_key == 'all':
         skip = ['concordance', 'scored_concordance', 'input_args', 'comparison_result']
@@ -45,7 +49,7 @@ def main():
 
     classify_column = 'classify' if ignore_genotype else 'classify_gt'
 
-    accuracy_df = calc_accuracy_metrics(df, classify_column, ignored_filters)
+    accuracy_df = calc_accuracy_metrics(df, classify_column, ignored_filters, group_testing_column)
     accuracy_df.to_hdf(f'{out_pref}.h5', key="optimal_recall_precision")
     accuracy_df.to_csv(f'{out_pref}.stats.csv', sep=';', index=False)
 
