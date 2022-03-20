@@ -17,9 +17,11 @@ def parse_args():
     ap.add_argument('--dataset_key', help='h5 dataset name, such as chromosome name', default='all')
     ap.add_argument('--ignore_genotype', help='ignore genotype when comparing to ground-truth',
                     action='store_true', default=False)
-    ap.add_argument('--filter_hpol_run', help='consider filter=HPOL_RUN as not PASS', action='store_true', default=False)
+    ap.add_argument('--ignore_filters', help='comma separated list of filters to ignore', default='HPOL_RUN')
     ap.add_argument('--output_bed', help='output bed files of fp/fn/tp per variant-type', action='store_true',
                     default=False)
+    ap.add_argument("--use_for_group_testing",
+                    help="Column in the h5 to use for grouping (or generate default groupings)", type=str)
 
     args = ap.parse_args()
     return args
@@ -30,8 +32,10 @@ def main():
     ds_key = args.dataset_key
     out_pref = args.output_prefix
     ignore_genotype = args.ignore_genotype
-    filter_hpol_run = args.filter_hpol_run
+    ignored_filters = args.ignore_filters.split(',')
     output_bed = args.output_bed
+    group_testing_column = args.use_for_group_testing
+
     # comparison dataframes often contain dataframes that we do not want to read
     if ds_key == 'all':
         skip = ['concordance', 'scored_concordance', 'input_args', 'comparison_result']
@@ -45,11 +49,11 @@ def main():
 
     classify_column = 'classify' if ignore_genotype else 'classify_gt'
 
-    accuracy_df = calc_accuracy_metrics(df, classify_column, filter_hpol_run)
+    accuracy_df = calc_accuracy_metrics(df, classify_column, ignored_filters, group_testing_column)
     accuracy_df.to_hdf(f'{out_pref}.h5', key="optimal_recall_precision")
     accuracy_df.to_csv(f'{out_pref}.stats.csv', sep=';', index=False)
 
-    recall_precision_curve_df = calc_recall_precision_curve(df, classify_column, filter_hpol_run)
+    recall_precision_curve_df = calc_recall_precision_curve(df, classify_column, ignored_filters)
     recall_precision_curve_df.to_hdf(f'{out_pref}.h5', key="recall_precision_curve")
     if output_bed:
         vcftools.bed_files_output(df, f'{out_pref}.h5', mode='w', create_gt_diff=True)
