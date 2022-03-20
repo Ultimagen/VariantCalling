@@ -1,5 +1,6 @@
 #!/env/python
-from simppl.cli import get_parser
+#from simppl.cli import get_parser
+import argparse
 import sys
 from typing import List
 import python.modules.pathmagic
@@ -9,7 +10,7 @@ from ugvc.concordance.concordance_utils import calc_accuracy_metrics, calc_recal
 
 
 def parse_args(argv: List[str]):
-    ap = get_parser(prog="evaluate_concordance.py", description=run.__doc__)
+    ap = argparse.ArgumentParser(prog="evaluate_concordance.py", description=run.__doc__)
     ap.add_argument("--input_file", help="Name of the input h5 file", type=str, required=True)
     ap.add_argument("--output_prefix", help="Prefix to output files", type=str, required=True)
     ap.add_argument('--dataset_key', help='h5 dataset name, such as chromosome name', default='all')
