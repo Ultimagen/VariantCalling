@@ -4,14 +4,17 @@ import unittest
 from os.path import dirname
 
 from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistributions
-from test import test_dir
+from test import test_dir, get_resource_dir, make_test_outputs_dir
 from ugvc.pipelines.sec.merge_conditional_allele_distributions import merge_conditional_allele_distributions
 
 
 class TestMergeConditionalAlleleDistributions(unittest.TestCase):
+    inputs_dir = get_resource_dir(__name__)
+    test_outputs_dir = make_test_outputs_dir(__name__)
+    os.makedirs(test_outputs_dir, exist_ok=True)
 
     def test_merge_conditional_allele_distributions(self):
-        proj_dir = f'{test_dir}/resources/sec'
+
         output_file = f'{test_dir}/test_outputs/exome_hg001_10s/correction/HG00239.vcf.gz'
         os.makedirs(dirname(output_file), exist_ok=True)
 
@@ -20,8 +23,8 @@ class TestMergeConditionalAlleleDistributions(unittest.TestCase):
         cad_files_path = f'{test_outputs_dir}/conditional_distribution_files.txt'
         output_prefix = f'{test_outputs_dir}/conditional_allele_distributions'
         with open(cad_files_path, 'w') as cad_files_fh:
-            cad_files_fh.write(f'{proj_dir}/HG00096.head.tsv\n')
-            cad_files_fh.write(f'{proj_dir}/HG00140.head.tsv\n')
+            cad_files_fh.write(f'{self.inputs_dir}/HG00096.head.tsv\n')
+            cad_files_fh.write(f'{self.inputs_dir}/HG00140.head.tsv\n')
 
         merge_conditional_allele_distributions(['--conditional_allele_distribution_files', cad_files_path,
                                                 '--output_prefix', output_prefix])
