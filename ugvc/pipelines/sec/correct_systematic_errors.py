@@ -276,7 +276,7 @@ def _are_all_called_alleles_excluded(excluded_refs: List[str],
     return False
 
 
-def main(argv: List[str]):
+def run(argv: List[str]):
     """
     filter out variants which appear like systematic-errors, while keeping those which are not well explained by errors
     """
@@ -312,4 +312,4 @@ def main(argv: List[str]):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    run(sys.argv[1:])

@@ -18,7 +18,7 @@ class TestCorrectSystematicErrors(unittest.TestCase):
         output_file = f'{self.test_outputs_dir}/HG00239.vcf.gz'
         os.makedirs(dirname(output_file), exist_ok=True)
 
-        correct_systematic_errors.main(
+        correct_systematic_errors.run(
             ['--relevant_coords', f'{proj_dir}/blacklist_hg001_10s.bed',
              '--model', f'{proj_dir}/conditional_allele_distribution.*.pkl',
              '--gvcf', f'{proj_dir}/HG00239.g.vcf.nodup.vcf.gz',
@@ -69,7 +69,7 @@ class TestCorrectSystematicErrors(unittest.TestCase):
         proj_dir = f'{test_dir}/resources/sec'
         output_file = f'{self.test_outputs_dir}/HG00239.chr3.vcf.gz'
 
-        correct_systematic_errors.main(
+        correct_systematic_errors.run(
             ['--relevant_coords', f'{proj_dir}/blacklist_hg001_10s.chr3.bed',
              '--model', f'{proj_dir}/conditional_allele_distribution.chr3.pkl',
              '--gvcf', f'{proj_dir}/HG00239.g.vcf.nodup.vcf.gz',
