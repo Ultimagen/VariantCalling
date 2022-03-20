@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import tqdm
 import logging
-from typing import Optional, Tuple, Callable, Union
+from typing import Optional, Tuple, Callable, Union, Iterable
 from collections import OrderedDict
 from enum import Enum
 import python.utils as utils
@@ -58,11 +58,14 @@ class SingleRegressionModel:
 
 class SingleTrivialClassifierModel:
 
-    def __init__(self):
-        pass
+    def __init__(self, ignored_filters: Iterable[str] = ()):
+        self.ignored_filters = set(ignored_filters).union({'PASS'})
 
     def predict(self, df: pd.DataFrame) -> np.array:
-        pf = df['filter'].apply(lambda x: 'PASS' in x)
+        def pass_filter(filter_str):
+            return all([_filter in self.ignored_filters for _filter in filter_str.split(';')])
+
+        pf = df['filter'].apply(pass_filter)
         return np.where(np.array(pf), "tp", "fp")
 
     def predict_proba(self, df: pd.DataFrame) -> np.array:
@@ -973,7 +976,7 @@ def test_decision_tree_model(concordance: pd.DataFrame,
         groups = list(set(concordance['group_testing']))
 
     # get filter status as True='tp' False='fp'
-    predictions = model.predict(concordance, classify_column)
+    predictions = model.predict(df=concordance, mask_column=classify_column)
 
     accuracy_df = pd.DataFrame(columns=['group',
                                         'tp',
