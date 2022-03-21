@@ -9,8 +9,8 @@ from ugvc.pipelines.sec.merge_conditional_allele_distributions import merge_cond
 
 
 class TestMergeConditionalAlleleDistributions(unittest.TestCase):
-    inputs_dir = get_resource_dir(__name__)
-    test_outputs_dir = make_test_outputs_dir(__name__)
+    inputs_dir = get_resource_dir(__file__)
+    test_outputs_dir = make_test_outputs_dir(__file__)
     os.makedirs(test_outputs_dir, exist_ok=True)
 
     def test_merge_conditional_allele_distributions(self):

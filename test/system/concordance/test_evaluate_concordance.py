@@ -12,8 +12,8 @@ from test import get_resource_dir, make_test_outputs_dir
 
 
 class TestEvaluateConcordance(unittest.TestCase):
-    inputs_dir = get_resource_dir(__name__)
-    test_outputs_dir = make_test_outputs_dir(__name__)
+    inputs_dir = get_resource_dir(__file__)
+    test_outputs_dir = make_test_outputs_dir(__file__)
 
     def test_evaluate_concordance(self):
         input_file = f'{self.inputs_dir}/test.untrained.h5'

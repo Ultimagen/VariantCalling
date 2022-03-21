@@ -5,17 +5,20 @@ import pickle
 import re
 import subprocess
 import sys
-
+from typing import List
 import pysam
 import tqdm
+
+import pandas as pd
+import numpy as np
 
 import python.pipelines.variant_filtering_utils as variant_filtering_utils
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.vcftools as vcftools
-from python.modules.filtering.blacklist import *
+from python.modules.filtering.blacklist import merge_blacklists, blacklist_cg_insertions
 
 
-def parse_args():
+def parse_args(argv: List[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
         prog="filter_variants_pipeline.py", description="Filter VCF")
     ap.add_argument("--input_file", help="Name of the input VCF file",
@@ -40,15 +43,16 @@ def parse_args():
                     help="Sequencing flow order (4 cycle)", required=False, default="TGCA")
     ap.add_argument("--annotate_intervals", help='interval files for annotation (multiple possible)', required=False,
                     type=str, default=None, action='append')
-    return ap.parse_args()
+    return ap.parse_args(argv)
 
 
 def protected_add(hdr, field, n_vals, type, description):
     if field not in hdr:
         hdr.add(field, n_vals, type, description)
 
-def main():
-    args = parse_args()
+
+def main(argv: List[str]):
+    args = parse_args(argv)
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info("Reading VCF")
@@ -61,7 +65,7 @@ def main():
                                                              annotate_intervals=args.annotate_intervals)
 
         if args.is_mutect:
-            df['qual'] = df['tlod'].apply(lambda x: max(x) if type(x) == tuple else 50) * 10
+            df['qual'] = df['tlod'].apply(lambda x: max(x) if isinstance(x, tuple) else 50) * 10
 
         df.loc[df['gt'] == (1, 1), 'sor'] = 0.5
         with open(args.model_file, "rb") as mf:
@@ -96,14 +100,12 @@ def main():
         prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
         # Do not output FPR if it could not be calculated from the calls
         output_fpr = True
-        if len(set(prediction_fpr))==1:
+        if len(set(prediction_fpr)) == 1:
             logger.info("FPR not calculated, skipping")
             output_fpr = False
 
-
         predictions_score = np.array(predictions_score)
         group = df['group']
-
 
         hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
 
@@ -123,7 +125,7 @@ def main():
             protected_add(hdr.info, "TREE_SCORE", 1, "Float", "Filtering score")
             if output_fpr:
                 protected_add(hdr.info, "FPR", 1, "Float", "False Positive rate(1/MB)")
-            protected_add(hdr.info, "VARIANT_TYPE", 1,  "String", "Variant type (snp, h-indel, non-h-indel)")
+            protected_add(hdr.info, "VARIANT_TYPE", 1, "String", "Variant type (snp, h-indel, non-h-indel)")
             with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
                 for i, rec in tqdm.tqdm(enumerate(infile)):
                     pass_flag = True
@@ -170,5 +172,6 @@ def main():
         logger.error("Variant filtering run: failed")
         raise err
 
-if __name__ == '__main__':
-    main()
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
