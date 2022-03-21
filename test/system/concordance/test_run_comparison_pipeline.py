@@ -12,7 +12,7 @@ from ugvc.concordance.concordance_utils import read_hdf
 from test import test_dir, get_resource_dir, make_test_outputs_dir
 
 
-class TestCorrectSystematicErrors(unittest.TestCase):
+class TestRunComparisonPipeline(unittest.TestCase):
     inputs_dir = get_resource_dir(__name__)
     test_outputs_dir = make_test_outputs_dir(__name__)
     general_inputs_dir = f'{test_dir}/resources/general/chr1_head'
