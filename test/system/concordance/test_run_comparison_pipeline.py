@@ -13,8 +13,8 @@ from test import test_dir, get_resource_dir, make_test_outputs_dir
 
 
 class TestRunComparisonPipeline(unittest.TestCase):
-    inputs_dir = get_resource_dir(__name__)
-    test_outputs_dir = make_test_outputs_dir(__name__)
+    inputs_dir = get_resource_dir(__file__)
+    test_outputs_dir = make_test_outputs_dir(__file__)
     general_inputs_dir = f'{test_dir}/resources/general/chr1_head'
 
     def test_run_comparison_pipeline(self):
