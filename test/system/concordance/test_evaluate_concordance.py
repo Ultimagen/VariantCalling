@@ -2,6 +2,10 @@ import os
 import unittest
 from os.path import dirname
 import filecmp
+import sys
+
+import python.pipelines.pathmagic
+sys.path.append(dirname(python.pipelines.pathmagic.__file__))
 
 from python.pipelines import evaluate_concordance
 from test import get_resource_dir, make_test_outputs_dir
