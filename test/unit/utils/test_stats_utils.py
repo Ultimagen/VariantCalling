@@ -108,7 +108,7 @@ class TestStatsUtils(unittest.TestCase):
         self.assertAlmostEqual(0.642857, get_f1(
             recall=0.5, precision=0.9), places=5)
 
-    def test_recall_precision_curve(self):
+    def test_precision_recall_curve(self):
         labels = np.array([0, 1] * 50)
         scores = np.array([0.1, .8] * 50)
         precision, recalls, f1, predictions = precision_recall_curve(
@@ -128,3 +128,12 @@ class TestStatsUtils(unittest.TestCase):
         self.assertEqual(len(precision), 1)
         self.assertEqual(len(f1), 1)
         self.assertAlmostEqual(max(f1), 0.909090909)
+
+        labels = []
+        scores = []
+        precision, recalls, f1, predictions = precision_recall_curve(
+            labels, scores, np.array([]),
+            pos_label=1, min_class_counts_to_output=1)
+        self.assertEqual(len(precision), 0)
+        self.assertEqual(len(f1), 0)
+        

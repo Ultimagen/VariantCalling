@@ -7,12 +7,15 @@ import argparse
 import pandas as pd
 import numpy as np
 from os.path import join as pjoin
+from os.path import dirname
 import pickle
+import random
 import sys
 import logging
+from typing import List
 
 
-def parse_args():
+def parse_args(argv: List[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(prog="train_models_pipeline.py",
                                  description="Train filtering models on the concordance file")
 
@@ -48,12 +51,14 @@ def parse_args():
     ap.add_argument("--verbosity", help="Verbosity: ERROR, WARNING, INFO, DEBUG",
                     required=False, default="INFO")
 
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     return args
 
-def main():
 
-    args = parse_args()
+def main(argv: List[str]):
+    #np.random.seed(1984)
+    #random.seed(1984)
+    args = parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.verbosity),
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__ if __name__ !=
@@ -127,16 +132,22 @@ def main():
             classify_clm = 'classify'
             interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
         # Thresholding model
+
+        logger.debug(f"INTERVAL_SIZE = {interval_size}")
+
         models_thr_no_gt, df_tmp = \
             variant_filtering_utils.train_threshold_models(
                 concordance=df.copy(), interval_size=interval_size, classify_column=classify_clm, annots=annots, vtype=args.vcf_type)
+
         recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
             df_tmp, models_thr_no_gt, classify_column=classify_clm)
+
         recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
             df_tmp, models_thr_no_gt, classify_column=classify_clm)
         df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
         recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
             df_tmp, models_thr_no_gt, classify_column=classify_clm)
+    
         recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
             df_tmp, models_thr_no_gt, classify_column=classify_clm)
 
@@ -144,6 +155,7 @@ def main():
             'threshold_model_ignore_gt_incl_hpol_runs'] = models_thr_no_gt
         results_dict[
             'threshold_model_recall_precision_ignore_gt_incl_hpol_runs'] = recall_precision_no_gt
+
         results_dict[
             'threshold_model_recall_precision_curve_ignore_gt_incl_hpol_runs'] = recall_precision_curve_no_gt
         results_dict[
@@ -166,12 +178,15 @@ def main():
 
         recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
             df_tmp, models_rf_no_gt, classify_clm)
+
+
         recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
             df_tmp, models_rf_no_gt, classify_clm)
 
         df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
         recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
             df_tmp, models_rf_no_gt, classify_clm)
+
         recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
             df_tmp, models_rf_no_gt, classify_clm)
 
@@ -263,5 +278,6 @@ def main():
         logger.error("Model training run: failed")
         raise(err)
 
-if __name__ == '__main__':
-    main()
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

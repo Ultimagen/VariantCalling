@@ -152,8 +152,11 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     Returns
     -------
     tuple
-        precisions, recalls, prediction_values
+        precisions, recalls, f1, prediction_values
     '''
+
+    if len(gtr) == 0:
+        return np.array([]), np.array([]), np.array([]), np.array([])
 
     assert len(
         set(gtr)) <= 2, "Only up to two classes of variant labels are possible"
@@ -165,8 +168,14 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     predictions_select = predictions[~fn_mask]
     original_fn_count = fn_mask.sum()
 
-    raw_precision, raw_recall, thresholds = metrics.precision_recall_curve(
-        gtr_select, predictions_select, pos_label=True)
+    if len(gtr_select) > 0:
+        raw_precision, raw_recall, thresholds = metrics.precision_recall_curve(
+            gtr_select, predictions_select, pos_label=True)
+    else:
+        raw_precision = np.array([1.0])
+        raw_recall = np.array([0.0])
+        thresholds = np.array([])
+
     recall_correction = gtr_select.sum() / (gtr_select.sum() + original_fn_count)
     recalls = raw_recall * recall_correction
     recalls = recalls[:-1]  # remove the 1,0 value that sklearn adds
@@ -176,8 +185,11 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
 
     # Find the score cutoff at which too few calls remain (to remove areas where the precision recall curve is noisy)
     predictions_select = np.sort(predictions_select)
-    threshold_cutoff = predictions_select[
-        max(0, len(predictions_select) - min_class_counts_to_output)]
+    if len(predictions_select) > 0:
+        threshold_cutoff = predictions_select[
+            max(0, len(predictions_select) - min_class_counts_to_output)]
+    else:
+        threshold_cutoff = 0
 
     mask = thresholds > threshold_cutoff
     return precisions[~mask], recalls[~mask], \
