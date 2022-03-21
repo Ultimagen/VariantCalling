@@ -1,6 +1,11 @@
 import os
 import unittest
+import sys
 from os.path import dirname
+
+
+import python.pipelines.pathmagic
+sys.path.append(dirname(python.pipelines.pathmagic.__file__))
 
 from python.pipelines import run_comparison_pipeline
 from ugvc.concordance.concordance_utils import read_hdf
