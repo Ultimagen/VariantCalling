@@ -1,9 +1,8 @@
 #!/env/python
-#from simppl.cli import get_parser
 import argparse
 import sys
 from typing import List
-import python.modules.pathmagic
+import pathmagic
 from pandas import DataFrame
 from python import vcftools
 from ugvc.concordance.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve, read_hdf
