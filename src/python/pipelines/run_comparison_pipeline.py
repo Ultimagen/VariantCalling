@@ -1,7 +1,7 @@
 import sys
 from typing import List
 
-import python.modules.pathmagic
+import pathmagic
 import python.pipelines.comparison_pipeline as comparison_pipeline
 import python.pipelines.vcf_pipeline_utils as vcf_pipeline_utils
 import python.vcftools as vcftools
