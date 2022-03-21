@@ -34,13 +34,14 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Import integrity tests
+        run: | 
+          python src/python/pipelines/run_comparison_pipeline.py -h
+          python src/python/pipelines/filter_variants_pipeline.py -h
+          python src/python/pipelines/evaluate_concordance.py -h
+          python src/python/pipelines/train_models_pipeline.py -h
       - name: Test with pytest
         run: |
-          # imports integrity tests
-          python src/python/pipelines/run_comparison_pipeline.py
-          python src/python/pipelines/filter_variants_pipeline.py
-          python src/python/pipelines/evaluate_concordance.py
-          python src/python/pipelines/train_models_pipeline.py
           export PYTHONPATH=$PYTHONPATH:src
           python -m pytest test/unit
           python -m pytest --ignore src/python_tests/test_db_access.py
