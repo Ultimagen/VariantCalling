@@ -36,6 +36,11 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Test with pytest
         run: |
+          # imports integrity tests
+          python src/python/pipelines/run_comparison_pipeline.py
+          python src/python/pipelines/filter_variants_pipeline.py
+          python src/python/pipelines/evaluate_concordance.py
+          python src/python/pipelines/train_models_pipeline.py
           export PYTHONPATH=$PYTHONPATH:src
           python -m pytest test/unit
           python -m pytest --ignore src/python_tests/test_db_access.py
