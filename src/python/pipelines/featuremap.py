@@ -876,6 +876,8 @@ def intersect_featuremap_with_signature(
             signature_entries.add((rec.chrom, rec.pos, rec.ref, rec.alts))
     # Only write entries from featuremap to intersection file if they appear in the signature with the same ref&alts
     try:
+        if output_intersection_file.endswith(".gz"):
+            output_intersection_file_vcf = output_intersection_file[:-3]
         with pysam.VariantFile(featuremap_file) as f_feat:
             header = f_feat.header
             if append_python_call_to_header is not None:
@@ -883,7 +885,7 @@ def intersect_featuremap_with_signature(
                     f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}"
                 )
             with pysam.VariantFile(
-                output_intersection_file + ".tmp", "w", header=header
+                output_intersection_file_vcf + ".tmp", "w", header=header
             ) as f_int:
                 for rec in f_feat:
                     if (
@@ -899,14 +901,15 @@ def intersect_featuremap_with_signature(
                         )
                     ):
                         f_int.write(rec)
-        os.rename(output_intersection_file + ".tmp", output_intersection_file)
+        os.rename(output_intersection_file_vcf + ".tmp", output_intersection_file_vcf)
     finally:
-        if "output_intersection_file" in locals() and os.path.isfile(
-            output_intersection_file + ".tmp"
+        if "output_intersection_file_vcf" in locals() and os.path.isfile(
+            output_intersection_file_vcf + ".tmp"
         ):
-            os.remove(output_intersection_file + ".tmp")
+            os.remove(output_intersection_file_vcf + ".tmp")
     # index output
-    pysam.tabix_index(output_intersection_file, preset="vcf", force=force_overwrite)
+    pysam.tabix_index(output_intersection_file_vcf, preset="vcf", force=force_overwrite)
+    assert os.path.isfile(output_intersection_file_vcf + ".gz")
 
 
 def call_featuremap_to_dataframe(args_in):
