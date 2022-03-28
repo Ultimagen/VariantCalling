@@ -271,9 +271,13 @@ def read_signature(
                 "X-GCC": "gc_content",
                 "X-LM": "left_motif",
                 "X-RM": "right_motif",
+                "X_CSS": "cycle_skip_status",
+                "X_GCC": "gc_content",
+                "X_LM": "left_motif",
+                "X_RM": "right_motif",
             }
         if columns_to_drop is None:
-            columns_to_drop = ["X-IC"]
+            columns_to_drop = ["X-IC", "X_IC"]
         if verbose:
             logger.debug(f"x_columns_name_dict:\n{x_columns_name_dict}")
             logger.debug(f"columns_to_drop:\n{columns_to_drop}")
@@ -288,8 +292,11 @@ def read_signature(
                     x_columns = [
                         k
                         for k in rec.info.keys()
-                        if k.startswith("X-") and k not in columns_to_drop
+                        if (k.startswith("X-") or k.startswith("X_"))
+                        and k not in columns_to_drop
+                        and k in x_columns_name_dict
                     ]
+                    x_columns_name_dict = {k: x_columns_name_dict[k] for k in x_columns}
 
                     if verbose:
                         logger.debug(f"Reading x_columns: {x_columns}")
@@ -344,7 +351,12 @@ def read_signature(
                             else np.nan,
                             rec.info["SOR"] if "SOR" in rec.info else np.nan,
                         ]
-                        + [rec.info[c] for c in x_columns]
+                        + [
+                            rec.info[c][0]
+                            if isinstance(rec.info[c], tuple)
+                            else rec.info[c]
+                            for c in x_columns
+                        ]
                     )
                 )
         if verbose:
@@ -486,13 +498,13 @@ def read_intersection_dataframes(
 
     if snp_error_rate is not None:
         logger.debug("Merging with SNP error rate")
-        df_snp_error_rate = pd.read_hdf(snp_error_rate, "/motif_1",)
+        df_snp_error_rate = (
+            pd.read_hdf(snp_error_rate, "/motif_1")
+            .set_index(["ref_motif", "alt"])
+            .filter(regex="error_rate_")
+        )
         df_int = df_int.merge(
-            df_snp_error_rate.set_index(["ref_motif", "alt"])[
-                ["error_rate_thresh5", "error_rate_thresh10"]
-            ],
-            left_on=["ref_motif", "alt"],
-            right_index=True,
+            df_snp_error_rate, left_on=["ref_motif", "alt"], right_index=True,
         )
 
     logger.debug("Setting ref/alt direction to match reference and not read")
