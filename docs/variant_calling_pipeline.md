@@ -1,4 +1,4 @@
-# Pipeline to use bwa alignments and variant calling 
+# Pipeline to use bwa alignments and variant calling
 
 ## Installation
 
@@ -24,12 +24,12 @@
 6. Copy helper files for variant calling
 `aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/ /data/genomes/broad-references/hg38/concordance/`
 
-7. Copy additional files to the location of the genome: 
+7. Copy additional files to the location of the genome:
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.dict 
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.dict
  /data/genomes/broad-references/hg38/v0/`
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.sizes 
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.sizes
 /data/genomes/broad-references/hg38/v0/`
 
 8. Download the latest gatk JAR, currently `gatk-package-ultima-v0.2-12-g4e6ad70-SNAPSHOT-local.jar`
@@ -42,11 +42,11 @@
 ```
 cat > /home/ec2-user/proj/VariantCalling/work/191018/chromosomes
 chr9
-chr20 
+chr20
 ```
 * Locate re-trained recalibration model (`recalibration.h5`)
 
-* Create config file (`variant_calling.config`) of the following form: 
+* Create config file (`variant_calling.config`) of the following form:
 ```
 em_vc_demux_file=/home/ec2-user/proj/work/191015/420159_1p.demux.bam
 em_vc_genome=/data/genomes/broad-references/hg38/v0/Homo_sapiens_assembly38.fasta
@@ -61,7 +61,7 @@ em_vc_ground_truth_highconf=/data/genomes/broad-references/hg38/concordance/HG00
 em_vc_gaps_hmers_filter=/data/genomes/broad-references/hg38/concordance/runs.bed
 ```
 
-Optionally, this could be a section in a general config file with header 
+Optionally, this could be a section in a general config file with header
 `[EM_VC]`
 
 ### Run

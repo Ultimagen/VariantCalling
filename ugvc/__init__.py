@@ -4,11 +4,11 @@ import logging
 import sys
 from os.path import dirname
 
-logger = logging.getLogger('ugvc')
+logger = logging.getLogger("ugvc")
 logger.setLevel(logging.INFO)
 
 # create formatter
-formatter = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(module)s - %(levelname)s - %(message)s")
 
 # create console handler and set level to debug
 ch = logging.StreamHandler(stream=sys.stdout)
@@ -18,8 +18,7 @@ logger.addHandler(ch)
 
 base_dir = dirname(__file__)
 
-
-paths = [f'{dirname(dirname(__file__))}/src', f'{dirname(dirname(__file__))}']
+paths = [f'{dirname(dirname(__file__))}']
 for path in paths:
     if path not in sys.path:
         sys.path.append(path)

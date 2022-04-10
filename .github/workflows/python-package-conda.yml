@@ -28,6 +28,9 @@ jobs:
           conda env update --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadapt.yml --name cutadapt
           conda env update --file setup/environment.yml --name base
+      - name: Install as a package
+        run: |
+          pip install .
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
@@ -35,14 +38,18 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Import integrity tests
-        run: | 
-          python src/python/pipelines/run_comparison_pipeline.py -h
-          python src/python/pipelines/filter_variants_pipeline.py -h
-          python src/python/pipelines/evaluate_concordance.py -h
-          python src/python/pipelines/train_models_pipeline.py -h
+        run: |
+          python ugvc
+          run_comparison_pipeline.py -h
+          filter_variants_pipeline.py -h
+          evaluate_concordance.py -h
+          train_models_pipeline.py -h
+          coverage_analysis.py -h
+          correct_systematic_errors.py -h
+          sec_training.py -h
+          collect_existing_metrics.py -h
+          convert_h5_to_json.py -h
       - name: Test with pytest
         run: |
-          export PYTHONPATH=$PYTHONPATH:src
-          python -m pytest test/unit
-          python -m pytest --ignore src/python_tests/test_db_access.py
+          python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system

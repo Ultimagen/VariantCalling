@@ -75,7 +75,7 @@ Description
 \end_layout
 
 \begin_layout Enumerate
-Assume we are calling probabilities of hmer to be 
+Assume we are calling probabilities of hmer to be
 \begin_inset Formula $P=(p_{0,...}p_{N}).$
 \end_inset
 
@@ -83,7 +83,7 @@ Assume we are calling probabilities of hmer to be
 \end_layout
 
 \begin_layout Enumerate
-Let 
+Let
 \begin_inset Formula $N_{h}=\text{argmax }P$
 \end_inset
 
@@ -91,7 +91,7 @@ Let
 \begin_inset Formula $NN\dots N$
 \end_inset
 
- 
+
 \begin_inset Formula $N_{h}$
 \end_inset
 
@@ -99,62 +99,62 @@ times.
 \end_layout
 
 \begin_layout Enumerate
-We retain the 
+We retain the
 \begin_inset Formula $\lceil(N_{h}+1)/2\rceil$
 \end_inset
 
  highest probabilities.
  Let's assume for simplicity that these are (from the lowest to the highest)
- 
+
 \begin_inset Formula $p_{N_{h}-1},p_{N_{h}+1},p_{N_{h}}$
 \end_inset
 
 .
- 
+
 \end_layout
 
 \begin_layout Enumerate
-The important point in our encoding is that we can interpret 
+The important point in our encoding is that we can interpret
 \begin_inset Formula $P_{N_{h}-1}$
 \end_inset
 
- and 
+ and
 \begin_inset Formula $P_{N_{h}+1}$
 \end_inset
 
  as the probabilities of independent errors of different nucleotides of
  the same homopolymer run.
  That is, we can say that the last nucleotide is duplicated with probability
- 
+
 \begin_inset Formula $P_{N_{h}+1}$
 \end_inset
 
- and the one before last nucleotide is deleted with probability 
+ and the one before last nucleotide is deleted with probability
 \begin_inset Formula $P_{N_{h}-1}.$
 \end_inset
 
  As in the old version of the format we ignore the probability that two
  independent errors occured.
- 
+
 \end_layout
 
 \begin_layout Enumerate
-The error probabilities are encoded as previously with phred encoding 
+The error probabilities are encoded as previously with phred encoding
 \begin_inset Formula $\text{char(}\text{round}(-10\text{log}_{10}P)+33)$
 \end_inset
 
 .
- 
+
 \end_layout
 
 \begin_layout Enumerate
-The 
+The
 \begin_inset Formula $ti$
 \end_inset
 
  tag encodes now not only the direction of the error, but also the quantity
  of deleted / inserted nucleotides.
- 
+
 \end_layout
 
 \begin_layout Enumerate
@@ -169,7 +169,7 @@ Example
 \begin_inset Formula $P=(0,0,0,0.1,.85,0.05,0,0)$
 \end_inset
 
- for G will be encoded in sequence as GGGG, in quality +..+, in 
+ for G will be encoded in sequence as GGGG, in quality +..+, in
 \begin_inset Formula $ti$
 \end_inset
 
@@ -180,7 +180,7 @@ Example
 \begin_inset Formula $P=(0,0,0.05,0.1,.85,0,0,0)$
 \end_inset
 
- for G will be encoded in sequence as GGGG, in quality +..+, in 
+ for G will be encoded in sequence as GGGG, in quality +..+, in
 \begin_inset Formula $ti$
 \end_inset
 

@@ -18,7 +18,7 @@
 `gsutil -m rsync -x "$(gsutil ls gs://gcp-public-data--broad-references/hg38/v0/ | awk -F '/' '{print $6 }' | grep -v 'Homo_sapiens_assembly38' | tr '\n' '|' | sed 's/|$//')" gs://gcp-public-data--broad-references/hg38/v0/ /data/genomes/`
 
 ### Configuration file
-Create config file (`error_metrics.config`) of the following form: 
+Create config file (`error_metrics.config`) of the following form:
 
 ```
 em_vc_demux_file=/home/ubuntu/proj/work/191015/420159_1p.demux.bam
@@ -36,7 +36,7 @@ em_vc_cram_reference_file=/data/utils/genomes/ultima-references/HS+ecoli+templat
 
 To input two crams put the full paths to the crams separated by comma in the parameter `em_vc_demux_file`
 
-Optionally, this could be a section in a general config file with header 
+Optionally, this could be a section in a general config file with header
 `[EM_VC]`
 
 ### Run
@@ -47,7 +47,7 @@ python $HOME/software/VariantCalling/src/python/pipelines/error_rate_metrics_pip
 ```
 
 ### Output
-Text output files will be named: 
+Text output files will be named:
  - `.sort.metrics` - error metrics for unfiltered aligned data
  - `.sort.filter.metrics` - error metrics for filtered (>Q20) aligned data
  - `.idxstats` - alignment statistics
@@ -55,8 +55,8 @@ Text output files will be named:
 All outputs will be concatenated into HDF5 file `metrics.h5` with keys `bwa_alignment_stats` and `bwa_error_rates`
 
 ### Testing
-On the machine `ec2-3-208-150-254.compute-1.amazonaws.com` run 
+On the machine `ec2-3-208-150-254.compute-1.amazonaws.com` run
 ```
-python $HOME/proj/VariantCalling/src/python/pipelines/error_metric_pipeline.py -c em.config 
+python $HOME/proj/VariantCalling/src/python/pipelines/error_metric_pipeline.py -c em.config
 ```
 in `/home/ec2-user/proj/VariantCalling/work/200112/`

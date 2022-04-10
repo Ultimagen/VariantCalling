@@ -8,4 +8,3 @@ RUN chmod +x -R /VariantCalling/src/
 ENV PYTHONPATH=/VariantCalling/src/:$PYTHONPATH
 
 RUN conda update -n base -c defaults conda && conda env create -f /VariantCalling/setup/environment.yml && conda init --all
-
