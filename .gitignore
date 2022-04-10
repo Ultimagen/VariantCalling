@@ -22,16 +22,16 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
-# 
+#
 .ipynb_checkpoints
 .mypy_cache/
+dist/
 __pycache__/
 *sublime*
 srcvm/
 .ruffus*
 .idea
 *.png
-
+*egg-info
 *.pytest_cache*
 test/test_outputs
-

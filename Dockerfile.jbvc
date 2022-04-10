@@ -3,16 +3,17 @@ FROM continuumio/anaconda3:2019.10
 SHELL ["/bin/bash", "-c"]
 
 COPY . /VariantCalling
-RUN chmod +x -R /VariantCalling/src/
-
-ENV PYTHONPATH=/VariantCalling/src/:$PYTHONPATH
 
 RUN conda update -n base -c defaults conda && \
     conda env create -f /VariantCalling/setup/environment.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cutadapt.yml && \
     conda env create -f /VariantCalling/setup/other_envs/ucsc.yml && \
-    conda init --all 
+    conda init --all
 RUN source ~/.bashrc && \
     conda activate genomics.py3 && \
     pip install mpld3==0.5.1
 
+RUN source ~/.bashrc && \
+    cd /VariantCalling && \
+    conda activate genomics.py3 && \
+    pip install .

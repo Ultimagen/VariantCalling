@@ -2,19 +2,59 @@
 Variant calling with Ultima data
 
 ## Setup
-Add ugvc and src/python to PYTHONPATH, so that python will be able to find absolute imports
+1. Clone VariantCalling repository to e.g. `software\VariantCalling`
+
+2. Create the three conda environments:
+  ```
+  conda env create -f setup/environment.yml
+  conda env create -f setup/other_envs/ucsd.yml
+  conda env create -f setup/other_envs/cutadapt.yml
+  ```
+3. Activate the main conda environment
+
+  ```
+  conda activate genomics.py3
+  ```
+
+4. Install `ugvc` package
+
+   a. User
+
+      ```
+      cd VariantCalling
+      pip install .
+      ```
+
+   b. Developer
+      Install in editable mode
+      ```
+      cd VariantCalling
+      pip install -e .
+      ```
+
+ scripts should be available on the path and modules should be available for import through from ugvc import ...
+
+## Using ugvc package
+
+### Run through cli
+
+To get a list of available cli tools:
 ```
-export PYTHONPATH="$PYTHONPATH:path/to/repo:/path/to/repo/src/"
+python /path/to/ugvc
 ```
 
-Create the three conda environments:
+To run a specific tool:
+
 ```
-conda env create -f setup/environment.yml
-conda env create -f setup/other_envs/ucsv.yml
-conda env create -f setup/other_envs/cutadapt.yml
+python /path/to/ugvc <tool_name> <args>
 ```
+
+### Run individual tools not through CLI
+
+See individual tool's documentation pages
 
 ## Test
+### Run all tests
 ```
 python -m pytest
 ```
@@ -24,10 +64,20 @@ To ignore this test, run:
 python -m pytest --ignore src/python_tests/test_db_access.py
 ```
 
+### Run unit-tests
+```
+python -m pytest test/unit
+```
+
+### Run system-tests
+```
+python -m pytest test/system
+```
+
 ## Git-lfs
 Whenever commiting a data-file to the repo, check that it's suffix is tracked by git-lfs in .gitattributes
 If not, add the new suffix to the .gitattributes file before adding the data-file and commiting it.
-Also make sure to commit .gitattributes itself. 
+Also make sure to commit .gitattributes itself.
 ```
 git-lfs track "*.new_suffix"
 ```
@@ -38,5 +88,6 @@ git-lfs track "*.new_suffix"
 3. commit and push your changes to that branch on the remote repo
 4. Open a pull-request through github
    1. Add at least one code reviewer
-   2. Wait for CI tests to pass (green V sign) 
-   
+   2. Wait for CI tests to pass (green V sign)
+5. scripts that you want to be available on the path should be added to `setup.py`
+6. scripts that you want to be available to `ugvc` should be added to `__main__.py`

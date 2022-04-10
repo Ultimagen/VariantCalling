@@ -1,3 +1,4 @@
+#!/env/python
 import argparse
 import os.path
 
@@ -5,26 +6,39 @@ import pysam
 
 from ugvc import logger
 from ugvc.readwrite.buffered_variant_reader import BufferedVariantReader
-from ugvc.sec.allele_counter import count_alleles_in_pileup, count_alleles_in_gvcf
+from ugvc.sec.allele_counter import count_alleles_in_gvcf, count_alleles_in_pileup
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
 from ugvc.sec.efm_factory import pileup_to_efm
-from ugvc.utils.pysam_utils import get_filtered_alleles_str, get_genotype_indices, \
-    get_alleles_str
+from ugvc.vcfbed.pysam_utils import (
+    get_alleles_str,
+    get_filtered_alleles_str,
+    get_genotype_indices,
+)
 
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--relevant_coords', help='path to bed file describing relevant genomic subset to analyze', required=True)
+        "--relevant_coords",
+        help="path to bed file describing relevant genomic subset to analyze",
+        required=True,
+    )
 
-    parser.add_argument('--ground_truth_vcf', required=True,
-                        help='path to vcf.gz (tabix indexed) file containing true genotypes for this sample')
-    parser.add_argument('--sample_id', help='id of analyzed sample', required=True)
-    parser.add_argument('--output_file', required=True)
     parser.add_argument(
-        '--sam_file', help='path to sam/bam/cram file  (for getting processed aligned reads information)')
+        "--ground_truth_vcf",
+        required=True,
+        help="path to vcf.gz (tabix indexed) file containing true genotypes for this sample",
+    )
+    parser.add_argument("--sample_id", help="id of analyzed sample", required=True)
+    parser.add_argument("--output_file", required=True)
     parser.add_argument(
-        '--gvcf_file', help='path to gvcf file, (for getting the raw aligned reads information)')
+        "--sam_file",
+        help="path to sam/bam/cram file  (for getting processed aligned reads information)",
+    )
+    parser.add_argument(
+        "--gvcf_file",
+        help="path to gvcf file, (for getting the raw aligned reads information)",
+    )
 
     args = parser.parse_args()
     return args
@@ -43,35 +57,41 @@ def main():
         if os.path.exists(args.gvcf_file):
             gvcf_reader = BufferedVariantReader(file_name=args.gvcf_file)
         else:
-            logger.error('gvcf input does not exist')
+            logger.error("gvcf input does not exist")
             return
 
         sam_reader = None
     else:
-        raise ValueError('Must define either sam_file or gvcf_file input')
+        raise ValueError("Must define either sam_file or gvcf_file input")
 
     ground_truth_reader = BufferedVariantReader(file_name=args.ground_truth_vcf)
     if args.sample_id not in ground_truth_reader.pysam_reader.header.samples:
-        logger.error(f'sample {args.sample_id} not found in ground truth file {args.ground_truth_vcf}')
+        logger.error(
+            f"sample {args.sample_id} not found in ground truth file {args.ground_truth_vcf}"
+        )
         return
 
-    with open(args.output_file, 'w') as out_stream:
-        error_correction_training(args.relevant_coords,
-                                  ground_truth_reader,
-                                  gvcf_reader,
-                                  sam_reader,
-                                  args.sample_id,
-                                  out_stream)
+    with open(args.output_file, "w") as out_stream:
+        error_correction_training(
+            args.relevant_coords,
+            ground_truth_reader,
+            gvcf_reader,
+            sam_reader,
+            args.sample_id,
+            out_stream,
+        )
 
 
-def error_correction_training(relevant_coords_file: str,
-                              ground_truth_reader: BufferedVariantReader,
-                              gvcf_reader: BufferedVariantReader,
-                              sam_reader: pysam.AlignmentFile,
-                              sample_id: str,
-                              out_stream):
+def error_correction_training(
+    relevant_coords_file: str,
+    ground_truth_reader: BufferedVariantReader,
+    gvcf_reader: BufferedVariantReader,
+    sam_reader: pysam.AlignmentFile,
+    sample_id: str,
+    out_stream,
+):
     for line in open(relevant_coords_file):
-        fields = line.split('\t')
+        fields = line.split("\t")
         chrom, start, end = fields[0], int(fields[1]), int(fields[2])  # 0-based coords
         for pos in range(start + 1, end + 1):
             ground_truth_variant = ground_truth_reader.get_variant(chrom, pos)
@@ -94,44 +114,49 @@ def error_correction_training(relevant_coords_file: str,
                         true_genotype = (assumed_ref_allele, assumed_ref_allele)
 
                     efm = pileup_to_efm(pileup_column, true_genotype)
-                    out_stream.write(f'pos={pos} true_genotype={true_genotype} '
-                                     f'pileup={pileup_column.get_query_sequences()}{efm}\n')
+                    out_stream.write(
+                        f"pos={pos} true_genotype={true_genotype} "
+                        f"pileup={pileup_column.get_query_sequences()}{efm}\n"
+                    )
             # gvcf input
             else:
                 observed_variant = gvcf_reader.get_variant(chrom, pos)
 
                 # skip positions uncovered by gvcf:
                 if observed_variant is None:
-                    logger.debug('no information on position for sample')
+                    logger.debug("no information on position for sample")
                     continue
 
                 observed_alleles = get_filtered_alleles_str(observed_variant)
                 observed_genotype = observed_variant.samples[0].alleles
 
                 # skip continuous deletion reports (count deletion where it starts)
-                if '*' in observed_genotype:
+                if "*" in observed_genotype:
                     continue
 
                 if ground_truth_variant is not None:
-                    true_genotype = get_genotype_indices(ground_truth_variant.samples[sample_id])
-                    if true_genotype == './.':
-                        logger.debug('no information on position for ground-truth')
+                    true_genotype = get_genotype_indices(
+                        ground_truth_variant.samples[sample_id]
+                    )
+                    if true_genotype == "./.":
+                        logger.debug("no information on position for ground-truth")
                         continue
                     ground_truth_alleles = get_alleles_str(ground_truth_variant)
                 else:
                     # If variant is absent from ground truth file, assume true_genotype is the reference genotype
-                    true_genotype = '0/0'
+                    true_genotype = "0/0"
                     first_ref_base = observed_variant.ref[0]
                     ground_truth_alleles = first_ref_base
 
                 allele_counts = count_alleles_in_gvcf(observed_variant)
-                conditional_allele_distribution = ConditionalAlleleDistribution(ground_truth_alleles,
-                                                                                true_genotype,
-                                                                                observed_alleles,
-                                                                                allele_counts)
-                for record in conditional_allele_distribution.get_string_records(chrom, pos):
-                    out_stream.write(f'{record}\n')
+                conditional_allele_distribution = ConditionalAlleleDistribution(
+                    ground_truth_alleles, true_genotype, observed_alleles, allele_counts
+                )
+                for record in conditional_allele_distribution.get_string_records(
+                    chrom, pos
+                ):
+                    out_stream.write(f"{record}\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

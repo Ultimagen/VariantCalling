@@ -1,14 +1,13 @@
-from typing import List, Tuple, Optional, Union
+from typing import List, Optional, Tuple, Union
 
-import sys
 import numpy as np
 from scipy.stats import multinomial
 from sklearn import metrics
 
 from ugvc.utils.math_utils import safe_divide
 
-
 # Goodness of fit functions
+
 
 def scale_contingency_table(table: List[int], n: int) -> List[int]:
     """
@@ -64,7 +63,9 @@ def multinomial_likelihood(actual: List[int], expected: List[int]) -> float:
     return multinomial.pmf(x=actual, n=sum(actual), p=freq_expected)
 
 
-def multinomial_likelihood_ratio(actual: List[int], expected: List[int]) -> Tuple[float, float]:
+def multinomial_likelihood_ratio(
+    actual: List[int], expected: List[int]
+) -> Tuple[float, float]:
     likelihood = multinomial_likelihood(actual, expected)
     max_likelihood = multinomial_likelihood(actual, actual)
     likelihood_ratio = likelihood / max_likelihood
@@ -129,11 +130,14 @@ def get_f1(precision: float, recall: float) -> float:
     return safe_divide(2 * precision * recall, precision + recall)
 
 
-def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
-                           fn_mask: np.ndarray,
-                           pos_label: Optional[Union[str, int]] = 1,
-                           min_class_counts_to_output: int = 20) -> tuple:
-    '''Calculates precision/recall curve from double prediction scores and ground truth
+def precision_recall_curve(
+    gtr: np.ndarray,
+    predictions: np.ndarray,
+    fn_mask: np.ndarray,
+    pos_label: Optional[Union[str, int]] = 1,
+    min_class_counts_to_output: int = 20,
+) -> tuple:
+    """Calculates precision/recall curve from double prediction scores and ground truth
     Similar to sklearn precision_recall curve, but uses mask of variants that were false negatives
 
     Parameters
@@ -153,24 +157,25 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     -------
     tuple
         precisions, recalls, f1, prediction_values
-    '''
+    """
 
     if len(gtr) == 0:
         return np.array([]), np.array([]), np.array([]), np.array([])
 
-    assert len(
-        set(gtr)) <= 2, "Only up to two classes of variant labels are possible"
+    assert len(set(gtr)) <= 2, "Only up to two classes of variant labels are possible"
     assert len(fn_mask) == len(
-        predictions), "FN mask should be of the length of predictions"
+        predictions
+    ), "FN mask should be of the length of predictions"
 
     gtr_select = gtr[~fn_mask]
-    gtr_select = (gtr_select == pos_label)
+    gtr_select = gtr_select == pos_label
     predictions_select = predictions[~fn_mask]
     original_fn_count = fn_mask.sum()
 
     if len(gtr_select) > 0:
         raw_precision, raw_recall, thresholds = metrics.precision_recall_curve(
-            gtr_select, predictions_select, pos_label=True)
+            gtr_select, predictions_select, pos_label=True
+        )
     else:
         raw_precision = np.array([1.0])
         raw_recall = np.array([0.0])
@@ -180,17 +185,33 @@ def precision_recall_curve(gtr: np.ndarray, predictions: np.ndarray,
     recalls = raw_recall * recall_correction
     recalls = recalls[:-1]  # remove the 1,0 value that sklearn adds
     precisions = raw_precision[:-1]
-    f1 = 2 * (recalls * precisions) / \
-        (recalls + precisions + np.finfo(float).eps)
+    f1 = 2 * (recalls * precisions) / (recalls + precisions + np.finfo(float).eps)
 
     # Find the score cutoff at which too few calls remain (to remove areas where the precision recall curve is noisy)
     predictions_select = np.sort(predictions_select)
     if len(predictions_select) > 0:
         threshold_cutoff = predictions_select[
-            max(0, len(predictions_select) - min_class_counts_to_output)]
+            max(0, len(predictions_select) - min_class_counts_to_output)
+        ]
     else:
         threshold_cutoff = 0
 
     mask = thresholds > threshold_cutoff
-    return precisions[~mask], recalls[~mask], \
-        f1[~mask], thresholds[~mask]
+    return precisions[~mask], recalls[~mask], f1[~mask], thresholds[~mask]
+
+
+def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
+    """Returns values from a distribution
+
+    Parameters
+    ----------
+    vals: np.ndarray
+        Values
+    probs: np.ndarray
+        Probabilities
+
+    Returns
+    -------
+    np.ndarray
+    """
+    return np.random.choice(vals, 10000, p=probs)

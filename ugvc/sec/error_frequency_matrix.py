@@ -14,6 +14,7 @@ class ErrorFrequencyMatrix:
     | base_mutation   | 1          |   1     |
     | other           | 0          |   0     |
     """
+
     base_mutation_index = 4
     other_error_index = 5
 
@@ -44,4 +45,4 @@ class ErrorFrequencyMatrix:
         return self.matrix[self.other_error_index, column]
 
     def __str__(self):
-        return f'ErrorFrequencyMatrix:\n{self.matrix}'
+        return f"ErrorFrequencyMatrix:\n{self.matrix}"

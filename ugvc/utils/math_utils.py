@@ -1,4 +1,3 @@
-
 def safe_divide(a: float, b: float, return_if_b_is_0: int = 0):
     """
 

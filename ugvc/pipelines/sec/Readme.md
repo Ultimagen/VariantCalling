@@ -8,7 +8,7 @@
 python ugvc/pipelines/sec/correct_systematic_errors.py \
 --model <conditional_allele_distribution.pickle> \
 --gvcf <indexed vcf.gz or gvcf.gz file> \
---output_file <out.bed or out.vcf or out.pkl> \ 
+--output_file <out.bed or out.vcf or out.pkl> \
 --relevant_coords <blacklist.bed>
 ```
 

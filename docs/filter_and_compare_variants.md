@@ -22,12 +22,12 @@
 6. Copy helper files for variant calling
 `aws s3 sync s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/ /data/genomes/broad-references/hg38/concordance/`
 
-7. Copy additional files to the location of the genome: 
+7. Copy additional files to the location of the genome:
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.dict 
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.dict
  /data/genomes/broad-references/hg38/v0/`
 
-`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.sizes 
+`aws s3 cp s3://ultimagen-ilya-new/VariantCalling/data/concordance/hg38/Homo_sapiens_assembly38.fasta.sizes
 /data/genomes/broad-references/hg38/v0/`
 
 ## Workflow options
@@ -66,7 +66,7 @@ usage: run_comparison_pipeline.py [-h] --n_parts N_PARTS --input_prefix
                                    --cmp_intervals CMP_INTERVALS
                                    --highconf_intervals HIGHCONF_INTERVALS
                                    [--runs_intervals RUNS_INTERVALS]
-                                   --reference REFERENCE 
+                                   --reference REFERENCE
                                    [--aligned_bam ALIGNED_BAM]
                                    [--annotate_intervals ANNOTATE_INTERVALS]
                                    --call_sample_name
@@ -85,7 +85,7 @@ Arguments:
   --cmp_intervals CMP_INTERVALS
                         Ranges on which to perform comparison
   --highconf_intervals HIGHCONF_INTERVALS
-                        High confidence intervals 
+                        High confidence intervals
   --runs_intervals RUNS_INTERVALS
                         Runs intervals (locations of homopolymer repeats)
   --reference REFERENCE
@@ -99,8 +99,8 @@ Arguments:
   --find_thresholds     Should precision recall thresholds be found
   --filter_runs         Should variants on hmer runs be filtered out in the output
   --ignore_filter_status Use also filtered out variants in calculating concordance
-  --annotate_intervals   (might be specified multiple times), bed files specifying regions 
-                        of special_interest that will be added as boolean annotations to 
+  --annotate_intervals   (might be specified multiple times), bed files specifying regions
+                        of special_interest that will be added as boolean annotations to
                         variants
 ```
 
@@ -148,7 +148,7 @@ optional arguments:
 
 **Note:** model_file is a dictionary with multiple fields
 
-Models: 
+Models:
 
 * `threshold_model`, `dt_model` - thresholding on QUAL/SOR or decision tree model
 * `ignore_gt` versus `include_gt` - false positive, false negative, true positive are determined only on the variants or on the alleles
@@ -230,5 +230,3 @@ optional arguments:
   --output_file OUTPUT_FILE
                         Output h5 file
 ```
-
-
