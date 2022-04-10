@@ -61,7 +61,7 @@ python -m pytest
 Notice that test_db_access needs your machine to have access credentials to mongoDB.
 To ignore this test, run:
 ```
-python -m pytest --ignore src/python_tests/test_db_access.py
+python -m pytest --ignore test/unit/test_db_access.py
 ```
 
 ### Run unit-tests
