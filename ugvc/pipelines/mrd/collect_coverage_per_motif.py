@@ -60,7 +60,7 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
 
 def run(argv: List[str]):
     """Collect coverage per motif from a collection of depth files"""
-    args_in = __parse_args(argv)
+    args_in = __parse_args(argv[1:])
     collect_coverage_per_motif(
         depth_files=args_in.input,
         reference_fasta=args_in.reference_fasta,

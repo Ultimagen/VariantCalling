@@ -80,7 +80,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 
 def run(argv: List[str]):
     """Calculate SNP error rate per motif"""
-    args = parse_args(argv)
+    args = parse_args(argv[1:])
     calculate_snp_error_rate(
         single_substitution_featuremap=args.featuremap_single_substitutions_dataframe,
         coverage_stats=args.coverage_stats,

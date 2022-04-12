@@ -1,5 +1,5 @@
-#!/env/python
 import argparse
+import os
 import os.path
 from enum import Enum
 from functools import lru_cache
@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
 
 from ugvc.dna.format import CYCLE_SKIP, CYCLE_SKIP_STATUS, DEFAULT_FLOW_ORDER
 from ugvc.dna.utils import revcomp
@@ -28,10 +29,12 @@ POSITION_PLOT_STEP_SIZE = 1
 TH_X_EDIST = 4
 TH_X_SCORE = 10
 
+DEFAULT_FILE_PREFIX = "mutation_position_histogram_per_motif"
+DEFAULT_ERROR_PER_POSITION_PREFIX = "error_per_position_per_motif"
+
 
 class FeatureMapColumnName(Enum):
     """ Column names enum of SNP feature map dataframe (read from parquet file)"""
-
     CIGAR = "X_CIGAR"
     EDIT_DISTANCE = "X_EDIST"
     SCORE = "X_SCORE"
@@ -45,7 +48,6 @@ class FeatureMapColumnName(Enum):
 
 class ErrorRateColumnName(Enum):
     """ Column names enum of error rate dataframe """
-
     NAME = "name"
     REF = "ref"
     ALT = "alt"
@@ -100,7 +102,10 @@ def filter_substitutions_threshold(
 
 
 def load_coverage_per_motif(coverage_file_name, motif_name):
-    return pd.read_hdf(cloud_sync(coverage_file_name), motif_name,)
+    return pd.read_hdf(
+        cloud_sync(coverage_file_name),
+        motif_name,
+    )
 
 
 #  analysis functions #
@@ -150,11 +155,12 @@ def _get_bins(
 
 
 def calc_error_rate(  # pylint: disable=too-many-arguments
-    run_name,
+    run_name: str,
     ref_cskp_motifs,
     single_substitutions_df,
     coverage_df,
-    output_folder,
+    output_folder: str,
+    error_per_position_per_motif: str,
     max_positions_plot: int = MAX_POSITIONS_PLOT,
     position_plot_step_size: int = POSITION_PLOT_STEP_SIZE,
 ):
@@ -186,7 +192,7 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
                 [
                     revcomp(x)
                     for x in ref_cskp_motifs.loc[
-                        (ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value
+                    (ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value
                     ].unique()
                 ]
             )
@@ -194,7 +200,7 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
                 [
                     revcomp(x)
                     for x in ref_cskp_motifs.loc[
-                        (ref, alt), FeatureMapColumnName.ALTERNATE_MOTIF.value
+                    (ref, alt), FeatureMapColumnName.ALTERNATE_MOTIF.value
                     ].unique()
                 ]
             )
@@ -208,7 +214,8 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
         ].sum()
 
         single_substitutions_cskp_hist, _ = np.histogram(
-            single_substitutions_cskp[FeatureMapColumnName.INDEX.value], bins=bins,
+            single_substitutions_cskp[FeatureMapColumnName.INDEX.value],
+            bins=bins,
         )
         single_substitutions_dna_comp_hist, _ = np.histogram(
             single_substitutions_dna_complement[FeatureMapColumnName.INDEX.value],
@@ -244,10 +251,7 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
 
     # save the results to parquet file
     error_rate_results_df.to_parquet(
-        os.path.join(
-            output_folder,
-            f"error_per_position_per_motif.{run_name}{FileExtension.PARQUET.value}",
-        )
+        os.path.join(output_folder, f"{error_per_position_per_motif}.{run_name}{FileExtension.PARQUET.value}")
     )
 
     return error_rate_results_df
@@ -325,7 +329,8 @@ def create_graphs(
     plt.xlim(bins[0], bins[-1])
     fig.savefig(
         os.path.join(
-            figures_folder, f"{output_file_prefix}.{run_name}{FileExtension.PNG.value}",
+            figures_folder,
+            f"{output_file_prefix}.{run_name}{FileExtension.PNG.value}",
         ),
         bbox_extra_artists=artists,
         bbox_inches="tight",
@@ -348,7 +353,6 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "-f",
         "--featuremap_single_substitutions_dataframe",
         type=str,
         required=True,
@@ -361,7 +365,6 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         help="""coverage_per_motif h5 file""",
     )
     parser.add_argument(
-        "-o",
         "--output",
         type=str,
         required=True,
@@ -370,7 +373,15 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument(
         "--output_file_prefix",
         type=str,
-        required=True,
+        required=False,
+        default=DEFAULT_FILE_PREFIX,
+        help="""Prefix of output file names for .png files""",
+    )
+    parser.add_argument(
+        "--error_per_pos_file_prefix",
+        type=str,
+        required=False,
+        default=DEFAULT_ERROR_PER_POSITION_PREFIX,
         help="""Prefix of output file names for .png files""",
     )
     parser.add_argument(
@@ -423,7 +434,8 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
     single_substitutions_file_name: str,
     coverage_per_motif_file_name: str,
     output_folder: str,
-    output_file_prefix: str,
+    output_file_prefix: str = DEFAULT_FILE_PREFIX,
+    error_per_pos_file_prefix: str = DEFAULT_ERROR_PER_POSITION_PREFIX,
     allow_softlclip: bool = False,
     flow_order: str = DEFAULT_FLOW_ORDER,
     position_plot_step_size: int = POSITION_PLOT_STEP_SIZE,
@@ -437,6 +449,7 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
     :param coverage_per_motif_file_name: coverage per motif file name to use, this file is a h5 file
     :param output_folder: output folder to save graph result files
     :param output_file_prefix: name of output result file
+    :param error_per_pos_file_prefix: prefix of error per position result file
     :param allow_softlclip: allow include softclip within calculations
     :param flow_order: flow order of nucleotides
     :param position_plot_step_size: step size for plotting graph
@@ -446,8 +459,10 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
 
     :return: None value return, the process saves created graphs in files and enable plotting them
     """
-
     # preprocess
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
     run_name = preprocess_filename(single_substitutions_file_name)
 
     # read feature maps
@@ -468,6 +483,7 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
         single_substitutions_df,
         coverage_df,
         output_folder,
+        error_per_pos_file_prefix,
         max_positions_plot,
         position_plot_step_size,
     )
@@ -485,12 +501,14 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
 
 def run(argv: List[str]):
     """ Calculate positional error rate profile for all SNPs """
-    args = parse_args(argv)
+    print(f"positional_error_rate_profile.run called with {argv}")
+    args = parse_args(argv[1:])
     calc_positional_error_rate_profile(
         single_substitutions_file_name=args.featuremap_single_substitutions_dataframe,
         coverage_per_motif_file_name=args.coverage_per_motif,
         output_folder=args.output,
         output_file_prefix=args.output_file_prefix,
+        error_per_pos_file_prefix=args.error_per_pos_file_prefix,
         allow_softlclip=args.allow_softlclip,
         flow_order=args.flow_order,
         position_plot_step_size=args.position_plot_step_size,
