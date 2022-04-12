@@ -67,7 +67,7 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
 
 def run(argv: List[str]):
     """Convert featuremap to pandas dataframe"""
-    args_in = __parse_args(argv)
+    args_in = __parse_args(argv[1:])
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,

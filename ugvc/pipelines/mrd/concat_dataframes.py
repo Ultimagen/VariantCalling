@@ -33,7 +33,7 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
 
 def run(argv: List[str]):
     """Concat featuremap pandas dataframe created on different intevals"""
-    args = __parse_args(argv)
+    args = __parse_args(argv[1:])
     concat_dataframes(
         dataframes=args.input, outfile=args.output, n_jobs=args.jobs,
     )

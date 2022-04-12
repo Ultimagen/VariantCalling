@@ -42,7 +42,7 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
 def run(argv: List[str]):
     """Creates a vcf file with the same number of variants and identical mutation type distribution as the input vcf,
     in different positions, for MRD background measurement purposes. SNPs only."""
-    args_in = __parse_args(argv)
+    args_in = __parse_args(argv[1:])
     create_control_signature(
         signature_file=args_in.input,
         control_signature_file_output=args_in.output,

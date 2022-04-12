@@ -71,7 +71,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 
 def run(argv: List[str]):
     """Aggregate the outputs from the MRDFeatureMap pipeline and prepare dataframes for analysis"""
-    args_in = parse_args(argv)
+    args_in = parse_args(argv[1:])
     prepare_data_from_mrd_pipeline(
         intersected_featuremaps_parquet=args_in.intersected_featuremaps,
         signature_vcf_files=args_in.signature_vcf,
