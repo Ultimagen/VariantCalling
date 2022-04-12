@@ -4,7 +4,7 @@ from os.path import dirname
 from test import get_resource_dir
 
 from ugvc.pipelines.sec.merge_conditional_allele_distributions import (
-    merge_conditional_allele_distributions,
+    run,
 )
 from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistributions
 
@@ -22,8 +22,9 @@ class TestMergeConditionalAlleleDistributions:
             cad_files_fh.write(f"{self.inputs_dir}/HG00096.head.tsv\n")
             cad_files_fh.write(f"{self.inputs_dir}/HG00140.head.tsv\n")
 
-        merge_conditional_allele_distributions(
+        run(
             [
+                "merge_conditional_allele_distributions",
                 "--conditional_allele_distribution_files",
                 cad_files_path,
                 "--output_prefix",

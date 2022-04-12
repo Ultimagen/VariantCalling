@@ -17,6 +17,7 @@ class TestCorrectSystematicErrors:
 
         correct_systematic_errors.run(
             [
+                "correct_systematic_errors",
                 "--relevant_coords",
                 f"{self.inputs_dir}/blacklist_hg001_10s.bed",
                 "--model",
@@ -129,6 +130,7 @@ class TestCorrectSystematicErrors:
 
         correct_systematic_errors.run(
             [
+                "correct_systematic_errors",
                 "--relevant_coords",
                 f"{self.inputs_dir}/blacklist_hg001_10s.chr3.bed",
                 "--model",

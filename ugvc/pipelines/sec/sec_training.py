@@ -47,7 +47,7 @@ def parse_args(argv):
     parser.add_argument("-fc", help="index of first command", default=0)
     parser.add_argument("-lc", help="index of last command", default=1000)
     parser.add_argument("-d", action="store_true", help="print only")
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
     return args
 
 
@@ -209,4 +209,4 @@ def run(argv):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run(sys.argv)
