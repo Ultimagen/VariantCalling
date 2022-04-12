@@ -100,7 +100,7 @@ def get_args(argv: List[str]):
         help="filter variants in positions where ref and alt "
         "conditioned genotype have similar distributions",
     )
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
     return args
 
 
@@ -417,4 +417,4 @@ def run(argv: List[str]):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run(sys.argv)

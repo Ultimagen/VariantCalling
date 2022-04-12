@@ -23,11 +23,11 @@ def get_args(argv: List[str]):
         "of serialized ConditionalAlleleDistribution dicts",
         required=True,
     )
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
     return args
 
 
-def merge_conditional_allele_distributions(argv: List[str]):
+def run(argv: List[str]):
     """
     stack together conditional_allele_distributions from multiple samples into a single file
     """
@@ -84,4 +84,4 @@ def merge_conditional_allele_distributions(argv: List[str]):
 
 
 if __name__ == "__main__":
-    merge_conditional_allele_distributions(sys.argv[1:])
+    run(sys.argv)

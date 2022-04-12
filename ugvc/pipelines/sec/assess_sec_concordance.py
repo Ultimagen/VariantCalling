@@ -66,7 +66,7 @@ def parse_args(argv):
         action="store_true",
         default=False,
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def write_bed(df: DataFrame, bed_path: str):
