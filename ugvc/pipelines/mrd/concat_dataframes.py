@@ -28,12 +28,12 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
         help="Number of jobs to run in parallel (default 1, -1 for max)",
     )
 
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):
     """Concat featuremap pandas dataframe created on different intevals"""
-    args = __parse_args(argv[1:])
+    args = __parse_args(argv)
     concat_dataframes(
         dataframes=args.input, outfile=args.output, n_jobs=args.jobs,
     )

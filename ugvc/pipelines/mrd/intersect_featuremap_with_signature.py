@@ -24,12 +24,12 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
         required=True,
         help="""Output intersection vcf file (lines from featuremap propagated)""",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):
     """Intersect featuremap and signature vcf files on position and matching ref and alts"""
-    args_in = __parse_args(argv[1:])
+    args_in = __parse_args(argv)
     intersect_featuremap_with_signature(
         args_in.featuremap, args_in.signature, args_in.output
     )
