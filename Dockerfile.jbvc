@@ -17,3 +17,5 @@ RUN source ~/.bashrc && \
     cd /VariantCalling && \
     conda activate genomics.py3 && \
     pip install .
+
+RUN apt-get install nano

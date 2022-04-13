@@ -66,7 +66,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         default=None,
         help="""Basename of output files that will be created.""",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):
