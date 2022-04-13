@@ -75,7 +75,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         default=None,
         help="""single chromosome the featuremap was calculated for (leave blank if all chromosomes were included""",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):

@@ -62,7 +62,7 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         action="store_true",
         help="show progress bar (tqdm)",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):

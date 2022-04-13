@@ -36,7 +36,7 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument(
         "--progress-bar", action="store_true", help="""Show progress bar""",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):
