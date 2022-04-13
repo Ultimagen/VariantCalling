@@ -36,13 +36,13 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
     parser.add_argument(
         "--progress-bar", action="store_true", help="""Show progress bar""",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):
     """Creates a vcf file with the same number of variants and identical mutation type distribution as the input vcf,
     in different positions, for MRD background measurement purposes. SNPs only."""
-    args_in = __parse_args(argv[1:])
+    args_in = __parse_args(argv)
     create_control_signature(
         signature_file=args_in.input,
         control_signature_file_output=args_in.output,

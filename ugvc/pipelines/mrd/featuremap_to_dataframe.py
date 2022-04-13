@@ -62,12 +62,12 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         action="store_true",
         help="show progress bar (tqdm)",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):
     """Convert featuremap to pandas dataframe"""
-    args_in = __parse_args(argv[1:])
+    args_in = __parse_args(argv)
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,

@@ -55,12 +55,12 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
         default=-1,
         help="Number of jobs to run in parallel (default -1 for max)",
     )
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def run(argv: List[str]):
     """Collect coverage per motif from a collection of depth files"""
-    args_in = __parse_args(argv[1:])
+    args_in = __parse_args(argv)
     collect_coverage_per_motif(
         depth_files=args_in.input,
         reference_fasta=args_in.reference_fasta,

@@ -427,7 +427,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         help=""" X Score threshold """,
     )
 
-    return parser.parse_args(argv)
+    return parser.parse_args(argv[1:])
 
 
 def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
@@ -502,7 +502,7 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
 def run(argv: List[str]):
     """ Calculate positional error rate profile for all SNPs """
     print(f"positional_error_rate_profile.run called with {argv}")
-    args = parse_args(argv[1:])
+    args = parse_args(argv)
     calc_positional_error_rate_profile(
         single_substitutions_file_name=args.featuremap_single_substitutions_dataframe,
         coverage_per_motif_file_name=args.coverage_per_motif,
