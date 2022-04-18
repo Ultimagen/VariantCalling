@@ -7,7 +7,7 @@ import pandas as pd
 from simppl.cli import get_parser
 from simppl.simple_pipeline import SimplePipeline
 
-from ugvc import base_dir
+from ugvc import base_dir as ugvc_pgk
 from ugvc.utils.consts import FileExtension
 
 
@@ -136,7 +136,7 @@ def run(argv):
 
         if sample_id in training_samples:
             training_commands.append(
-                f"python {sec_main}/error_correction_training.py "
+                f"python {ugvc_pkg} error_correction_training "
                 f"--relevant_coords {relevant_coords_file} "
                 f"--ground_truth_vcf {ground_truth_vcf} "
                 f"--gvcf {relevant_gvcf} "
@@ -150,7 +150,7 @@ def run(argv):
             )
             if novel_detection_only:
                 test_commands.append(
-                    f"python {sec_main}/correct_systematic_errors.py "
+                    f"python {ugvc_pkg} correct_systematic_errors "
                     f"--relevant_coords {relevant_coords_file} "
                     f"--model {model_prefix}*.pkl "
                     f"--gvcf {relevant_gvcf} "
@@ -159,15 +159,15 @@ def run(argv):
                 )
             else:
                 test_commands.append(
-                    f"python {sec_main}/correct_systematic_errors.py "
+                    f"python {ugvc_pkg} correct_systematic_errors "
                     f"--relevant_coords {relevant_coords_file} "
-                    f"--model {model_prefix}*.pkl "
+                    f"--model \"{model_prefix}*.pkl\" "
                     f"--gvcf {relevant_gvcf} "
                     f"--output_file {corrected_vcf}"
                 )
 
             assess_commands.append(
-                f"python {base_dir}/concordance/compare_vcf_to_ground_truth.py "
+                f"python {ugvc_pkg} compare_vcf_to_ground_truth.py "
                 f"--relevant_coords {relevant_coords_file} "
                 f"--ground_truth_vcf {ground_truth_vcf} "
                 f"--gvcf {corrected_vcf} "
