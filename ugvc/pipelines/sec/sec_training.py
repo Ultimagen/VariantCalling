@@ -7,7 +7,7 @@ import pandas as pd
 from simppl.cli import get_parser
 from simppl.simple_pipeline import SimplePipeline
 
-from ugvc import base_dir as ugvc_pgk
+from ugvc import base_dir as ugvc_pkg
 from ugvc.utils.consts import FileExtension
 
 
@@ -59,8 +59,6 @@ def run(argv):
     relevant_coords_file = args.relevant_coords
     out_dir = args.out_dir
     ground_truth_vcf = args.ground_truth_vcf
-
-    sec_main = f"{base_dir}/pipelines/sec"
 
     novel_detection_only = args.novel_detection_only
     novel_detection_suffix = "_novel" if novel_detection_only else ""
@@ -166,16 +164,6 @@ def run(argv):
                     f"--output_file {corrected_vcf}"
                 )
 
-            assess_commands.append(
-                f"python {ugvc_pkg} compare_vcf_to_ground_truth.py "
-                f"--relevant_coords {relevant_coords_file} "
-                f"--ground_truth_vcf {ground_truth_vcf} "
-                f"--gvcf {corrected_vcf} "
-                f"--sample_id {sample_id} "
-                f"--ignore_genotype "
-                f"--output_prefix {out_dir}/assessment{novel_detection_suffix}/{sample_id}"
-            )
-
     # extract variants in relevant coords (often from cloud to local storage)
     sp.run_parallel(extract_variants_commands, max_num_of_processes=args.processes)
     sp.run_parallel(index_chr_vcfs_commands, max_num_of_processes=args.processes)
@@ -199,7 +187,7 @@ def run(argv):
 
     # Aggregate empirical allele distributions of training-set
     sp.print_and_run(
-        f"python {sec_main}/merge_conditional_allele_distributions.py "
+        f"python {ugvc_pkg} merge_conditional_allele_distributions "
         f"--conditional_allele_distribution_files {training_files_file} "
         f"--output_prefix {model_prefix}"
     )
