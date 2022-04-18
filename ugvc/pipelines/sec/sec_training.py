@@ -106,7 +106,7 @@ def run(argv):
         pd.read_csv(relevant_coords_file, sep="\t", header=None)[0].unique()
     )
 
-    model_file = f"{out_dir}/conditional_allele_distribution.pkl"
+    model_prefix = f"{out_dir}/conditional_allele_distribution"
 
     for sample_id, gvcf_file in zip(sample_ids, gvcf_files):
         relevant_gvcf = f"{out_dir}/gvcf/{sample_id}.g.vcf.gz"
@@ -152,7 +152,7 @@ def run(argv):
                 test_commands.append(
                     f"python {sec_main}/correct_systematic_errors.py "
                     f"--relevant_coords {relevant_coords_file} "
-                    f"--model {model_file} "
+                    f"--model {model_prefix}*.pkl "
                     f"--gvcf {relevant_gvcf} "
                     f"--output_file {corrected_vcf} "
                     "--novel_detection_only"
@@ -161,7 +161,7 @@ def run(argv):
                 test_commands.append(
                     f"python {sec_main}/correct_systematic_errors.py "
                     f"--relevant_coords {relevant_coords_file} "
-                    f"--model {model_file} "
+                    f"--model {model_prefix}*.pkl "
                     f"--gvcf {relevant_gvcf} "
                     f"--output_file {corrected_vcf}"
                 )
@@ -201,7 +201,7 @@ def run(argv):
     sp.print_and_run(
         f"python {sec_main}/merge_conditional_allele_distributions.py "
         f"--conditional_allele_distribution_files {training_files_file} "
-        f"--output_file {model_file}"
+        f"--output_prefix {model_prefix}"
     )
 
     sp.run_parallel(test_commands, max_num_of_processes=args.processes)
