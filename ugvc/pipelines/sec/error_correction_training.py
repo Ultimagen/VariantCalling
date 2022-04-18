@@ -5,7 +5,7 @@ import os.path
 import pysam
 
 from ugvc import logger
-from ugvc.readwrite.buffered_variant_reader import BufferedVariantReader
+from ugvc.vcfbed.buffered_variant_reader import BufferedVariantReader
 from ugvc.sec.allele_counter import count_alleles_in_gvcf, count_alleles_in_pileup
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution
 from ugvc.sec.efm_factory import pileup_to_efm
