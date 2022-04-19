@@ -49,7 +49,7 @@ def get_args(argv: List[str]):
         help="path to gvcf file, (for getting the raw aligned reads information)",
     )
     parser.add_argument(
-        "--output_file", help="path to output file (vcf/vcf.gz/bed/pickle)"
+        "--output_file", help="path to output file (vcf/vcf.gz/pickle)"
     )
     parser.add_argument(
         "--strand_enrichment_pval_thresh",
@@ -157,7 +157,7 @@ class SystematicErrorCorrector:
             self.output_type = OutputType.pickle
         else:
             raise ValueError(
-                "output file must end with bed/vcf/vcf.gz/pickle/pkl suffixes"
+                "output file must end with vcf/vcf.gz/pickle/pkl suffixes"
             )
 
         self.caller = SECCaller(
