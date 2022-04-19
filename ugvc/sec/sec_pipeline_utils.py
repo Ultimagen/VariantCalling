@@ -55,7 +55,7 @@ def extract_relevant_gvcfs(sample_ids: List[str],
         except RuntimeError:
             pass
 
-        return gvcf_outputs
+    return gvcf_outputs
 
 
 def read_sec_pipelines_inputs_table(args):

@@ -79,7 +79,7 @@ def run(argv):
             f"{out_dir}/allele_distributions/{sample_id}{FileExtension.TSV.value}"
         )
         training_commands.append(
-            f"python {ugvc_pkg} error_correction_training "
+            f"python {ugvc_pkg}/pipelines/sec/error_correction_training.py "
             f"--relevant_coords {relevant_coords_file} "
             f"--ground_truth_vcf {ground_truth_vcf} "
             f"--gvcf {relevant_gvcf} "
@@ -99,7 +99,7 @@ def run(argv):
 
     # Aggregate empirical allele distributions of training-set
     sp.print_and_run(
-        f"python {ugvc_pkg} merge_conditional_allele_distributions "
+        f"python {ugvc_pkg}/pipelines/sec/merge_conditional_allele_distributions.py "
         f"--conditional_allele_distribution_files {training_files_file} "
         f"--output_prefix {model_prefix}"
     )

@@ -35,6 +35,7 @@ def parse_args(argv):
     parser.add_argument(
         "--processes", default=5, type=int, help="number of parallel processes to run"
     )
+    parser.add_argument("--hcr", required=True, help="hcr for assess_sec_concordance (runs.convervative.bed)")
     parser.add_argument(
         "--use_known_variants_info",
         default=False,
@@ -56,7 +57,7 @@ def run(argv):
     relevant_coords_file = args.relevant_coords
     out_dir = args.out_dir
     model = args.model
-    processes = args.model
+    processes = args.processes
     genome_fasta = args.genome_fasta
     novel_detection_only = not args.use_known_variants_info
     novel_detection_suffix = "_novel" if novel_detection_only else ""
@@ -85,7 +86,7 @@ def run(argv):
                                processes=processes)
 
     for sample_id, relevant_gvcf, comparison_table in zip(sample_ids, relevant_gvcf_files, comp_h5_files):
-        sec_excluded_bed = f"{out_dir}/correction{novel_detection_suffix}/{sample_id}.bed"
+        sec_vcf = f"{out_dir}/correction{novel_detection_suffix}/{sample_id}.vcf.gz"
 
         if novel_detection_only:
             test_commands.append(
@@ -93,7 +94,7 @@ def run(argv):
                 f"--relevant_coords {relevant_coords_file} "
                 f"--model \"{model}\" "
                 f"--gvcf {relevant_gvcf} "
-                f"--output_file {sec_excluded_bed} "
+                f"--output_file {sec_vcf} "
                 "--novel_detection_only")
         else:
             test_commands.append(
@@ -101,14 +102,15 @@ def run(argv):
                 f"--relevant_coords {relevant_coords_file} "
                 f"--model \"{model}\" "
                 f"--gvcf {relevant_gvcf} "
-                f"--output_file {sec_excluded_bed}")
+                f"--output_file {sec_vcf}")
 
         assess_commands.append(
             f"python {ugvc_pkg} assess_sec_concordance "
             f"--concordance_h5_input {comparison_table} "
             f"--genome_fasta {genome_fasta} "
             f"--raw_exclude_list {relevant_coords_file} "
-            f"--sec_exclude_list {sec_excluded_bed} "
+            f"--sec_exclude_list {sec_vcf}.bed "
+            f"--hcr {args.hcr} "
             f"--output_prefix {out_dir}/assessment{novel_detection_suffix}/{sample_id}"
         )
 
