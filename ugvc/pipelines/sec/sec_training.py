@@ -31,7 +31,7 @@ def parse_args(argv):
     )
     parser.add_argument(
         "--train_test_split",
-        default=0.8,
+        default=0.99,
         type=float,
         help="how much samples to use for training",
     )
@@ -39,10 +39,10 @@ def parse_args(argv):
         "--processes", default=5, type=int, help="number of parallel processes to run"
     )
     parser.add_argument(
-        "--novel_detection_only",
+        "--use_known_variants_info",
         default=False,
         action="store_true",
-        help="do not use information on known variants",
+        help="use information on known variants",
     )
     parser.add_argument("-fc", help="index of first command", default=0)
     parser.add_argument("-lc", help="index of last command", default=1000)
@@ -60,7 +60,7 @@ def run(argv):
     out_dir = args.out_dir
     ground_truth_vcf = args.ground_truth_vcf
 
-    novel_detection_only = args.novel_detection_only
+    novel_detection_only = not args.use_known_variants_info
     novel_detection_suffix = "_novel" if novel_detection_only else ""
 
     inputs_table = pd.read_csv(args.inputs_table, sep="\t")
