@@ -37,8 +37,8 @@ args = ap.parse_args()
 # We also create the gt_vcf which is the subtraction of both of them
 
 # output files to be used:
-# OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz
-#
+# OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz -  the gt vcf for comparison
+# OUTPUT_{prefix_cmp_interval}_no_problematic_positions_in_regions_only.bed - the cmp_interval file for comparison
 ###
 
 
