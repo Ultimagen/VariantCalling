@@ -65,6 +65,16 @@ ap.add_argument("--output_interval", help='Output bed file of intersected interv
 
 args = ap.parse_args()
 
+### EXPLANATION FOR THE SCRIPT:
+# After running mutect we want ot check performance.
+# By using the gt_vcf and the cmp_interval bed file we compare the results from mutect to its gt file
+# and then run evaluate_concordance in order to output the results.
+
+# output files to be used:
+# OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz -  the gt vcf for comparison
+# OUTPUT_{prefix_cmp_interval}_no_problematic_positions_in_regions_only.bed - the cmp_interval file for comparison
+###
+
 logger = logging.getLogger(
     __name__ if __name__ != "__main__" else "create_somatic_gt_file")
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
