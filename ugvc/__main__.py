@@ -32,6 +32,7 @@ from ugvc.pipelines.sec import (
     assess_sec_concordance,
     correct_systematic_errors,
     sec_training,
+    sec_validation
 )
 
 # create a list of imported pipeline modules
@@ -44,7 +45,7 @@ modules = [
     train_models_pipeline,
 ]
 
-sec_modules = [sec_training, correct_systematic_errors]
+sec_modules = [correct_systematic_errors, sec_training, sec_validation]
 
 mrd_modules = [
     snp_error_rate,

@@ -49,7 +49,7 @@ def get_args(argv: List[str]):
         help="path to gvcf file, (for getting the raw aligned reads information)",
     )
     parser.add_argument(
-        "--output_file", help="path to output file (vcf/vcf.gz/bed/pickle)"
+        "--output_file", help="path to output file (vcf/vcf.gz/pickle)"
     )
     parser.add_argument(
         "--strand_enrichment_pval_thresh",
@@ -157,7 +157,7 @@ class SystematicErrorCorrector:
             self.output_type = OutputType.pickle
         else:
             raise ValueError(
-                "output file must end with bed/vcf/vcf.gz/pickle/pkl suffixes"
+                "output file must end with vcf/vcf.gz/pickle/pkl suffixes"
             )
 
         self.caller = SECCaller(
@@ -380,9 +380,9 @@ def run(argv: List[str]):
     filter out variants which appear like systematic-errors, while keeping those which are not well explained by errors
     """
     args = get_args(argv)
-    out_dir = dirname(args.output_file)
+    out_file = args.output_file
     if os.path.exists(args.gvcf):
-        dedup_input_vcf = f'{out_dir}/input.nodup.vcf.gz'
+        dedup_input_vcf = f'{out_file}.input.nodup.vcf.gz'
         cmd = ['sh', f'{base_dir}/bash/remove_vcf_duplicates.sh', args.gvcf, dedup_input_vcf]
         subprocess.call(cmd)
         gvcf_reader = BufferedVariantReader(dedup_input_vcf)
@@ -408,7 +408,7 @@ def run(argv: List[str]):
         min_gt_correlation=args.min_gt_correlation,
         noise_ratio_for_unobserved_snps=args.noise_ratio_for_unobserved_snps,
         noise_ratio_for_unobserved_indels=args.noise_ratio_for_unobserved_indels,
-        output_file=args.output_file,
+        output_file=out_file,
         novel_detection_only=args.novel_detection_only,
         replace_to_known_genotype=args.replace_to_known_genotype,
         filter_uncorrelated=args.filter_uncorrelated,
