@@ -175,7 +175,7 @@ def calc_recall_precision_curve(
 
 
 def validate_and_preprocess_concordance_df(
-    df: DataFrame, group_testing_column_name: Optional[str]
+    df: DataFrame, group_testing_column_name: Optional[str] = None
 ) -> DataFrame:
     """
     prepare concordance data-frame for accuracy assessment or fail if it's not possible to do
