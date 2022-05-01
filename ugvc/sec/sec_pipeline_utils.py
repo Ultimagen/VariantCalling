@@ -1,7 +1,8 @@
 import os
-from typing import List, Dict
+from typing import List
 
 import pandas as pd
+from pandas import DataFrame
 from simppl.simple_pipeline import SimplePipeline
 
 
@@ -11,6 +12,22 @@ def extract_relevant_gvcfs(sample_ids: List[str],
                            relevant_coords_file: str,
                            sp: SimplePipeline,
                            processes: int) -> List[str]:
+    """
+    Intersect the remote gvcf files with relevant_coords_file, and save result in local storage
+
+    Parameters
+    ----------
+    sample_ids: the ids of sample, ordered like gvcf files
+    gvcf_files: urls of gvcf files on GCS
+    out_dir: output directory
+    relevant_coords_file: bed file describing relevanr coordinates for analysis
+    sp: SimplePipeline object which will run the extraction commands
+    processes: The number of parallel processes to use
+
+    Returns
+    -------
+    List of extracted gvcf files
+    """
     extract_variants_commands = []
     index_chr_vcfs_commands = []
     concat_vcf_commands = []
@@ -58,8 +75,19 @@ def extract_relevant_gvcfs(sample_ids: List[str],
     return gvcf_outputs
 
 
-def read_sec_pipelines_inputs_table(args):
-    inputs_table = pd.read_csv(args.inputs_table, sep="\t")
+def read_sec_pipelines_inputs_table(inputs_table_file: str) -> DataFrame:
+    """
+
+    Parameters
+    ----------
+    inputs_table_file: path of tsv file specifying SEC inputs [Workflow ID, sample_id, gvcf]
+
+    Returns
+    -------
+    Dataframe of the same schema, after validation
+
+    """
+    inputs_table = pd.read_csv(inputs_table_file, sep="\t")
     sample_counts = inputs_table["sample_id"].value_counts()
     duplicated_samples = sample_counts[sample_counts > 1]
     if duplicated_samples.shape[0] > 0:

@@ -62,7 +62,7 @@ def run(argv):
     novel_detection_only = not args.use_known_variants_info
     novel_detection_suffix = "_novel" if novel_detection_only else ""
 
-    inputs_table = read_sec_pipelines_inputs_table(args)
+    inputs_table = read_sec_pipelines_inputs_table(args.inputs_table)
     sample_ids = list(inputs_table["sample_id"])
     gvcf_files = list(inputs_table["gvcf"])
     comp_h5_files = list(inputs_table["comp_h5"])
