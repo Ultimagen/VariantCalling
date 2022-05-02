@@ -71,7 +71,7 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
         Adds column hmer_indel_length, hmer_indel_nuc
     """
 
-    fasta_idx = pyfaidx.Fasta(fasta_file)
+    fasta_idx = pyfaidx.Fasta(fasta_file, build_index=False, rebuild=False)
 
     def _is_hmer(rec, fasta_idx):
         if not rec["indel"]:
