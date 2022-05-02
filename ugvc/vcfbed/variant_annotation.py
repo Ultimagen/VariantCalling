@@ -171,7 +171,7 @@ def get_motif_around(
         else:
             return _get_motif_around_snp(rec, size, faidx)
 
-    faidx = pyfaidx.Fasta(fasta)
+    faidx = pyfaidx.Fasta(fasta_file, build_index=False, rebuild=False)
     tmp = concordance.apply(
         lambda x: _get_motif(x, motif_size, faidx), axis=1, result_type="reduce"
     )
@@ -208,7 +208,7 @@ def get_gc_content(
         seqGC = seq.replace("A", "").replace("T", "")
         return float(len(seqGC)) / len(seq)
 
-    faidx = pyfaidx.Fasta(fasta)
+    faidx = pyfaidx.Fasta(fasta_file, build_index=False, rebuild=False)
     tmp = concordance.apply(
         lambda x: _get_gc(x, window_size, faidx), axis=1, result_type="reduce"
     )
