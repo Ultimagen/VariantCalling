@@ -103,6 +103,11 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         default="single_sample",
     )
     ap.add_argument(
+        "--ignore_filter_status",
+        help='Ignore the `filter` and `tree_score` columns',
+        action="store_true",
+    )
+    ap.add_argument(
         "--verbosity",
         help="Verbosity: ERROR, WARNING, INFO, DEBUG",
         required=False,
@@ -175,6 +180,10 @@ def run(argv: List[str]):
                             df.append(h5_file)
 
             df = pd.concat(df, axis=0)
+
+        if args.ignore_filter_status:
+            df["filter"] = ''
+            df["tree_score"] = None
 
         df, annots = vcf_pipeline_utils.annotate_concordance(
             df,
