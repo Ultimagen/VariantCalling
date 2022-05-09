@@ -340,6 +340,11 @@ def run(argv: List[str]):
                 calls_df = vcftools.get_vcf_df(args.input_file, chromosome="chr9")
             else:
                 calls_df = pd.read_hdf(args.input_file, "concordance")
+
+            if args.ignore_filter_status:
+                calls_df["filter"] = ''
+                calls_df["tree_score"] = None
+
             calls_df, _ = vcf_pipeline_utils.annotate_concordance(
                 calls_df,
                 args.reference,
