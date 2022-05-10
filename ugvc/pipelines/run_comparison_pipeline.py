@@ -204,7 +204,7 @@ def run(argv: List[str]):
     parser = get_parser()
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
-    sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout)
+    sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout, name=__name__)
 
     cmp_intervals = vcf_pipeline_utils.IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
     highconf_intervals = \
