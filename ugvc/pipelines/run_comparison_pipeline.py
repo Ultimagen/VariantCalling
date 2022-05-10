@@ -202,7 +202,7 @@ def get_parser() -> argparse.ArgumentParser:
 def run(argv: List[str]):
     """Concordance between VCF and ground truth"""
     parser = get_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
     sp = get_simple_pipeline(parser, argv, 'run_comparison_pipeline')
 
     cmp_intervals = vcf_pipeline_utils.IntervalFile(
@@ -362,4 +362,4 @@ def run(argv: List[str]):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run(sys.argv)
