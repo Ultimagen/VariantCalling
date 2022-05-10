@@ -4,12 +4,15 @@ from os.path import join as pjoin
 from os.path import splitext
 from typing import Optional, Tuple
 
+from simppl.simple_pipeline import SimplePipeline
+
 from ugvc.comparison import vcf_pipeline_utils
 
 CONCORDANCE_TOOL = "VCFEVAL"
 
 
 def pipeline(
+    sp: SimplePipeline,
     n_parts: int,
     input_prefix: str,
     truth_file: str,
@@ -32,6 +35,8 @@ def pipeline(
 
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for running shell commands conveniently
     n_parts : int
         For input VCF split into number of parts - specifiy the number of parts. Specify
         zero for complete VCF
@@ -90,7 +95,7 @@ def pipeline(
             output_dir, input_prefix_basename + f".{output_suffix}.vcf.gz"
         )
     if n_parts > 0:
-        vcf_pipeline_utils.combine_vcf(n_parts, input_prefix, output_fn)
+        vcf_pipeline_utils.combine_vcf(sp, n_parts, input_prefix, output_fn)
     else:
         output_fn = input_prefix + ".vcf.gz"
 
@@ -102,7 +107,7 @@ def pipeline(
         )
 
     if header is not None:
-        vcf_pipeline_utils.reheader_vcf(output_fn, header, reheader_fn)
+        vcf_pipeline_utils.reheader_vcf(sp, output_fn, header, reheader_fn)
     else:
         shutil.copy(output_fn, reheader_fn)
         shutil.copy(".".join((output_fn, "tbi")), ".".join((reheader_fn, "tbi")))
@@ -122,7 +127,7 @@ def pipeline(
         )
     else:
         shutil.copy(reheader_fn, select_intervals_fn)
-        vcf_pipeline_utils.index_vcf(select_intervals_fn)
+        vcf_pipeline_utils.index_vcf(sp, select_intervals_fn)
 
     if output_file_name is None:
         output_prefix = select_intervals_fn[
@@ -133,6 +138,7 @@ def pipeline(
 
     if concordance_tool == "VCFEVAL":
         vcf_pipeline_utils.run_vcfeval_concordance(
+            sp,
             select_intervals_fn,
             truth_file,
             output_prefix,
@@ -145,6 +151,7 @@ def pipeline(
         output_prefix = f"{output_prefix}.vcfeval_concordance"
     else:
         vcf_pipeline_utils.run_genotype_concordance(
+            sp,
             select_intervals_fn,
             truth_file,
             output_prefix,
@@ -159,11 +166,13 @@ def pipeline(
     output_prefix = f"{output_prefix}.annotated"
 
     vcf_pipeline_utils.filter_bad_areas(
+        sp,
         select_intervals_fn,
         highconf_intervals.as_bed_file(),
         runs_intervals.as_bed_file(),
     )
     vcf_pipeline_utils.filter_bad_areas(
+        sp,
         output_prefix + ".vcf.gz",
         highconf_intervals.as_bed_file(),
         runs_intervals.as_bed_file(),

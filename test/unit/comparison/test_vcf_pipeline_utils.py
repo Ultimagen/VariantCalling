@@ -3,6 +3,9 @@ import subprocess
 from collections import Counter
 from os.path import exists
 from os.path import join as pjoin
+
+from simppl.simple_pipeline import SimplePipeline
+
 from test import get_resource_dir, test_dir
 
 import pandas as pd
@@ -114,7 +117,9 @@ class TestVCFevalRun:
     high_conf = pjoin(inputs_dir, "highconf.interval_list")
 
     def test_vcfeval_run_ignore_filter(self, tmp_path):
+        sp = SimplePipeline(0, 100, False)
         vcf_pipeline_utils.run_vcfeval_concordance(
+            sp=sp,
             input_file=self.sample_calls,
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.ignore_filter"),
@@ -134,7 +139,9 @@ class TestVCFevalRun:
         assert calls == {"FP": 99, "TP": 1}
 
     def test_vcfeval_run_use_filter(self, tmp_path):
+        sp = SimplePipeline(0, 100, False)
         vcf_pipeline_utils.run_vcfeval_concordance(
+            sp=sp,
             input_file=self.sample_calls,
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.use_filter"),
@@ -159,11 +166,12 @@ def test_intersect_bed_files(mocker, tmp_path):
     bed2 = pjoin(inputs_dir, "bed2.bed")
     output_path = pjoin(tmp_path, "output.bed")
 
-    spy_subprocess = mocker.spy(subprocess, "call")
-    vcf_pipeline_utils.intersect_bed_files(bed1, bed2, output_path)
-    spy_subprocess.assert_called_once_with(
-        ["bedtools", "intersect", "-a", bed1, "-b", bed2], stdout=mocker.ANY
-    )
+    #spy_subprocess = mocker.spy(subprocess, "call")
+    sp = SimplePipeline(0, 10, False)
+    vcf_pipeline_utils.intersect_bed_files(sp, bed1, bed2, output_path)
+    #spy_subprocess.assert_called_once_with(
+    #    ["bedtools", "intersect", "-a", bed1, "-b", bed2], stdout=mocker.ANY
+    #)
 
     assert exists(output_path)
 
@@ -174,27 +182,18 @@ def test_bed_file_length():
     assert result == 3026
 
 
-def test_IntervalFile_init_bed_input(mocker):
+def test_IntervalFile_init_bed_input():
     bed1 = pjoin(inputs_dir, "bed1.bed")
     ref_genome = pjoin(common_dir, "sample.fasta")
     interval_list_path = pjoin(inputs_dir, "bed1.interval_list")
-    spy_subprocess = mocker.spy(subprocess, "check_call")
 
-    intervalFile = vcf_pipeline_utils.IntervalFile(bed1, ref_genome, None)
+    sp = SimplePipeline(0, 100, False)
+    intervalFile = vcf_pipeline_utils.IntervalFile(sp, bed1, ref_genome, None)
 
     assert intervalFile.as_bed_file() == bed1
     assert intervalFile.as_interval_list_file() == interval_list_path
     assert exists(interval_list_path)
     assert not intervalFile.is_none()
-    spy_subprocess.assert_called_once_with(
-        [
-            "picard",
-            "BedToIntervalList",
-            f"I={bed1}",
-            f"O={interval_list_path}",
-            f"SD={ref_genome}.dict",
-        ]
-    )
     os.remove(interval_list_path)
 
 
@@ -202,23 +201,21 @@ def test_IntervalFile_init_interval_list_input(mocker):
     interval_list = pjoin(inputs_dir, "interval_list1.interval_list")
     ref_genome = pjoin(common_dir, "sample.fasta")
     bed_path = pjoin(inputs_dir, "interval_list1.bed")
-    spy_subprocess = mocker.spy(subprocess, "check_call")
 
-    intervalFile = vcf_pipeline_utils.IntervalFile(interval_list, ref_genome, None)
+    sp = SimplePipeline(0, 100, False)
+    intervalFile = vcf_pipeline_utils.IntervalFile(sp, interval_list, ref_genome, None)
 
     assert intervalFile.as_bed_file() == bed_path
     assert intervalFile.as_interval_list_file() == interval_list
     assert exists(bed_path)
     assert not intervalFile.is_none()
-    spy_subprocess.assert_called_once_with(
-        ["picard", "IntervalListToBed", f"I={interval_list}", f"O={bed_path}"]
-    )
     os.remove(bed_path)
 
 
 def test_IntervalFile_init_error():
     ref_genome = pjoin(common_dir, "sample.fasta")
-    intervalFile = vcf_pipeline_utils.IntervalFile(ref_genome, ref_genome, None)
+    sp = SimplePipeline(0, 100, False)
+    intervalFile = vcf_pipeline_utils.IntervalFile(sp, ref_genome, ref_genome, None)
     assert intervalFile.as_bed_file() is None
     assert intervalFile.as_interval_list_file() is None
     assert intervalFile.is_none()

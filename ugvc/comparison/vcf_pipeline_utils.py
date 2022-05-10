@@ -1,4 +1,3 @@
-import logging
 import os.path
 import shutil
 import subprocess
@@ -9,19 +8,21 @@ import numpy as np
 import pandas as pd
 import pyfaidx
 import pysam
+from simppl.simple_pipeline import SimplePipeline
 
+from ugvc import logger
 import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.vcfbed.variant_annotation as annotation
 import ugvc.vcfbed.vcftools as vcftools
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 
-logger = logging.getLogger(__name__)
 
-
-def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
+def combine_vcf(sp: SimplePipeline, n_parts: int, input_prefix: str, output_fname: str):
     """Combines VCF in parts from GATK and indices the result
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for executing shell commands
     n_parts: int
         Number of VCF parts (names will be 1-based)
     input_prefix: str
@@ -33,24 +34,22 @@ def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
         f"{input_prefix}.{x}.vcf.gz" for x in range(1, n_parts + 1)
     ]
     input_files = [x for x in input_files if os.path.exists(x)]
-    cmd = ["bcftools", "concat", "-o", output_fname, "-O", "z"] + input_files
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
-    index_vcf(output_fname)
+    sp.print_and_run(f'bcftools concat -o {output_fname} -O z {input_files}')
+    index_vcf(sp, output_fname)
 
 
-def index_vcf(vcf: str):
+def index_vcf(sp: SimplePipeline, vcf: str):
     """Tabix index on VCF"""
-    cmd = ["bcftools", "index", "-tf", vcf]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+    sp.print_and_run(f'bcftools index -tf {vcf}')
 
 
-def reheader_vcf(input_file: str, new_header: str, output_file: str):
+def reheader_vcf(sp: SimplePipeline, input_file: str, new_header: str, output_file: str):
     """Run bcftools reheader and index
 
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for executing shell commands
     input_file: str
         Input file name
     new_header: str
@@ -62,21 +61,20 @@ def reheader_vcf(input_file: str, new_header: str, output_file: str):
     -------
     None, generates `output_file`
     """
-
-    cmd = ["bcftools", "reheader", "-h", new_header, input_file]
-    logger.info(" ".join(cmd))
-    with open(output_file, "wb") as out:
-        subprocess.check_call(cmd, stdout=out)
-    index_vcf(output_file)
+    sp.print_and_run(f'bcftools reheader -h {new_header} {input_file}')
+    index_vcf(sp, output_file)
 
 
 class IntervalFile:
     def __init__(
-        self,
-        cmp_intervals: Optional[str] = None,
-        ref: Optional[str] = None,
-        ref_dict: Optional[str] = None,
+            self,
+            sp: SimplePipeline,
+            cmp_intervals: Optional[str] = None,
+            ref: Optional[str] = None,
+            ref_dict: Optional[str] = None,
+
     ):
+        self.sp = sp
         # determine the file type and create the other temporary copy
         if cmp_intervals is None:
             self._is_none: bool = True
@@ -86,14 +84,7 @@ class IntervalFile:
         elif cmp_intervals.endswith(".interval_list"):
             self._interval_list_file_name = cmp_intervals
             # create the interval bed file
-            cmd = [
-                "picard",
-                "IntervalListToBed",
-                f"I={cmp_intervals}",
-                f"O={os.path.splitext(cmp_intervals)[0]}.bed",
-            ]
-            logger.info(" ".join(cmd))
-            subprocess.check_call(cmd)
+            sp.print_and_run(f"picard IntervalListToBed I={cmp_intervals} O={os.path.splitext(cmp_intervals)[0]}.bed")
             self._bed_file_name = f"{os.path.splitext(cmp_intervals)[0]}.bed"
             self._is_none = False
 
@@ -106,15 +97,9 @@ class IntervalFile:
                 logger.error(f"dict file does not exist: {ref_dict}")
 
             # create the interval list file
-            cmd = [
-                "picard",
-                "BedToIntervalList",
-                f"I={cmp_intervals}",
-                f"O={os.path.splitext(cmp_intervals)[0]}.interval_list",
-                f"SD={ref_dict}",
-            ]
-            logger.info(" ".join(cmd))
-            subprocess.check_call(cmd)
+            sp.print_and_run(f"picard BedToIntervalList I={cmp_intervals} "
+                             f"O={os.path.splitext(cmp_intervals)[0]}.interval_list SD={ref_dict}")
+
             self._interval_list_file_name = (
                 f"{os.path.splitext(cmp_intervals)[0]}.interval_list"
             )
@@ -135,11 +120,13 @@ class IntervalFile:
         return self._is_none
 
 
-def intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> None:
+def intersect_bed_files(sp: SimplePipeline, input_bed1: str, input_bed2: str, bed_output: str) -> None:
     """Intersects bed files
 
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for executing shell commands
     input_bed1: str
         Input Bed file
     input_bed2: str
@@ -152,10 +139,7 @@ def intersect_bed_files(input_bed1: str, input_bed2: str, bed_output: str) -> No
     None
         Writes output_fn file
     """
-    cmd = ["bedtools", "intersect", "-a", input_bed1, "-b", input_bed2]
-    logger.info(" ".join(cmd))
-    with open(bed_output, "w") as f:
-        subprocess.call(cmd, stdout=f)
+    sp.print_and_run(f'bedtools intersect -a {input_bed1} -b {input_bed2} > {bed_output}')
 
 
 def bed_file_length(input_bed: str) -> int:
@@ -210,18 +194,21 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
 
 
 def run_genotype_concordance(
-    input_file: str,
-    truth_file: str,
-    output_prefix: str,
-    comparison_intervals: Optional[str] = None,
-    input_sample: str = "NA12878",
-    truth_sample="HG001",
-    ignore_filter: bool = False,
+        sp: SimplePipeline,
+        input_file: str,
+        truth_file: str,
+        output_prefix: str,
+        comparison_intervals: Optional[str] = None,
+        input_sample: str = "NA12878",
+        truth_sample="HG001",
+        ignore_filter: bool = False,
 ):
     """Run GenotypeConcordance, correct the bug and reindex
 
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for executing shell commands
     input_file: str
         Our variant calls
     truth_file: str
@@ -232,7 +219,7 @@ def run_genotype_concordance(
         Picard intervals file to make the comparisons on. Default (None - all genome)
     input_sample: str
         Name of the sample in our input_file
-    truth_samle: str
+    truth_sample: str
         Name of the sample in the truth file
     ignore_filter: bool
         Ignore status of the variant filter
@@ -240,39 +227,36 @@ def run_genotype_concordance(
     -------
     None
     """
-
-    cmd = [
-        "picard",
-        "GenotypeConcordance",
-        "CALL_VCF={}".format(input_file),
-        "CALL_SAMPLE={}".format(input_sample),
-        "O={}".format(output_prefix),
-        "TRUTH_VCF={}".format(truth_file),
-        "TRUTH_SAMPLE={}".format(truth_sample),
-        "OUTPUT_VCF=true",
-        "IGNORE_FILTER_STATUS={}".format(ignore_filter),
-    ]
+    genotype_concordance_command = f'picard GenotypeConcordance ' \
+                                   f'CALL_VCF={input_file} ' \
+                                   f'CALL_SAMPLE={input_sample} ' \
+                                   f'O={output_prefix} ' \
+                                   f'TRUTH_VCF={truth_file} ' \
+                                   f'TRUTH_SAMPLE={truth_sample} ' \
+                                   f'OUTPUT_VCF=true ' \
+                                   f'IGNORE_FILTER_STATUS={ignore_filter}'
     if comparison_intervals is not None:
-        cmd += ["INTERVALS={}".format(comparison_intervals)]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
-    fix_vcf_format(f"{output_prefix}.genotype_concordance")
+        genotype_concordance_command += 'INTERVALS={comparison_intervals}'
+    fix_vcf_format(sp, f"{output_prefix}.genotype_concordance")
 
 
 def run_vcfeval_concordance(
-    input_file: str,
-    truth_file: str,
-    output_prefix: str,
-    ref_genome: str,
-    comparison_intervals: Optional[str] = None,
-    input_sample: str = "NA12878",
-    truth_sample="HG001",
-    ignore_filter: bool = False,
+        sp: SimplePipeline,
+        input_file: str,
+        truth_file: str,
+        output_prefix: str,
+        ref_genome: str,
+        comparison_intervals: Optional[str] = None,
+        input_sample: str = "NA12878",
+        truth_sample="HG001",
+        ignore_filter: bool = False,
 ):
     """Run vcfevalConcordance
 
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for executing shell commands
     input_file: str
         Our variant calls
     truth_file: str
@@ -311,66 +295,33 @@ def run_vcfeval_concordance(
         intersect_with_intervals(truth_file, comparison_intervals, filtered_truth_file)
     else:
         shutil.copy(truth_file, filtered_truth_file)
-        index_vcf(filtered_truth_file)
+        index_vcf(sp, filtered_truth_file)
 
     # vcfeval calculation
-    cmd = [
-        "rtg",
-        "vcfeval",
-        "-b",
-        filtered_truth_file,
-        "--calls",
-        input_file,
-        "-o",
-        vcfeval_output_dir,
-        "-t",
-        SDF_path,
-        "-m",
-        "combine",
-        "--sample",
-        f"{truth_sample},{input_sample}",
-        "--decompose",
-    ]
+    vcfeval_command = f'rtg vcfeval -b {filtered_truth_file} --calls {input_file} -o {vcfeval_output_dir} ' \
+                      f'-t {SDF_path} -m combine --sample {truth_sample},{input_sample} --decompose'
     if ignore_filter:
-        cmd += ["--all-records"]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+        vcfeval_command += " --all-records"
+    sp.print_and_run(vcfeval_command)
+
     # fix the vcf file format
-    fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
+    fix_vcf_format(sp, os.path.join(vcfeval_output_dir, "output"))
 
     # make the vcfeval output file without weird variants
-    cmd = [
-        "bcftools",
-        "norm",
-        "-f",
-        ref_genome,
-        "-m+any",
-        "-o",
-        os.path.join(vcfeval_output_dir, "output.norm.vcf.gz"),
-        "-O",
-        "z",
-        os.path.join(vcfeval_output_dir, "output.vcf.gz"),
-    ]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+    sp.print_and_run(f'bcftools norm -f {ref_genome} -m+any -o {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")}'
+                     f' -O z {os.path.join(vcfeval_output_dir, "output.vcf.gz")}')
 
     # move the file to be compatible with the output file of the genotype
     # concordance
-    cmd = [
-        "mv",
-        os.path.join(vcfeval_output_dir, "output.norm.vcf.gz"),
-        output_prefix + ".vcfeval_concordance.vcf.gz",
-    ]
-    subprocess.check_call(cmd)
+    sp.print_and_run(f'mv {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")} '
+                     f'{output_prefix + ".vcfeval_concordance.vcf.gz"}')
 
     # generate index file for the vcf.gz file
-    index_vcf(output_prefix + ".vcfeval_concordance.vcf.gz")
+    index_vcf(sp, output_prefix + ".vcfeval_concordance.vcf.gz")
 
 
-def fix_vcf_format(output_prefix):
-    cmd = ["gunzip", "-f", f"{output_prefix}.vcf.gz"]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+def fix_vcf_format(sp: SimplePipeline, output_prefix):
+    sp.print_and_run(f'gunzip -f {output_prefix}.vcf.gz')
     with open(f"{output_prefix}.vcf") as input_file_handle:
         with open(f"{output_prefix}.tmp", "w") as output_file_handle:
             for line in input_file_handle:
@@ -380,13 +331,9 @@ def fix_vcf_format(output_prefix):
                     )
                 else:
                     output_file_handle.write(line)
-    cmd = ["mv", output_file_handle.name, input_file_handle.name]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
-    cmd = ["bgzip", input_file_handle.name]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
-    index_vcf(f"{input_file_handle.name}.gz")
+    sp.print_and_run(f'mv {output_file_handle.name} {input_file_handle.name}')
+    sp.print_and_run(f'bgzip {input_file_handle.name}')
+    index_vcf(sp, f"{input_file_handle.name}.gz")
 
 
 def annotate_tandem_repeats(input_file: str, reference_fasta: str) -> None:
@@ -422,13 +369,13 @@ def annotate_tandem_repeats(input_file: str, reference_fasta: str) -> None:
     subprocess.check_call(cmd)
 
 
-def filter_bad_areas(
-    input_file_calls: str, highconf_regions: str, runs_regions: Optional[str]
-):
+def filter_bad_areas(sp: SimplePipeline, input_file_calls: str, highconf_regions: str, runs_regions: Optional[str]):
     """Looks at concordance only around high confidence areas and not around runs
 
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for executing shell commands
     input_file_calls: str
         Calls file
     highconf_regions: str
@@ -439,27 +386,16 @@ def filter_bad_areas(
 
     highconf_file_name = input_file_calls.replace("vcf.gz", "highconf.vcf")
     runs_file_name = input_file_calls.replace("vcf.gz", "runs.vcf")
-    with open(highconf_file_name, "wb") as highconf_file:
-        cmd = [
-            "bedtools",
-            "intersect",
-            "-a",
-            input_file_calls,
-            "-b",
-            highconf_regions,
-            "-nonamecheck",
-            "-header",
-            "-u",
-        ]
-        logger.info(" ".join(cmd))
-        subprocess.check_call(cmd, stdout=highconf_file)
+
+    sp.print_and_run(f'bedtools intersect -a {input_file_calls} -b {highconf_regions} '
+                     f'-nonamecheck -header -u > {highconf_file_name}')
 
     cmd = ["bgzip", "-f", highconf_file_name]
     logger.info(" ".join(cmd))
 
     subprocess.check_call(cmd)
     highconf_file_name += ".gz"
-    index_vcf(highconf_file_name)
+    index_vcf(sp, highconf_file_name)
 
     if runs_regions is not None:
         with open(runs_file_name, "wb") as runs_file:
@@ -481,7 +417,7 @@ def filter_bad_areas(
         logger.info(" ".join(cmd))
         subprocess.check_call(cmd)
         runs_file_name += ".gz"
-        index_vcf(runs_file_name)
+        index_vcf(sp, runs_file_name)
 
 
 def _fix_errors(df):
@@ -491,7 +427,7 @@ def _fix_errors(df):
     # (VCFEVAL outputs UG genotype for ignored genotypes too and they are classified downstream
     # as true positives if we do not make this modification)
     fix_tp_fn_loc = (df["call"] == "IGN") & (
-        (df["base"] == "FN") | (df["base"] == "FN_CA")
+            (df["base"] == "FN") | (df["base"] == "FN_CA")
     )
     replace = df.loc[fix_tp_fn_loc, "gt_ultima"].apply(lambda x: (None,))
     df.loc[replace.index, "gt_ultima"] = replace
@@ -510,7 +446,7 @@ def _fix_errors(df):
     df.drop(
         df[
             (df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))
-        ].index,
+            ].index,
         inplace=True,
     )
 
@@ -531,10 +467,10 @@ def _fix_errors(df):
 
 
 def vcf2concordance(
-    raw_calls_file: str,
-    concordance_file: str,
-    format: str = "GC",
-    chromosome: str = None,
+        raw_calls_file: str,
+        concordance_file: str,
+        format: str = "GC",
+        chromosome: str = None,
 ) -> pd.DataFrame:
     """Generates concordance dataframe
 
@@ -604,9 +540,9 @@ def vcf2concordance(
             # Remove variants that were ignored (either outside of comparison intervals or
             # filtered out).
             return not (
-                (x["CALL"] in ["IGN", "OUT"] and x["BASE"] is None)
-                or (x["CALL"] in ["IGN", "OUT"] and x["BASE"] in ["IGN", "OUT"])
-                or (x["CALL"] is None and x["BASE"] in ["IGN", "OUT"])
+                    (x["CALL"] in ["IGN", "OUT"] and x["BASE"] is None)
+                    or (x["CALL"] in ["IGN", "OUT"] and x["BASE"] in ["IGN", "OUT"])
+                    or (x["CALL"] is None and x["BASE"] in ["IGN", "OUT"])
             )
 
         vfi = filter(
@@ -748,14 +684,14 @@ def vcf2concordance(
 
 
 def annotate_concordance(
-    df: pd.DataFrame,
-    fasta: str,
-    bw_high_quality: Optional[List[str]] = None,
-    bw_all_quality: Optional[List[str]] = None,
-    annotate_intervals: List[str] = [],
-    runfile: Optional[str] = None,
-    flow_order: Optional[str] = DEFAULT_FLOW_ORDER,
-    hmer_run_length_dist: tuple = (10, 10),
+        df: pd.DataFrame,
+        fasta: str,
+        bw_high_quality: Optional[List[str]] = None,
+        bw_all_quality: Optional[List[str]] = None,
+        annotate_intervals: List[str] = [],
+        runfile: Optional[str] = None,
+        flow_order: Optional[str] = DEFAULT_FLOW_ORDER,
+        hmer_run_length_dist: tuple = (10, 10),
 ) -> pd.DataFrame:
     """Annotates concordance data with information about SNP/INDELs and motifs
 
@@ -817,9 +753,9 @@ def annotate_concordance(
 
 
 def reinterpret_variants(
-    concordance_df: pd.DataFrame,
-    reference_fasta: str,
-    ignore_low_quality_fps: bool = False,
+        concordance_df: pd.DataFrame,
+        reference_fasta: str,
+        ignore_low_quality_fps: bool = False,
 ) -> pd.DataFrame:
     """Reinterprets the variants by comparing the variant to the ground truth in flow space
 
@@ -859,7 +795,7 @@ def reinterpret_variants(
 
 
 def _get_locations_to_work_on(
-    _df: pd.DataFrame, ignore_low_quality_fps: bool = False
+        _df: pd.DataFrame, ignore_low_quality_fps: bool = False
 ) -> dict:
     """Dictionary of service locatoins
 
@@ -874,9 +810,9 @@ def _get_locations_to_work_on(
     df = vcftools.FilterWrapper(_df)
     fps = df.reset().get_fp().get_df()
     if (
-        "tree_score" in fps.columns
-        and fps["tree_score"].dtype == np.float64
-        and ignore_low_quality_fps
+            "tree_score" in fps.columns
+            and fps["tree_score"].dtype == np.float64
+            and ignore_low_quality_fps
     ):
         cutoff = fps.tree_score.quantile(0.80)
         fps = fps.query(f"tree_score > {cutoff}")
@@ -884,22 +820,22 @@ def _get_locations_to_work_on(
     tps = df.reset().get_tp().get_df()
     gtr = (
         df.reset()
-        .get_df()
-        .loc[
+            .get_df()
+            .loc[
             df.get_df()["gt_ground_truth"].apply(
                 lambda x: x != (None, None) and x != (None,)
             )
         ]
-        .copy()
+            .copy()
     )
     gtr.sort_values("pos", inplace=True)
     ugi = (
         df.reset()
-        .get_df()
-        .loc[
+            .get_df()
+            .loc[
             df.get_df()["gt_ultima"].apply(lambda x: x != (None, None) and x != (None,))
         ]
-        .copy()
+            .copy()
     )
     ugi.sort_values("pos", inplace=True)
 
