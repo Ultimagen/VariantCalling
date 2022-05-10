@@ -9,6 +9,7 @@ import pandas as pd
 import pysam
 from joblib import Parallel, delayed
 from simppl.cli import get_simple_pipeline
+from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
@@ -22,21 +23,20 @@ MIN_CONTIG_LENGTH = 100000
 
 
 def _contig_concordance_annotate_reinterpretation(
-    results,
-    contig,
-    reference,
-    bw_high_quality,
-    bw_all_quality,
-    annotate_intervals,
-    runs_intervals,
-    hpol_filter_length_dist,
-    flow_order,
-    base_name_outputfile,
-    concordance_tool,
-    disable_reinterpretation,
-    ignore_low_quality_fps,
+        results,
+        contig,
+        reference,
+        bw_high_quality,
+        bw_all_quality,
+        annotate_intervals,
+        runs_intervals,
+        hpol_filter_length_dist,
+        flow_order,
+        base_name_outputfile,
+        concordance_tool,
+        disable_reinterpretation,
+        ignore_low_quality_fps,
 ):
-
     logger.info(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0], results[1], concordance_tool, contig
@@ -202,16 +202,15 @@ def get_parser() -> argparse.ArgumentParser:
 def run(argv: List[str]):
     """Concordance between VCF and ground truth"""
     parser = get_parser()
+    SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
-    sp = get_simple_pipeline(parser, argv, 'run_comparison_pipeline')
+    sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout)
 
     cmp_intervals = vcf_pipeline_utils.IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
-    highconf_intervals = vcf_pipeline_utils.IntervalFile(sp,
-        args.highconf_intervals, args.reference, args.reference_dict
-    )
-    runs_intervals = vcf_pipeline_utils.IntervalFile(sp,
-        args.runs_intervals, args.reference, args.reference_dict
-    )
+    highconf_intervals = \
+        vcf_pipeline_utils.IntervalFile(sp,args.highconf_intervals, args.reference, args.reference_dict)
+    runs_intervals = \
+        vcf_pipeline_utils.IntervalFile(sp, args.runs_intervals, args.reference, args.reference_dict)
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():  # interval of highconf_intervals
