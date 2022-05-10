@@ -1,6 +1,5 @@
 import os.path
 import shutil
-import subprocess
 from collections import defaultdict
 from typing import List, Optional
 
@@ -162,7 +161,7 @@ def bed_file_length(input_bed: str) -> int:
     return np.sum(df["pos_end"] - df["pos_start"] + 1)
 
 
-def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -> None:
+def intersect_with_intervals(sp: SimplePipeline, input_fn: str, intervals_fn: str, output_fn: str) -> None:
     """Intersects VCF with intervalList
 
     Parameters
@@ -179,18 +178,7 @@ def intersect_with_intervals(input_fn: str, intervals_fn: str, output_fn: str) -
     None
         Writes output_fn file
     """
-    cmd = [
-        "gatk",
-        "SelectVariants",
-        "-V",
-        input_fn,
-        "-L",
-        intervals_fn,
-        "-O",
-        output_fn,
-    ]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+    sp.print_and_run(f"gatk SelectVariants -V {input_fn} -L {intervals_fn} -O {output_fn}")
 
 
 def run_genotype_concordance(
@@ -336,11 +324,13 @@ def fix_vcf_format(sp: SimplePipeline, output_prefix):
     index_vcf(sp, f"{input_file_handle.name}.gz")
 
 
-def annotate_tandem_repeats(input_file: str, reference_fasta: str) -> None:
+def annotate_tandem_repeats(sp: SimplePipeline, input_file: str, reference_fasta: str) -> None:
     """Runs VariantAnnotator on the input file to add tandem repeat annotations (maybe others)
 
     Parameters
     ----------
+    sp: SimplePipeline
+        SimplePipeline object for executing shell commands
     input_file: str
         vcf.gz file
     reference_fasta: str
@@ -353,20 +343,7 @@ def annotate_tandem_repeats(input_file: str, reference_fasta: str) -> None:
     """
 
     output_file = input_file.replace("vcf.gz", "annotated.vcf.gz")
-    cmd = [
-        "gatk",
-        "VariantAnnotator",
-        "-V",
-        input_file,
-        "-O",
-        output_file,
-        "-R",
-        reference_fasta,
-        "-A",
-        "TandemRepeat",
-    ]
-    logger.info(" ".join(cmd))
-    subprocess.check_call(cmd)
+    sp.print_and_run(f"gatk VariantAnnotator -V {input_file} -O {output_file} -R {reference_fasta} -A TandemRepeat")
 
 
 def filter_bad_areas(sp: SimplePipeline, input_file_calls: str, highconf_regions: str, runs_regions: Optional[str]):
@@ -390,32 +367,15 @@ def filter_bad_areas(sp: SimplePipeline, input_file_calls: str, highconf_regions
     sp.print_and_run(f'bedtools intersect -a {input_file_calls} -b {highconf_regions} '
                      f'-nonamecheck -header -u > {highconf_file_name}')
 
-    cmd = ["bgzip", "-f", highconf_file_name]
-    logger.info(" ".join(cmd))
-
-    subprocess.check_call(cmd)
+    sp.print_and_run(f"bgzip -f {highconf_file_name}")
     highconf_file_name += ".gz"
     index_vcf(sp, highconf_file_name)
 
     if runs_regions is not None:
-        with open(runs_file_name, "wb") as runs_file:
-            cmd = [
-                "bedtools",
-                "subtract",
-                "-a",
-                highconf_file_name,
-                "-b",
-                runs_regions,
-                "-nonamecheck",
-                "-A",
-                "-header",
-            ]
-            logger.info(" ".join(cmd))
-            subprocess.check_call(cmd, stdout=runs_file)
+        sp.print_and_run(f"bedtools subtract -a {highconf_file_name} "
+                         f"-b {runs_regions} -nonamecheck -A -header > {runs_file_name}")
 
-        cmd = ["bgzip", "-f", runs_file_name]
-        logger.info(" ".join(cmd))
-        subprocess.check_call(cmd)
+        sp.print_and_run(f"bgzip -f {runs_file_name}")
         runs_file_name += ".gz"
         index_vcf(sp, runs_file_name)
 

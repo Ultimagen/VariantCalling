@@ -162,7 +162,7 @@ def pipeline(
         )
         output_prefix = f"{output_prefix}.genotype_concordance"
 
-    vcf_pipeline_utils.annotate_tandem_repeats(output_prefix + ".vcf.gz", ref_genome)
+    vcf_pipeline_utils.annotate_tandem_repeats(sp, output_prefix + ".vcf.gz", ref_genome)
     output_prefix = f"{output_prefix}.annotated"
 
     vcf_pipeline_utils.filter_bad_areas(
