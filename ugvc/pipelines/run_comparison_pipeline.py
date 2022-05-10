@@ -205,13 +205,11 @@ def run(argv: List[str]):
     args = parser.parse_args(argv[1:])
     sp = get_simple_pipeline(parser, argv, 'run_comparison_pipeline')
 
-    cmp_intervals = vcf_pipeline_utils.IntervalFile(
-        args.cmp_intervals, args.reference, args.reference_dict
-    )
-    highconf_intervals = vcf_pipeline_utils.IntervalFile(
+    cmp_intervals = vcf_pipeline_utils.IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
+    highconf_intervals = vcf_pipeline_utils.IntervalFile(sp,
         args.highconf_intervals, args.reference, args.reference_dict
     )
-    runs_intervals = vcf_pipeline_utils.IntervalFile(
+    runs_intervals = vcf_pipeline_utils.IntervalFile(sp,
         args.runs_intervals, args.reference, args.reference_dict
     )
 
@@ -258,7 +256,7 @@ def run(argv: List[str]):
             None,
             args.output_file,
             args.header_file,
-            vcf_pipeline_utils.IntervalFile(),
+            vcf_pipeline_utils.IntervalFile(sp),
             args.output_suffix,
             args.ignore_filter_status,
             args.concordance_tool,
