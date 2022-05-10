@@ -280,7 +280,7 @@ def run_vcfeval_concordance(
         output_dir, ".".join((os.path.basename(truth_file), "filtered", "vcf.gz"))
     )
     if comparison_intervals is not None:
-        intersect_with_intervals(truth_file, comparison_intervals, filtered_truth_file)
+        intersect_with_intervals(sp, truth_file, comparison_intervals, filtered_truth_file)
     else:
         shutil.copy(truth_file, filtered_truth_file)
         index_vcf(sp, filtered_truth_file)

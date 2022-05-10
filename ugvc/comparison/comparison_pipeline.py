@@ -122,7 +122,7 @@ def pipeline(
         )
 
     if not cmp_intervals.is_none():
-        vcf_pipeline_utils.intersect_with_intervals(
+        vcf_pipeline_utils.intersect_with_intervals(sp,
             reheader_fn, cmp_intervals.as_interval_list_file(), select_intervals_fn
         )
     else:
