@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 
 from simppl.simple_pipeline import SimplePipeline
 
+import vcfbed.interval_file
 from ugvc.comparison import vcf_pipeline_utils
 
 CONCORDANCE_TOOL = "VCFEVAL"
@@ -16,15 +17,15 @@ def pipeline(
     n_parts: int,
     input_prefix: str,
     truth_file: str,
-    cmp_intervals: vcf_pipeline_utils.IntervalFile,
-    highconf_intervals: vcf_pipeline_utils.IntervalFile,
+    cmp_intervals: vcfbed.interval_file.IntervalFile,
+    highconf_intervals: vcfbed.interval_file.IntervalFile,
     ref_genome: str,
     call_sample: str,
     truth_sample: str,
     output_dir: Optional[str] = None,
     output_file_name: Optional[str] = None,
     header: Optional[str] = None,
-    runs_intervals: Optional[vcf_pipeline_utils.IntervalFile] = None,
+    runs_intervals: Optional[vcfbed.interval_file.IntervalFile] = None,
     output_suffix: Optional[str] = None,
     ignore_filter: bool = False,
     concordance_tool: str = CONCORDANCE_TOOL,

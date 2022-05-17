@@ -12,6 +12,7 @@ from simppl.cli import get_simple_pipeline
 from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
+import vcfbed.interval_file
 from ugvc import logger
 import ugvc.comparison.comparison_pipeline as comparison_pipeline
 import ugvc.comparison.vcf_pipeline_utils as vcf_pipeline_utils
@@ -206,11 +207,11 @@ def run(argv: List[str]):
     args = parser.parse_args(argv[1:])
     sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout, name=__name__)
 
-    cmp_intervals = vcf_pipeline_utils.IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
+    cmp_intervals = vcfbed.interval_file.IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
     highconf_intervals = \
-        vcf_pipeline_utils.IntervalFile(sp,args.highconf_intervals, args.reference, args.reference_dict)
+        vcfbed.interval_file.IntervalFile(sp, args.highconf_intervals, args.reference, args.reference_dict)
     runs_intervals = \
-        vcf_pipeline_utils.IntervalFile(sp, args.runs_intervals, args.reference, args.reference_dict)
+        vcfbed.interval_file.IntervalFile(sp, args.runs_intervals, args.reference, args.reference_dict)
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():  # interval of highconf_intervals
@@ -255,7 +256,7 @@ def run(argv: List[str]):
             None,
             args.output_file,
             args.header_file,
-            vcf_pipeline_utils.IntervalFile(sp),
+            vcfbed.interval_file.IntervalFile(sp),
             args.output_suffix,
             args.ignore_filter_status,
             args.concordance_tool,
