@@ -8,17 +8,16 @@ from typing import List
 import pandas as pd
 import pysam
 from joblib import Parallel, delayed
-from simppl.cli import get_simple_pipeline
 from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
-import vcfbed.interval_file
-from ugvc import logger
 import ugvc.comparison.comparison_pipeline as comparison_pipeline
 import ugvc.comparison.vcf_pipeline_utils as vcf_pipeline_utils
 import ugvc.vcfbed.vcftools as vcftools
+from ugvc import logger
 from ugvc.comparison.concordance_utils import read_hdf
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.vcfbed.interval_file import IntervalFile
 
 MIN_CONTIG_LENGTH = 100000
 
@@ -206,26 +205,26 @@ def run(argv: List[str]):
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
     sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout, name=__name__)
+    vpu = vcf_pipeline_utils.VcfPipelineUtils(sp)
 
-    cmp_intervals = vcfbed.interval_file.IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
+    cmp_intervals = IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
     highconf_intervals = \
-        vcfbed.interval_file.IntervalFile(sp, args.highconf_intervals, args.reference, args.reference_dict)
+        IntervalFile(sp, args.highconf_intervals, args.reference, args.reference_dict)
     runs_intervals = \
-        vcfbed.interval_file.IntervalFile(sp, args.runs_intervals, args.reference, args.reference_dict)
+        IntervalFile(sp, args.runs_intervals, args.reference, args.reference_dict)
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():  # interval of highconf_intervals
         copyfile(highconf_intervals.as_bed_file(), args.output_interval)
     else:
-        sp.print_and_run(f'bedtools intersect -a {cmp_intervals.as_bed_file()} '
-                         f'-b {highconf_intervals.as_bed_file()} '
-                         f'> {args.output_interval}')
+        vpu.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
+
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     pd.DataFrame(args_dict, index=[0]).to_hdf(args.output_file, key="input_args")
 
     if args.filter_runs:
         results = comparison_pipeline.pipeline(
-            sp,
+            vpu,
             args.n_parts,
             args.input_prefix,
             args.gtr_vcf,
@@ -244,7 +243,7 @@ def run(argv: List[str]):
         )
     else:
         results = comparison_pipeline.pipeline(
-            sp,
+            vpu,
             args.n_parts,
             args.input_prefix,
             args.gtr_vcf,
@@ -256,7 +255,7 @@ def run(argv: List[str]):
             None,
             args.output_file,
             args.header_file,
-            vcfbed.interval_file.IntervalFile(sp),
+            IntervalFile(sp),
             args.output_suffix,
             args.ignore_filter_status,
             args.concordance_tool,
