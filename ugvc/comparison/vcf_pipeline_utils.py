@@ -843,7 +843,7 @@ def reinterpret_variants(
     """
     logger.info("Variants reinterpret")
     concordance_df_result = pd.DataFrame()
-    fasta = pyfaidx.Fasta(reference_fasta)
+    fasta = pyfaidx.Fasta(reference_fasta, build_index=False, rebuild=False)
     for contig in concordance_df["chrom"].unique():
         concordance_df_contig = concordance_df.loc[concordance_df["chrom"] == contig]
         input_dict = _get_locations_to_work_on(
