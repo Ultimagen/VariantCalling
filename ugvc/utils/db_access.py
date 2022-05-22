@@ -99,7 +99,7 @@ def metrics2df(
 
     md = pd.DataFrame(
         (pd.DataFrame(_cleanup_metadata(doc["metadata"])))
-        .query('workflowEntity=="sample"')
+        .query('(workflowEntity=="sample") | (workflowEntity=="Sample") | (workflowEntity=="Unknown")')
         .loc["entityType"]
     ).T
     md.index = [0]
@@ -132,7 +132,7 @@ def inputs2df(doc: dict) -> pd.DataFrame:
     """
     md = (
         pd.DataFrame(_cleanup_metadata(doc["metadata"]))
-        .query('workflowEntity=="sample"')
+        .query('(workflowEntity=="sample") | (workflowEntity=="Sample") | (workflowEntity=="Unknown")')
         .loc["entityType"]
     )
     inputs = pd.Series(doc["inputs"])
