@@ -1,4 +1,3 @@
-import logging
 from collections import OrderedDict
 from enum import Enum
 from typing import Callable, Iterable, Optional, Tuple, Union
@@ -12,6 +11,7 @@ from sklearn import impute, preprocessing
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
+from ugvc import logger
 import ugvc.utils.misc_utils as utils
 from ugvc.utils.stats_utils import (
     get_f1,
@@ -20,7 +20,7 @@ from ugvc.utils.stats_utils import (
     precision_recall_curve,
 )
 
-logger = logging.getLogger(__name__)
+#logger = logging.getLogger(__name__)
 
 
 class vcfType(Enum):
@@ -215,6 +215,10 @@ def train_threshold_models(
     concordance = add_testing_train_split_column(
         concordance, "group", "test_train_split", classify_column
     )
+    logger.debug(f"******Minimal test loc: {np.nonzero(np.array(concordance['test_train_split']))[0].min()}")
+    logger.debug(f"******Maximal test loc: {np.nonzero(np.array(concordance['test_train_split']))[0].max()}")    
+    logger.debug(f"******Average test loc: {np.nonzero(np.array(concordance['test_train_split']))[0].mean()}")        
+
     transformer = feature_prepare(output_df=True, annots=annots, vtype=vtype)
     transformer.fit(concordance)
     groups = set(concordance["group"])
@@ -705,7 +709,7 @@ def train_model_RF(
     -------
     Trained classifier model
     """
-    model = RandomForestClassifier(n_estimators=40, max_depth=8)
+    model = RandomForestClassifier(n_estimators=40, max_depth=8, random_state=42)
 
     return train_model(
         concordance,
@@ -945,24 +949,31 @@ def add_testing_train_split_column(
     test_set_fraction: float = 0.5,
 ) -> pd.DataFrame:
     """Adds a column that divides each training group into a train/test set. Supports
-    requirements for the minimal testing set size, maximal training test size and the fraction of test
+    requirements for the minimal testing set size, maximal training test size and the fraction of test. 
+    The training set size of each group will be:
 
+    train_test_size = min(group_size-min_test_size, max_train_set, group_size * (1-test_sec_frac))
+
+    TODO: gtr_column currently has no effect and false negatives are chosen for test and train sets. 
+    (it is assumed that they are removed in the input)
+     
     Parameters
     ----------
     concordance: pd.DataFrame
         Input data frame
-    testing_groups_column: str
-        Name of the grouping column
+    training_groups_column: str
+        Name of the grouping column. Testing/training split will be performed separately
+        for each group
     test_train_split_column: str
         Name of the splitting column
     gtr_column: str
         Name of the column that contains ground truth (will exclude fns)
     min_test_set: int
-        Default - 2000
+        Default - 2000, minimal size of the testing set of each variant group
     max_train_set: int
-        Default - 200000
+        Default - 200000, maximal size of the training set of each variant group
     test_set_fraction: float
-        Default - 0.5
+        Default - 0.5, desired fraction of the test set
 
     Returns
     -------
@@ -973,6 +984,7 @@ def add_testing_train_split_column(
 
     test_train_split_vector = np.zeros(concordance.shape[0], dtype=np.bool)
     for g in groups:
+
         group_vector = concordance[training_groups_column] == g
         locations = group_vector.to_numpy().nonzero()[0]
         assert group_vector.sum() >= min_test_set, "Group size too small for training"
@@ -980,9 +992,10 @@ def add_testing_train_split_column(
             min(
                 group_vector.sum() - min_test_set,
                 max_train_set,
-                group_vector.sum() * (1 - test_set_fraction),
+                np.round(group_vector.sum() * (1 - test_set_fraction)),
             )
         )
+
         test_set_size = group_vector.sum() - train_set_size
         assert (
             test_set_size >= min_test_set
@@ -990,6 +1003,7 @@ def add_testing_train_split_column(
         assert (
             train_set_size <= max_train_set
         ), f"Train set size too big -> test:{test_set_size}, train:{train_set_size}"
+        np.random.seed(42) # making everything deterministic
         train_set = locations[
             np.random.choice(
                 np.arange(group_vector.sum(), dtype=np.int),
@@ -1056,6 +1070,11 @@ def train_model_wrapper(
         )
     else:
         concordance["test_train_split"] = True
+
+    logger.debug(f"******Minimal test loc: {np.nonzero(np.array(concordance['test_train_split']))[0].min()}")
+    logger.debug(f"******Maximal test loc: {np.nonzero(np.array(concordance['test_train_split']))[0].max()}")    
+    logger.debug(f"******Average test loc: {np.nonzero(np.array(concordance['test_train_split']))[0].mean()}")        
+
     transformer = feature_prepare(annots=annots, vtype=vtype)
     transformer.fit(concordance)
     groups = set(concordance["group"])

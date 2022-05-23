@@ -1,4 +1,3 @@
-import logging
 import os.path
 import shutil
 import subprocess
@@ -9,13 +8,11 @@ import numpy as np
 import pandas as pd
 import pyfaidx
 import pysam
-
+from ugvc import logger
 import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.vcfbed.variant_annotation as annotation
 import ugvc.vcfbed.vcftools as vcftools
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-
-logger = logging.getLogger(__name__)
 
 
 def combine_vcf(n_parts: int, input_prefix: str, output_fname: str):
