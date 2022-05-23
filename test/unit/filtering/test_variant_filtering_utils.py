@@ -12,6 +12,52 @@ from ugvc.filtering import variant_filtering_utils
 inputs_dir = get_resource_dir(__file__)
 
 
+def test_add_testing_train_split_column():
+    concordance_df = pd.DataFrame({'qual':np.arange(100)})
+    concordance_df['group'] = 'snp'
+
+    concordance_df = variant_filtering_utils.add_testing_train_split_column(concordance_df,
+        training_groups_column='group',
+        test_train_split_column = 'tts',
+        gtr_column = 'group',
+        min_test_set = 20, 
+        max_train_set = 50, 
+        test_set_fraction = 0.5)
+    assert concordance_df['tts'].sum() == 50
+
+    concordance_df = variant_filtering_utils.add_testing_train_split_column(concordance_df,
+        training_groups_column='group',
+        test_train_split_column = 'tts',
+        gtr_column = 'group',
+        min_test_set = 20, 
+        max_train_set = 50, 
+        test_set_fraction = 0.8)
+    assert concordance_df['tts'].sum() == 20
+    concordance_df = variant_filtering_utils.add_testing_train_split_column(concordance_df,
+        training_groups_column='group',
+        test_train_split_column = 'tts',
+        gtr_column = 'group',
+        min_test_set = 90, 
+        max_train_set = 90, 
+        test_set_fraction = 0.5)
+    assert concordance_df['tts'].sum() == 10
+
+# tests determinism of test train split
+def test_add_testing_train_split_column_deterministic():
+    concordance_df = pd.DataFrame({'qual':np.arange(100)})
+    concordance_df['group'] = 'snp'
+    concordance_df = variant_filtering_utils.add_testing_train_split_column(concordance_df,
+        training_groups_column='group',
+        test_train_split_column = 'tts',
+        gtr_column = 'group',
+        min_test_set = 20, 
+        max_train_set = 50)
+    assert concordance_df['tts'].sum() == 50
+    assert concordance_df['tts'].to_numpy().nonzero()[0].min() == 0
+    assert concordance_df['tts'].to_numpy().nonzero()[0].max() == 96    
+    assert concordance_df['tts'].to_numpy().nonzero()[0].mean() == 45.3   
+
+
 def test_blacklist_cg_insertions():
     rows = pd.DataFrame(
         {
