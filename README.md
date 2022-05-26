@@ -7,7 +7,7 @@ Variant calling with Ultima data
 2. Create the three conda environments:
   ```
   conda env create -f setup/environment.yml
-  conda env create -f setup/other_envs/ucsd.yml
+  conda env create -f setup/other_envs/ucsc.yml
   conda env create -f setup/other_envs/cutadapt.yml
   ```
 3. Activate the main conda environment
