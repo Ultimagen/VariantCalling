@@ -74,7 +74,7 @@ python /path/to/ugvc <tool_name> <args>
 	train_models_pipeline:
 		Train filtering models
 
-  train_models_pipeline:
+	assess_sec_concordance:
 		Given a concordance h5 input, an exclusion candidates bed, and a SEC refined exclude-list (bed)
 		Apply each exclusion list on the variants and measure the differences between the results.
 
