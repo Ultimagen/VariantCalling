@@ -87,6 +87,12 @@ python /path/to/ugvc <tool_name> <args>
 	sec_validation:
 		SEC (Systematic Error Correction) validation pipeline
 
+## Documentation of individual tools: 
+
+* [coverage_analysis](docs/coverage_analysis.md)
+* [evaluate_concordance](docs/evaluate_concordance.md)
+* [filter_variants_pipeline](docs/filter_variants_pipeline.md)
+
 ## Test
 ### Run all tests
 ```
