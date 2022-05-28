@@ -1,3 +1,7 @@
+# coverage_analysis.py
+
+This script collects coverage statistics of BAM/CRAM file over set of regions of interest. 
+
 ```
 usage: coverage_analysis [-h] [-i INPUT] [-o OUTPUT] -c COVERAGE_INTERVALS
                          [-r [REGION [REGION ...]]] [-w WINDOWS] [-q Q] [-Q Q]
