@@ -1,5 +1,13 @@
 # VariantCalling
-Variant calling with Ultima data
+This package provides a set of tools to assist variant calling on Ultima data. 
+The best practice pipeline is published [here](link currently underfined). The code
+below is used mostly in the post-GATK filtering step. 
+
+In addition, the code provides 
+
+* python tools to perform evaluation of the callset relative to the ground truth.
+* python tools to perform building a database of noisy locaitons (SEC) and filtering callset relative to them.
+* Set of tools for MRD (minimal residual disease) - still undocumented.
 
 ## Setup
 1. Clone VariantCalling repository to e.g. `software\VariantCalling`
@@ -51,7 +59,33 @@ python /path/to/ugvc <tool_name> <args>
 
 ### Run individual tools not through CLI
 
-See individual tool's documentation pages
+	coverage_analysis:
+		Run full coverage analysis of an aligned bam/cram file
+
+	evaluate_concordance:
+		Calculate precision and recall for compared HDF5
+
+	filter_variants_pipeline:
+		POST-GATK variant filtering
+
+	run_comparison_pipeline:
+		Concordance between VCF and ground truth
+
+	train_models_pipeline:
+		Train filtering models
+
+  train_models_pipeline:
+		Given a concordance h5 input, an exclusion candidates bed, and a SEC refined exclude-list (bed)
+		Apply each exclusion list on the variants and measure the differences between the results.
+
+	correct_systematic_errors:
+		filter out variants which appear like systematic-errors, while keeping those which are not well explained by errors
+
+	sec_training:
+		SEC (Systematic Error Correction) training pipeline
+
+	sec_validation:
+		SEC (Systematic Error Correction) validation pipeline
 
 ## Test
 ### Run all tests
