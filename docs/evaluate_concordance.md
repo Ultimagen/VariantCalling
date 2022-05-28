@@ -34,11 +34,11 @@ optional arguments:
 ```
 
 ### Example
-
+```
 evaluate_concordance.py  --input_file 004797-UGAv3-51_2.comp.h5 \
                          --dataset_key chr20  \
                          --output_prefix 004797-UGAv3-51_2.concordance
-
+```
 ### Result
 
 `pd.read_hdf("004797-UGAv3-51_2.comp.h5",key="optimal_recall_precision")`
