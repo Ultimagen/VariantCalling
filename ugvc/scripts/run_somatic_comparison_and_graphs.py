@@ -6,8 +6,8 @@ import json
 from os.path import join as pjoin
 import subprocess
 from datetime import datetime
-from python.pipelines import run_comparison_pipeline
-from python.pipelines import evaluate_concordance
+from ugvc.pipelines import run_comparison_pipeline
+from ugvc.pipelines import evaluate_concordance
 
 ap = argparse.ArgumentParser(prog="run_somatic_comparison_and_graphs.py",
                              description="Create a performance analysis for mutect by running"
