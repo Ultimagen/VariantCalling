@@ -13,6 +13,8 @@ from os.path import join as pjoin
 from os.path import splitext
 from tempfile import TemporaryDirectory
 from typing import List, Optional, Union
+import pyBigWig as pbw
+from collections import Counter
 
 import botocore
 import matplotlib as mpl
@@ -28,27 +30,18 @@ from ugvc.vcfbed.bed_writer import (
     BED_COLUMN_CHROM,
     BED_COLUMN_CHROM_END,
     BED_COLUMN_CHROM_START,
+    parse_intervals_file
 )
 from ugvc.utils import misc_utils as utils
+import ugvc.dna.utils as dnautils
 from ugvc.utils.cloud_auth import get_gcs_token
 from ugvc.utils.cloud_sync import cloud_sync
 from ugvc.utils.consts import COVERAGE, GCS_OAUTH_TOKEN, FileExtension
 
-# init logging
-# create logger
+from ugvc import logger
 
-
-logger = logging.getLogger("coverage_analysis")
-logger.setLevel(logging.DEBUG)
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-# create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-# add formatter to ch
-ch.setFormatter(formatter)
-# add ch to logger
-logger.addHandler(ch)
+MIN_CONTIG_LENGTH = 100000 # contigs that are shorter than that won't be analyzed
+MIN_LENGTH_TO_SHOW = 10000000 # contigs that are shorter than that won't be shown on coverage plot
 
 # display defaults
 SMALL_SIZE = 12
@@ -97,8 +90,8 @@ def parse_args(argv):
         "--region",
         type=str,
         nargs="*",
-        default=CHROM_DTYPE.categories,
-        help=f"""Genomic region in samtools format - default is {CHROM_DTYPE.categories.values} """,
+        default=None,
+        help=f"""Genomic region in samtools format - default is None """,
     )
     parser.add_argument(
         "-w",
@@ -208,14 +201,23 @@ def run_full_coverage_analysis(
     os.makedirs(out_path, exist_ok=True)
     if windows is None:
         windows = [100, 1000, 10000, 100000]
+    elif type(windows) == int:
+        windows = [windows]
     w0 = 1
     for w in windows:
         if w % w0 != 0:
             raise ValueError(
                 f"consecutive window sizes must divide by each other, got {windows}"
             )
+
+    sizes_file = pjoin(out_path, "chrom.sizes")
+    utils.contig_lens_from_bam_header(bam_file, sizes_file)
+    chr_sizes = dnautils.get_chr_sizes(sizes_file)
+
     if regions is None:
-        regions = CHROM_DTYPE.categories
+        regions = [x for x in chr_sizes if int(
+            chr_sizes[x]) > MIN_CONTIG_LENGTH]
+        logger.debug(f"regions = {regions}")
     elif isinstance(regions, str) or not isinstance(regions, Iterable):
         regions = [regions]
     bam_file_name = basename(bam_file).split(".")[0]
@@ -261,8 +263,6 @@ def run_full_coverage_analysis(
         )
     )
 
-    sizes_file = pjoin(out_path, "chrom.sizes")
-    utils.contig_lens_from_bam_header(bam_file, sizes_file)
     # convert bedgraph files to BW
     out_bw_files = Parallel(n_jobs=n_jobs)(
         delayed(depth_to_bigwig)(
@@ -298,21 +298,19 @@ def run_full_coverage_analysis(
                 os.makedirs(tmpdir[region_bed_file], exist_ok=True)
 
             Parallel(n_jobs=n_jobs)(
-                delayed(create_coverage_histogram_from_depth_file)(
-                    input_depth_bed_file,
+                delayed(create_coverage_histogram_from_bw_file)(
+                    input_depth_bw_file,
                     pjoin(
                         tmpdir[region_bed_file],
-                        f"{basename(input_depth_bed_file).split('.depth')[0]}.coverage_histogram{FileExtension.TSV.value}",
+                        f"{basename(input_depth_bw_file).split('.depth')[0]}.coverage_histogram.{FileExtension.TSV.value}",
                     ),
                     region_bed_file,
                 )
-                for input_depth_bed_file, region_bed_file in [
+                for input_depth_bw_file, region_bed_file in [
                     (x, y)
                     for x, y in itertools.product(
-                        out_depth_files, df_coverage_intervals["file"].values
+                        out_bw_files, df_coverage_intervals["file"].values
                     )
-                    if (_check_chr_in_file_name(x) == _check_chr_in_file_name(y))
-                    or (_check_chr_in_file_name(y) is None)
                 ]
             )
 
@@ -419,7 +417,7 @@ def run_full_coverage_analysis(
             # plot coverage profile
             if w >= 1000:  # below that the graph is useless
                 plot_coverage_profile(
-                    input_depth_files={
+                    _input_depth_files={
                         r: f.replace(".bedgraph", FileExtension.PARQUET.value)
                         for r, f in zip(regions, depth_files_to_process)
                         if r != "chrM"
@@ -444,7 +442,6 @@ def run_full_coverage_analysis(
             desc=f"gzipping bed files",
         )
     )
-
 
 def _run_shell_command(cmd, logger=logger):
     """Wrapper for running shell commands - takes care of logging and generates a GCS token if any command argument
@@ -474,7 +471,6 @@ def _run_shell_command(cmd, logger=logger):
         )
         raise
     return stdout.decode(), stderr.decode()
-
 
 def collect_depth(input_bam_file, output_bed_file, samtools_args=None) -> str:
     """Create a depth bed file - built on "samtools depth" but outputs a bed file
@@ -560,6 +556,59 @@ def create_coverage_histogram_from_depth_file(
     else:
         cmd = bedtools_cmd + " | " + awk_cmd + output_cmd
     _run_shell_command(cmd)
+    if not os.path.isfile(output_tsv):
+        raise ValueError(
+            f"file {output_tsv} was supposed to be created but cannot be found"
+        )
+    return output_tsv
+
+
+def create_coverage_histogram_from_bw_file(
+        input_depth_bw_file: str, output_tsv: str, region_bed_file: Optional[str] = None
+) -> str:
+    """Takes an input input_depth_bw_file (create with "collect_depth") and an optional region bed 
+    file, and creates a coverage histogram tsv file.
+
+    Parameters
+    ----------
+    input_depth_bw_file: str
+        Input bigWig file
+
+    region_bed_file: str
+        Regions bed file
+
+    output_tsv: str
+        Output histogram file
+
+    Returns
+    -------
+    str
+         output_tsv name
+    """
+
+    bw = pbw.open(input_depth_bw_file)
+    total_cnt: Counter = Counter()
+
+    if region_bed_file is None:
+
+        for c in bw.chroms().keys():
+            cnt: Counter = Counter(np.array(bw.values(c, 0, bw.chroms()[c]), dtype=int))
+            total_cnt += cnt
+    else:
+        bed = parse_intervals_file(region_bed_file)
+        for r in bed.iterrows():
+            if r[1]['chromosome'] in bw.chroms().keys():
+                values = np.array(
+                    bw.values(r[1]['chromosome'], r[1]['start'], r[1]['end']))
+                values = values[~np.isnan(values)].astype(int)
+                cnt: Counter = Counter(values)
+                total_cnt += cnt
+
+    with open(output_tsv, 'w') as out:
+        if len(total_cnt) != 0:
+            for i in range(max(total_cnt.keys())+1):
+                out.write(f"{i} {total_cnt[i]}\n")
+
     if not os.path.isfile(output_tsv):
         raise ValueError(
             f"file {output_tsv} was supposed to be created but cannot be found"
@@ -676,7 +725,8 @@ def _create_coverage_intervals_dataframe(coverage_intervals_dict,):
 Expected {FileExtension.TSV.value}/{FileExtension.CSV.value}"""
             )
         coverage_intervals_dict_local = cloud_sync(coverage_intervals_dict)
-        df_coverage_intervals = pd.read_csv(coverage_intervals_dict_local, sep=sep)
+        df_coverage_intervals = pd.read_csv(
+            coverage_intervals_dict_local, sep=sep)
         df_coverage_intervals["file"] = df_coverage_intervals.apply(
             lambda x: _intervals_to_bed(
                 pjoin(dirname(coverage_intervals_dict), x["file"][2:])
@@ -735,7 +785,8 @@ def generate_stats_from_histogram(
     df_percentiles = pd.concat(
         (
             val_count.apply(
-                lambda x: interp1d(np.cumsum(x), val_count.index, bounds_error=False)(q)
+                lambda x: interp1d(
+                    np.cumsum(x), val_count.index, bounds_error=False)(q)
             ),
             val_count.apply(
                 lambda x: np.sum(val_count.index.values * x.values)
@@ -805,7 +856,8 @@ def generate_stats_from_histogram(
         if verbose:
             logger.debug(f"Saving dataframes to {coverage_stats_dataframes}")
         df_stats.to_hdf(coverage_stats_dataframes, key="stats", mode="a")
-        df_percentiles.to_hdf(coverage_stats_dataframes, key="percentiles", mode="a")
+        df_percentiles.to_hdf(coverage_stats_dataframes,
+                              key="percentiles", mode="a")
         return coverage_stats_dataframes
 
     return df_percentiles, df_stats
@@ -844,7 +896,8 @@ def generate_coverage_boxplot(
     bxp = [
         {**v, **{"label": k}}
         for k, v in df_percentiles_norm.rename(
-            {"Q50": "med", "Q25": "q1", "Q75": "q3", "Q5": "whislo", "Q95": "whishi"}
+            {"Q50": "med", "Q25": "q1", "Q75": "q3",
+                "Q5": "whislo", "Q95": "whishi"}
         )
         .to_dict()
         .items()
@@ -933,7 +986,7 @@ def _check_chr_in_file_name(filename):
 
 
 def plot_coverage_profile(
-    input_depth_files,
+    _input_depth_files,
     centromere_file=None,
     reference_gaps_file=None,
     title="",
@@ -967,10 +1020,33 @@ def plot_coverage_profile(
             comment="#",
         ).set_index("chrom")
 
-    median_coverage = np.median(
-        [pd.read_parquet(f)["coverage"].median() for f in input_depth_files.values()]
-    )
+    input_depth_files = _input_depth_files.copy()
+
+    # we do not show coverage profile for very short contigs
+    sizes = [pd.read_parquet(f)["chromEnd"].max() for f in input_depth_files.values()]
+    delete_list = []
+    for i,r in enumerate(input_depth_files.keys()):
+        if sizes[i] < MIN_LENGTH_TO_SHOW:
+            delete_list.append(r)
+    for r in delete_list:
+        del input_depth_files[r]
+
+    median_coverages = [pd.read_parquet(f)["coverage"].median() for f in input_depth_files.values()]
+    mc1 = np.median(median_coverages)
+    # Try to estimate median only on large chromosomes to avoid some boundary cases
+    n_windows = [pd.read_parquet(f)["coverage"].shape[0] for f in input_depth_files.values()]
+
+    mc = [x[0] for x in zip(median_coverages, n_windows) if x[1] > 100]
+    if len(mc) == 0:
+        median_coverage = mc1
+    else:
+        median_coverage = np.median(mc)
+    median_coverage = max(median_coverage, 1)
+    logger.debug(f"Median coverage: {median_coverage}")
+
     N = len(input_depth_files)
+    if (N == 0):
+        return;
 
     fig, axs = plt.subplots(
         np.ceil(N / 2).astype(int),
@@ -996,7 +1072,7 @@ def plot_coverage_profile(
             df = df.iloc[::space]
         x = (df["chromStart"] + df["chromEnd"]) / 2 / 1e6
         plt.plot(
-            x, df["coverage"] / median_coverage, label="coverage profile", zorder=1,
+            x, np.clip(df["coverage"] / median_coverage,0,100), label="coverage profile", zorder=1,
         )
         try:
             if reference_gaps_file is not None:

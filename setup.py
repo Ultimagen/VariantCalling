@@ -30,6 +30,7 @@ setup(
         "bash/run_ucsc_command.sh",
         "bash/remove_vcf_duplicates.sh",
         "bash/remove_empty_files.sh",
-        "bash/index_vcf_file.sh"]},
+        "bash/index_vcf_file.sh", 
+        "bash/find_adapter_coords.sh"]},
     install_package_data=True
 )

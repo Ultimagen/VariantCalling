@@ -52,6 +52,10 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         type=str,
         required="--evaluate_concordance" in sys.argv,
     )
+    ap.add_argument("--evaluate_concordance_contig",
+        help="Which contig the evaluation of the model should be done on",
+        default="chr9")
+
     ap.add_argument(
         "--input_interval",
         help="bed file of intersected intervals from run_comparison pipeline",
@@ -332,7 +336,7 @@ def run(argv: List[str]):
 
         if args.evaluate_concordance:
             if with_dbsnp_bl:
-                calls_df = vcftools.get_vcf_df(args.input_file, chromosome="chr9")
+                calls_df = vcftools.get_vcf_df(args.input_file, chromosome=args.evaluate_concordance_contig)
             else:
                 calls_df = pd.read_hdf(args.input_file, "concordance")
 

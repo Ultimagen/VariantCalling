@@ -185,6 +185,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         help="Should re-interpretation be run",
         action="store_true",
     )
+    ap.add_argument("--special_chromosome", help="The chromosome that would be used for the \
+        'concordance' dataframe (whole genome mode only)", default="chr9")
     ap.add_argument(
         "--is_mutect", help="Are the VCFs output of Mutect (false)", action="store_true"
     )
@@ -351,7 +353,7 @@ def run(argv: List[str]):
             if h5_temp.shape == (0, 0):  # empty dataframes get default columns
                 h5_temp = pd.concat((h5_temp, df_columns), axis=1)
             h5_temp.to_hdf(args.output_file, mode="a", key=contig)
-            if contig == "chr9":
+            if contig == args.special_chromosome:
                 h5_temp.to_hdf(args.output_file, mode="a", key="concordance")
             os.remove(f"{base_name_outputfile}{contig}.h5")
 

@@ -54,4 +54,5 @@ def parse_intervals_file(intervalfile: str, threshold: int = 0) -> pd.DataFrame:
     if threshold > 0:
         df = df[df["end"] - df["start"] > threshold]
     df.sort_values(["chromosome", "start"], inplace=True)
+    df['chromosome'] = df['chromosome'].astype('string')
     return df
