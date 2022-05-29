@@ -93,6 +93,7 @@ python /path/to/ugvc <tool_name> <args>
 * [evaluate_concordance](docs/evaluate_concordance.md)
 * [filter_variants_pipeline](docs/filter_variants_pipeline.md)
 * [run_comparison_pipeline](docs/run_comparison_pipeline.md)
+* [train_models_pipeline](docs/train_models_pipeline.md)
 
 ## Test
 ### Run all tests
