@@ -1,6 +1,8 @@
 #!/env/python
 import argparse
 import logging
+
+from ugvc import logger
 import pickle
 import random
 import sys
@@ -14,7 +16,6 @@ import ugvc.filtering.blacklist as blacklist_fcn
 import ugvc.filtering.variant_filtering_utils as variant_filtering_utils
 import ugvc.vcfbed.vcftools as vcftools
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
     ap = argparse.ArgumentParser(
@@ -123,14 +124,8 @@ def run(argv: List[str]):
     np.random.seed(1984)
     random.seed(1984)
     args = parse_args(argv)
-    logging.basicConfig(
-        level=getattr(logging, args.verbosity),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-    logger = logging.getLogger(
-        __name__ if __name__ != "__main__" else "train_model_pipeline"
-    )
-
+    logger.setLevel(getattr(logging,args.verbosity))
+    
     try:
         if args.input_file.endswith("h5"):
             assert (

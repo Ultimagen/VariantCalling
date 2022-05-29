@@ -11,7 +11,7 @@ logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(module)s - %(levelname)s - %(message)s")
 
 # create console handler and set level to debug
-ch = logging.StreamHandler(stream=sys.stdout)
+ch = logging.StreamHandler(stream=sys.stderr)
 ch.setLevel(logging.INFO)
 ch.setFormatter(formatter)
 logger.addHandler(ch)
