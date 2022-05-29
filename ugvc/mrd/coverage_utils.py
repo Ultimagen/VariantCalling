@@ -154,7 +154,7 @@ def collect_coverage_per_motif(
                 chrom=pyfaidx.Fasta(reference_fasta)[chr_str][:].seq.upper(),
                 depth_file=depth_file,
                 size=size,
-                N=N,
+                n=N,
             )
             for chr_str, depth_file in depth_files.items()
         )
