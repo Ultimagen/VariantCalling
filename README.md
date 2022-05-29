@@ -92,6 +92,7 @@ python /path/to/ugvc <tool_name> <args>
 * [coverage_analysis](docs/coverage_analysis.md)
 * [evaluate_concordance](docs/evaluate_concordance.md)
 * [filter_variants_pipeline](docs/filter_variants_pipeline.md)
+* [run_comparison_pipeline](docs/run_comparison_pipeline.md)
 
 ## Test
 ### Run all tests
