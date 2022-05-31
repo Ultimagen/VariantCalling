@@ -266,7 +266,7 @@ def run_full_analysis(arg_values):
     )
 
     logger.info("Converting vcf to df")
-    df = vcftools.get_vcf_df(arg_values.input_file)
+    df = vcftools.get_vcf_df(arg_values.input_file, args.sample_id)
     logger.info("Annotating vcf")
     annotated_df, _ = vcf_pipeline_utils.annotate_concordance(df, arg_values.reference)
 
@@ -301,6 +301,10 @@ if __name__ == "__main__":
     full_analysis.add_argument("--dbsnp", help="dbsnp vcf file", required=True, type=str)
     full_analysis.add_argument("--reference", help="Reference genome", required=True, type=str)
     full_analysis.add_argument("--output_prefix", help="output file", required=True, type=str)
+    full_analysis.add_argument(
+        "--sample_id", help="sample id (useful in case there is more than one in the vcf)", required=False,
+        type=int, default=0
+    )
     full_analysis.set_defaults(func=run_full_analysis)
 
     # Run variant eval only - for JC report
