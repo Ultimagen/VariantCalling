@@ -1,15 +1,16 @@
 # VariantCalling
 This package provides a set of tools to assist variant calling on Ultima data. 
-The best practice pipeline is published [here](link currently underfined). The code
+The best practice pipeline is published [here](broad.io/ugworkspace). The code
 below is used mostly in the post-GATK filtering step. 
 
 In addition, the code provides 
 
-* python tools to perform evaluation of the callset relative to the ground truth.
-* python tools to perform building a database of noisy locaitons (SEC) and filtering callset relative to them.
+* Tools to perform evaluation of the callset relative to the ground truth.
+* Tools to perform building a database of noisy locaitons (SEC) and filtering callset relative to them - still undocumented
 * Set of tools for MRD (minimal residual disease) - still undocumented.
 
 ## Setup
+
 1. Clone VariantCalling repository to e.g. `software\VariantCalling`
 
 2. Create the three conda environments:
@@ -39,8 +40,6 @@ In addition, the code provides
       cd VariantCalling
       pip install -e .
       ```
-
- scripts should be available on the path and modules should be available for import through from ugvc import ...
 
 ## Using ugvc package
 
@@ -74,26 +73,19 @@ python /path/to/ugvc <tool_name> <args>
 	train_models_pipeline:
 		Train filtering models
 
-	assess_sec_concordance:
-		Given a concordance h5 input, an exclusion candidates bed, and a SEC refined exclude-list (bed)
-		Apply each exclusion list on the variants and measure the differences between the results.
-
-	correct_systematic_errors:
-		filter out variants which appear like systematic-errors, while keeping those which are not well explained by errors
-
-	sec_training:
-		SEC (Systematic Error Correction) training pipeline
-
-	sec_validation:
-		SEC (Systematic Error Correction) validation pipeline
 
 ## Documentation of individual tools: 
 
-* [coverage_analysis](docs/coverage_analysis.md)
-* [evaluate_concordance](docs/evaluate_concordance.md)
-* [filter_variants_pipeline](docs/filter_variants_pipeline.md)
-* [run_comparison_pipeline](docs/run_comparison_pipeline.md)
-* [train_models_pipeline](docs/train_models_pipeline.md)
+* Train post-calling model: [train_models_pipeline](docs/train_models_pipeline.md)
+* Filter callset using pre-trained ML model: [filter_variants_pipeline](docs/filter_variants_pipeline.md)
+* Compare callset to ground truth: [run_comparison_pipeline](docs/run_comparison_pipeline.md)
+* Coverage bias analyses: [coverage_analysis](docs/coverage_analysis.md)
+* Evaluation of compared callsets: [evaluate_concordance](docs/evaluate_concordance.md)
+
+## Howtos
+
+* [How to post-filter a callset](docs/howto-callset-filter.md)
+* [Evaluation of UG callsets](docs/howto-evaluate-ug-callset.md)
 
 ## Test
 ### Run all tests
