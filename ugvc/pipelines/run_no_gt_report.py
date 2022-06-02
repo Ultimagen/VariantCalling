@@ -266,7 +266,7 @@ def run_full_analysis(arg_values):
     )
 
     logger.info("Converting vcf to df")
-    df = vcftools.get_vcf_df(arg_values.input_file, args.sample_id)
+    df = vcftools.get_vcf_df(arg_values.input_file, sample_id=arg_values.sample_id, sample_name=arg_values.sample_name)
     logger.info("Annotating vcf")
     annotated_df, _ = vcf_pipeline_utils.annotate_concordance(df, arg_values.reference)
 
@@ -304,6 +304,10 @@ if __name__ == "__main__":
     full_analysis.add_argument(
         "--sample_id", help="sample id (useful in case there is more than one in the vcf)", required=False,
         type=int, default=0
+    )
+    full_analysis.add_argument(
+        "--sample_name", help="sample name (useful in case there is more than one in the vcf)", required=False,
+        type=str
     )
     full_analysis.set_defaults(func=run_full_analysis)
 
