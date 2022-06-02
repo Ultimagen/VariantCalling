@@ -2,20 +2,25 @@ FROM continuumio/anaconda3:2019.10
 
 SHELL ["/bin/bash", "-c"]
 
-COPY . /VariantCalling
+RUN apt-get install nano
+
+COPY setup/environment.yml /VariantCalling/setup/
+COPY setup/other_envs/cutadapt.yml /VariantCalling/setup/other_envs/
+COPY setup/other_envs/ucsc.yml /VariantCalling/setup/other_envs/
 
 RUN conda update -n base -c defaults conda && \
     conda env create -f /VariantCalling/setup/environment.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cutadapt.yml && \
     conda env create -f /VariantCalling/setup/other_envs/ucsc.yml && \
     conda init --all
+
 RUN source ~/.bashrc && \
     conda activate genomics.py3 && \
     pip install mpld3==0.5.1
 
-RUN source ~/.bashrc && \
-    cd /VariantCalling && \
-    conda activate genomics.py3 && \
-    pip install .
+COPY . /VariantCalling
 
-RUN apt-get install nano
+RUN source ~/.bashrc && \
+    conda activate genomics.py3 && \
+    cd /VariantCalling && \
+    pip install .
