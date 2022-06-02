@@ -348,6 +348,8 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
     gdf = df.groupby("chrom")
     gannot_df = annot_df.groupby("chromosome")
     for chrom in gdf.groups.keys():
+        if chrom not in gannot_df.groups:
+            continue
         gdf_ix = gdf.groups[chrom]
         gannot_ix = gannot_df.groups[chrom]
         pos1 = np.array(df.loc[gdf_ix, "pos"])

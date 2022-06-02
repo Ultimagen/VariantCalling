@@ -26,102 +26,38 @@ def get_vcf_df(
     -------
     pd.DataFrame
     """
-
+    header = pysam.VariantFile(variant_calls).header
     if chromosome is None:
         vf = pysam.VariantFile(variant_calls)
+
     else:
         vf = pysam.VariantFile(variant_calls).fetch(chromosome)
 
-    vfi = map(
-        lambda x: defaultdict(
-            lambda: None,
-            x.info.items()
-            + (x.samples[sample_id].items() if sample_id is not None else [])
-            + [
-                ("QUAL", x.qual),
-                ("CHROM", x.chrom),
-                ("POS", x.pos),
-                ("REF", x.ref),
-                ("ID", x.id),
-                ("ALLELES", x.alleles),
-                ("FILTER", ";".join(x.filter.keys())),
-            ],
-        ),
-        vf,
-    )
-    columns = [
-        "CHROM",
-        "POS",
-        "QUAL",
-        "REF",
-        "ALLELES",
-        "GT",
-        "PL",
-        "DP",
-        "AD",
-        "MQ",
-        "SOR",
-        "AF",
-        "FILTER",
-        "DP_R",
-        "DP_F",
-        "AD_R",
-        "AD_F",
-        "TLOD",
-        "STRANDQ",
-        "FPR",
-        "GROUP",
-        "TREE_SCORE",
-        "VARIANT_TYPE",
-        "DB",
-        "AS_SOR",
-        "AS_SORP",
-        "FS",
-        "VQR_VAL",
-        "QD",
-        "GQ",
-        "PGT",
-        "PID",
-        "PS",
-        "AC",
-        "AN",
-        "BaseQRankSum",
-        "ExcessHet",
-        "MLEAC",
-        "MLEAF",
-        "MQRankSum",
-        "ReadPosRankSum",
-        "XC",
-        "ID",
-        "GNOMAD_AF",
-        "NLOD",
-        "NALOD",
-        "X_IC",
-        "X_IL",
-        "X_HIL",
-        "X_HIN",
-        "X_LM",
-        "X_RM",
-        "X_GCC",
-        "X_CSS",
-        "RPA",
-        "RU",
-        "STR",
-        "BLACKLST",
-    ]
-    concordance_df = pd.DataFrame(
-        [[x[y] for y in columns] for x in vfi], columns=[x.lower() for x in columns]
-    )
 
-    concordance_df["indel"] = concordance_df["alleles"].apply(
-        lambda x: len(set(([len(y) for y in x]))) > 1
-    )
+    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
+                                    (x.samples[sample_id].items() if sample_id is not None else []) +
+                                    [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref), ('ID', x.id),
+                                     ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
+    columns = ['GT', 'PL',
+               'DP', 'AD', 'MQ', 'SOR', 'AF',
+               'DP_R', 'DP_F', 'AD_R', 'AD_F', 'TLOD', 'STRANDQ', 'FPR', 'GROUP', 'TREE_SCORE',
+               'VARIANT_TYPE', 'DB', 'AS_SOR', 'AS_SORP', 'FS', 'VQR_VAL', 'QD',
+               "hiConfDeNovo", "loConfDeNovo",
+               'GQ', 'PGT', 'PID', 'PS', 'AC', 'AN', 'BaseQRankSum', 'ExcessHet', 'MLEAC', 'MLEAF',
+               'MQRankSum', 'ReadPosRankSum', 'XC', 'ID', 'GNOMAD_AF', 'NLOD', 'NALOD', 'X_IC',
+               'X_IL', 'X_HIL', 'X_HIN', 'X_LM', 'X_RM', 'X_GCC', 'X_CSS', 'RPA', 'RU', 'STR', 'AVERAGE_TREE_SCORE', 'VQSLOD']
+    columns = [x for x in columns if x in header.info.keys() + header.formats.keys()] + ['CHROM', 'POS', 'QUAL','REF', 'ALLELES','FILTER','ID']
+    df = pd.DataFrame([[x[y] for y in columns] for x in vfi],
+        columns=[x.lower() for x in columns])
 
-    concordance_df.index = [
-        (x[1]["chrom"], x[1]["pos"]) for x in concordance_df.iterrows()
-    ]
+    df['indel'] = df['alleles'].apply(
+        lambda x: len(set(([len(y) for y in x]))) > 1)
 
-    return concordance_df
+    df.index = [(x[1]['chrom'], x[1]['pos'])
+                            for x in df.iterrows()]
+
+
+    return df
 
 
 def add_info_tag_from_df(

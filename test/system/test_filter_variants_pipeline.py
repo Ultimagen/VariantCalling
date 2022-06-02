@@ -36,7 +36,6 @@ class TestFilterVariantPipeline:
                 f"{self.general_inputs_dir}/mappability.0.bed",
                 "--annotate_intervals",
                 f"{self.general_inputs_dir}/hmers_7_and_higher.bed",
-                "--is_mutect",
                 "--output_file",
                 output_file,
                 "--blacklist",
@@ -45,4 +44,4 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
-        assert {"LOW_SCORE": 51, "PASS": 857} == dict(df["filter"].value_counts())
+        assert {"LOW_SCORE": 104, "PASS": 804} == dict(df["filter"].value_counts())
