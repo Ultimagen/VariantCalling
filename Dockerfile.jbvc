@@ -2,13 +2,6 @@ FROM continuumio/anaconda3:2019.10
 
 SHELL ["/bin/bash", "-c"]
 
-#RUN set -eux; \
-#    apt-get update; \
-#    apt-get install -y --no-install-recommends \
-#        nano \
-#        ; \
-#    rm -rf /var/lib/apt/lists/*
-
 RUN apt-get install nano
 
 COPY setup/environment.yml /VariantCalling/setup/
