@@ -19,7 +19,7 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, sample_name: str = None, 
         VCF file
     sample_id: int
         Index of sample to fetch (default: 0)
-    sample_name: int
+    sample_name: str
         Name of sample to fetch (default: None)
     chromosome: str
         Specific chromosome to load from vcf, (default: all chromosomes)
