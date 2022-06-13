@@ -1,32 +1,42 @@
+from __future__ import annotations
+
 import os
-from typing import List
 
 import pandas as pd
 from pandas import DataFrame
 from simppl.simple_pipeline import SimplePipeline
 
 
-def extract_relevant_gvcfs(sample_ids: List[str],
-                           gvcf_files: List[str],
-                           out_dir: str,
-                           relevant_coords_file: str,
-                           sp: SimplePipeline,
-                           processes: int) -> List[str]:
+def extract_relevant_gvcfs(
+    sample_ids: list[str],
+    gvcf_files: list[str],
+    out_dir: str,
+    relevant_coords_file: str,
+    simple_pipeline: SimplePipeline,
+    processes: int,
+) -> list[str]:
     """
     Intersect the remote gvcf files with relevant_coords_file, and save result in local storage
 
     Parameters
     ----------
-    sample_ids: the ids of sample, ordered like gvcf files
-    gvcf_files: urls of gvcf files on GCS
-    out_dir: output directory
-    relevant_coords_file: bed file describing relevanr coordinates for analysis
-    sp: SimplePipeline object which will run the extraction commands
-    processes: The number of parallel processes to use
+    sample_ids: list[str]
+        the ids of sample, ordered like gvcf files
+    gvcf_files: list[str]
+        urls of gvcf files on GCS
+    out_dir: str
+        output directory
+    relevant_coords_file: str
+        bed file describing relevanr coordinates for analysis
+    simple_pipeline: SimplePipeline
+        object which will run the extraction commands
+    processes: int
+        The number of parallel processes to use
 
     Returns
     -------
-    List of extracted gvcf files
+    list[str]:
+        List of extracted gvcf files
     """
     extract_variants_commands = []
     index_chr_vcfs_commands = []
@@ -55,20 +65,19 @@ def extract_relevant_gvcfs(sample_ids: List[str],
                 index_chr_vcfs_commands.append(f"tabix -p vcf {vcf_file_per_chr}")
         if not os.path.exists(relevant_gvcf):
             concat_vcf_commands.append(
-                f'bcftools concat {" ".join(vcf_per_chr_files)} --rm-dups both -a'
-                f" -Oz -o {relevant_gvcf}"
+                f'bcftools concat {" ".join(vcf_per_chr_files)} --rm-dups both -a' f" -Oz -o {relevant_gvcf}"
             )
         index_vcf_commands.append(f"tabix -p vcf {relevant_gvcf}")
 
         # extract variants in relevant coords (often from cloud to local storage)
-        sp.run_parallel(extract_variants_commands, max_num_of_processes=processes)
-        sp.run_parallel(index_chr_vcfs_commands, max_num_of_processes=processes)
+        simple_pipeline.run_parallel(extract_variants_commands, max_num_of_processes=processes)
+        simple_pipeline.run_parallel(index_chr_vcfs_commands, max_num_of_processes=processes)
 
         # concat vcf per chromosome and remove duplicate vcf records with disrupts indexing
         # (is this because of overlap in relevant coords?)
         try:
-            sp.run_parallel(concat_vcf_commands, max_num_of_processes=processes)
-            sp.run_parallel(index_vcf_commands, max_num_of_processes=processes)
+            simple_pipeline.run_parallel(concat_vcf_commands, max_num_of_processes=processes)
+            simple_pipeline.run_parallel(index_vcf_commands, max_num_of_processes=processes)
         except RuntimeError:
             pass
 
@@ -80,18 +89,23 @@ def read_sec_pipelines_inputs_table(inputs_table_file: str) -> DataFrame:
 
     Parameters
     ----------
-    inputs_table_file: path of tsv file specifying SEC inputs [Workflow ID, sample_id, gvcf]
+    inputs_table_file: str
+        path of tsv file specifying SEC inputs [Workflow ID, sample_id, gvcf]
 
     Returns
     -------
-    Dataframe of the same schema, after validation
+    Dataframe:
+         Same schema, after validation
+
+    Raises
+    ------
+    RuntimeError
+        When duplicated sample is found in input
 
     """
     inputs_table = pd.read_csv(inputs_table_file, sep="\t")
     sample_counts = inputs_table["sample_id"].value_counts()
     duplicated_samples = sample_counts[sample_counts > 1]
     if duplicated_samples.shape[0] > 0:
-        raise RuntimeError(
-            f"Found duplicated sample_ds in input:\n{duplicated_samples}"
-        )
+        raise RuntimeError(f"Found duplicated sample_ds in input:\n{duplicated_samples}")
     return inputs_table

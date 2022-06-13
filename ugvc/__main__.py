@@ -1,13 +1,10 @@
+# noqa: W605  flake8: invalid escape sequence '\ ' - used by logo
+# pylint: disable=anomalous-backslash-in-string
+
 import sys
 from os.path import dirname
 
 from simppl import cli
-
-# add package paths to PYTHONPATH
-paths = [f"{dirname(dirname(__file__))}"]
-for path in paths:
-    if path not in sys.path:
-        sys.path.append(path)
 
 from ugvc.pipelines import (
     coverage_analysis,
@@ -28,12 +25,13 @@ from ugvc.pipelines.mrd import (
 )
 
 # import pipeline modules implementing run(argv) method
-from ugvc.pipelines.sec import (
-    assess_sec_concordance,
-    correct_systematic_errors,
-    sec_training,
-    sec_validation
-)
+from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
+
+# add package paths to PYTHONPATH
+paths = [f"{dirname(dirname(__file__))}"]
+for path in paths:
+    if path not in sys.path:
+        sys.path.append(path)
 
 # create a list of imported pipeline modules
 modules = [
@@ -61,17 +59,18 @@ mrd_modules = [
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 
-logo = """
+
+LOGO = """
       __    __    ___________    ____  ______
-    |  |  |  |  /  _____\   \  /   / /      |
-    |  |  |  | |  |  __  \   \/   / |  ,----'
-    |  |  |  | |  | |_ |  \      /  |  |
-    |  `--'  | |  |__| |   \    /   |  `----.
-     \______/   \______|    \__/     \______|
+    |  |  |  |  /  _____\   \  /   / /      | # noqa: W605
+    |  |  |  | |  |  __  \   \/   / |  ,----' # noqa: W605
+    |  |  |  | |  | |_ |  \      /  |  |      # noqa: W605
+    |  `--'  | |  |__| |   \    /   |  `----. # noqa: W605
+     \______/   \______|    \__/     \______| # noqa: W605
 
     Ultima genomics variant calling toolkit
     """
 
 # initialize cli
-ugvc_cli = cli.CommandLineInterface(__file__, logo, modules)
+ugvc_cli = cli.CommandLineInterface(__file__, LOGO, modules)
 ugvc_cli.run(sys.argv)

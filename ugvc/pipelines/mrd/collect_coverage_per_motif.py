@@ -16,18 +16,20 @@
 #    Collects coverage per motif
 # CHANGELOG in reverse chronological order
 
+from __future__ import annotations
+
 import argparse
-from typing import List
 
 from ugvc.mrd.coverage_utils import collect_coverage_per_motif
 
 
-def __parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="collect_coverage_per_motif", description=run.__doc__
-    )
+def __parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="collect_coverage_per_motif", description=run.__doc__)
     parser.add_argument(
-        "input", nargs="+", type=str, help="input depth files",
+        "input",
+        nargs="+",
+        type=str,
+        help="input depth files",
     )
     parser.add_argument(
         "-o",
@@ -75,7 +77,7 @@ def __parse_args(argv: List[str]) -> argparse.Namespace:
     return parser.parse_args(argv[1:])
 
 
-def run(argv: List[str]):
+def run(argv: list[str]):
     """Collect coverage per motif from a collection of depth files"""
     args_in = __parse_args(argv)
     collect_coverage_per_motif(

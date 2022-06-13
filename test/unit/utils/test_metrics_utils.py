@@ -50,10 +50,7 @@ def test_convert_h5_to_json():
     metrics_json_path = pjoin(inputs_dir, "140479-BC21_aggregated_metrics.json")
     with open(metrics_json_path, "r") as json_file:
         data = json_file.read()
-    assert (
-        f'{metrics_utils.convert_h5_to_json(metrics_h5_path, "metrics", "histogram")}\n'
-        == data
-    )
+    assert f'{metrics_utils.convert_h5_to_json(metrics_h5_path, "metrics", "histogram")}\n' == data
 
 
 picard_file = pjoin(inputs_dir, "140479-BC21.alignment_summary_metrics")

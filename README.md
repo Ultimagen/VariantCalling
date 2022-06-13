@@ -1,9 +1,12 @@
 # VariantCalling
-This package provides a set of tools to assist variant calling on Ultima data. 
-The best practice pipeline is published [here](broad.io/ugworkspace). The code
-below is used mostly in the post-GATK filtering step. 
 
-In addition, the code provides 
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+This package provides a set of tools to assist variant calling on Ultima data.
+The best practice pipeline is published [here](broad.io/ugworkspace). The code
+below is used mostly in the post-GATK filtering step.
+
+In addition, the code provides
 
 * Tools to perform evaluation of the callset relative to the ground truth.
 * Tools to perform building a database of noisy locaitons (SEC) and filtering callset relative to them - still undocumented
@@ -74,7 +77,7 @@ python /path/to/ugvc <tool_name> <args>
 		Train filtering models
 
 
-## Documentation of individual tools: 
+## Documentation of individual tools:
 
 * Train post-calling model: [train_models_pipeline](docs/train_models_pipeline.md)
 * Filter callset using pre-trained ML model: [filter_variants_pipeline](docs/filter_variants_pipeline.md)
@@ -125,3 +128,24 @@ git-lfs track "*.new_suffix"
    2. Wait for CI tests to pass (green V sign)
 5. scripts that you want to be available on the path should be added to `setup.py`
 6. scripts that you want to be available to `ugvc` should be added to `__main__.py`
+7. Code changes should pass all pre-commit hooks
+
+## How To pre-commit
+pre-commit hooks are configured within `.pre-commit-config.yaml`
+
+install: https://pre-commit.com/#installation
+
+After pre-commit package is installed, you need to set git hooks scripts: `pre-commit install`
+After the installation it will run the pre-commit hooks for all files changed as part of the commit.
+For running all pre-commit hooks on all files (used for initial pre-commit run) use: `pre-commit run --all-files`
+
+# The hooks we use are:
+[pycln](https://github.com/hadialqattan/pycln) - remove unused import statements
+
+[isort](https://github.com/PyCQA/isort) - Python utility library to sort imports alphabetically, and automatically separated into sections and by type
+
+[black](https://github.com/psf/black) - uncompromising Python code formatter
+
+[flake8](https://gitlab.com/pycqa/flake8) - python coding style guide for PEP8
+
+[pylint](https://github.com/pycqa/pylint) - python static code analysis tool

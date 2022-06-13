@@ -14,12 +14,8 @@ class TestEvaluateConcordance:
         output_prefix = f"{tmpdir}/test"
         os.makedirs(dirname(output_prefix), exist_ok=True)
 
-        evaluate_concordance.run(
-            ["--input_file", input_file, "--output_prefix", f"{tmpdir}/test"]
-        )
+        evaluate_concordance.run(["--input_file", input_file, "--output_prefix", f"{tmpdir}/test"])
 
         expected_stats_file = f"{self.inputs_dir}/expected.out.stats.csv"
         out_stats_file = f"{tmpdir}/test.stats.csv"
-        assert filecmp.cmp(
-            expected_stats_file, out_stats_file, shallow=False
-        ), "stats files are not identical"
+        assert filecmp.cmp(expected_stats_file, out_stats_file, shallow=False), "stats files are not identical"

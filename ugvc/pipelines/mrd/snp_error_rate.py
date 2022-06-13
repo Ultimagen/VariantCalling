@@ -15,10 +15,11 @@
 # DESCRIPTION
 #    Calculate error rate per motif
 # CHANGELOG in reverse chronological order
+from __future__ import annotations
+
 import argparse
 import os
 from os.path import join as pjoin
-from typing import List
 
 import matplotlib
 import numpy as np
@@ -34,7 +35,7 @@ from ugvc.mrd.coverage_utils import collect_coverage_per_motif
 from ugvc.vcfbed.variant_annotation import get_cycle_skip_dataframe
 
 
-def parse_args(argv: List[str]) -> argparse.Namespace:
+def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="snp_error_rate.py", description=run.__doc__)
     parser.add_argument(
         "-f",
@@ -74,8 +75,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         "-r",
         "--reference_fasta",
         type=str,
-        help="""reference fasta, only required for motif annotation
-       most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta but it must be localized""",
+        help="""reference fasta, only required for motif annotation most likely
+         gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta but it must be localized""",
     )
     parser.add_argument(
         "--flow_order",
@@ -94,7 +95,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     return parser.parse_args(argv[1:])
 
 
-def run(argv: List[str]):
+def run(argv: list[str]):
     """Calculate SNP error rate per motif"""
     args = parse_args(argv)
     calculate_snp_error_rate(
@@ -109,7 +110,7 @@ def run(argv: List[str]):
     )
 
 
-def calculate_snp_error_rate(
+def calculate_snp_error_rate(  # pylint: disable=too-many-arguments
     single_substitution_featuremap,
     coverage_stats,
     depth_data,
@@ -142,10 +143,9 @@ def calculate_snp_error_rate(
     # init
     if xscore_thresholds is None:
         xscore_thresholds = [0, 3, 5, 10]
-    assert (
-        len(xscore_thresholds) == 4
-    ), f"Length of xscore_thresholds must be 4, got {xscore_thresholds}"
-    xscore_thresholds = np.array(xscore_thresholds)
+    assert len(xscore_thresholds) == 4, f"Length of xscore_thresholds must be 4, got {xscore_thresholds}"
+
+    xscore_thresholds = np.array(xscore_thresholds)  # pylint: disable=redefined-variable-type
     min_xscore = np.min(xscore_thresholds)
 
     os.makedirs(out_path, exist_ok=True)
@@ -154,8 +154,7 @@ def calculate_snp_error_rate(
     out_coverage_per_motif = pjoin(out_path, f"{out_basename}coverage_per_motif.h5")
     out_snp_rate = pjoin(out_path, f"{out_basename}snp_error_rate.h5")
     out_snp_rate_plots = {
-        th: pjoin(out_path, f"{out_basename}snp_error_rate_threshold{th}.png")
-        for th in xscore_thresholds
+        th: pjoin(out_path, f"{out_basename}snp_error_rate_threshold{th}.png") for th in xscore_thresholds
     }
 
     # read coverage stats and derive coverage range
@@ -163,26 +162,19 @@ def calculate_snp_error_rate(
         df_coverage_stats = coverage_stats
     else:
         logger.debug(f"Reading input coverage stats from {coverage_stats}")
-        df_coverage_stats = (
-            read_hdf(coverage_stats, key="histogram").filter(regex="Genome").iloc[:, 0]
-        )
+        df_coverage_stats = read_hdf(coverage_stats, key="histogram").filter(regex="Genome").iloc[:, 0]
     f = interp1d(
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
         bounds_error=False,
     )
-    min_coverage = min(
-        20, np.round(f(0.5)).astype(int)
-    )  # the lower between 20 or the median value
+    min_coverage = min(20, np.round(f(0.5)).astype(int))  # the lower between 20 or the median value
     max_coverage = np.round(f(0.95)).astype(int)
 
     x = df_coverage_stats[
-        (df_coverage_stats.index.values >= min_coverage)
-        & (df_coverage_stats.index.values <= max_coverage)
+        (df_coverage_stats.index.values >= min_coverage) & (df_coverage_stats.index.values <= max_coverage)
     ]
-    coverage_correction_factor = (x * x.index.values).sum() / (
-        df_coverage_stats * df_coverage_stats.index
-    ).sum()
+    coverage_correction_factor = (x * x.index.values).sum() / (df_coverage_stats * df_coverage_stats.index).sum()
     logger.debug(
         f"Coverage range {min_coverage}-{max_coverage}x, spanning {coverage_correction_factor:.0%} of the data"
     )
@@ -192,7 +184,7 @@ def calculate_snp_error_rate(
     else:
         if reference_fasta is None:
             raise ValueError("Reference fasta must be provided if input is depth files")
-        logger.debug(f"Generating coverage per motif")
+        logger.debug("Generating coverage per motif")
         _ = collect_coverage_per_motif(
             depth_data,
             reference_fasta,
@@ -208,14 +200,10 @@ def calculate_snp_error_rate(
     if isinstance(single_substitution_featuremap, pd.DataFrame):
         df = single_substitution_featuremap
         df = df[
-            (df["X_SCORE"] >= min_xscore)
-            & (df["X_READ_COUNT"] >= min_coverage)
-            & (df["X_READ_COUNT"] <= max_coverage)
+            (df["X_SCORE"] >= min_xscore) & (df["X_READ_COUNT"] >= min_coverage) & (df["X_READ_COUNT"] <= max_coverage)
         ]
     else:
-        logger.debug(
-            f"Reading featuremap dataframe from {single_substitution_featuremap}"
-        )
+        logger.debug(f"Reading featuremap dataframe from {single_substitution_featuremap}")
         df = pd.read_parquet(
             single_substitution_featuremap,
             filters=[
@@ -228,20 +216,24 @@ def calculate_snp_error_rate(
             logger.debug(f"using only data in {featuremap_chrom}")
             df = df.loc[featuremap_chrom]
     # calculate read filtration ratio in featuremap
-    read_filter_correction_factor = (df["X_FILTERED_COUNT"] + 1).sum() / df[
-        "X_READ_COUNT"
-    ].sum()
+    read_filter_correction_factor = (df["X_FILTERED_COUNT"] + 1).sum() / df["X_READ_COUNT"].sum()
     # process 2nd order motifs
-    logger.debug(f"Processing motifs")
-    l = df["left_motif"].astype(str).str.slice(2,)
-    r = df["right_motif"].astype(str).str.slice(0, -2)
+    logger.debug("Processing motifs")
+    left = (
+        df["left_motif"]
+        .astype(str)
+        .str.slice(
+            2,
+        )
+    )
+    right = df["right_motif"].astype(str).str.slice(0, -2)
 
-    df["ref_motif2"] = l + df["ref"].astype(str) + r
-    df["alt_motif2"] = l + df["alt"].astype(str) + r
-    logger.debug(f"Grouping by 2nd order motif")
+    df["ref_motif2"] = left + df["ref"].astype(str) + right
+    df["alt_motif2"] = left + df["alt"].astype(str) + right
+    logger.debug("Grouping by 2nd order motif")
     df_motifs_2 = df.groupby(["ref_motif2", "alt_motif2"]).agg(
         {
-            **{x: "first" for x in ["ref", "alt", "ref_motif", "alt_motif"]},
+            **{x: "first" for x in ("ref", "alt", "ref_motif", "alt_motif")},
             **{
                 "X_SCORE": [
                     lambda a: np.sum(a >= xscore_thresholds[0]).astype(int),
@@ -254,63 +246,41 @@ def calculate_snp_error_rate(
     )
     df_motifs_2 = df_motifs_2.dropna(how="all")
 
-    df_motifs_2.columns = ["ref", "alt", "ref_motif", "alt_motif"] + [
-        f"snp_count_bq{th}" for th in xscore_thresholds
-    ]
-    logger.debug(f"Annotating cycle skip")
+    df_motifs_2.columns = ["ref", "alt", "ref_motif", "alt_motif"] + [f"snp_count_bq{th}" for th in xscore_thresholds]
+    logger.debug("Annotating cycle skip")
     df_motifs_2 = (
         df_motifs_2.reset_index()
         .set_index(["ref_motif", "alt_motif"])
         .join(get_cycle_skip_dataframe(flow_order=flow_order))
     )
 
-    df_motifs_2 = (
-        df_motifs_2.reset_index()
-        .set_index("ref_motif2")
-        .join(df_coverage[["coverage"]])
-    )
+    df_motifs_2 = df_motifs_2.reset_index().set_index("ref_motif2").join(df_coverage[["coverage"]])
     df_motifs_2.loc[:, "coverage"] = (
-        df_motifs_2["coverage"]
-        * read_filter_correction_factor
-        * coverage_correction_factor
+        df_motifs_2["coverage"] * read_filter_correction_factor * coverage_correction_factor
     )
 
     # process 1st order motifs
-    logger.debug(f"Creating 1st order motif data")
+    logger.debug("Creating 1st order motif data")
     df_motifs_1 = (
         df_motifs_2.groupby(["ref_motif", "alt_motif"])
         .agg(
             {
                 **{"ref": "first", "alt": "first", "cycle_skip_status": "first"},
-                **{
-                    c: "sum"
-                    for c in df_motifs_2.columns
-                    if "snp_count" in c or "coverage" in c
-                },
+                **{c: "sum" for c in df_motifs_2.columns if "snp_count" in c or "coverage" in c},
             }
         )
         .dropna(how="all")
     )
     # process 0 order motifs
-    logger.debug(f"Creating 0 order motif data")
+    logger.debug("Creating 0 order motif data")
     df_motifs_0 = (
         df_motifs_1.groupby(["ref", "alt"])
-        .agg(
-            {
-                c: "sum"
-                for c in df_motifs_1.columns
-                if "snp_count" in c or "coverage" in c
-            }
-        )
+        .agg({c: "sum" for c in df_motifs_1.columns if "snp_count" in c or "coverage" in c})
         .dropna(how="all")
     )
     # process average error rate regardless of motifs
     df_sum = (
-        df_motifs_1.assign(
-            coverage_csk=df_motifs_1["coverage"].where(
-                df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP
-            )
-        )
+        df_motifs_1.assign(coverage_csk=df_motifs_1["coverage"].where(df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP))
         .groupby("ref_motif")
         .agg(
             {
@@ -326,44 +296,48 @@ def calculate_snp_error_rate(
         df_avg.loc[:, f"error_rate_bq{x}"] = df_avg[f"snp_count_bq{x}"] / coverage
     df_avg = df_avg.filter(regex="error_rate").loc[0]
 
-    logger.debug(f"Setting non-cycle skip motifs at X_SCORE>=6 to NaN")
+    logger.debug("Setting non-cycle skip motifs at X_SCORE>=6 to NaN")
     for th in xscore_thresholds:
         if th >= 6:
-            df_motifs_2.loc[:, f"snp_count_bq{th}"] = df_motifs_2[
-                f"snp_count_bq{th}"
-            ].where(df_motifs_2[CYCLE_SKIP_STATUS] == CYCLE_SKIP)
-            df_motifs_1.loc[:, f"snp_count_bq{th}"] = df_motifs_1[
-                f"snp_count_bq{th}"
-            ].where(df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP)
-
-    logger.debug(f"Assigning error rates")
-    for df_tmp in [df_motifs_0, df_motifs_1, df_motifs_2]:
-        for th in xscore_thresholds:
-            df_tmp.loc[:, f"error_rate_bq{th}"] = df_tmp[f"snp_count_bq{th}"] / (
-                df_tmp["coverage"]
+            df_motifs_2.loc[:, f"snp_count_bq{th}"] = df_motifs_2[f"snp_count_bq{th}"].where(
+                df_motifs_2[CYCLE_SKIP_STATUS] == CYCLE_SKIP
             )
+            df_motifs_1.loc[:, f"snp_count_bq{th}"] = df_motifs_1[f"snp_count_bq{th}"].where(
+                df_motifs_1[CYCLE_SKIP_STATUS] == CYCLE_SKIP
+            )
+
+    logger.debug("Assigning error rates")
+    for df_tmp in (df_motifs_0, df_motifs_1, df_motifs_2):
+        for th in xscore_thresholds:
+            df_tmp.loc[:, f"error_rate_bq{th}"] = df_tmp[f"snp_count_bq{th}"] / (df_tmp["coverage"])
 
     # save
     logger.debug(f"Saving to {out_snp_rate}")
     df_motifs_2 = df_motifs_2.reset_index().astype(
         {
             c: "category"
-            for c in [
+            for c in (
                 "ref",
                 "alt",
                 "ref_motif",
                 "alt_motif",
                 "ref_motif2",
                 "alt_motif2",
-            ]
+            )
         }
     )
     df_motifs_1 = df_motifs_1.reset_index().astype(
-        {c: "category" for c in ["ref", "alt", "ref_motif", "alt_motif",]}
+        {
+            c: "category"
+            for c in (
+                "ref",
+                "alt",
+                "ref_motif",
+                "alt_motif",
+            )
+        }
     )
-    df_motifs_0 = df_motifs_0.reset_index().astype(
-        {c: "category" for c in ["ref", "alt"]}
-    )
+    df_motifs_0 = df_motifs_0.reset_index().astype({c: "category" for c in ("ref", "alt")})
     df_avg.to_hdf(out_snp_rate, key="average", mode="w", format="table")
     df_motifs_0.to_hdf(out_snp_rate, key="motif_0", mode="a", format="table")
     df_motifs_1.to_hdf(out_snp_rate, key="motif_1", mode="a", format="table")
@@ -375,12 +349,13 @@ def calculate_snp_error_rate(
         error_rate_column = f"error_rate_bq{th}"
         snp_count_column = f"snp_count_bq{th}"
         _plot_snp_error_rate(
-            df_motifs_1.rename(
-                columns={error_rate_column: "error_rate", snp_count_column: "snp_count"}
-            ).set_index(["ref_motif", "alt_motif"]),
+            df_motifs_1.rename(columns={error_rate_column: "error_rate", snp_count_column: "snp_count"}).set_index(
+                ["ref_motif", "alt_motif"]
+            ),
             out_filename=out_snp_rate_plots[th],
             title=f"{out_basename}\nLog-likelihood threshold = {th}",
-            left_bbox_text=f"Coverage range {min_coverage}-{max_coverage}x\nspanning {coverage_correction_factor:.0%} of the data",
+            left_bbox_text=f"Coverage range {min_coverage}-{max_coverage}x\n"
+            f"spanning {coverage_correction_factor:.0%} of the data",
         )
 
 
@@ -391,10 +366,11 @@ def _plot_snp_error_rate(
     left_bbox_text: str = None,
 ):
     # init
-    error_rate_column = f"error_rate"
-    snp_count_column = f"snp_count"
+    error_rate_column = "error_rate"
+    snp_count_column = "snp_count"
     assert snp_count_column in df_motifs
     assert error_rate_column in df_motifs
+
     if out_filename is None:
         matplotlib.use("Qt5Agg")
     else:
@@ -403,18 +379,12 @@ def _plot_snp_error_rate(
     scale = "log"
 
     # create matched forward-reverse dataframe
-    df_motifs["ord"] = df_motifs.index.get_level_values("ref_motif").str.slice(
-        1, 2
-    ) + df_motifs.index.get_level_values("alt_motif").str.slice(1, 2)
+    df_motifs["ord"] = df_motifs.index.get_level_values("ref_motif").str.slice(1, 2) + df_motifs.index.get_level_values(
+        "alt_motif"
+    ).str.slice(1, 2)
     df_motifs = df_motifs.sort_values("ord")
-    df_for = df_motifs[
-        (df_motifs["ord"].str.slice(0, 1) == "C")
-        | (df_motifs["ord"].str.slice(0, 1) == "T")
-    ].copy()
-    df_rev = df_motifs[
-        (df_motifs["ord"].str.slice(0, 1) == "A")
-        | (df_motifs["ord"].str.slice(0, 1) == "G")
-    ].copy()
+    df_for = df_motifs[(df_motifs["ord"].str.slice(0, 1) == "C") | (df_motifs["ord"].str.slice(0, 1) == "T")].copy()
+    df_rev = df_motifs[(df_motifs["ord"].str.slice(0, 1) == "A") | (df_motifs["ord"].str.slice(0, 1) == "G")].copy()
     df_rev = df_rev.reset_index()
     df_rev["ref_motif"] = df_rev["ref_motif"].apply(revcomp)
     df_rev["alt_motif"] = df_rev["alt_motif"].apply(revcomp)
@@ -434,17 +404,13 @@ def _plot_snp_error_rate(
             }
         )
     )
-    df_err = (
-        df_err.reset_index()
-        .sort_values(["ord", "ref_motif"])
-        .set_index(["ref_motif", "alt_motif"])
-    )
+    df_err = df_err.reset_index().sort_values(["ord", "ref_motif"]).set_index(["ref_motif", "alt_motif"])
 
     colors = {"CA": "b", "CG": "orange", "CT": "r", "TA": "gray", "TC": "g", "TG": "m"}
     df_err["color"] = df_err.apply(lambda x: colors.get(x["ord"]), axis=1)
     # plot
 
-    fig, axs = plt.subplots(1, 1, figsize=(24, 6))
+    fig, _ = plt.subplots(1, 1, figsize=(24, 6))
     suptitle = plt.title(title, y=1.15, fontsize=32)
     plt.ylabel("Error rate")
 
@@ -470,17 +436,19 @@ def _plot_snp_error_rate(
             f"{a[0]}->{a[1]}",
             ha="center",
             color="w",
-            bbox=dict(facecolor=colors[a],),
+            bbox=dict(
+                facecolor=colors[a],
+            ),
             fontsize=14,
         )  # fontname='monospace', ha='center', va='center')
     legend = fig.text(
         0.83,
         0.97,
-        f"Color - forward strand\nBlack - reverse strand\nmean error = {df_motifs[error_rate_column].mean():.1e}\nmedian error = {df_motifs[error_rate_column].median():.1e}\nSNP number = {df_motifs[snp_count_column].sum():.1e}".replace(
-            "e-0", "e-"
-        ).replace(
-            "e+0", "e+"
-        ),
+        f"Color - forward strand\n"
+        f"Black - reverse strand\n"
+        f"mean error = {df_motifs[error_rate_column].mean():.1e}\n"
+        f"median error = {df_motifs[error_rate_column].median():.1e}\n"
+        f"SNP number = {df_motifs[snp_count_column].sum():.1e}".replace("e-0", "e-").replace("e+0", "e+"),
         bbox=dict(facecolor="w", edgecolor="k"),
         fontsize=14,
         ha="center",
@@ -511,31 +479,25 @@ def _plot_snp_error_rate(
         linewidth=3,
         zorder=2,
     )
+
     for j, a in enumerate(df_err["ord"].unique()):
         df_tmp = df_err[df_err["ord"] == a]
         fig.text(
             (j * 0.128 + 0.19),
             -0.05,
-            f"{df_tmp['error_rate_f'].mean():.1e}/{df_tmp['error_rate_r'].mean():.1e}".replace(
-                "e-0", "e-"
-            ),
+            f"{df_tmp['error_rate_f'].mean():.1e}/{df_tmp['error_rate_r'].mean():.1e}".replace("e-0", "e-"),
             color="w",
             ha="center",
-            bbox=dict(facecolor=colors[a],),
+            bbox=dict(
+                facecolor=colors[a],
+            ),
             fontsize=14,
         )
 
     xticks = plt.xticks(
         np.arange(df_err.shape[0]) + w / 2,
         [
-            ("+ " if c == CYCLE_SKIP else "| ")
-            + "$"
-            + s[0]
-            + r"{\bf "
-            + s[1]
-            + "}"
-            + s[2]
-            + "$"
+            ("+ " if c == CYCLE_SKIP else "| ") + "$" + s[0] + r"{\bfile_name " + s[1] + "}" + s[2] + "$"
             for s, c in zip(
                 df_err.index.get_level_values("ref_motif").values,
                 df_err["cycle_skip_status"].values,
@@ -558,12 +520,15 @@ def _plot_snp_error_rate(
         min(df_motifs[error_rate_column].min() * 0.8, 1e-6),
         max(df_motifs[error_rate_column].max() * 1.2, 1e-3),
     )
+
     if out_filename is None:
         return fig
-    else:
-        fig.savefig(
-            out_filename,
-            dpi=150,
-            bbox_inches="tight",
-            bbox_extra_artists=[suptitle, legend, text1, text2, text3] + xticks[1],
-        )
+
+    fig.savefig(
+        out_filename,
+        dpi=150,
+        bbox_inches="tight",
+        bbox_extra_artists=[suptitle, legend, text1, text2, text3] + xticks[1],
+    )
+
+    return None

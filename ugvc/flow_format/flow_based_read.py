@@ -5,7 +5,6 @@ from __future__ import annotations
 import copy
 import re
 from enum import Enum
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -16,14 +15,12 @@ from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.flow_format import error_model, simulator
 from ugvc.utils import misc_utils as utils
 
-DEFAULT_ERROR_MODEL_FN = (
-    "/home/ilya/proj/VariantCalling/work/190628/error_model.r2d.hd5"
-)
+DEFAULT_ERROR_MODEL_FN = "error_model.r2d.hd5"
 MINIMAL_CALL_PROB = 0.1
 DEFAULT_FILLER = 0.0001
 
 
-def get_bam_header(rgid: Optional[str] = None):
+def get_bam_header(rgid: str | None = None):
     if rgid is None:
         rgid = "1"
     dct = {
@@ -35,9 +32,27 @@ def get_bam_header(rgid: Optional[str] = None):
     return header
 
 
-def generateKeyFromSequence(
-    sequence: str, flow_order: str, truncate: Optional[int] = None
-) -> np.ndarray:
+def key2base(key: np.ndarray) -> np.ndarray:
+    """
+    Returns an array that for every flow outputs the last base output at the beginning of the flow
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    np.ndarray
+            Array of the last output base BEFORE each flow (For instance for flows 01021 the output is -1 -1 0 0 2 )
+
+    """
+
+    n_reps_shifted = utils.shiftarray(key, 1, 0)
+    flow2base = -1 + np.cumsum(n_reps_shifted)
+    return flow2base
+
+
+def generate_key_from_sequence(sequence: str, flow_order: str, truncate: int | None = None) -> np.ndarray:
     """Converts bases to flow order
 
     Parameters
@@ -53,14 +68,16 @@ def generateKeyFromSequence(
     -------
     np.ndarray
         sequence in key space
+
+    Raises
+    ------
+    ValueError
+        When  there are non-standard nucleotides
     """
     # sanitize input
     sequence = sequence.upper()
     if bool(re.compile(r"[^ACGT]").search(sequence)):
-        raise ValueError(
-            "Input contains non ACGTacgt characters"
-            + (f":\n{sequence}" if len(sequence) <= 100 else "")
-        )
+        raise ValueError("Input contains non ACGTacgt characters" + (f":\n{sequence}" if len(sequence) <= 100 else ""))
 
     # process
     flow = flow_order * len(sequence)
@@ -82,8 +99,7 @@ def generateKeyFromSequence(
         pos += hcount
     if truncate:
         return np.clip(np.array(key), 0, truncate)
-    else:
-        return np.array(key)
+    return np.array(key)
 
 
 class SupportedFormats(Enum):
@@ -114,6 +130,8 @@ class FlowBasedRead:
         size of motif (left or right)
     _regressed_signal: np.ndarray
         Regressed signal array **binned relative to the error model**
+    _max_hmer: int
+        Maximal hmer
     Methods
     -------
     apply_cigar:
@@ -123,6 +141,15 @@ class FlowBasedRead:
     key: np.array
     flow_order: str
     cigar: list
+    _max_hmer: int
+    seq: str
+    read_name: str
+    is_reverse: bool
+    start: int
+    end: int
+    flow2base: np.ndarray
+    _motif_size: int
+    _regressed_signal: np.ndarray
 
     def __init__(self, dct: dict):
         """Generic constructor
@@ -138,14 +165,10 @@ class FlowBasedRead:
 
         for k in dct:
             setattr(self, k, dct[k])
-        assert hasattr(
-            self, "key"
-        ), "Something is broken in the constructor, key is not defined"
-        assert hasattr(
-            self, "flow_order"
-        ), "Something is broken in the constructor, flow_order is not defined"
-        self.flow2base = self._key2base(self.key).astype(np.int)
-        self.flow_order = simulator.getFlow2Base(self.flow_order, len(self.key))
+        assert hasattr(self, "key"), "Something is broken in the constructor, key is not defined"
+        assert hasattr(self, "flow_order"), "Something is broken in the constructor, flow_order is not defined"
+        self.flow2base = key2base(self.key).astype(np.int)
+        self.flow_order = simulator.get_flow2_base(self.flow_order, len(self.key))
 
         self._validate_seq()
 
@@ -154,7 +177,7 @@ class FlowBasedRead:
         cls,
         read_name: str,
         read: str,
-        error_model: error_model.ErrorModel = None,
+        this_error_model: error_model.ErrorModel = None,
         flow_order: str = DEFAULT_FLOW_ORDER,
         motif_size: int = 5,
         max_hmer_size: int = 9,
@@ -166,23 +189,26 @@ class FlowBasedRead:
         ----------
         read_name: str
             Name of the read
-        seq: str
-            DNA sequence of the read (basecalling output)
-        flow_order: np.ndarray
-            Array of chars - base for each flow
-        error_model: pd.DataFrame
-            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif.
+        read: str
+            String of bases
+        this_error_model: pd.DataFrame
+            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer
+            generated this motif.
             Error model could be None, in this case it will be assumed that there are no errors
+        flow_order: str
+            The flow cycle
         motif_size: int
             Size of the motif
+        max_hmer_size: int
+            Maximal size of the called hmer
         """
         dct = {}
         dct["read_name"] = read_name
         dct["seq"] = read
         dct["forward_seq"] = read
-        dct["key"] = generateKeyFromSequence(dct["forward_seq"], flow_order=flow_order)
+        dct["key"] = generate_key_from_sequence(dct["forward_seq"], flow_order=flow_order)
         dct["flow_order"] = flow_order
-        dct["_error_model"] = error_model
+        dct["_error_model"] = this_error_model
         dct["_max_hmer"] = max_hmer_size
         dct["_motif_size"] = motif_size
         dct["direction"] = "synthesis"
@@ -191,15 +217,16 @@ class FlowBasedRead:
     @classmethod
     def from_sam_record(
         cls,
-        sam_record: pysam.AlignedSegment,
-        error_model: Optional[error_model.ErrorModel] = None,
+        sam_record: pysam.AlignefdSegment,
+        this_error_model: error_model.ErrorModel | None = None,
         flow_order: str = DEFAULT_FLOW_ORDER,
         motif_size: int = 5,
         max_hmer_size: int = 9,
         filler=DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
-        format: str = "ilya",
+        _fmt: str = "ilya",
     ):
+        # pylint: disable=pointless-statement
         """Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`,
         `rkey`, `flow_order`, `r_flow_order` and `_flow_matrix` attributes
 
@@ -211,7 +238,7 @@ class FlowBasedRead:
             DNA sequence of the read (basecalling output)
         flow_order: np.ndarray
             Array of chars - base for each flow
-        error_model: pd.DataFrame
+        this_error_model: pd.DataFrame
             Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif
             Can be optional if the read has ks, kq, kd fields
         motif_size: int
@@ -222,7 +249,7 @@ class FlowBasedRead:
             The minimal probability to appear in the flow flow_matrix (default: %f)
         min_call_prob: float
             The minimal probability to be placed on the call (default: %f)
-        format: str
+        _fmt: str
             Can be 'matt', 'ilya' or 'cram' (the current BARC output format)
         Returns
         -------
@@ -240,38 +267,37 @@ class FlowBasedRead:
             dct["forward_seq"] = dnautils.revcomp(dct["seq"])
         else:
             dct["forward_seq"] = dct["seq"]
-        dct["_error_model"] = error_model
+        dct["_error_model"] = this_error_model
 
-        assert (
-            format.upper() in SupportedFormats._member_names_
-        ), f"Format {format} not supported"
-        format = SupportedFormats[format.upper()]
-        if format == SupportedFormats.ILYA:
+        try:
+            fmt: SupportedFormats = SupportedFormats[_fmt.upper()]
+        except KeyError as err:
+            raise RuntimeError(f"format {_fmt} not supported") from err
+
+        if fmt == SupportedFormats.ILYA:
             if sam_record.has_tag("ks"):
                 dct["key"] = np.array(sam_record.get_tag("ks"), dtype=np.int8)
             elif sam_record.has_tag("kr"):
                 dct["key"] = np.array(sam_record.get_tag("kr"), dtype=np.int8)
             else:
-                dct["key"] = generateKeyFromSequence(
-                    dct["forward_seq"], flow_order=flow_order
-                )
-        elif format == SupportedFormats.MATT:
+                dct["key"] = generate_key_from_sequence(dct["forward_seq"], flow_order=flow_order)
+        elif fmt == SupportedFormats.MATT:
             dct["key"] = np.array(sam_record.get_tag("kr"), dtype=np.int8)
-        elif format == SupportedFormats.CRAM:
-            dct["key"] = generateKeyFromSequence(dct["seq"], flow_order=flow_order)
+        elif fmt == SupportedFormats.CRAM:
+            dct["key"] = generate_key_from_sequence(dct["seq"], flow_order=flow_order)
 
         dct["_max_hmer"] = max_hmer_size
         dct["_motif_size"] = motif_size
         dct["flow_order"] = flow_order
-        if format == SupportedFormats.ILYA:
+        if fmt == SupportedFormats.ILYA:
             if sam_record.has_tag("kf"):
                 row = sam_record.get_tag("kh")
                 col = sam_record.get_tag("kf")
                 vals = sam_record.get_tag("kd")
                 shape = (max_hmer_size + 1, len(dct["key"]))
-                flow_matrix = cls._matrix_from_sparse(row, col, vals, shape)
+                flow_matrix = cls._matrix_from_sparse(row, col, vals, shape, DEFAULT_FILLER)
                 dct["_flow_matrix"] = flow_matrix
-        elif format == SupportedFormats.MATT:
+        elif fmt == SupportedFormats.MATT:
             row = np.array(sam_record.get_tag("kh"))
             col = np.array(sam_record.get_tag("kf"))
             vals = np.array(sam_record.get_tag("kd"))
@@ -281,11 +307,11 @@ class FlowBasedRead:
             shape = (max_hmer_size + 1, len(dct["key"]))
             flow_matrix = cls._matrix_from_sparse(row, col, vals, shape, filler)
             dct["_flow_matrix"] = flow_matrix
-        elif format == SupportedFormats.CRAM:
+        elif fmt == SupportedFormats.CRAM:
             flow_matrix = cls._matrix_from_qual_tp(
                 dct["key"],
                 np.array(sam_record.query_qualities, dtype=np.int),
-                tp=np.array(sam_record.get_tag("tp"), dtype=np.int),
+                tp_tag=np.array(sam_record.get_tag("tp"), dtype=np.int),
                 filler=filler,
                 min_call_prob=min_call_prob,
                 max_hmer_size=max_hmer_size,
@@ -295,7 +321,7 @@ class FlowBasedRead:
         dct["cigar"] = sam_record.cigartuples
         dct["start"] = sam_record.reference_start
         dct["end"] = sam_record.reference_end
-        if format != SupportedFormats.CRAM:
+        if fmt != SupportedFormats.CRAM:
             dct["direction"] = "synthesis"
         else:
             dct["direction"] = "reference"
@@ -306,7 +332,7 @@ class FlowBasedRead:
         cls,
         key: np.ndarray,
         qual: np.ndarray,
-        tp: np.ndarray,
+        tp_tag: np.ndarray,
         filler: float = DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
         max_hmer_size: int = 12,
@@ -341,7 +367,7 @@ class FlowBasedRead:
             Key (starting from the first flow of the flow order)
         qual : np.ndarray
             Quality array of the read
-        tp : np.ndarray
+        tp_tag : np.ndarray
             tp tag of the read
         filler : float
             Value to place as zero probability
@@ -360,24 +386,18 @@ class FlowBasedRead:
 
         probs = 10 ** (-qual / 10)
         flow_to_place = np.repeat(np.arange(len(key)), key.astype(np.int))
-        place_to_locate = tp + np.repeat(key, key.astype(np.int))
+        place_to_locate = tp_tag + np.repeat(key, key.astype(np.int))
         place_to_locate = np.clip(place_to_locate, None, max_hmer_size)
         assert np.all(place_to_locate >= 0), "Wrong position to place"
-        flat_loc = np.ravel_multi_index(
-            (place_to_locate, flow_to_place), flow_matrix.shape
-        )
+        flat_loc = np.ravel_multi_index((place_to_locate, flow_to_place), flow_matrix.shape)
         out = np.bincount(flat_loc, probs)
         flow_matrix.flat[flat_loc] = out[flat_loc]
 
-        flow_matrix[
-            np.clip(key, None, max_hmer_size), np.arange(flow_matrix.shape[1])
-        ] = 0
+        flow_matrix[np.clip(key, None, max_hmer_size), np.arange(flow_matrix.shape[1])] = 0
         total = np.sum(flow_matrix, axis=0)
 
         diff = np.clip(1 - total, min_call_prob, None)
-        flow_matrix[
-            np.clip(key, None, max_hmer_size), np.arange(flow_matrix.shape[1])
-        ] = diff
+        flow_matrix[np.clip(key, None, max_hmer_size), np.arange(flow_matrix.shape[1])] = diff
         return flow_matrix
 
     @classmethod
@@ -385,7 +405,7 @@ class FlowBasedRead:
         cls,
         sam_record: pysam.AlignedSegment,
         regressed_signal=np.ndarray,
-        error_model: Optional[error_model.ErrorModel] = None,
+        this_error_model: error_model.ErrorModel | None = None,
         flow_order: str = DEFAULT_FLOW_ORDER,
         motif_size: int = 5,
         max_hmer_size: int = 9,
@@ -395,17 +415,14 @@ class FlowBasedRead:
 
         Parameters
         ----------
-        read_name: str
-            Name of the read
-        seq: str
-            DNA sequence of the read (basecalling output)
-        flow_order: np.ndarray
-            Array of chars - base for each flownp
+        sam_record: pysam.AlignedSegment
+            `The Sam record
         regressed_signal: np.ndarray
-            Array of regressed_signals
-        error_model: pd.DataFrame
-            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif
-            Can be optional if the read has ks, kq, kd fields
+            `Array of regressed signal
+        this_error_model: error_model.ErrorModel, optional
+            The error model
+        flow_order: str
+            Flow order - array of chars - base for each flow
         motif_size: int
             Size of the motif
         max_hmer_size: int
@@ -415,11 +432,7 @@ class FlowBasedRead:
         -------
         Object
         """
-        dct = vars(
-            cls.from_sam_record(
-                sam_record, error_model, flow_order, motif_size, max_hmer_size
-            )
-        )
+        dct = vars(cls.from_sam_record(sam_record, this_error_model, flow_order, motif_size, max_hmer_size))
 
         dct["_regressed_signal"] = regressed_signal[: len(dct["key"])]
         return cls(dct)
@@ -438,29 +451,22 @@ class FlowBasedRead:
 
         Parameters
         ----------
-        read_name: str
-            Name of the read
-        seq: str
-            DNA sequence of the read (basecalling output)
-        flow_order: np.ndarray
-            Array of chars - base for each flow
-        regressed_signal: np.ndarray
-            Array of regressed_signals
-        error_model: pd.DataFrame
-            Error model from motif, hmer to probability that data with +1,-1,0 of that hmer generated this motif
-            Can be optional if the read has ks, kq, kd fields
-        motif_size: int
+        sam_record: pysam.AlignedSegment
+            `The Sam record
+        flow_matrix: np.ndarray
+            Matrix of probabilities
+        flow_order: str, optional
+            Flow order - array of chars - base for each flow
+        motif_size: int, optional
             Size of the motif
-        max_hmer_size: int
+        max_hmer_size: int, optional
             Maximal reported hmer size
 
         Returns
         -------
         Object
         """
-        dct = vars(
-            cls.from_sam_record(sam_record, None, flow_order, motif_size, max_hmer_size)
-        )
+        dct = vars(cls.from_sam_record(sam_record, None, flow_order, motif_size, max_hmer_size))
 
         dct["_flow_matrix"] = flow_matrix[:, : len(dct["key"])]
         return cls(dct)
@@ -482,7 +488,7 @@ class FlowBasedRead:
         """Returns if the key is valid"""
         return self._validate
 
-    def read2FlowMatrix(self, regressed_signal_only: bool = False) -> tuple:
+    def read2_flow_matrix(self, regressed_signal_only: bool = False) -> tuple:
         """Gets the hmerxflow probability matrix
         matrix[i,j] = P(read_hmer==read_hmer[j] | data_hmer[j]==i)
 
@@ -496,40 +502,28 @@ class FlowBasedRead:
             Flow matrix of (max_hmer_size+1) x n_flow
 
         """
-
         if not hasattr(self, "_flow_matrix"):
+
             if regressed_signal_only:
-                self._flow_matrix = self._getSingleFlowMatrixOnlyRegressed(
-                    self._regressed_signal
-                )
+                self._flow_matrix = self._get_single_flow_matrix_only_regressed(self._regressed_signal)
                 return self._flow_matrix
-            if not hasattr(self, "_regressed_signal"):
-                self._flow_matrix = self._getSingleFlowMatrix(
-                    self.key, self.flow2base, self.forward_seq
-                )
-            else:
-                self._flow_matrix = self._getSingleFlowMatrix(
-                    self.key, self.flow2base, self.forward_seq, self._regressed_signal
-                )
+            self._flow_matrix = self._get_single_flow_matrix(self.key, self.flow2base, self.forward_seq)
         return self._flow_matrix
 
-    def _getSingleFlowMatrixOnlyRegressed(
-        self, regressed_signal: np.ndarray, threshold=0.01
-    ):
-        q1 = 1 / np.add.outer(regressed_signal, -np.arange(self._max_hmer + 1)) ** 2
-        q1 /= q1.sum(axis=-1, keepdims=True)
+    def _get_single_flow_matrix_only_regressed(self, regressed_signal: np.ndarray, threshold=0.01):
+        probs1 = 1 / np.add.outer(regressed_signal, -np.arange(self._max_hmer + 1)) ** 2
+        probs1 /= probs1.sum(axis=-1, keepdims=True)
 
         if threshold is not None:
-            q1[q1 < threshold] = 0
-        q1 = self._fix_nan(q1)
-        return q1.T
+            probs1[probs1 < threshold] = 0
+        probs1 = self._fix_nan(probs1)
+        return probs1.T
 
-    def _getSingleFlowMatrix(
+    def _get_single_flow_matrix(
         self,
         key: np.ndarray,
         flow2base: np.ndarray,
         seq: str,
-        regressed_signal: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Returns matrix flow matrix for a given flow key. Note that if the error model is None
         it is assumed that there are no errors (useful for getting flow matrix of a haplotype)
@@ -542,18 +536,15 @@ class FlowBasedRead:
             For each flow - what was the last base output **before** the flow
         seq: str
             Sequence of the read
-        regressed_signal:
 
         Returns
         -------
         hmerxflow probability matrix
         """
-
+        # pylint: disable=no-member
         if self._error_model is None:
             flow_matrix = np.zeros((self._max_hmer + 1, len(key)))
-            flow_matrix[
-                np.clip(self.key, 0, self._max_hmer), np.arange(len(self.key))
-            ] = 1
+            flow_matrix[np.clip(self.key, 0, self._max_hmer), np.arange(len(self.key))] = 1
             return flow_matrix
 
         motifs_left = []
@@ -562,23 +553,15 @@ class FlowBasedRead:
             if left_base < 0:
                 motifs_left.append("")
             else:
-                motifs_left.append(
-                    seq[max(left_base - self._motif_size + 1, 0) : left_base + 1]
-                )
-                assert (
-                    seq[left_base] != self.flow_order[i]
-                ), "Something wrong with motifs"
+                motifs_left.append(seq[max(left_base - self._motif_size + 1, 0) : left_base + 1])
+                assert seq[left_base] != self.flow_order[i], "Something wrong with motifs"
         motifs_right = []
         for i in range(key.shape[0] - 1):
             right_base = flow2base[i + 1]
             motifs_right.append(seq[right_base + 1 : right_base + self._motif_size + 1])
-            assert (
-                seq[right_base + 1] != self.flow_order[i]
-            ), "Something wrong with motifs"
+            assert seq[right_base + 1] != self.flow_order[i], "Something wrong with motifs"
         motifs_right.append("")
-        index = [
-            x for x in zip(motifs_left, key, self.flow_order[: len(key)], motifs_right)
-        ]
+        index = list(zip(motifs_left, key, self.flow_order[: len(key)], motifs_right))
         hash_idx = [hash(x) for x in index]
 
         if hasattr(self, "_regressed_signal"):
@@ -590,20 +573,16 @@ class FlowBasedRead:
 
         # index
         pos = np.arange(len(key))
-        key = key
-        diffs = [
-            key + x
-            for x in np.arange(-(tmp.shape[1] - 1) / 2, (tmp.shape[1] - 1) / 2 + 1)
-        ]
+        diffs = [key + x for x in np.arange(-(tmp.shape[1] - 1) / 2, (tmp.shape[1] - 1) / 2 + 1)]
 
         flow_matrix = np.zeros((self._max_hmer + 1, len(key)))
 
-        a1 = np.concatenate(diffs).astype(np.int)
-        p1 = np.tile(pos, tmp.shape[1])
-        v1 = tmp.T.ravel()
-        take = (a1 >= 0) & (a1 <= self._max_hmer)
+        conc_diffs = np.concatenate(diffs).astype(np.int)
+        position_matrix = np.tile(pos, tmp.shape[1])
+        flat_position_matrix = tmp.T.ravel()
+        take = (conc_diffs >= 0) & (conc_diffs <= self._max_hmer)
 
-        flow_matrix[a1[take], p1[take]] = v1[take]
+        flow_matrix[conc_diffs[take], position_matrix[take]] = flat_position_matrix[take]
         flow_matrix = self._fix_nan(flow_matrix)
         return flow_matrix
 
@@ -633,25 +612,6 @@ class FlowBasedRead:
         # missing data from P(|H=0) is coming from cycle skips
         flow_matrix[row[zeros], col[zeros]] = 0
         return flow_matrix
-
-    def _key2base(self, key: np.ndarray) -> np.ndarray:
-        """
-        Returns an array that for every flow outputs the last base output at the beginning of the flow
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        np.ndarray
-                Array of the last output base BEFORE each flow (For instance for flows 01021 the output is -1 -1 0 0 2 )
-
-        """
-
-        n_reps_shifted = utils.shiftarray(key, 1, 0)
-        flow2base = -1 + np.cumsum(n_reps_shifted)
-        return flow2base
 
     def _get_phred_flow(self) -> np.ndarray:
         """
@@ -693,15 +653,12 @@ class FlowBasedRead:
             self.key[self.key <= self._max_hmer],
             np.arange(len(self.key))[self.key <= self._max_hmer],
         ] = 0
-        row_max = np.max(self._flow_matrix, axis=0)
 
         row, column = np.nonzero(tmp_matrix)
         values = tmp_matrix[row, column]
 
         values = np.log10(values)
-        col_max = tmp_matrix[
-            np.clip(self.key, 0, self._max_hmer), np.arange(len(self.key))
-        ]
+        col_max = tmp_matrix[np.clip(self.key, 0, self._max_hmer), np.arange(len(self.key))]
         normalized_values = -10 * (values - col_max[column])
         normalized_values = np.clip(normalized_values, -60, 60)
 
@@ -712,18 +669,18 @@ class FlowBasedRead:
         return row[~suppress], column[~suppress], normalized_values[~suppress]
 
     @classmethod
-    def _matrix_from_sparse(self, row, column, values, shape, filler):
+    def _matrix_from_sparse(cls, row, column, values, shape, filler):
         flow_matrix = np.ones(shape) * filler
-        kd = np.array(values, dtype=np.float)
-        kd = -kd
-        kd = kd / 10
-        kd = 10 ** (kd)
-        flow_matrix[row, column] = kd
+        kd_vals = np.array(values, dtype=np.float)
+        kd_vals = -kd_vals
+        kd_vals = kd_vals / 10
+        kd_vals = 10 ** (kd_vals)
+        flow_matrix[row, column] = kd_vals
         return flow_matrix
 
     def to_record(
         self,
-        hdr: Optional[pysam.AlignmentHeader] = None,
+        hdr: pysam.AlignmentHeader | None = None,
         probability_threshold: float = 0,
     ) -> pysam.AlignedSegment:
         """Converts flowBasedRead into BAM record
@@ -740,16 +697,14 @@ class FlowBasedRead:
         pysam.AlignedSegment
         """
         if hasattr(self, "record"):
-            res = self.record
+            res = self.record  # pylint: disable=access-member-before-definition
         else:
             res = pysam.AlignedSegment(hdr)
             res.query_sequence = self.seq
             res.query_name = self.read_name
         res.set_tag("KS", "".join(self.flow_order[:4]))
         if hasattr(self, "_flow_matrix"):
-            alt_row, alt_col, alt_val = self._matrix_to_sparse(
-                probability_threshold=probability_threshold
-            )
+            alt_row, alt_col, alt_val = self._matrix_to_sparse(probability_threshold=probability_threshold)
 
             res.set_tag("kr", [int(x) for x in self.key])
             res.set_tag("kh", [int(x) for x in alt_row])
@@ -760,7 +715,7 @@ class FlowBasedRead:
         self.record = res
         return res
 
-    def _left_clipped_flows(self, cigar: Optional[list] = None) -> tuple:
+    def _left_clipped_flows(self, cigar: list | None = None) -> tuple:
         """Returns number of flows clipped from the left
 
         Parameters
@@ -777,16 +732,14 @@ class FlowBasedRead:
             cigar = self.cigar
         if cigar[0][0] != 5:
             return (0, 0)
-        else:
-            bases_clipped = cigar[0][1]
-            idx = 0
-            stop_clip = np.argmax(self.flow2base + self.key >= bases_clipped)
-            stop_clip_flow = stop_clip
-            hmer_clipped = bases_clipped - self.flow2base[stop_clip] - 1
+        bases_clipped = cigar[0][1]
+        stop_clip = np.argmax(self.flow2base + self.key >= bases_clipped)
+        stop_clip_flow = stop_clip
+        hmer_clipped = bases_clipped - self.flow2base[stop_clip] - 1
 
-            return (stop_clip_flow, hmer_clipped)
+        return (stop_clip_flow, hmer_clipped)
 
-    def _right_clipped_flows(self, cigar: Optional[list] = None) -> tuple:
+    def _right_clipped_flows(self, cigar: list | None = None) -> tuple:
         """Returns number of flows clipped from the right
 
         Parameters
@@ -804,15 +757,12 @@ class FlowBasedRead:
 
         if cigar[-1][0] != 5:
             return (0, 0)
-        else:
-            bases_clipped = cigar[-1][1]
-            idx = 0
-            reverse_flow2base = self._key2base(self.key[::-1])
+        bases_clipped = cigar[-1][1]
+        reverse_flow2base = key2base(self.key[::-1])
 
-            stop_clip = np.argmax(reverse_flow2base + self.key[::-1] >= bases_clipped)
-            stop_clip_flow = stop_clip
-            hmer_clipped = bases_clipped - reverse_flow2base[stop_clip] - 1
-            return (stop_clip, hmer_clipped)
+        stop_clip = np.argmax(reverse_flow2base + self.key[::-1] >= bases_clipped)
+        hmer_clipped = bases_clipped - reverse_flow2base[stop_clip] - 1
+        return (stop_clip, hmer_clipped)
 
     def apply_alignment(self) -> FlowBasedRead:
         """Applies alignment (inversion / hard clipping ) to the flowBasedRead
@@ -826,7 +776,8 @@ class FlowBasedRead:
         New FlowBasedRead with
         Modifies `key`, `_flow_matrix`, `flow2base`, `flow_order` attributes
         """
-
+        # pylint: disable=protected-access
+        # pylint: disable=access-member-before-definition
         assert hasattr(self, "cigar"), "Only aligned read can be modified"
         attrs_dict = vars(self)
         other = FlowBasedRead(copy.deepcopy(attrs_dict))
@@ -835,8 +786,8 @@ class FlowBasedRead:
                 other._flow_matrix = other._flow_matrix[:, ::-1]
 
             other.key = other.key[::-1]
-            other.flow2base = self._key2base(other.key)
-            other.flow_order = utils.revcomp(other.flow_order)
+            other.flow2base = key2base(other.key)
+            other.flow_order = dnautils.revcomp(other.flow_order)
 
             if hasattr(other, "_regressed_signal"):
                 other._regressed_signal = other._regressed_signal[::-1]
@@ -844,9 +795,7 @@ class FlowBasedRead:
         clip_left, left_hmer_clip = other._left_clipped_flows()
         clip_right, right_hmer_clip = other._right_clipped_flows()
 
-        assert (
-            left_hmer_clip >= 0 and right_hmer_clip >= 0
-        ), "Some problem with hmer clips"
+        assert left_hmer_clip >= 0 and right_hmer_clip >= 0, "Some problem with hmer clips"
         original_length = len(other.key)
         other.key[clip_left] -= left_hmer_clip
         if hasattr(other, "_regressed_signal"):
@@ -871,25 +820,17 @@ class FlowBasedRead:
 
         other.key = other.key[clip_left : original_length - clip_right]
         if hasattr(other, "_regressed_signal"):
-            other._regressed_signal = other._regressed_signal[
-                clip_left : original_length - clip_right
-            ]
+            other._regressed_signal = other._regressed_signal[clip_left : original_length - clip_right]
         other.flow2base = other.flow2base[clip_left : original_length - clip_right]
         other.flow_order = other.flow_order[clip_left : original_length - clip_right]
 
         if hasattr(other, "_flow_matrix"):
-            other._flow_matrix = other._flow_matrix[
-                :, clip_left : original_length - clip_right
-            ]
+            other._flow_matrix = other._flow_matrix[:, clip_left : original_length - clip_right]
 
             if shift_left:
-                other._flow_matrix[:, 0] = utils.shiftarray(
-                    other._flow_matrix[:, 0], -left_hmer_clip, 0
-                )
+                other._flow_matrix[:, 0] = utils.shiftarray(other._flow_matrix[:, 0], -left_hmer_clip, 0)
             if shift_right:
-                other._flow_matrix[:, -1] = utils.shiftarray(
-                    other._flow_matrix[:, -1], -right_hmer_clip, 0
-                )
+                other._flow_matrix[:, -1] = utils.shiftarray(other._flow_matrix[:, -1], -right_hmer_clip, 0)
         other.direction = "reference"
         return other
 
@@ -914,16 +855,10 @@ class FlowBasedRead:
             self.direction == read.direction and self.direction == "reference"
         ), "Only reads aligned to the reference please"
 
-        assert (
-            self.start <= read.start and self.end >= read.end
-        ), "Read alignment should be contained in the haplotype"
+        assert self.start <= read.start and self.end >= read.end, "Read alignment should be contained in the haplotype"
 
-        hap_locs = np.array(
-            [x[0] for x in self.record.get_aligned_pairs(matches_only=True)]
-        )
-        ref_locs = np.array(
-            [x[1] for x in self.record.get_aligned_pairs(matches_only=True)]
-        )
+        hap_locs = np.array([x[0] for x in self.record.get_aligned_pairs(matches_only=True)])
+        ref_locs = np.array([x[1] for x in self.record.get_aligned_pairs(matches_only=True)])
         hap_start_loc = hap_locs[np.searchsorted(ref_locs, read.start)]
         hap_end_loc = hap_locs[np.searchsorted(ref_locs, read.end - 1)]
 
@@ -938,12 +873,7 @@ class FlowBasedRead:
         if right_clip > 0:
             clipping.append((5, right_clip))
 
-        if (
-            left_clip < 0
-            or right_clip < 0
-            or left_clip >= len(self.seq)
-            or right_clip >= len(self.seq)
-        ):
+        if left_clip < 0 or right_clip < 0 or left_clip >= len(self.seq) or right_clip >= len(self.seq):
             return 1
 
         if self.key.max() >= 9:
@@ -956,9 +886,7 @@ class FlowBasedRead:
         if clip_left >= len(self.key) or clip_right >= len(self.key):
             return -np.Inf
 
-        assert (
-            left_hmer_clip >= 0 and right_hmer_clip >= 0
-        ), "Some problem with hmer clips"
+        assert left_hmer_clip >= 0 and right_hmer_clip >= 0, "Some problem with hmer clips"
         key = self.key.copy()
         original_length = len(key)
         clip_left = max(clip_left - 4, 0)
@@ -968,11 +896,13 @@ class FlowBasedRead:
         starting_points = np.nonzero(flow_order == read.flow_order[0])[0]
         starting_points = starting_points[starting_points + len(read.key) <= len(key)]
         best_alignment = -np.Inf
-        for s in starting_points:
+        for start_point in starting_points:
             fetch = np.log10(
                 read._flow_matrix[
                     np.clip(
-                        key[s: s + len(read.key)], None, read._flow_matrix.shape[0] - 1
+                        key[start_point : start_point + len(read.key)],
+                        None,
+                        read._flow_matrix.shape[0] - 1,
                     ),
                     np.arange(len(read.key)),
                 ]
@@ -1029,6 +959,7 @@ def _parse_active_region(block: str) -> list:
     Parameters
     ----------
     block: str
+        Parses a block from the output of HaplotypeCaller
 
     Returns
     -------
@@ -1041,7 +972,7 @@ def _parse_active_region(block: str) -> list:
     sample_ends = sample_starts[1:] + [len(block)]
     sample_locs = zip(sample_starts, sample_ends)
 
-    return [_parse_sample(block[x[0]:x[1]], haplotypes) for x in sample_locs]
+    return [_parse_sample(block[x[0] : x[1]], haplotypes) for x in sample_locs]
 
 
 def _parse_haplotypes(haplotype_block: str) -> pd.Series:
@@ -1057,9 +988,7 @@ def _parse_haplotypes(haplotype_block: str) -> pd.Series:
     pd.Series
         Series named `sequence` with the number of haplotype as  an index
     """
-    lines = [
-        x.strip() for x in haplotype_block.split("\n") if x and not x.startswith(">")
-    ]
+    lines = [x.strip() for x in haplotype_block.split("\n") if x and not x.startswith(">")]
     idx = [int(x.split()[0]) for x in lines]
     seq = [x.split()[1] for x in lines]
 
@@ -1087,24 +1016,12 @@ def _parse_sample(sample_block: str, haplotypes: pd.Series) -> pd.DataFrame:
     except ValueError:
         full_matrix_start = None
 
-    reads = [
-        x
-        for x in sample_block[reads_start:reads_end].split("\n")
-        if x and not x.startswith(">")
-    ]
+    reads = [x for x in sample_block[reads_start:reads_end].split("\n") if x and not x.startswith(">")]
     read_names = [x.strip().split()[1] for x in reads]
     if full_matrix_start is None:
-        matrix = [
-            x
-            for x in sample_block[reads_end:].split("\n")
-            if x and not x.startswith(">")
-        ]
+        matrix = [x for x in sample_block[reads_end:].split("\n") if x and not x.startswith(">")]
     else:
-        matrix = [
-            x
-            for x in sample_block[reads_end:full_matrix_start].split("\n")
-            if x and not x.startswith(">")
-        ]
+        matrix = [x for x in sample_block[reads_end:full_matrix_start].split("\n") if x and not x.startswith(">")]
     array = np.vstack([np.fromstring(x, dtype=np.float, sep=" ") for x in matrix])
     result = pd.DataFrame(data=array, index=haplotypes.index, columns=read_names)
     result["sequence"] = haplotypes
@@ -1124,8 +1041,8 @@ def parse_haplotype_matrix_file(filename: str) -> dict:
     -------
     dict
     """
-
-    filecontents = open(filename).read()
+    with open(filename, encoding="latin-1") as fid:
+        filecontents = fid.read()
     blocks = [x for x in re.split(r"> Location ", filecontents) if x]
 
     locations = [_extract_location(x) for x in blocks]

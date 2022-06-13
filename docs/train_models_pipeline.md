@@ -1,17 +1,17 @@
 ## train_models_pipeline.py
 
-This script trains an ML filtering model for the GATK raw callset. 
+This script trains an ML filtering model for the GATK raw callset.
 
-There are two modes of action: 
+There are two modes of action:
 
-- Real ground truth: if the input is the result of [run_comparision_pipeline.py](run_comparison_pipeline.md). 
+- Real ground truth: if the input is the result of [run_comparision_pipeline.py](run_comparison_pipeline.md).
 In this case the model is trained on the result of comparision with the given labels
-- Approximate ground truth: if the input is the call VCF, the ground truth is estimated by assigning 
+- Approximate ground truth: if the input is the call VCF, the ground truth is estimated by assigning
 calls from dbSNP to true positive class and calls from `blacklist` to false positive class
 
 **See also:** [How to post-filter a callset](howto-callset-filter.md)
 
-### Usage 
+### Usage
 
 ```
 usage: train_models_pipeline.py [-h] [--input_file INPUT_FILE]
@@ -78,7 +78,7 @@ optional arguments:
                         Verbosity: ERROR, WARNING, INFO, DEBUG
 ```
 
-### Example 
+### Example
 
 ```
 train_models_pipeline.py \
@@ -92,7 +92,7 @@ train_models_pipeline.py \
     --annotate_intervals LCR-hs38.bed \
     --annotate_intervals exome.twist.bed \
     --annotate_intervals mappability.0.bed \
-    --output_file_prefix test.model  
+    --output_file_prefix test.model
 ```
 
-The output of the run is a trained model file called `test.model.pkl` that can be used in [filter_variants_pipeline.py](filter_variants_pipeline.md). 
+The output of the run is a trained model file called `test.model.pkl` that can be used in [filter_variants_pipeline.py](filter_variants_pipeline.md).

@@ -16,85 +16,87 @@
 # DESCRIPTION
 #    Train ML models to filter callset
 # CHANGELOG in reverse chronological order
+from __future__ import annotations
 
 import argparse
 import logging
-
-from ugvc import logger
 import pickle
 import random
 import sys
-from typing import List
 
 import numpy as np
 import pandas as pd
 
-import ugvc.comparison.vcf_pipeline_utils as vcf_pipeline_utils
 import ugvc.filtering.blacklist as blacklist_fcn
-import ugvc.filtering.variant_filtering_utils as variant_filtering_utils
-import ugvc.vcfbed.vcftools as vcftools
+from ugvc import logger
+from ugvc.comparison import vcf_pipeline_utils
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.filtering import variant_filtering_utils
+from ugvc.vcfbed import vcftools
 
-def parse_args(argv: List[str]) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    ap_var = argparse.ArgumentParser(
         prog="train_models_pipeline.py",
         description="Train filtering models on the concordance file",
     )
 
-    ap.add_argument(
+    ap_var.add_argument(
         "--input_file",
         help="Name of the input h5/vcf file. h5 is output of comparison",
         type=str,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--blacklist",
         help="blacklist file by which we decide variants as FP",
         type=str,
         required=False,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--output_file_prefix",
         help="Output .pkl file with models, .h5 file with results",
         type=str,
         required=True,
     )
-    ap.add_argument("--mutect", required=False, action="store_true")
-    ap.add_argument(
+    ap_var.add_argument("--mutect", required=False, action="store_true")
+    ap_var.add_argument(
         "--evaluate_concordance",
         help="Should the results of the model be applied to the concordance dataframe",
         action="store_true",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--apply_model",
         help="If evaluate_concordance - which model should be applied",
         type=str,
         required="--evaluate_concordance" in sys.argv,
     )
-    ap.add_argument("--evaluate_concordance_contig",
+    ap_var.add_argument(
+        "--evaluate_concordance_contig",
         help="Which contig the evaluation of the model should be done on",
-        default="chr9")
+        default="chr9",
+    )
 
-    ap.add_argument(
+    ap_var.add_argument(
         "--input_interval",
         help="bed file of intersected intervals from run_comparison pipeline",
         type=str,
         required=False,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--list_of_contigs_to_read",
         nargs="*",
         help="List of contigs to read from the DF",
         default=[],
     )
-    ap.add_argument("--reference", help="Reference genome", required=True, type=str)
-    ap.add_argument(
+    ap_var.add_argument("--reference", help="Reference genome", required=True, type=str)
+    ap_var.add_argument(
         "--runs_intervals",
         help="Runs intervals (bed/interval_list)",
         required=False,
         type=str,
         default=None,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--annotate_intervals",
         help="interval files for annotation (multiple possible)",
         required=False,
@@ -102,79 +104,69 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         default=None,
         action="append",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--exome_weight",
         help="weight of exome variants in comparison to whole genome variant",
         type=int,
         default=1,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--flow_order",
         help="Sequencing flow order (4 cycle)",
         required=False,
         default=DEFAULT_FLOW_ORDER,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--exome_weight_annotation",
         help="annotation name by which we decide the weight of exome variants",
         type=str,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--vcf_type",
         help='VCF type - "single_sample" or "joint"',
         type=str,
         default="single_sample",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--ignore_filter_status",
-        help='Ignore the `filter` and `tree_score` columns',
+        help="Ignore the `filter` and `tree_score` columns",
         action="store_true",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--verbosity",
         help="Verbosity: ERROR, WARNING, INFO, DEBUG",
         required=False,
         default="INFO",
     )
 
-    args = ap.parse_args(argv)
+    args = ap_var.parse_args(argv)
     return args
 
 
-def run(argv: List[str]):
+def run(argv: list[str]):
+    #  pylint: disable=too-many-statements
     "Train filtering models"
     np.random.seed(1984)
     random.seed(1984)
     args = parse_args(argv)
-    logger.setLevel(getattr(logging,args.verbosity))
-    
+    logger.setLevel(getattr(logging, args.verbosity))
+
     try:
         if args.input_file.endswith("h5"):
-            assert (
-                args.input_interval
-            ), "--input_interval is required when input file type is h5"
+            assert args.input_interval, "--input_interval is required when input file type is h5"
         if args.input_file.endswith("vcf.gz"):
-            assert (
-                args.blacklist
-            ), "--blacklist is required when input file type is vcf.gz"
-            assert (
-                args.reference
-            ), "--reference is required when input file type is vcf.gz"
-            assert (
-                args.runs_intervals
-            ), "--runs_intervals is required when input file type is vcf.gz"
-    except AssertionError as af:
-        logger.error(str(af))
-        raise af
+            assert args.blacklist, "--blacklist is required when input file type is vcf.gz"
+            assert args.reference, "--reference is required when input file type is vcf.gz"
+            assert args.runs_intervals, "--runs_intervals is required when input file type is vcf.gz"
+    except AssertionError as af_var:
+        logger.error(str(af_var))
+        raise af_var
 
     try:
         with_dbsnp_bl = args.input_file.endswith("vcf.gz")
         if with_dbsnp_bl:
             if args.list_of_contigs_to_read != []:
-                dfs = [
-                    vcftools.get_vcf_df(args.input_file, chromosome=x)
-                    for x in args.list_of_contigs_to_read
-                ]
+                dfs = [vcftools.get_vcf_df(args.input_file, chromosome=x) for x in args.list_of_contigs_to_read]
                 df = pd.concat(dfs)
             else:
                 df = vcftools.get_vcf_df(args.input_file)
@@ -187,10 +179,7 @@ def run(argv: List[str]):
                     if (
                         (k != "/concordance")
                         and (k != "/input_args")
-                        and (
-                            args.list_of_contigs_to_read == []
-                            or k[1:] in args.list_of_contigs_to_read
-                        )
+                        and (args.list_of_contigs_to_read == [] or k[1:] in args.list_of_contigs_to_read)
                     ):
                         h5_file = data.get(k)
                         if not h5_file.empty:
@@ -199,7 +188,7 @@ def run(argv: List[str]):
             df = pd.concat(df, axis=0)
 
         if args.ignore_filter_status:
-            df["filter"] = ''
+            df["filter"] = ""
             df["tree_score"] = None
 
         df, annots = vcf_pipeline_utils.annotate_concordance(
@@ -211,9 +200,7 @@ def run(argv: List[str]):
         )
 
         if args.mutect:
-            df["qual"] = (
-                df["tlod"].apply(lambda x: max(x) if isinstance(x, tuple) else 50) * 10
-            )
+            df["qual"] = df["tlod"].apply(lambda x: max(x) if isinstance(x, tuple) else 50) * 10
         df.loc[pd.isnull(df["hmer_indel_nuc"]), "hmer_indel_nuc"] = "N"
 
         results_dict = {}
@@ -226,9 +213,7 @@ def run(argv: List[str]):
             df["bl_classify"].loc[df["bl"]] = "fp"
             df["bl_classify"].loc[~df["id"].isna()] = "tp"
             classify_clm = "bl_classify"
-            blacklist_statistics = blacklist_fcn.create_blacklist_statistics_table(
-                df, classify_clm
-            )
+            blacklist_statistics = blacklist_fcn.create_blacklist_statistics_table(df, classify_clm)
             df = df[df["bl_classify"] != "unknown"]
             # Decision tree models
             interval_size = None
@@ -237,7 +222,7 @@ def run(argv: List[str]):
             interval_size = vcf_pipeline_utils.bed_file_length(args.input_interval)
         # Thresholding model
 
-        logger.debug(f"INTERVAL_SIZE = {interval_size}")
+        logger.debug("INTERVAL_SIZE = %i", interval_size)
 
         models_thr_no_gt, df_tmp = variant_filtering_utils.train_threshold_models(
             concordance=df.copy(),
@@ -251,7 +236,7 @@ def run(argv: List[str]):
             df_tmp, models_thr_no_gt, classify_column=classify_clm
         )
 
-        recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_pr_curve(
             df_tmp, models_thr_no_gt, classify_column=classify_clm
         )
         df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
@@ -259,21 +244,15 @@ def run(argv: List[str]):
             df_tmp, models_thr_no_gt, classify_column=classify_clm
         )
 
-        recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_pr_curve(
             df_tmp, models_thr_no_gt, classify_column=classify_clm
         )
 
         results_dict["threshold_model_ignore_gt_incl_hpol_runs"] = models_thr_no_gt
-        results_dict[
-            "threshold_model_recall_precision_ignore_gt_incl_hpol_runs"
-        ] = recall_precision_no_gt
+        results_dict["threshold_model_recall_precision_ignore_gt_incl_hpol_runs"] = recall_precision_no_gt
 
-        results_dict[
-            "threshold_model_recall_precision_curve_ignore_gt_incl_hpol_runs"
-        ] = recall_precision_curve_no_gt
-        results_dict[
-            "threshold_train_model_recall_precision_ignore_gt_incl_hpol_runs"
-        ] = recall_precision_no_gt
+        results_dict["threshold_model_recall_precision_curve_ignore_gt_incl_hpol_runs"] = recall_precision_curve_no_gt
+        results_dict["threshold_train_model_recall_precision_ignore_gt_incl_hpol_runs"] = recall_precision_no_gt
         results_dict[
             "threshold_train_model_recall_precision_curve_ignore_gt_incl_hpol_runs"
         ] = recall_precision_curve_no_gt
@@ -283,7 +262,7 @@ def run(argv: List[str]):
             df.copy(),
             classify_column=classify_clm,
             interval_size=interval_size,
-            train_function=variant_filtering_utils.train_model_RF,
+            train_function=variant_filtering_utils.train_model_rf,
             model_name="Random forest",
             annots=annots,
             exome_weight=args.exome_weight,
@@ -292,11 +271,9 @@ def run(argv: List[str]):
             vtype=args.vcf_type,
         )
 
-        recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
-            df_tmp, models_rf_no_gt, classify_clm
-        )
+        recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(df_tmp, models_rf_no_gt, classify_clm)
 
-        recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_pr_curve(
             df_tmp, models_rf_no_gt, classify_clm
         )
 
@@ -305,30 +282,25 @@ def run(argv: List[str]):
             df_tmp, models_rf_no_gt, classify_clm
         )
 
-        recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+        recall_precision_curve_no_gt_train = variant_filtering_utils.get_decision_tree_pr_curve(
             df_tmp, models_rf_no_gt, classify_clm
         )
 
         results_dict["rf_model_ignore_gt_incl_hpol_runs"] = models_rf_no_gt
-        results_dict[
-            "rf_model_recall_precision_ignore_gt_incl_hpol_runs"
-        ] = recall_precision_no_gt
-        results_dict[
-            "rf_model_recall_precision_curve_ignore_gt_incl_hpol_runs"
-        ] = recall_precision_curve_no_gt
-        results_dict[
-            "rf_train_model_recall_precision_ignore_gt_incl_hpol_runs"
-        ] = recall_precision_no_gt_train
+        results_dict["rf_model_recall_precision_ignore_gt_incl_hpol_runs"] = recall_precision_no_gt
+        results_dict["rf_model_recall_precision_curve_ignore_gt_incl_hpol_runs"] = recall_precision_curve_no_gt
+        results_dict["rf_train_model_recall_precision_ignore_gt_incl_hpol_runs"] = recall_precision_no_gt_train
         results_dict[
             "rf_train_model_recall_precision_curve_ignore_gt_incl_hpol_runs"
         ] = recall_precision_curve_no_gt_train
 
-        pickle.dump(results_dict, open(args.output_file_prefix + ".pkl", "wb"))
+        with open(args.output_file_prefix + ".pkl", "wb") as file:
+            pickle.dump(results_dict, file)
 
         accuracy_dfs = []
         prcdict = {}
-        for m in ["threshold", "threshold_train", "rf", "rf_train"]:
-            name_optimum = f"{m}_model_recall_precision_ignore_gt_incl_hpol_runs"
+        for m_var in ("threshold", "threshold_train", "rf", "rf_train"):
+            name_optimum = f"{m_var}_model_recall_precision_ignore_gt_incl_hpol_runs"
             accuracy_df_per_model = results_dict[name_optimum]
             accuracy_df_per_model["model"] = name_optimum
             accuracy_dfs.append(accuracy_df_per_model)
@@ -337,20 +309,14 @@ def run(argv: List[str]):
             ].set_index("group")
 
         accuracy_df = pd.concat(accuracy_dfs)
-        accuracy_df.to_hdf(
-            args.output_file_prefix + ".h5", key="optimal_recall_precision"
-        )
+        accuracy_df.to_hdf(args.output_file_prefix + ".h5", key="optimal_recall_precision")
 
         results_vals = pd.concat(prcdict, names=["model"])
         results_vals = results_vals[["recall", "precision", "f1"]].reset_index()
 
-        results_vals.to_hdf(
-            args.output_file_prefix + ".h5", key="recall_precision_curve"
-        )
+        results_vals.to_hdf(args.output_file_prefix + ".h5", key="recall_precision_curve")
         if with_dbsnp_bl:
-            blacklist_statistics.to_hdf(
-                args.output_file_prefix + ".h5", key="blacklist_statistics"
-            )
+            blacklist_statistics.to_hdf(args.output_file_prefix + ".h5", key="blacklist_statistics")
 
         if args.evaluate_concordance:
             if with_dbsnp_bl:
@@ -359,7 +325,7 @@ def run(argv: List[str]):
                 calls_df = pd.read_hdf(args.input_file, "concordance")
 
             if args.ignore_filter_status:
-                calls_df["filter"] = ''
+                calls_df["filter"] = ""
                 calls_df["tree_score"] = None
 
             calls_df, _ = vcf_pipeline_utils.annotate_concordance(
@@ -369,12 +335,7 @@ def run(argv: List[str]):
                 annotate_intervals=args.annotate_intervals,
             )
             if args.mutect:
-                calls_df["qual"] = (
-                    calls_df["tlod"].apply(
-                        lambda x: max(x) if isinstance(x, tuple) else 50
-                    )
-                    * 10
-                )
+                calls_df["qual"] = calls_df["tlod"].apply(lambda x: max(x) if isinstance(x, tuple) else 50) * 10
             calls_df.loc[pd.isnull(calls_df["hmer_indel_nuc"]), "hmer_indel_nuc"] = "N"
 
             models = results_dict[args.apply_model]
@@ -422,7 +383,7 @@ def run(argv: List[str]):
         exc_info = sys.exc_info()
         logger.error(*exc_info)
         logger.error("Model training run: failed")
-        raise (err)
+        raise err
 
 
 if __name__ == "__main__":

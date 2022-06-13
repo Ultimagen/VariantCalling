@@ -39,15 +39,11 @@ class TestPysamUtils(unittest.TestCase):
 
         # '*' as major allele can be filtered out explicitly
         self.variant.alts = ("*", "TG")
-        self.assertEqual(
-            ["T", "TG"], get_filtered_alleles_list(self.variant, filter_list=["*"])
-        )
+        self.assertEqual(["T", "TG"], get_filtered_alleles_list(self.variant, filter_list=["*"]))
 
     def test_get_filtered_alleles_str(self):
         self.assertEqual("T,TG", get_filtered_alleles_str(self.variant))
-        self.assertEqual(
-            "T", get_filtered_alleles_str(self.variant, filter_list=["TG", "<NON_REF>"])
-        )
+        self.assertEqual("T", get_filtered_alleles_str(self.variant, filter_list=["TG", "<NON_REF>"]))
 
         # '*' as minor allele is filtered out automatically
         self.variant.alts = ("TG", "*")
@@ -59,9 +55,7 @@ class TestPysamUtils(unittest.TestCase):
 
         # '*' as major allele can be filtered out explicitly
         self.variant.alts = ("*", "TG")
-        self.assertEqual(
-            "T,TG", get_filtered_alleles_str(self.variant, filter_list=["*"])
-        )
+        self.assertEqual("T,TG", get_filtered_alleles_str(self.variant, filter_list=["*"]))
 
     def test_get_genotype(self):
         self.assertEqual("T/T", get_genotype(self.variant.samples[0]))

@@ -18,16 +18,12 @@ class TestDBAccess:
 
     def test_fetch_from_database(self):
         r = re.compile(r"150450.*")
-        docs = db_access.query_database(
-            {"metadata.runId": r, "inputs": {"$exists": True}}
-        )
+        docs = db_access.query_database({"metadata.runId": r, "inputs": {"$exists": True}})
         assert len(docs) >= 8, "Was not able to fetch at least 8 documents"
 
         db_access.DISABLE_PAPYRUS_ACCESS = True
         with pytest.raises(AssertionError, match=r"Database access.*"):
-            docs = db_access.query_database(
-                {"metadata.runId": r, "inputs": {"$exists": True}}
-            )
+            docs = db_access.query_database({"metadata.runId": r, "inputs": {"$exists": True}})
         db_access.DISABLE_PAPYRUS_ACCESS = False
 
     hardcoded_wfids = [
@@ -45,21 +41,15 @@ class TestDBAccess:
 
     def test_inputs_outputs_dataframe(self):
         r = re.compile(r"150450.*")
-        docs = db_access.query_database(
-            {"metadata.runId": r, "inputs": {"$exists": True}}
-        )
+        docs = db_access.query_database({"metadata.runId": r, "inputs": {"$exists": True}})
         docs = sorted(docs, key=lambda x: x["metadata"]["workflowId"])
         docs = [x for x in docs if x["metadata"]["workflowId"] in self.hardcoded_wfids]
         all_inputs = pd.concat((db_access.inputs2df(x) for x in docs), axis=0)
-        assert all_inputs.equals(
-            pd.read_hdf(pjoin(self.input_dir, "expected_inputs_df.h5"), key="df")
-        )
+        assert all_inputs.equals(pd.read_hdf(pjoin(self.input_dir, "expected_inputs_df.h5"), key="df"))
 
     def test_metrics_dataframe(self):
         r = re.compile(r"150450.*")
-        docs = db_access.query_database(
-            {"metadata.runId": r, "inputs": {"$exists": True}}
-        )
+        docs = db_access.query_database({"metadata.runId": r, "inputs": {"$exists": True}})
         docs = sorted(docs, key=lambda x: x["metadata"]["workflowId"])
         docs = [x for x in docs if x["metadata"]["workflowId"] in self.hardcoded_wfids]
 
@@ -77,10 +67,6 @@ class TestDBAccess:
             "short_report_/all_data_gt",
         ]
 
-        all_inputs = pd.concat(
-            (db_access.metrics2df(x, metrics_to_report) for x in docs), axis=0
-        )
+        all_inputs = pd.concat((db_access.metrics2df(x, metrics_to_report) for x in docs), axis=0)
 
-        assert all_inputs.equals(
-            pd.read_hdf(pjoin(self.input_dir, "expected_metrics_df.h5"), key="df")
-        )
+        assert all_inputs.equals(pd.read_hdf(pjoin(self.input_dir, "expected_metrics_df.h5"), key="df"))

@@ -11,22 +11,19 @@ inputs_dir = get_resource_dir(__file__)
 def test_bed_files_output():
     # snp_fp testing
     data = pd.read_hdf(pjoin(inputs_dir, "BC10.chr1.h5"), key="concordance")
-    snp_fp = vcftools.FilterWrapper(data).get_SNP().get_fp().get_df()
+    snp_fp = vcftools.FilterWrapper(data).get_snp().get_fp().get_df()
     assert all([x is False for x in snp_fp["indel"]])
     assert all([x == "fp" for x in snp_fp["classify"]])
 
     # snp_fn testing
-    snp_fn = vcftools.FilterWrapper(data).get_SNP().get_fn().get_df()
+    snp_fn = vcftools.FilterWrapper(data).get_snp().get_fn().get_df()
     assert all([x is False for x in snp_fn["indel"]])
     assert all(
         [
             row["classify"] == "fn"
             or (
                 row["classify"] == "tp"
-                and (
-                    row["filter"] == "LOW_SCORE"
-                    or row["filter"] == "HPOL_RUN;LOW_SCORE"
-                )
+                and (row["filter"] == "LOW_SCORE" or row["filter"] == "HPOL_RUN;LOW_SCORE")
                 and (row["filter"] != "PASS" and row["filter"] != "HPOL_RUN")
             )
             for index, row in snp_fn.iterrows()
@@ -59,10 +56,7 @@ def test_bed_files_output():
             row["classify"] == "fn"
             or (
                 row["classify"] == "tp"
-                and (
-                    row["filter"] == "LOW_SCORE"
-                    or row["filter"] == "HPOL_RUN;LOW_SCORE"
-                )
+                and (row["filter"] == "LOW_SCORE" or row["filter"] == "HPOL_RUN;LOW_SCORE")
                 and (row["filter"] != "PASS" and row["filter"] != "HPOL_RUN")
             )
             for index, row in hmer_fn.iterrows()
@@ -84,10 +78,7 @@ def test_bed_files_output():
             row["classify"] == "fn"
             or (
                 row["classify"] == "tp"
-                and (
-                    row["filter"] == "LOW_SCORE"
-                    or row["filter"] == "HPOL_RUN;LOW_SCORE"
-                )
+                and (row["filter"] == "LOW_SCORE" or row["filter"] == "HPOL_RUN;LOW_SCORE")
                 and (row["filter"] != "PASS" and row["filter"] != "HPOL_RUN")
             )
             for index, row in non_hmer_fn.iterrows()
@@ -98,7 +89,7 @@ def test_bed_files_output():
 def test_bed_output_when_no_tree_score():  # testing the case when there is no tree_score and there is blacklist
     data = pd.read_hdf(pjoin(inputs_dir, "exome.h5"), key="concordance")
     df = vcftools.FilterWrapper(data)
-    result = dict(df.get_fn().BED_format(kind="fn").get_df()["itemRgb"].value_counts())
+    result = dict(df.get_fn().bed_format(kind="fn").get_df()["itemRgb"].value_counts())
     expected_result = {
         vcftools.FilteringColors.BLACKLIST.value: 169,
         vcftools.FilteringColors.CLEAR.value: 89,
@@ -109,7 +100,7 @@ def test_bed_output_when_no_tree_score():  # testing the case when there is no t
 
     df = vcftools.FilterWrapper(data)
     # since there is no tree_score all false positives should be the same color
-    result = dict(df.get_fp().BED_format(kind="fp").get_df()["itemRgb"].value_counts())
+    result = dict(df.get_fp().bed_format(kind="fp").get_df()["itemRgb"].value_counts())
 
     assert len(result.keys()) == 1
 
