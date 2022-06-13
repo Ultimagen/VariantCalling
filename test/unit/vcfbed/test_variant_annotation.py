@@ -12,7 +12,6 @@ import ugvc.vcfbed.variant_annotation as variant_annotation
 import ugvc.vcfbed.vcftools as vcftools
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 
-
 resource_dir = pjoin(get_resource_dir(__file__))
 
 
@@ -23,25 +22,20 @@ class TestVariantAnnotation:
         input_vcf = vcftools.get_vcf_df(pjoin(resource_dir, "hg19.vcf.gz"))
         runs_file = pjoin(resource_dir, "runs.hg19.bed")
         result = variant_annotation.close_to_hmer_run(input_vcf, runs_file)
-        assert result['close_to_hmer_run'].sum() == 76
+        assert result["close_to_hmer_run"].sum() == 76
 
     def test_get_coverage(self, tmpdir):
         temp_bw_name1 = self._create_temp_bw(tmpdir, "test1.bw", 20)
         temp_bw_name2 = self._create_temp_bw(tmpdir, "test2.bw", 0)
         df = self._create_test_df_for_coverage()
 
-        result = variant_annotation.get_coverage(
-            df.copy(), [temp_bw_name1], [temp_bw_name2]
-        )
+        result = variant_annotation.get_coverage(df.copy(), [temp_bw_name1], [temp_bw_name2])
         expected_total, expected_well_mapped = self._create_expected_coverage()
         assert result.shape == (df.shape[0], df.shape[1] + 3)
         assert "coverage" in result.columns
         assert "well_mapped_coverage" in result.columns
         assert "repetitive_read_coverage" in result.columns
-        assert np.all(
-            result["coverage"] - result["well_mapped_coverage"]
-            == result["repetitive_read_coverage"]
-        )
+        assert np.all(result["coverage"] - result["well_mapped_coverage"] == result["repetitive_read_coverage"])
         # we calculate coverage on the same BAM twice, so the coverage should be twice the expected
         assert np.all(result["coverage"] == expected_total)
         assert np.all(result["well_mapped_coverage"] == expected_well_mapped)
@@ -51,9 +45,7 @@ class TestVariantAnnotation:
         temp_bw_name2 = self._create_temp_bw(tmpdir, "test2.bw", 0)
         df = self._create_test_df_for_coverage().iloc[:0, :]
 
-        result = variant_annotation.get_coverage(
-            df.copy(), [temp_bw_name1], [temp_bw_name2]
-        )
+        result = variant_annotation.get_coverage(df.copy(), [temp_bw_name1], [temp_bw_name2])
         assert result.shape == (df.shape[0], df.shape[1] + 3)
 
     # Temporary bam contains read that starts on each location, every second read is duplicate (should be discarded)
@@ -85,9 +77,7 @@ class TestVariantAnnotation:
                     ["chr20"],
                     [loc],
                     ends=[loc + 1],
-                    values=[
-                        float(((loc + 1) % 2) * ((30 * (loc % 3)) >= quality_threshold))
-                    ],
+                    values=[float(((loc + 1) % 2) * ((30 * (loc % 3)) >= quality_threshold))],
                 )
             outf.addEntries(["chr20"], [91000], ends=[92000], values=[0.0])
         return pjoin(tmpdir, name)

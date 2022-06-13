@@ -12,9 +12,7 @@ from ugvc.sec.systematic_error_correction_caller import SECCaller
 
 
 class TestSecCaller(unittest.TestCase):
-    sec_caller = SECCaller(
-        0.0001, 0.001, 0.99, novel_detection_only=False, replace_to_known_genotype=False
-    )
+    sec_caller = SECCaller(0.0001, 0.001, 0.99, novel_detection_only=False, replace_to_known_genotype=False)
 
     def test_reject_novel_variant_observed_as_noise(self):
         ts = NoVariantWithNoise()
@@ -23,7 +21,7 @@ class TestSecCaller(unittest.TestCase):
         sample_info["GT"] = [0, 1]
         sample_info["SB"] = (12, 10, 0, 2)
         sec_call = self.sec_caller.call(ts.observed_variant, ts.expected_distribution)
-        self.assertEqual(SECCallType.reference, sec_call.call_type)
+        self.assertEqual(SECCallType.REFERENCE, sec_call.call_type)
         self.assertEqual("C,CG", sec_call.alleles)
         self.assertEqual("0/0", sec_call.genotype)
         self.assertAlmostEqual(0.61867, sec_call.novel_variant_p_value, places=3)
@@ -37,13 +35,9 @@ class TestSecCaller(unittest.TestCase):
             novel_detection_only=False,
             replace_to_known_genotype=True,
         )
-        sec_call = sec_caller_with_replace.call(
-            ts.observed_variant, ts.expected_distribution
-        )
-        self.assertEqual(SECCallType.reference, sec_call.call_type)
-        self.assertEqual(
-            "C", sec_call.alleles
-        )  # notice how alleles are currently taken from ground-truth
+        sec_call = sec_caller_with_replace.call(ts.observed_variant, ts.expected_distribution)
+        self.assertEqual(SECCallType.REFERENCE, sec_call.call_type)
+        self.assertEqual("C", sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual("0/0", sec_call.genotype)
 
     def test_call_known_variant(self):
@@ -53,10 +47,8 @@ class TestSecCaller(unittest.TestCase):
         sample_info["SB"] = (12, 10, 8, 9)
         sec_call = self.sec_caller.call(ts.observed_variant, ts.expected_distribution)
         [print(r) for r in sec_call.sec_records]
-        self.assertEqual(SECCallType.known, sec_call.call_type)
-        self.assertEqual(
-            "A,AG", sec_call.alleles
-        )  # notice how alleles are currently taken from ground-truth
+        self.assertEqual(SECCallType.KNOWN, sec_call.call_type)
+        self.assertEqual("A,AG", sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual("0/1", sec_call.genotype)
         self.assertAlmostEqual(0.47308, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(140, sec_call.genotype_quality)
@@ -71,12 +63,10 @@ class TestSecCaller(unittest.TestCase):
         sec_call = self.sec_caller.call(ts.observed_variant, ts.expected_distribution)
         for r in sec_call.sec_records:
             print(r)
-        self.assertEqual(SECCallType.novel, sec_call.call_type)
-        self.assertEqual(
-            "C,CG", sec_call.alleles
-        )  # notice how alleles are currently taken from ground-truth
+        self.assertEqual(SECCallType.NOVEL, sec_call.call_type)
+        self.assertEqual("C,CG", sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual("0/1", sec_call.genotype)
-        self.assertAlmostEqual(9.9 * 10 ** -9, sec_call.novel_variant_p_value)
+        self.assertAlmostEqual(9.9 * 10**-9, sec_call.novel_variant_p_value)
         self.assertEqual(None, sec_call.genotype_quality)
         self.assertEqual(None, sec_call.gt_correlation)
 
@@ -87,7 +77,7 @@ class TestSecCaller(unittest.TestCase):
         sample_info["GT"] = [0, 1]
         sample_info["SB"] = (12, 10, 2, 3)
         sec_call = self.sec_caller.call(ts.observed_variant, ts.expected_distribution)
-        self.assertEqual(SECCallType.reference, sec_call.call_type)
+        self.assertEqual(SECCallType.REFERENCE, sec_call.call_type)
         self.assertEqual("C,CGG", sec_call.alleles)
         self.assertEqual("0/0", sec_call.genotype)
         self.assertAlmostEqual(0.00304, sec_call.novel_variant_p_value, places=3)
@@ -101,10 +91,8 @@ class TestSecCaller(unittest.TestCase):
             novel_detection_only=False,
             replace_to_known_genotype=True,
         )
-        sec_call = sec_caller_with_replace.call(
-            ts.observed_variant, ts.expected_distribution
-        )
-        self.assertEqual(SECCallType.reference, sec_call.call_type)
+        sec_call = sec_caller_with_replace.call(ts.observed_variant, ts.expected_distribution)
+        self.assertEqual(SECCallType.REFERENCE, sec_call.call_type)
         self.assertEqual("C", sec_call.alleles)
         self.assertEqual("0/0", sec_call.genotype)
 
@@ -114,10 +102,8 @@ class TestSecCaller(unittest.TestCase):
         sample_info["GT"] = [0, 1]
         sample_info["SB"] = (12, 10, 5, 5)
         sec_call = self.sec_caller.call(ts.observed_variant, ts.expected_distribution)
-        self.assertEqual(SECCallType.uncorrelated, sec_call.call_type)
-        self.assertEqual(
-            "A,T", sec_call.alleles
-        )  # notice how alleles are currently taken from ground-truth
+        self.assertEqual(SECCallType.UNCORRELATED, sec_call.call_type)
+        self.assertEqual("A,T", sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual("0/1", sec_call.genotype)
         self.assertAlmostEqual(0.3558, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(None, sec_call.genotype_quality)
@@ -129,7 +115,7 @@ class TestSecCaller(unittest.TestCase):
         sample_info["GT"] = [0, 1]
         sample_info["SB"] = (16, 12, 14, 12)
         sec_call = self.sec_caller.call(ts.observed_variant, ts.expected_distribution)
-        self.assertEqual(SECCallType.unobserved, sec_call.call_type)
+        self.assertEqual(SECCallType.UNOBSERVED, sec_call.call_type)
         self.assertEqual("A,G", sec_call.alleles)
         self.assertEqual("0/1", sec_call.genotype)
         self.assertAlmostEqual(0.90218, sec_call.novel_variant_p_value, places=3)
@@ -142,10 +128,8 @@ class TestSecCaller(unittest.TestCase):
         sample_info["GT"] = [1, 1]
         sample_info["SB"] = (0, 0, 10, 12)
         sec_call = self.sec_caller.call(ts.observed_variant, ts.expected_distribution)
-        self.assertEqual(SECCallType.known, sec_call.call_type)
-        self.assertEqual(
-            "A,T", sec_call.alleles
-        )  # notice how alleles are currently taken from ground-truth
+        self.assertEqual(SECCallType.KNOWN, sec_call.call_type)
+        self.assertEqual("A,T", sec_call.alleles)  # notice how alleles are currently taken from ground-truth
         self.assertEqual("1/1", sec_call.genotype)
         self.assertAlmostEqual(1.0, sec_call.novel_variant_p_value, places=3)
         self.assertEqual(640, sec_call.genotype_quality)

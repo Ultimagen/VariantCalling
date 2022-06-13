@@ -16,4 +16,4 @@ def is_forward_strand(allele: str):
     pileup alleles with uppercase letters represent forward strand
     todo - handle indels
     """
-    return any([x in allele for x in ["A", "C", "G", "T"]])
+    return any(x in allele for x in ("A", "C", "G", "T"))

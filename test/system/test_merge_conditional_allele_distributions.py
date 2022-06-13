@@ -3,9 +3,7 @@ import os
 from os.path import dirname
 from test import get_resource_dir
 
-from ugvc.pipelines.sec.merge_conditional_allele_distributions import (
-    run,
-)
+from ugvc.pipelines.sec.merge_conditional_allele_distributions import run
 from ugvc.sec.conditional_allele_distributions import ConditionalAlleleDistributions
 
 
@@ -34,15 +32,9 @@ class TestMergeConditionalAlleleDistributions:
         pickle_files = glob.glob(f"{output_prefix}.*.pkl")
         cads = ConditionalAlleleDistributions(pickle_files)
 
-        cads_list_chr1 = [
-            cad for cad in cads.distributions_per_chromosome["chr1"].values()
-        ]
-        cads_list_chr2 = [
-            cad for cad in cads.distributions_per_chromosome["chr2"].values()
-        ]
-        cads_list_chr3 = [
-            cad for cad in cads.distributions_per_chromosome["chr3"].values()
-        ]
+        cads_list_chr1 = [cad for cad in cads.distributions_per_chromosome["chr1"].values()]
+        cads_list_chr2 = [cad for cad in cads.distributions_per_chromosome["chr2"].values()]
+        cads_list_chr3 = [cad for cad in cads.distributions_per_chromosome["chr3"].values()]
 
         # 87 common records (chr, pos)
         assert 119 == len(cads_list_chr1 + cads_list_chr2 + cads_list_chr3)

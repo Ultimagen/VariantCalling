@@ -1,11 +1,12 @@
+from __future__ import annotations
+
+import collections
 import itertools
 import pkgutil
 from os.path import dirname
 from os.path import join as pjoin
-from typing import Callable
 
 import numpy as np
-import pandas as pd
 import pysam
 
 
@@ -18,12 +19,11 @@ def runs_of_one(array, axis=None):
     if isinstance(array, np.ndarray):
         array = np.array(array)
     if not axis:
-        sh = [x for x in array.shape if x != 1]
-        if len(sh) != 1:
+        shapes = [x for x in array.shape if x != 1]
+        if len(shapes) != 1:
             raise RuntimeError("runs_of_one - too many non-singleton axes in array")
-        else:
-            array = np.squeeze(array).reshape(1, -1)
-            axis = 1
+        array = np.squeeze(array).reshape(1, -1)
+        axis = 1
     if axis != 1:
         array.reshape(array.shape[::-1])
     runs_of_ones = []
@@ -44,15 +44,15 @@ def runs_of_one(array, axis=None):
     return runs_of_ones
 
 
-def searchsorted2d(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+def searchsorted2d(ar_a: np.ndarray, ar_b: np.ndarray) -> np.ndarray:
     """
     Inserts ith element of b into sorted ith row of a
 
     Parameters
     ----------
-    a: np.ndarray
+    ar_a: np.ndarray
             rxc matrix, each rows is sorted
-    b: np.ndarray
+    ar_b: np.ndarray
             rx1 vector
 
     Returns
@@ -60,13 +60,13 @@ def searchsorted2d(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     np.ndarray
             rx1 vector of locations
     """
-    m, n = a.shape
-    b = b.ravel()
-    assert b.shape[0] == a.shape[0], "Number of values of b equal number of rows of a"
-    max_num = np.maximum(a.max() - a.min(), b.max() - b.min()) + 1
-    r = max_num * np.arange(a.shape[0])
-    p = np.searchsorted(((a.T + r).T).ravel(), b + r)
-    return p - n * np.arange(m)
+    dim1_a, dim2_a = ar_a.shape
+    ar_b = ar_b.ravel()
+    assert ar_b.shape[0] == ar_a.shape[0], "Number of values of array b equal number of rows of array a"
+    max_num = np.maximum(ar_a.max() - ar_a.min(), ar_b.max() - ar_b.min()) + 1
+    r_seq = max_num * np.arange(ar_a.shape[0])
+    indices = np.searchsorted(((ar_a.T + r_seq).T).ravel(), ar_b + r_seq)
+    return indices - dim2_a * np.arange(dim1_a)
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -117,16 +117,15 @@ def contig_lens_from_bam_header(bam_file: str, output_file: str):
     """
 
     with pysam.AlignmentFile(bam_file) as infile:
-        with open(output_file, "w") as outfile:
+        with open(output_file, "w", encoding="ascii") as outfile:
             lengths = infile.header.lengths
             contigs = infile.header.references
-            for c, l in zip(contigs, lengths):
-                outfile.write(f"{c}\t{l}\n")
+            for contig, length in zip(contigs, lengths):
+                outfile.write(f"{contig}\t{length}\n")
 
 
 def max_merits(specificity, recall):
-    """Finds ROC envelope from multiple sets of specificity and recall
-    """
+    """Finds ROC envelope from multiple sets of specificity and recall"""
     N = specificity.shape[0]
     ind_max = np.ones(N, np.bool)
     for j in range(N):
@@ -135,8 +134,8 @@ def max_merits(specificity, recall):
                 ind_max[j] = False
                 continue
     ind = np.where(ind_max)[0]
-    a = np.argsort(recall[ind])
-    return ind[a]
+    ind_sort_recall = np.argsort(recall[ind])
+    return ind[ind_sort_recall]
 
 
 def isin(pos: int, interval: tuple) -> bool:
@@ -153,7 +152,7 @@ def isin(pos: int, interval: tuple) -> bool:
     -------
     bool
     """
-    return pos >= interval[0] and pos < interval[1]
+    return interval[0] <= pos < interval[1]
 
 
 def find_scripts_path() -> str:
@@ -173,10 +172,10 @@ def find_scripts_path() -> str:
 
 
 def catch(
-    func: Callable,
+    func: collections.abc.Callable,
     *args,
     exception_type: Exception = Exception,
-    handle: Callable = lambda e: e,
+    handle: collections.abc.Callable = lambda e: e,
     **kwargs,
 ):
     """From https://stackoverflow.com/a/8915613 general wrapper that
@@ -197,5 +196,5 @@ def catch(
     """
     try:
         return func(*args, **kwargs)
-    except exception_type as e:
+    except exception_type as e:  # pylint: disable=broad-except
         return handle(e)

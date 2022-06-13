@@ -1,4 +1,6 @@
 # Functions to annotate/read operate on concordance dataframe
+from __future__ import annotations
+
 import os
 from collections import defaultdict
 from enum import Enum
@@ -8,9 +10,7 @@ import pandas as pd
 import pysam
 
 
-def get_vcf_df(
-    variant_calls: str, sample_id: int = 0, chromosome: str = None
-) -> pd.DataFrame:
+def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -> pd.DataFrame:
     """Reads VCF file into dataframe, re
 
     Parameters
@@ -28,34 +28,100 @@ def get_vcf_df(
     """
     header = pysam.VariantFile(variant_calls).header
     if chromosome is None:
-        vf = pysam.VariantFile(variant_calls)
+        variant_file = pysam.VariantFile(variant_calls)
 
     else:
-        vf = pysam.VariantFile(variant_calls).fetch(chromosome)
+        variant_file = pysam.VariantFile(variant_calls).fetch(chromosome)
+    # pylint: disable-next=bad-builtin
+    vfi = map(
+        lambda x: defaultdict(
+            lambda: None,
+            x.info.items()
+            + (x.samples[sample_id].items() if sample_id is not None else [])
+            + [
+                ("QUAL", x.qual),
+                ("CHROM", x.chrom),
+                ("POS", x.pos),
+                ("REF", x.ref),
+                ("ID", x.id),
+                ("ALLELES", x.alleles),
+                ("FILTER", ";".join(x.filter.keys())),
+            ],
+        ),
+        variant_file,
+    )
+    columns = [
+        "GT",
+        "PL",
+        "DP",
+        "AD",
+        "MQ",
+        "SOR",
+        "AF",
+        "DP_R",
+        "DP_F",
+        "AD_R",
+        "AD_F",
+        "TLOD",
+        "STRANDQ",
+        "FPR",
+        "GROUP",
+        "TREE_SCORE",
+        "VARIANT_TYPE",
+        "DB",
+        "AS_SOR",
+        "AS_SORP",
+        "FS",
+        "VQR_VAL",
+        "QD",
+        "hiConfDeNovo",
+        "loConfDeNovo",
+        "GQ",
+        "PGT",
+        "PID",
+        "PS",
+        "AC",
+        "AN",
+        "BaseQRankSum",
+        "ExcessHet",
+        "MLEAC",
+        "MLEAF",
+        "MQRankSum",
+        "ReadPosRankSum",
+        "XC",
+        "ID",
+        "GNOMAD_AF",
+        "NLOD",
+        "NALOD",
+        "X_IC",
+        "X_IL",
+        "X_HIL",
+        "X_HIN",
+        "X_LM",
+        "X_RM",
+        "X_GCC",
+        "X_CSS",
+        "RPA",
+        "RU",
+        "STR",
+        "AVERAGE_TREE_SCORE",
+        "VQSLOD",
+    ]
+    columns = [x for x in columns if x in header.info.keys() + header.formats.keys()] + [
+        "CHROM",
+        "POS",
+        "QUAL",
+        "REF",
+        "ALLELES",
+        "FILTER",
+        "ID",
+    ]
 
+    df = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[x.lower() for x in columns])
 
-    vfi = map(lambda x: defaultdict(lambda: None, x.info.items() +
-                                    (x.samples[sample_id].items() if sample_id is not None else []) +
-                                    [('QUAL', x.qual), ('CHROM', x.chrom), ('POS', x.pos), ('REF', x.ref), ('ID', x.id),
-                                     ('ALLELES', x.alleles), ('FILTER', ';'.join(x.filter.keys()))]), vf)
-    columns = ['GT', 'PL',
-               'DP', 'AD', 'MQ', 'SOR', 'AF',
-               'DP_R', 'DP_F', 'AD_R', 'AD_F', 'TLOD', 'STRANDQ', 'FPR', 'GROUP', 'TREE_SCORE',
-               'VARIANT_TYPE', 'DB', 'AS_SOR', 'AS_SORP', 'FS', 'VQR_VAL', 'QD',
-               "hiConfDeNovo", "loConfDeNovo",
-               'GQ', 'PGT', 'PID', 'PS', 'AC', 'AN', 'BaseQRankSum', 'ExcessHet', 'MLEAC', 'MLEAF',
-               'MQRankSum', 'ReadPosRankSum', 'XC', 'ID', 'GNOMAD_AF', 'NLOD', 'NALOD', 'X_IC',
-               'X_IL', 'X_HIL', 'X_HIN', 'X_LM', 'X_RM', 'X_GCC', 'X_CSS', 'RPA', 'RU', 'STR', 'AVERAGE_TREE_SCORE', 'VQSLOD']
-    columns = [x for x in columns if x in header.info.keys() + header.formats.keys()] + ['CHROM', 'POS', 'QUAL','REF', 'ALLELES','FILTER','ID']
-    df = pd.DataFrame([[x[y] for y in columns] for x in vfi],
-        columns=[x.lower() for x in columns])
+    df["indel"] = df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
 
-    df['indel'] = df['alleles'].apply(
-        lambda x: len(set(([len(y) for y in x]))) > 1)
-
-    df.index = [(x[1]['chrom'], x[1]['pos'])
-                            for x in df.iterrows()]
-
+    df.index = [(x[1]["chrom"], x[1]["pos"]) for x in df.iterrows()]
 
     return df
 
@@ -87,18 +153,16 @@ def add_info_tag_from_df(
         if info_format[0] not in hdr.info.keys():
             hdr.info.add(*info_format)
         with pysam.VariantFile(vcf_output_file, mode="w", header=hdr) as vcfout:
-            for r in vcfin:
-                val = df.loc[[(r.chrom, r.start + 1)]][column].values[0]
+            for row in vcfin:
+                val = df.loc[[(row.chrom, row.start + 1)]][column].values[0]
                 if val is None or val == "":
-                    vcfout.write(r)
+                    vcfout.write(row)
                 else:
-                    r.info[info_format[0]] = val
-                    vcfout.write(r)
+                    row.info[info_format[0]] = val
+                    vcfout.write(row)
 
 
-def get_region_around_variant(
-    vpos: int, vlocs: np.ndarray, region_size: int = 100
-) -> tuple:
+def get_region_around_variant(vpos: int, vlocs: np.ndarray, region_size: int = 100) -> tuple:
     """Finds a genomic region around `vpos` of length at
     least `region_size` bases. `vlocs` is a list of locations.
     There is no location from vlocs that falls inside the region
@@ -127,12 +191,8 @@ def get_region_around_variant(
     # clip for the cases when the variant is after all the variants and need
     # to be inserted at len(vlocs)
     while (
-        vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs)) - 1]
-        - initial_region[0]
-        < 10
-        and vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs)) - 1]
-        - initial_region[0]
-        >= 0
+        vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs)) - 1] - initial_region[0] < 10
+        and vlocs[np.clip(np.searchsorted(vlocs, initial_region[0]), 0, len(vlocs)) - 1] - initial_region[0] >= 0
     ):
         initial_region = (initial_region[0] - 10, initial_region[1])
 
@@ -142,21 +202,15 @@ def get_region_around_variant(
     # The second conditions is for the case np.searchsorted(vlocs,
     # initial_region[1]) == 0
     while (
-        initial_region[1]
-        - vlocs[np.clip(np.searchsorted(vlocs, initial_region[1]), 1, len(vlocs)) - 1]
-        < 10
-        and initial_region[1]
-        - vlocs[np.clip(np.searchsorted(vlocs, initial_region[1]), 1, len(vlocs)) - 1]
-        >= 0
+        initial_region[1] - vlocs[np.clip(np.searchsorted(vlocs, initial_region[1]), 1, len(vlocs)) - 1] < 10
+        and initial_region[1] - vlocs[np.clip(np.searchsorted(vlocs, initial_region[1]), 1, len(vlocs)) - 1] >= 0
     ):
         initial_region = (initial_region[0], initial_region[1] + 10)
 
     return initial_region
 
 
-def get_variants_from_region(
-    variant_df: pd.DataFrame, region: tuple, max_n_variants: int = 10
-) -> pd.DataFrame:
+def get_variants_from_region(variant_df: pd.DataFrame, region: tuple, max_n_variants: int = 10) -> pd.DataFrame:
     """Returns variants from `variant_df` contained in the `region`
 
     Parameters
@@ -178,11 +232,11 @@ def get_variants_from_region(
     variants = variant_df.iloc[np.arange(*inspoints), :]
     if variants.shape[0] <= max_n_variants:
         return variants
-    else:
-        center = (inspoints[1] - inspoints[0]) / 2
-        distance = np.abs(variants.pos - center)
-        take = np.argsort(distance)[:max_n_variants]
-        return variants.iloc[take, :]
+
+    center = (inspoints[1] - inspoints[0]) / 2
+    distance = np.abs(variants.pos - center)
+    take = np.argsort(distance)[:max_n_variants]
+    return variants.iloc[take, :]
 
 
 # Colors of the Bed
@@ -206,10 +260,7 @@ class FilterWrapper:
     # We consider them also as fn
     def get_fn(self):
         if "filter" in self.df.columns:
-            self.df = self.df[
-                (self.df["classify"] == "fn")
-                | ((self.df["classify"] == "tp") & (~self.filtering()))
-            ]
+            self.df = self.df[(self.df["classify"] == "fn") | ((self.df["classify"] == "tp") & (~self.filtering()))]
         else:
             self.df = self.df[(self.df["classify"] == "fn")]
         return self
@@ -223,25 +274,19 @@ class FilterWrapper:
         return self
 
     def get_fp_diff(self):
-        self.df = self.df[
-            (self.df["classify"] == "tp") & (self.df["classify_gt"] == "fp")
-        ]
+        self.df = self.df[(self.df["classify"] == "tp") & (self.df["classify_gt"] == "fp")]
         return self
 
     def get_fn_diff(self):
-        self.df = self.df[
-            ((self.df["classify"] == "tp") & (self.df["classify_gt"] == "fn"))
-        ]
+        self.df = self.df[((self.df["classify"] == "tp") & (self.df["classify_gt"] == "fn"))]
         return self
 
-    def get_SNP(self):
-        self.df = self.df[self.df["indel"] == False]
+    def get_snp(self):
+        self.df = self.df[~self.df["indel"]]
         return self
 
     def get_h_mer(self, val_start: int = 1, val_end: int = 999):
-        self.df = self.df[
-            (self.df["hmer_indel_length"] >= val_start) & (self.df["indel"] == True)
-        ]
+        self.df = self.df[(self.df["hmer_indel_length"] >= val_start) & (self.df["indel"] is True)]
         self.df = self.df[(self.df["hmer_indel_length"] <= val_end)]
         return self
 
@@ -251,17 +296,13 @@ class FilterWrapper:
     # called non-hmer indel
     def get_non_h_mer(self):
         self.df = self.df[
-            (self.df["hmer_indel_length"] == 0)
-            & (self.df["indel"] == True)
-            & (self.df["indel_length"] > 1)
+            (self.df["hmer_indel_length"] == 0) & (self.df["indel"] is True) & (self.df["indel_length"] > 1)
         ]
         return self
 
     def get_h_mer_0(self):
         self.df = self.df[
-            (self.df["hmer_indel_length"] == 0)
-            & (self.df["indel"] == True)
-            & (self.df["indel_length"] == 1)
+            (self.df["hmer_indel_length"] == 0) & (self.df["indel"] is True) & (self.df["indel_length"] == 1)
         ]
         return self
 
@@ -284,14 +325,11 @@ class FilterWrapper:
 
     # for fp, we filter out all the low_score points, and color the lower 10% of them
     # in grey and the others in blue
-    def filtering_fp(self):
+    def filtering_fp(self) -> bool:
 
         if "tree_score" not in self.df.columns:
             self.df["tree_score"] = 1
-        if (
-            not pd.isnull(self.df["tree_score"]).all()
-            and pd.isnull(self.df["tree_score"]).any()
-        ):
+        if not pd.isnull(self.df["tree_score"]).all() and pd.isnull(self.df["tree_score"]).any():
             self.df.loc[pd.isnull(self.df["tree_score"]), "tree_score"] = 1
         do_filtering = (
             "filter" in self.df.columns
@@ -308,19 +346,19 @@ class FilterWrapper:
 
         tree_score_column = self.df["tree_score"]
         if len(tree_score_column) > 0:
-            p = np.nanpercentile(tree_score_column, 10)
+            p_val = np.nanpercentile(tree_score_column, 10)
         else:
-            p = 0
+            p_val = 0
         # 10% of the points should be grey
-        return tree_score_column > p
+        return tree_score_column > p_val
 
     # converts the h5 format to the BED format
-    def BED_format(self, kind=None):
+    def bed_format(self, kind: str | None = None):
         do_filtering = "filter" in self.df.columns
 
         if do_filtering:
             if kind == "fp":
-                rgb_color = self.filtering_fp()
+                rgb_color: pd.Series = self.filtering_fp()
             else:
                 rgb_color = self.filtering()
             if kind == "fn":
@@ -345,9 +383,10 @@ class FilterWrapper:
 
         # decide the color by filter column
         if do_filtering:
-            rgb_color[rgb_color] = FilteringColors.CLEAR.value
+            fill_rgb = rgb_color.to_numpy()
+            rgb_color[fill_rgb] = FilteringColors.CLEAR.value
             rgb_color[blacklist_color] = FilteringColors.BLACKLIST.value
-            rgb_color[rgb_color == False] = FilteringColors.BORDERLINE.value
+            rgb_color[~fill_rgb] = FilteringColors.BORDERLINE.value
             rgb_color = list(rgb_color)
             self.df["score"] = 500
             self.df["strand"] = "."
@@ -370,16 +409,14 @@ class FilterWrapper:
         return self
 
 
-def bed_files_output(
-    data: pd.DataFrame, output_file: str, mode: str = "w", create_gt_diff: bool = True
-) -> None:
+def bed_files_output(data: pd.DataFrame, output_file: str, mode: str = "w", create_gt_diff: bool = True) -> None:
     """
     Create a set of bed file tracks that are often used in the
     debugging and the evaluation of the variant calling results
 
     Parameters
     ----------
-    df : pd.DataFrame
+    data : pd.DataFrame
         Concordance dataframe
     output_file: str
         Output file (extension will be split out and the result will serve as output prefix)
@@ -387,103 +424,53 @@ def bed_files_output(
         Output file open mode ('w' or 'a')
     create_gt_diff: bool
         Create genotype diff files (False for Mutect, True for HC)
-
-    Returns
-    -------
-    None
     """
-
+    # pylint: disable-next=unused-variable
     basename, file_extension = os.path.splitext(output_file)
 
     # SNP filtering
     # fp
-    snp_fp = FilterWrapper(data).get_SNP().get_fp().BED_format(kind="fp").get_df()
+    snp_fp = FilterWrapper(data).get_snp().get_fp().bed_format(kind="fp").get_df()
     # fn
-    snp_fn = FilterWrapper(data).get_SNP().get_fn().BED_format(kind="fn").get_df()
+    snp_fn = FilterWrapper(data).get_snp().get_fn().bed_format(kind="fn").get_df()
 
     # Diff filtering
     if create_gt_diff:
         # fp
-        all_fp_diff = FilterWrapper(data).get_fp_diff().BED_format(kind="fp").get_df()
+        all_fp_diff = FilterWrapper(data).get_fp_diff().bed_format(kind="fp").get_df()
         # fn
-        all_fn_diff = FilterWrapper(data).get_fn_diff().BED_format(kind="fn").get_df()
+        all_fn_diff = FilterWrapper(data).get_fn_diff().bed_format(kind="fn").get_df()
 
     # Hmer filtering
     # 1 to 3
     # fp
-    hmer_fp_1_3 = (
-        FilterWrapper(data)
-        .get_h_mer(val_start=1, val_end=3)
-        .get_fp()
-        .BED_format(kind="fp")
-        .get_df()
-    )
+    hmer_fp_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fp().bed_format(kind="fp").get_df()
     # fn
-    hmer_fn_1_3 = (
-        FilterWrapper(data)
-        .get_h_mer(val_start=1, val_end=3)
-        .get_fn()
-        .BED_format(kind="fn")
-        .get_df()
-    )
+    hmer_fn_1_3 = FilterWrapper(data).get_h_mer(val_start=1, val_end=3).get_fn().bed_format(kind="fn").get_df()
 
     # 4 until 7
     # fp
-    hmer_fp_4_7 = (
-        FilterWrapper(data)
-        .get_h_mer(val_start=4, val_end=7)
-        .get_fp()
-        .BED_format(kind="fp")
-        .get_df()
-    )
+    hmer_fp_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fp().bed_format(kind="fp").get_df()
     # fn
-    hmer_fn_4_7 = (
-        FilterWrapper(data)
-        .get_h_mer(val_start=4, val_end=7)
-        .get_fn()
-        .BED_format(kind="fn")
-        .get_df()
-    )
+    hmer_fn_4_7 = FilterWrapper(data).get_h_mer(val_start=4, val_end=7).get_fn().bed_format(kind="fn").get_df()
 
     # 18 and more
     # fp
-    hmer_fp_8_end = (
-        FilterWrapper(data)
-        .get_h_mer(val_start=8)
-        .get_fp()
-        .BED_format(kind="fp")
-        .get_df()
-    )
+    hmer_fp_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fp().bed_format(kind="fp").get_df()
     # fn
-    hmer_fn_8_end = (
-        FilterWrapper(data)
-        .get_h_mer(val_start=8)
-        .get_fn()
-        .BED_format(kind="fn")
-        .get_df()
-    )
+    hmer_fn_8_end = FilterWrapper(data).get_h_mer(val_start=8).get_fn().bed_format(kind="fn").get_df()
 
     # non-Hmer filtering
     # fp
-    non_hmer_fp = (
-        FilterWrapper(data).get_non_h_mer().get_fp().BED_format(kind="fp").get_df()
-    )
+    non_hmer_fp = FilterWrapper(data).get_non_h_mer().get_fp().bed_format(kind="fp").get_df()
     # fn
-    non_hmer_fn = (
-        FilterWrapper(data).get_non_h_mer().get_fn().BED_format(kind="fn").get_df()
-    )
+    non_hmer_fn = FilterWrapper(data).get_non_h_mer().get_fn().bed_format(kind="fn").get_df()
 
-    hmer_0_fp = (
-        FilterWrapper(data).get_h_mer_0().get_fp().BED_format(kind="fp").get_df()
-    )
+    hmer_0_fp = FilterWrapper(data).get_h_mer_0().get_fp().bed_format(kind="fp").get_df()
     # fn
-    hmer_0_fn = (
-        FilterWrapper(data).get_h_mer_0().get_fn().BED_format(kind="fn").get_df()
-    )
+    hmer_0_fn = FilterWrapper(data).get_h_mer_0().get_fn().bed_format(kind="fn").get_df()
 
-    def save_bed_file(
-        file: pd.DataFrame, basename: str, curr_name: str, mode: str
-    ) -> None:
+    def save_bed_file(file: pd.DataFrame, basename: str, curr_name: str, mode: str) -> None:
         if file.shape[0] > 0:
             file.to_csv(
                 (basename + "_" + f"{curr_name}.bed"),
@@ -515,4 +502,7 @@ def bed_files_output(
 
 
 def isin(pos, interval):
-    return pos > interval[0] and pos < interval[1]
+    out_pos = pos
+    out_pos = out_pos > interval[0]
+    out_pos = out_pos < interval[1]
+    return out_pos

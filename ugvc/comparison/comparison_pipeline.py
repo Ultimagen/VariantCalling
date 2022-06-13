@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 import shutil
 from os.path import basename, dirname
 from os.path import join as pjoin
 from os.path import splitext
-from typing import Optional, Tuple
 
 from ugvc.comparison import vcf_pipeline_utils
 
 CONCORDANCE_TOOL = "VCFEVAL"
 
 
-def pipeline(
+def pipeline(  # pylint: disable=too-many-arguments
     n_parts: int,
     input_prefix: str,
     truth_file: str,
@@ -18,14 +19,14 @@ def pipeline(
     ref_genome: str,
     call_sample: str,
     truth_sample: str,
-    output_dir: Optional[str] = None,
-    output_file_name: Optional[str] = None,
-    header: Optional[str] = None,
-    runs_intervals: Optional[vcf_pipeline_utils.IntervalFile] = None,
-    output_suffix: Optional[str] = None,
+    output_dir: str | None = None,
+    output_file_name: str | None = None,
+    header: str | None = None,
+    runs_intervals: vcf_pipeline_utils.IntervalFile | None = None,
+    output_suffix: str | None = None,
     ignore_filter: bool = False,
     concordance_tool: str = CONCORDANCE_TOOL,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     """
     Run comparison between the two sets of calls: input_prefix and truth_file. Creates
     a combined call file and a concordance VCF by either of the concordance tools
@@ -86,9 +87,7 @@ def pipeline(
     if not output_suffix:
         output_fn = pjoin(output_dir, input_prefix_basename + ".vcf.gz")
     else:
-        output_fn = pjoin(
-            output_dir, input_prefix_basename + f".{output_suffix}.vcf.gz"
-        )
+        output_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.vcf.gz")
     if n_parts > 0:
         vcf_pipeline_utils.combine_vcf(n_parts, input_prefix, output_fn)
     else:
@@ -97,9 +96,7 @@ def pipeline(
     if not output_suffix:
         reheader_fn = pjoin(output_dir, input_prefix_basename + ".rhdr.vcf.gz")
     else:
-        reheader_fn = pjoin(
-            output_dir, input_prefix_basename + f".{output_suffix}.rhdr.vcf.gz"
-        )
+        reheader_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.rhdr.vcf.gz")
 
     if header is not None:
         vcf_pipeline_utils.reheader_vcf(output_fn, header, reheader_fn)
@@ -108,13 +105,9 @@ def pipeline(
         shutil.copy(".".join((output_fn, "tbi")), ".".join((reheader_fn, "tbi")))
 
     if not output_suffix:
-        select_intervals_fn = pjoin(
-            output_dir, input_prefix_basename + ".intsct.vcf.gz"
-        )
+        select_intervals_fn = pjoin(output_dir, input_prefix_basename + ".intsct.vcf.gz")
     else:
-        select_intervals_fn = pjoin(
-            output_dir, input_prefix_basename + f".{output_suffix}.intsct.vcf.gz"
-        )
+        select_intervals_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.intsct.vcf.gz")
 
     if not cmp_intervals.is_none():
         vcf_pipeline_utils.intersect_with_intervals(
@@ -125,9 +118,7 @@ def pipeline(
         vcf_pipeline_utils.index_vcf(select_intervals_fn)
 
     if output_file_name is None:
-        output_prefix = select_intervals_fn[
-            : select_intervals_fn.index(".intsct.vcf.gz")
-        ]
+        output_prefix = select_intervals_fn[: select_intervals_fn.index(".intsct.vcf.gz")]
     else:
         output_prefix = splitext(output_file_name)[0]
 
@@ -174,8 +165,8 @@ def pipeline(
             select_intervals_fn.replace("vcf.gz", "runs.vcf.gz"),
             output_prefix + ".runs.vcf.gz",
         )
-    else:
-        return (
-            select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"),
-            output_prefix + ".highconf.vcf.gz",
-        )
+    #   If runs_intervals is none:
+    return (
+        select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz"),
+        output_prefix + ".highconf.vcf.gz",
+    )

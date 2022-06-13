@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 try:
     import mpld3
-except ImportError as error:
+except ImportError:
     print("WARNING: mpld3 not available")
     MPLD3 = False
     pass
@@ -15,7 +15,7 @@ else:
 EXTS = ["png", "html", "json"]
 
 
-def fname(fname, outdir=""):
+def realpath(fname, outdir=""):
     """
     generates full filepath; creates directory when necessary
 
@@ -28,13 +28,14 @@ def fname(fname, outdir=""):
     elif not os.path.exists(outdir):
         try:
             os.mkdir(outdir)
-        except:
+        except OSError:
             print(f"Could not create {outdir} directory")
 
     if os.path.isdir(outdir):
         return os.path.join(outdir, fname)
-    else:
-        print(f"{outdir} is somehow not a directory")
+
+    print(f"{outdir} is somehow not a directory")
+    return fname
 
 
 def save(fig, fspec, ext="", outdir="", verbose=False):
@@ -48,30 +49,29 @@ def save(fig, fspec, ext="", outdir="", verbose=False):
     outdir : output directory (applies when `fpsec` is a file basename)
     """
 
-    fn = ""
+    output_fn = ""
     if any(fspec.endswith(f".{x}") for x in EXTS):
-        fn = fspec
+        output_fn = fspec
+    elif any(ext is x for x in EXTS):
+        output_fn = realpath(f"{fspec}.{ext}", outdir=outdir)
     else:
-        if any(ext is x for x in EXTS):
-            fn = fname(f"{fspec}.{ext}", outdir=outdir)
-        else:
-            ext = ext or fspec.split(".")[-1]
-            print(f"Unrecognized extension: {ext}")
+        ext = ext or fspec.split(".")[-1]
+        print(f"Unrecognized extension: {ext}")
 
     if verbose:
-        print(fn)
+        print(output_fn)
 
-    if fn.endswith(".png"):
-        plt.savefig(fn)
-    elif fn.endswith(".json") or fn.endswith(".html"):
+    if output_fn.endswith(".png"):
+        plt.savefig(output_fn)
+    elif output_fn.endswith(".json") or output_fn.endswith(".html"):
         if MPLD3:
             try:
-                if ".json" in fn:
-                    mpld3.save_json(fig, fn)
+                if ".json" in output_fn:
+                    mpld3.save_json(fig, output_fn)
                 else:
-                    mpld3.save_html(fig, fn)
-            except Exception as ex:
-                print(f"Cannot save {fn}")
+                    mpld3.save_html(fig, output_fn)
+            except OSError as ex:
+                print(f"Cannot save {output_fn}")
                 print(repr(ex))
                 pass
 

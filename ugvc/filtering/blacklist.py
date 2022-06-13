@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import ast
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -7,7 +9,7 @@ import pandas as pd
 from ugvc.filtering.variant_filtering_utils import VariantSelectionFunctions
 
 
-class Blacklist(object):
+class Blacklist:
     """
     Class that stores the blacklist.
 
@@ -27,9 +29,7 @@ class Blacklist(object):
     selection_fcn: Callable
     """
 
-    def __init__(
-        self, blacklist: set, annotation: str, selection_fcn: Callable, description: str
-    ):
+    def __init__(self, blacklist: set, annotation: str, selection_fcn: Callable, description: str):
         self.blacklist = blacklist
         self.annotation = annotation
         self.selection_fcn = selection_fcn
@@ -57,12 +57,10 @@ class Blacklist(object):
         return result
 
     def __str__(self):
-        return (
-            f"{self.annotation}: {self.description} with {len(self.blacklist)} elements"
-        )
+        return f"{self.annotation}: {self.description} with {len(self.blacklist)} elements"
 
 
-def merge_blacklists(blacklists: list) -> Optional[pd.Series]:
+def merge_blacklists(blacklists: list) -> pd.Series | None:
     """Combines blacklist annotations from multiple blacklists. Note that the merge
     does not make annotations unique and does not remove PASS from failed annotations
 
@@ -78,7 +76,7 @@ def merge_blacklists(blacklists: list) -> Optional[pd.Series]:
     """
     if len(blacklists) == 0:
         return None
-    elif len(blacklists) == 1:
+    if len(blacklists) == 1:
         return blacklists[0]
 
     concat = blacklists[0].str.cat(blacklists[1:], sep=";", na_rep="PASS")
@@ -105,9 +103,7 @@ def blacklist_cg_insertions(df: pd.DataFrame) -> pd.Series:
     return blank
 
 
-def create_blacklist_statistics_table(
-    df: pd.DataFrame, classify_column: str
-) -> pd.DataFrame:
+def create_blacklist_statistics_table(df: pd.DataFrame, classify_column: str) -> pd.DataFrame:
     """
     Creates a table in the following format:
     #dbsnp
@@ -133,9 +129,7 @@ def create_blacklist_statistics_table(
     )
 
 
-def load_blacklist_from_bed(
-    bed_path: str, with_alleles: bool, description: str = None
-) -> Blacklist:
+def load_blacklist_from_bed(bed_path: str, with_alleles: bool, description: str = None) -> Blacklist:
     """
     @param bed_path: path to blacklist bed file
     @param with_alleles: whether bed file has alleles column, currently IGNORE it
@@ -143,12 +137,8 @@ def load_blacklist_from_bed(
     @return: blacklist object
     """
     if with_alleles:
-        exclude_list_df = pd.read_csv(
-            bed_path, sep="\t", names=["chrom", "pos-1", "pos", "alleles"]
-        )
-        exclude_list_df["alleles"] = exclude_list_df["alleles"].apply(
-            lambda x: np.array(ast.literal_eval(x))
-        )
+        exclude_list_df = pd.read_csv(bed_path, sep="\t", names=["chrom", "pos-1", "pos", "alleles"])
+        exclude_list_df["alleles"] = exclude_list_df["alleles"].apply(lambda x: np.array(ast.literal_eval(x)))
         exclude_list_df.index = zip(exclude_list_df["chrom"], exclude_list_df["pos"])
 
         blacklist = Blacklist(
@@ -158,9 +148,7 @@ def load_blacklist_from_bed(
             description=description,
         )
     else:
-        exclude_list_df = pd.read_csv(
-            bed_path, sep="\t", names=["chrom", "pos-1", "pos"]
-        )
+        exclude_list_df = pd.read_csv(bed_path, sep="\t", names=["chrom", "pos-1", "pos"])
         exclude_list_df.index = zip(exclude_list_df["chrom"], exclude_list_df["pos_1"])
         blacklist = Blacklist(
             set(exclude_list_df.index),

@@ -39,11 +39,11 @@ class TestCorrectSystematicErrors:
                 sec_types[sec_type] += 1
             else:
                 sec_types[sec_type] = 1
-            if sec_type == SECCallType.known.value:
+            if sec_type == SECCallType.KNOWN.value:
                 known_variants.add(record.pos)
-            elif sec_type == SECCallType.novel.value:
+            elif sec_type == SECCallType.NOVEL.value:
                 novel_variants.add(record.pos)
-            elif sec_type == SECCallType.unobserved.value:
+            elif sec_type == SECCallType.UNOBSERVED.value:
                 unobserved_noise_sites.add(record.pos)
 
         assert {
@@ -112,16 +112,12 @@ class TestCorrectSystematicErrors:
         # FP
         assert {119471049, 119471038, 119471054} == known_variants.difference(positives)
         assert {41332392, 158829546} == unobserved_noise_sites.difference(positives)
-        assert {35995512, 131838289, 144504645, 2372430} == novel_variants.difference(
-            positives
-        )
+        assert {35995512, 131838289, 144504645, 2372430} == novel_variants.difference(positives)
 
         # FN
         assert 2 == len(
             positives.difference(
-                positives.intersection(
-                    novel_variants.union(known_variants).union(unobserved_noise_sites)
-                )
+                positives.intersection(novel_variants.union(known_variants).union(unobserved_noise_sites))
             )
         )
 
@@ -152,11 +148,11 @@ class TestCorrectSystematicErrors:
                 sec_types[sec_type] += 1
             else:
                 sec_types[sec_type] = 1
-            if sec_type == SECCallType.known.value:
+            if sec_type == SECCallType.KNOWN.value:
                 known_variants.add(record.pos)
-            elif sec_type == SECCallType.novel.value:
+            elif sec_type == SECCallType.NOVEL.value:
                 novel_variants.add(record.pos)
-            elif sec_type == SECCallType.unobserved.value:
+            elif sec_type == SECCallType.UNOBSERVED.value:
                 unobserved_noise_sites.add(record.pos)
 
         assert {"reference": 936, "unobserved": 2} == sec_types

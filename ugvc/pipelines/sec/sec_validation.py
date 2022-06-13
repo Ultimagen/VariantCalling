@@ -22,8 +22,8 @@ import sys
 from simppl.cli import get_parser
 from simppl.simple_pipeline import SimplePipeline
 
-from ugvc.sec.sec_pipeline_utils import extract_relevant_gvcfs, read_sec_pipelines_inputs_table
 from ugvc import base_dir as ugvc_pkg
+from ugvc.sec.sec_pipeline_utils import extract_relevant_gvcfs, read_sec_pipelines_inputs_table
 
 
 def parse_args(argv):
@@ -49,10 +49,12 @@ def parse_args(argv):
         required=True,
         help="Reference genome file",
     )
+    parser.add_argument("--processes", default=5, type=int, help="number of parallel processes to run")
     parser.add_argument(
-        "--processes", default=5, type=int, help="number of parallel processes to run"
+        "--hcr",
+        required=True,
+        help="hcr for assess_sec_concordance (runs.convervative.bed)",
     )
-    parser.add_argument("--hcr", required=True, help="hcr for assess_sec_concordance (runs.convervative.bed)")
     parser.add_argument(
         "--use_known_variants_info",
         default=False,
@@ -84,9 +86,7 @@ def run(argv):
     gvcf_files = list(inputs_table["gvcf"])
     comp_h5_files = list(inputs_table["comp_h5"])
 
-    sp = SimplePipeline(
-        start=args.fc, end=args.lc, debug=args.d, output_stream=sys.stdout
-    )
+    simple_pipline = SimplePipeline(start=args.fc, end=args.lc, debug=args.d, output_stream=sys.stdout)
 
     test_commands = []
     assess_commands = []
@@ -94,13 +94,14 @@ def run(argv):
     os.makedirs(f"{out_dir}/correction{novel_detection_suffix}", exist_ok=True)
     os.makedirs(f"{out_dir}/assessment{novel_detection_suffix}", exist_ok=True)
 
-    relevant_gvcf_files = \
-        extract_relevant_gvcfs(sample_ids=sample_ids,
-                               gvcf_files=gvcf_files,
-                               out_dir=out_dir,
-                               relevant_coords_file=relevant_coords_file,
-                               sp=sp,
-                               processes=processes)
+    relevant_gvcf_files = extract_relevant_gvcfs(
+        sample_ids=sample_ids,
+        gvcf_files=gvcf_files,
+        out_dir=out_dir,
+        relevant_coords_file=relevant_coords_file,
+        simple_pipeline=simple_pipline,
+        processes=processes,
+    )
 
     for sample_id, relevant_gvcf, comparison_table in zip(sample_ids, relevant_gvcf_files, comp_h5_files):
         sec_vcf = f"{out_dir}/correction{novel_detection_suffix}/{sample_id}.vcf.gz"
@@ -109,17 +110,19 @@ def run(argv):
             test_commands.append(
                 f"python {ugvc_pkg} correct_systematic_errors "
                 f"--relevant_coords {relevant_coords_file} "
-                f"--model \"{model}\" "
+                f'--model "{model}" '
                 f"--gvcf {relevant_gvcf} "
                 f"--output_file {sec_vcf} "
-                "--novel_detection_only")
+                "--novel_detection_only"
+            )
         else:
             test_commands.append(
                 f"python {ugvc_pkg} correct_systematic_errors "
                 f"--relevant_coords {relevant_coords_file} "
-                f"--model \"{model}\" "
+                f'--model "{model}" '
                 f"--gvcf {relevant_gvcf} "
-                f"--output_file {sec_vcf}")
+                f"--output_file {sec_vcf}"
+            )
 
         assess_commands.append(
             f"python {ugvc_pkg} assess_sec_concordance "
@@ -131,8 +134,8 @@ def run(argv):
             f"--output_prefix {out_dir}/assessment{novel_detection_suffix}/{sample_id}"
         )
 
-    sp.run_parallel(test_commands, max_num_of_processes=args.processes)
-    sp.run_parallel(assess_commands, max_num_of_processes=args.processes)
+    simple_pipline.run_parallel(test_commands, max_num_of_processes=args.processes)
+    simple_pipline.run_parallel(assess_commands, max_num_of_processes=args.processes)
 
 
 if __name__ == "__main__":

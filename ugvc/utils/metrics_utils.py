@@ -1,7 +1,10 @@
 import json
+import re
 
 import numpy as np
 import pandas as pd
+
+from ugvc import logger
 
 
 def get_h5_keys(h5_filename: str):
@@ -11,8 +14,9 @@ def get_h5_keys(h5_filename: str):
 
 
 def should_skip_h5_key(key: str, ignored_h5_key_substring: str):
-    if ignored_h5_key_substring is not None:
-        return ignored_h5_key_substring in key
+    if ignored_h5_key_substring is None:
+        return None
+    return ignored_h5_key_substring in key
 
 
 def preprocess_h5_key(key: str):
@@ -24,22 +28,18 @@ def preprocess_h5_key(key: str):
 
 def preprocess_columns(dataframe):
     """Handle multiIndex/ hierarchical .h5 - concatenate the columns for using it as single string in JSON."""
+
+    def flatten_multi_index(col, separator):
+        flat = separator.join(col)
+        flat = re.sub(f"{separator}$", "", flat)
+        return flat
+
     if hasattr(dataframe, "columns"):
-        MULTI_INDEX_SEPARATOR = "___"
         if isinstance(dataframe.columns, pd.core.indexes.multi.MultiIndex):
-            dataframe.columns = [
-                MULTI_INDEX_SEPARATOR.join(col).rstrip(MULTI_INDEX_SEPARATOR)
-                for col in dataframe.columns.values
-            ]
+            dataframe.columns = [flatten_multi_index(col, "___") for col in dataframe.columns.values]
 
 
-def log(str: str):
-    print(str)
-
-
-def convert_h5_to_json(
-    input_h5_filename: str, root_element: str, ignored_h5_key_substring: str
-):
+def convert_h5_to_json(input_h5_filename: str, root_element: str, ignored_h5_key_substring: str):
     """Convert an .h5 metrics file to .json with control over the root element and the processing
 
     Parameters
@@ -64,9 +64,9 @@ def convert_h5_to_json(
     h5_keys = get_h5_keys(input_h5_filename)
     for h5_key in h5_keys:
         if should_skip_h5_key(h5_key, ignored_h5_key_substring):
-            log(f"Skipping: {h5_key}")
+            logger.warning("Skipping: %s", h5_key)
             continue
-        log(f"Processing: {h5_key}")
+        logger.info("Processing: %s", h5_key)
         df = pd.read_hdf(input_h5_filename, h5_key)
         preprocess_columns(df)
         df_to_json = df.to_json(orient="table")
@@ -79,7 +79,7 @@ def convert_h5_to_json(
 
 def parse_md_file(md_file):
     """Parses mark duplicate Picard output"""
-    with open(md_file) as infile:
+    with open(md_file, encoding="ascii") as infile:
         out = next(infile)
         while not out.startswith("## METRICS CLASS\tpicard.sam.DuplicationMetrics"):
             out = next(infile)
@@ -105,7 +105,7 @@ def parse_cvg_metrics(metric_file):
     res3 : pd.DataFrame
         Picard Histogram output
     """
-    with open(metric_file) as infile:
+    with open(metric_file, encoding="ascii") as infile:
         out = next(infile)
         while not out.startswith("## METRICS CLASS"):
             out = next(infile)
@@ -113,7 +113,7 @@ def parse_cvg_metrics(metric_file):
         res1 = out.strip().split("\t")[1].split(".")[-1]
         res2 = pd.read_csv(infile, sep="\t", nrows=1)
     try:
-        with open(metric_file) as infile:
+        with open(metric_file, encoding="ascii") as infile:
             out = next(infile)
             while not out.startswith("## HISTOGRAM\tjava.lang.Integer"):
                 out = next(infile)
@@ -126,11 +126,9 @@ def parse_cvg_metrics(metric_file):
 
 def parse_alignment_metrics(alignment_file):
     """Parses Picard alignment_summary_metrics file"""
-    with open(alignment_file) as infile:
+    with open(alignment_file, encoding="ascii") as infile:
         out = next(infile)
-        while not out.startswith(
-            "## METRICS CLASS\tpicard.analysis.AlignmentSummaryMetrics"
-        ):
+        while not out.startswith("## METRICS CLASS\tpicard.analysis.AlignmentSummaryMetrics"):
             out = next(infile)
 
         res1 = pd.read_csv(infile, sep="\t", nrows=1)

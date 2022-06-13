@@ -1,20 +1,22 @@
-from typing import Union
+from __future__ import annotations
 
 import numpy as np
 import pyfaidx
 
+# from typing import Union
 
-def revcomp(seq: str) -> Union[str, list, np.ndarray]:
+
+def revcomp(seq: str | list | np.ndarray) -> str | list | np.ndarray:
     """Reverse complements DNA given as string
 
     Parameters
     ----------
-    seq: str
+    seq: Union[str,list,np.ndarray]
         DNA string
 
     Returns
     -------
-    str
+    str | list | np.ndarray
     """
     complement = {
         "A": "T",
@@ -27,15 +29,11 @@ def revcomp(seq: str) -> Union[str, list, np.ndarray]:
         "t": "a",
     }
     if isinstance(seq, str):
-        reverse_complement = "".join(
-            complement.get(base, base) for base in reversed(seq)
-        )
+        reverse_complement = "".join(complement.get(base, base) for base in reversed(seq))
     elif isinstance(seq, list):
         reverse_complement = [complement.get(base, base) for base in reversed(seq)]
     elif isinstance(seq, np.ndarray):
-        reverse_complement = np.array(
-            [complement.get(base, base) for base in reversed(seq)]
-        )
+        reverse_complement = np.array([complement.get(base, base) for base in reversed(seq)])
 
     return reverse_complement
 
@@ -77,4 +75,4 @@ def get_chr_sizes(sizes_file: str) -> dict:
         Dictionary from name to size
     """
 
-    return dict([x.strip().split() for x in open(sizes_file)])
+    return dict([x.strip().split() for x in open(sizes_file, encoding="ascii")])

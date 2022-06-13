@@ -3,10 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from ugvc.comparison.concordance_utils import (
-    calc_accuracy_metrics,
-    calc_recall_precision_curve,
-)
+from ugvc.comparison.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve
 from ugvc.utils.stats_utils import get_f1
 
 
@@ -51,9 +48,7 @@ class TestConcordanceUtils(unittest.TestCase):
             expected_hmer_indel_lt_4,
             accuracy_df[accuracy_df["group"] == "HMER indel <= 4"].to_dict(),
         )
-        self.assertEqual(
-            expected_indels, accuracy_df[accuracy_df["group"] == "INDELS"].to_dict()
-        )
+        self.assertEqual(expected_indels, accuracy_df[accuracy_df["group"] == "INDELS"].to_dict())
 
     def test_calc_accuracy_metrics_with_non_passing_rows(self):
         """
@@ -94,9 +89,7 @@ class TestConcordanceUtils(unittest.TestCase):
         for expected_key, expected_value in expected.items():
             expected_snps[expected_key] = {0: expected_value[0]}
 
-        self.assertEqual(
-            expected_snps, accuracy_df[accuracy_df["group"] == "SNP"].to_dict()
-        )
+        self.assertEqual(expected_snps, accuracy_df[accuracy_df["group"] == "SNP"].to_dict())
 
     def test_calc_recall_precision_curve(self):
         """
@@ -150,6 +143,4 @@ class TestConcordanceUtils(unittest.TestCase):
             expected_hmer_indel_lt_4,
             accuracy_df[accuracy_df["group"] == "HMER indel <= 4"].to_dict(),
         )
-        self.assertEqual(
-            expected_indels, accuracy_df[accuracy_df["group"] == "INDELS"].to_dict()
-        )
+        self.assertEqual(expected_indels, accuracy_df[accuracy_df["group"] == "INDELS"].to_dict())

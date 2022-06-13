@@ -18,7 +18,7 @@ logger.addHandler(ch)
 
 base_dir = dirname(__file__)
 
-paths = [f'{dirname(dirname(__file__))}']
+paths = [f"{dirname(dirname(__file__))}"]
 for path in paths:
     if path not in sys.path:
         sys.path.append(path)
