@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="ugvc",
@@ -24,13 +24,16 @@ setup(
         "ugvc/pipelines/run_no_gt_report.py",
         "ugvc/pipelines/sec/correct_systematic_errors.py",
         "ugvc/pipelines/sec/sec_training.py",
-        "ugvc/scripts/convert_h5_to_json.py"
+        "ugvc/scripts/convert_h5_to_json.py",
     ],
-    package_data={'ugvc': [
-        "bash/run_ucsc_command.sh",
-        "bash/remove_vcf_duplicates.sh",
-        "bash/remove_empty_files.sh",
-        "bash/index_vcf_file.sh", 
-        "bash/find_adapter_coords.sh"]},
-    install_package_data=True
+    package_data={
+        "ugvc": [
+            "bash/run_ucsc_command.sh",
+            "bash/remove_vcf_duplicates.sh",
+            "bash/remove_empty_files.sh",
+            "bash/index_vcf_file.sh",
+            "bash/find_adapter_coords.sh",
+        ]
+    },
+    install_package_data=True,
 )

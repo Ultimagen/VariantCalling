@@ -1,7 +1,7 @@
 ## filter_variants_pipeline.py
 
-This script receves a raw GATK output VCF file, and applies to it a filtering model that had been trained previously. 
-In addition, the script can label variants by membership in a "common" false positive calls list. 
+This script receves a raw GATK output VCF file, and applies to it a filtering model that had been trained previously.
+In addition, the script can label variants by membership in a "common" false positive calls list.
 
 See also: [How to post-filter a callset](howto-callset-filter.md)
 

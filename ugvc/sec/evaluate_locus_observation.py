@@ -1,4 +1,4 @@
-from typing import List
+from __future__ import annotations
 
 from pysam import VariantRecord
 
@@ -12,7 +12,7 @@ from ugvc.vcfbed.pysam_utils import get_filtered_alleles_str
 def evaluate_observation(
     observed_variant: VariantRecord,
     expected_distribution: ConditionalAlleleDistribution,
-) -> List[SECRecord]:
+) -> list[SECRecord]:
     """
     Evaluate likelihood and p-values of each conditioned genotype independently
     """
@@ -21,11 +21,7 @@ def evaluate_observation(
     pos = observed_variant.pos
     observed_alleles = get_filtered_alleles_str(observed_variant)
     actual_allele_counts = count_alleles_in_gvcf(observed_variant)
-    allele_counts_dict = (
-        expected_distribution.allele_counts_dict
-        if expected_distribution is not None
-        else {}
-    )
+    allele_counts_dict = expected_distribution.allele_counts_dict if expected_distribution is not None else {}
 
     for conditioned_genotype in allele_counts_dict:
         sec_records.append(

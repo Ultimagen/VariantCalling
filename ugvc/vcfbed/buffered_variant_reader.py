@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 import pysam
 from pysam import VariantRecord
@@ -14,13 +14,14 @@ class BufferedVariantReader:
     Here we cache this block of variants for quicker access in the future.
     """
 
+    # pylint:disable=too-few-public-methods
     def __init__(self, file_name: str):
         self.pysam_reader = pysam.VariantFile(file_name)
         self.header = self.pysam_reader.header
         self.variants = {}
         self.current_chromosome = ""
 
-    def get_variant(self, chromosome: str, pos: int) -> Optional[VariantRecord]:
+    def get_variant(self, chromosome: str, pos: int) -> VariantRecord | None:
         if chromosome == self.current_chromosome:
             if pos in self.variants:
                 return self.variants[pos]
@@ -32,5 +33,4 @@ class BufferedVariantReader:
 
         if pos in self.variants:
             return self.variants[pos]
-        else:
-            return None
+        return None

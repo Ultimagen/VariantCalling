@@ -3,6 +3,7 @@ import argparse
 import os
 
 import pandas as pd
+
 from ugvc.utils import metrics_utils
 
 ap = argparse.ArgumentParser(
@@ -16,31 +17,20 @@ ap.add_argument(
     required=False,
 )
 ap.add_argument("--coverage_h5", help="Coverage h5 File", required=False, type=str)
-ap.add_argument(
-    "--short_report_h5", help="Short report h5 file", required=False, type=str
-)
-ap.add_argument(
-    "--extended_report_h5", help="Extended report h5 file", required=False, type=str
-)
-ap.add_argument(
-    "--no_gt_report_h5", help="No ground truth report h5 file", required=False, type=str
-)
-ap.add_argument(
-    "--output_h5", help="Aggregated Metrics h5 file", required=False, type=str
-)
-ap.add_argument(
-    "--contamination_stdout", help="Rate of Contamination", required=False, type=str
-)
+ap.add_argument("--short_report_h5", help="Short report h5 file", required=False, type=str)
+ap.add_argument("--extended_report_h5", help="Extended report h5 file", required=False, type=str)
+ap.add_argument("--no_gt_report_h5", help="No ground truth report h5 file", required=False, type=str)
+ap.add_argument("--output_h5", help="Aggregated Metrics h5 file", required=False, type=str)
+ap.add_argument("--contamination_stdout", help="Rate of Contamination", required=False, type=str)
 
 
 def preprocess_columns(dataframe):
     """Handle multiIndex/ hierarchical .h5 - concatenate the columns for using it as single string in JSON."""
     if hasattr(dataframe, "columns"):
-        MULTI_INDEX_SEPARATOR = "___"
+        multi_index_seperator = "___"
         if isinstance(dataframe.columns, pd.core.indexes.multi.MultiIndex):
             dataframe.columns = [
-                MULTI_INDEX_SEPARATOR.join(col).rstrip(MULTI_INDEX_SEPARATOR)
-                for col in dataframe.columns.values
+                multi_index_seperator.join(col).replace(multi_index_seperator, "") for col in dataframe.columns.values
             ]
 
 
@@ -51,28 +41,20 @@ def add_h5_to_hdf(input_h5_name, output_h5_name, output_report_key_prefix):
             report_h5_pd = pd.read_hdf(input_h5_name, key=report_key)
             report_h5_pd_df = pd.DataFrame(report_h5_pd)
             report_h5_unstacked = pd.DataFrame(
-                report_h5_pd_df.unstack(
-                    level=list(range(report_h5_pd_df.index.nlevels))
-                )
+                report_h5_pd_df.unstack(level=list(range(report_h5_pd_df.index.nlevels)))
             ).T
-            report_h5_unstacked.to_hdf(
-                output_h5_name, key=output_report_key_prefix + report_key, mode="a"
-            )
+            report_h5_unstacked.to_hdf(output_h5_name, key=output_report_key_prefix + report_key, mode="a")
 
 
 args = ap.parse_args()
 if args.metric_files is not None:
     for metric_file in args.metric_files:
         if os.path.getsize(metric_file) > 0:
-            metric_class, stats, histogram = metrics_utils.parse_cvg_metrics(
-                metric_file
-            )
-            metric_class = metric_class[metric_class.find("$") + 1:]
+            metric_class, stats, histogram = metrics_utils.parse_cvg_metrics(metric_file)
+            metric_class = metric_class[metric_class.find("$") + 1 :]
             stats.to_hdf(args.output_h5, key=metric_class, mode="a")
             if histogram is not None:
-                histogram.to_hdf(
-                    args.output_h5, key="histogram_" + metric_class, mode="a"
-                )
+                histogram.to_hdf(args.output_h5, key="histogram_" + metric_class, mode="a")
 
 if args.coverage_h5 is not None:
     cvg_h5_histogram = pd.read_hdf(args.coverage_h5, key="histogram")
@@ -88,9 +70,7 @@ if args.extended_report_h5 is not None:
     add_h5_to_hdf(args.extended_report_h5, args.output_h5, "extended_report_")
 
 if args.contamination_stdout is not None:
-    contamination_df = pd.DataFrame(
-        pd.Series(data=[float(args.contamination_stdout)], index=["contamination"])
-    ).T
+    contamination_df = pd.DataFrame(pd.Series(data=[float(args.contamination_stdout)], index=["contamination"])).T
     contamination_df.to_hdf(args.output_h5, key="contamination", mode="a")
 
 if args.no_gt_report_h5 is not None:

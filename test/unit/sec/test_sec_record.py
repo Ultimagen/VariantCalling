@@ -26,9 +26,7 @@ class TestSecRecord(unittest.TestCase):
         self.assertAlmostEqual(1.0, sec_record.forward_enrichment_pval, places=3)
         self.assertAlmostEqual(0.6187, sec_record.reverse_enrichment_pval, places=3)
         self.assertAlmostEqual(0.6187, sec_record.strand_enrichment_pval, places=3)
-        self.assertAlmostEqual(
-            0.6187, sec_record.frequency_scaled_strand_enrichment_pval, places=3
-        )
+        self.assertAlmostEqual(0.6187, sec_record.freq_scaled_strand_enrichment_pval, places=3)
 
     def test_expected_observed_alleles_but_unexpected_distribution(self):
         ts = self.test_set
@@ -43,15 +41,13 @@ class TestSecRecord(unittest.TestCase):
         )  # unexpected amount of allele
         sec_record.process()
 
-        self.assertAlmostEqual(7 * 10 ** -7, sec_record.likelihood_ratio, places=6)
+        self.assertAlmostEqual(7 * 10**-7, sec_record.likelihood_ratio, places=6)
         self.assertAlmostEqual(0, sec_record.likelihood, places=3)
         # reverse strand is more expected than forward
         self.assertAlmostEqual(0, sec_record.forward_enrichment_pval, places=3)
         self.assertAlmostEqual(0.0147, sec_record.reverse_enrichment_pval, places=3)
         self.assertAlmostEqual(0, sec_record.strand_enrichment_pval, places=3)
-        self.assertAlmostEqual(
-            0, sec_record.frequency_scaled_strand_enrichment_pval, places=3
-        )
+        self.assertAlmostEqual(0, sec_record.freq_scaled_strand_enrichment_pval, places=3)
 
     def test_unexpected_observed_alleles(self):
         ts = self.test_set
@@ -70,6 +66,4 @@ class TestSecRecord(unittest.TestCase):
         self.assertAlmostEqual(0.14138, sec_record.forward_enrichment_pval, places=3)
         self.assertAlmostEqual(0.0215, sec_record.reverse_enrichment_pval, places=3)
         self.assertAlmostEqual(0.003047, sec_record.strand_enrichment_pval, places=3)
-        self.assertAlmostEqual(
-            0, sec_record.frequency_scaled_strand_enrichment_pval, places=3
-        )
+        self.assertAlmostEqual(0, sec_record.freq_scaled_strand_enrichment_pval, places=3)

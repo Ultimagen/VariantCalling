@@ -1,4 +1,4 @@
-from typing import List
+from __future__ import annotations
 
 from pysam.libcbcf import VariantRecord, VariantRecordSample
 
@@ -11,7 +11,8 @@ def get_alleles_str(variant: VariantRecord) -> str:
 
     Parameters
     ----------
-    variant : a pysam VariantRecord
+    variant : VariantRecord
+        a pysam VariantRecord
 
     Returns
     -------
@@ -22,16 +23,16 @@ def get_alleles_str(variant: VariantRecord) -> str:
     return ",".join(variant.alleles)
 
 
-def get_filtered_alleles_list(
-    variant: VariantRecord, filter_list: List[str] = None
-) -> List[str]:
+def get_filtered_alleles_list(variant: VariantRecord, filter_list: list[str] = None) -> list[str]:
     """
     Get a filtered list of alleles of a variant
 
     Parameters
     ----------
-    variant : a pysam VariantRecord
-    filter_list : a list of alleles to be filtered, initialized to default_filter (global var)
+    variant : VariantRecord
+        a pysam VariantRecord
+    filter_list : list[str]
+        a list of alleles to be filtered, initialized to default_filter (global var)
 
     Returns
     -------
@@ -49,16 +50,16 @@ def get_filtered_alleles_list(
     return filtered_alleles
 
 
-def get_filtered_alleles_str(
-    variant: VariantRecord, filter_list: List[str] = None
-) -> str:
+def get_filtered_alleles_str(variant: VariantRecord, filter_list: list[str] = None) -> str:
     """
     Get a filtered list of alleles of a variant (as string)
 
     Parameters
     ----------
-    variant : a pysam VariantRecord
-    filter_list : a list of alleles to be filtered, initialized to default_filter (global var)
+    variant : VariantRecord
+        a pysam VariantRecord
+    filter_list : list[str]
+        a list of alleles to be filtered, initialized to default_filter (global var)
 
     Returns
     -------
@@ -76,7 +77,8 @@ def get_genotype(variant_record_sample: VariantRecordSample) -> str:
 
     Parameters
     ----------
-    variant_record_sample: a pysam sample record of a variant (genotype, AD, GQ, etc)
+    variant_record_sample: VariantRecordSample
+        a pysam sample record of a variant (genotype, AD, GQ, etc)
 
     Returns
     -------
@@ -93,15 +95,14 @@ def get_genotype_indices(variant_record_sample: VariantRecordSample) -> str:
 
     Parameters
     ----------
-    variant_record_sample: a pysam sample record of a variant (genotype, AD, GQ, etc)
+    variant_record_sample: VariantRecordSample
+        a pysam sample record of a variant (genotype, AD, GQ, etc)
 
     Returns
     -------
     genotype indices of sample as string
     """
-    allele_indices = [
-        "." if a is None else str(a) for a in variant_record_sample.allele_indices
-    ]
+    allele_indices = ["." if a is None else str(a) for a in variant_record_sample.allele_indices]
     return "/".join(sorted(allele_indices))
 
 
@@ -115,7 +116,7 @@ def has_candidate_alternatives(variant: VariantRecord) -> bool:
     return "," in candidate_alleles_str
 
 
-def is_snp(alleles: List[str]):
+def is_snp(alleles: list[str]):
     """
     Return True if alleles represent a SNP
     - If the SNP locus is also within a deletion (* allele), still return True.
@@ -123,11 +124,12 @@ def is_snp(alleles: List[str]):
 
     Parameters
     ----------
-    alleles : list of alleles
+    alleles : list[str]
+        list of alleles
 
     Returns
     -------
     True iff the alleles represent SNP locus (all are of size 1)
     """
     __alleles = [a for a in alleles if a != "<NON_REF>"]
-    return len(__alleles) >= 2 and all([len(a) == 1 for a in __alleles])
+    return len(__alleles) >= 2 and all(len(a) == 1 for a in __alleles)

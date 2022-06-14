@@ -1,10 +1,9 @@
-from typing import List
+from __future__ import annotations
 
 from ugvc.sec.systematic_error_correction_record import SECRecord
 
 
-def extrapolate_allele_counts(sec_records: List[SECRecord]):
-    ref_record = None
+def extrapolate_allele_counts(sec_records: list[SECRecord]):
     het_records = []
     hom_records = []
     for sec_record in sec_records:
@@ -14,7 +13,7 @@ def extrapolate_allele_counts(sec_records: List[SECRecord]):
         conditioned_genotype_alleles = sec_record.conditioned_genotype.split("/")
         is_hom = conditioned_genotype_alleles[0] == conditioned_genotype_alleles[1]
         if ">" not in sec_record.conditioned_genotype:
-            ref_record = sec_record
+            pass
         elif is_hom:
             hom_records.append(sec_record)
         else:

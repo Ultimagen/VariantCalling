@@ -5,7 +5,7 @@ GCS_OAUTH_TOKEN = "GCS_OAUTH_TOKEN"
 
 
 class FileExtension(Enum):
-    """ File Extension enum """
+    """File Extension enum"""
 
     PARQUET = ".parquet"
     HDF = ".hdf"

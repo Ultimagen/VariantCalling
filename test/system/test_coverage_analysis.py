@@ -14,7 +14,8 @@ f_in = pjoin(
     "170201-BC23.chr9_1000000_2001000.aligned.unsorted.duplicates_marked.bam",
 )
 f_ref = pjoin(
-    inputs_dir, "170201-BC23.chr9_1000000_2001000.coverage_percentiles.parquet",
+    inputs_dir,
+    "170201-BC23.chr9_1000000_2001000.coverage_percentiles.parquet",
 )
 
 
@@ -25,12 +26,8 @@ def test_coverage_analysis(tmpdir):
         regions=["chr9:1000000-2001000"],
         windows=[100_000],
         ref_fasta=pjoin(general_inputs_dir, "sample.fasta"),
-        coverage_intervals_dict=pjoin(
-            inputs_dir, "coverage_chr9_extended_intervals.tsv"
-        ),
+        coverage_intervals_dict=pjoin(inputs_dir, "coverage_chr9_extended_intervals.tsv"),
     )
-    df = pd.read_hdf(
-        pjoin(tmpdir, "170201-BC23.coverage_stats.q0.Q0.l0.h5"), "percentiles"
-    )
+    df = pd.read_hdf(pjoin(tmpdir, "170201-BC23.coverage_stats.q0.Q0.l0.h5"), "percentiles")
     df_ref = pd.read_parquet(f_ref)
     assert np.allclose(df.fillna(-1), df_ref.fillna(-1))

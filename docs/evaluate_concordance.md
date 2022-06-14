@@ -1,7 +1,7 @@
 ## evaluate_concordance.py
 
-Receives a result of comparing a callset to the ground truth and outputs 
-evaluation metrics in `h5` file. 
+Receives a result of comparing a callset to the ground truth and outputs
+evaluation metrics in `h5` file.
 
 **See also**: [run_comparison_pipeline.py](docs/run_comparison_pipeline.md)
 
@@ -40,19 +40,19 @@ evaluate_concordance.py  --input_file 004797-UGAv3-51_2.comp.h5 \
                          --output_prefix 004797-UGAv3-51_2.concordance
 ```
 
-The results can be examined in Python: 
+The results can be examined in Python:
 
 `pd.read_hdf("004797-UGAv3-51_2.comp.h5",key="optimal_recall_precision")`
 
 
- 
-|     | tp  | fp  | fn | precision | recall | f1 | 
+
+|     | tp  | fp  | fn | precision | recall | f1 |
 | --- | --- | --- | -- | --------- | ------ | ------ |
-| SNP | 747 |  3  |  6 |   0.996   | 0.992  | 0.99401 | 
+| SNP | 747 |  3  |  6 |   0.996   | 0.992  | 0.99401 |
 | Non-hmer_INDEL | 36 | 3 | 3 | 0.92308 | 0.92308 | 0.92308 |
 | HMER_indel_<=_4 | 14 | 1 | 1 | 0.93333 | 0.93333 | 0.93333 |
 | HMER_indel_(4:8) | 5 | 0 | 0 | 1 | 1 | 1 |
 | HMER_indel_[8:10] | 9 | 0 | 0 | 1 | 1 | 1 |
-| HMER_indel_11:12 | 7 | 0 | 3 | 1 | 0.7 | 0.82353 | 
-| HMER_indel_>_12 | 0 | 2 | 13 | 0 | 0 | 0 | 
+| HMER_indel_11:12 | 7 | 0 | 3 | 1 | 0.7 | 0.82353 |
+| HMER_indel_>_12 | 0 | 2 | 13 | 0 | 0 | 0 |
 | INDELS | 71 | 6 | 20 | 0.92208 | 0.78022 | 0.84524 |

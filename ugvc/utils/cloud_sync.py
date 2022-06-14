@@ -8,12 +8,13 @@ from google.cloud import storage
 def dir_path(string, check_cloud_path=False):
     if os.path.isdir(string):
         return string
+
     if check_cloud_path:
         if not string.startswith("gs://") and not string.startswith("s3://"):
             raise ValueError(f"Invalid cloud path {string}\nMust be an s3 or gs path")
         return string
-    else:
-        raise NotADirectoryError(string)
+
+    raise NotADirectoryError(string)
 
 
 def download_from_gs(bucket_name, source_blob_name, destination_file_name):
@@ -42,7 +43,7 @@ def cloud_sync(
     raise_error_is_file_exists=False,
     dry_run=False,
 ):
-    """ Download a file from the cloud to a respective local directory with the same name
+    """Download a file from the cloud to a respective local directory with the same name
 
     Parameters
     ----------
@@ -58,9 +59,12 @@ def cloud_sync(
         If True and local file already exists, raise ValueError (default False)
     dry_run: bool, optional
         If True, return local path without downloading (default False)
-    Returns
-        local_path: str
-            Local path to which file was downloaded, if cloud_path_in was an existing local file it is returned as is
+    :raises NotADirectoryError: Not a directory
+    :raises FileExistsError: Target local file exists
+    :raises NotImplementedError: Unsupported cloud service
+    :raises KeyboardInterrupt: Keyboard interrupt
+    :returns: a local path to which file was downloaded. If cloud_path_in was an existing local
+              file it is returned as is
     -------
 
     """
@@ -72,7 +76,13 @@ def cloud_sync(
     cloud_service = cloud_path_in.split(":")[0]
     bucket = cloud_path_in.split("/")[2]
     blob = "/".join(cloud_path_in.split("/")[3:])
-    local_path = os.path.join(local_dir_in, "cloud_sync", cloud_service, bucket, blob,)
+    local_path = os.path.join(
+        local_dir_in,
+        "cloud_sync",
+        cloud_service,
+        bucket,
+        blob,
+    )
     if dry_run:
         return local_path
     if not force_download and os.path.isfile(local_path):
@@ -93,9 +103,7 @@ def cloud_sync(
                 raise NotImplementedError()
         except KeyboardInterrupt:
             if os.path.isfile(local_path):
-                sys.stdout.write(
-                    f"Keyboard Interrupt - removing incomplete file {local_path}\n"
-                )
+                sys.stdout.write(f"Keyboard Interrupt - removing incomplete file {local_path}\n")
                 os.remove(local_path)
             raise
 
