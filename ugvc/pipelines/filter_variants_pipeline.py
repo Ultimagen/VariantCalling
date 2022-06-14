@@ -98,7 +98,13 @@ def run(argv: list[str]):
         )
 
         if args.is_mutect:
-            df["qual"] = df["tlod"].apply(lambda x: max(x) if isinstance(x, tuple) else 50) * 10
+            df["qual"] = (
+                df["tlod"].apply(lambda x: max(x) if isinstance(x, tuple) else 50) * 10
+            )
+            df['mleaf'] = df['af']  # parameters needed for filtering
+            df['mleac'] = df['ac']  # parameters needed for filtering
+            if 'xc' not in df.columns:
+                df['xc'] = 1
 
         df.loc[df["gt"] == (1, 1), "sor"] = 0.5
         with open(args.model_file, "rb") as model_file:
