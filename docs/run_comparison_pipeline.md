@@ -1,9 +1,9 @@
 ## run_comparison_pipeline.py
 
-This script receives UG callset and a ground truth calset and compares them using VCFEVAL as 
-the internal evaluation pipeline. The output of the process is HDF5 file split by chromosome 
-that contains for each variant classification (FP/TP/FN), type (hmer-indel, non-hmer indel, SNP), 
-local motif etc. 
+This script receives UG callset and a ground truth calset and compares them using VCFEVAL as
+the internal evaluation pipeline. The output of the process is HDF5 file split by chromosome
+that contains for each variant classification (FP/TP/FN), type (hmer-indel, non-hmer indel, SNP),
+local motif etc.
 
 ### Usage
 ```
@@ -80,7 +80,7 @@ optional arguments:
   --is_mutect           Are the VCFs output of Mutect (false)
   --n_jobs N_JOBS       n_jobs of parallel on contigs
   --verbosity VERBOSITY
-                        Verbosity: ERROR, WARNING, INFO, DEBUG                                            
+                        Verbosity: ERROR, WARNING, INFO, DEBUG
 ```
 
 ### Example

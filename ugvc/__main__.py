@@ -1,3 +1,6 @@
+# noqa: W605  flake8: invalid escape sequence '\ ' - used by logo
+# pylint: disable=anomalous-backslash-in-string
+
 import sys
 from os.path import dirname
 
@@ -7,6 +10,24 @@ from simppl import cli
 path = f"{dirname(dirname(__file__))}"
 if path not in sys.path:
     sys.path.insert(0, path)
+
+from ugvc.pipelines import (
+    coverage_analysis,
+    evaluate_concordance,
+    filter_variants_pipeline,
+    run_comparison_pipeline,
+    train_models_pipeline,
+)
+from ugvc.pipelines.mrd import (
+    collect_coverage_per_motif,
+    concat_dataframes,
+    create_control_signature,
+    featuremap_to_dataframe,
+    intersect_featuremap_with_signature,
+    positional_error_rate_profile,
+    prepare_data_from_mrd_pipeline,
+    snp_error_rate,
+)
 
 from ugvc.pipelines import (coverage_analysis, evaluate_concordance,
                             filter_variants_pipeline, run_comparison_pipeline,
@@ -21,6 +42,7 @@ from ugvc.pipelines.mrd import (collect_coverage_per_motif, concat_dataframes,
 from ugvc.pipelines.sec import (assess_sec_concordance,
                                 correct_systematic_errors, sec_training,
                                 sec_validation)
+
 
 # create a list of imported pipeline modules
 modules = [
@@ -48,17 +70,18 @@ mrd_modules = [
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 
-logo = """
+
+LOGO = """
       __    __    ___________    ____  ______
-    |  |  |  |  /  _____\   \  /   / /      |
-    |  |  |  | |  |  __  \   \/   / |  ,----'
-    |  |  |  | |  | |_ |  \      /  |  |
-    |  `--'  | |  |__| |   \    /   |  `----.
-     \______/   \______|    \__/     \______|
+    |  |  |  |  /  _____\   \  /   / /      | # noqa: W605
+    |  |  |  | |  |  __  \   \/   / |  ,----' # noqa: W605
+    |  |  |  | |  | |_ |  \      /  |  |      # noqa: W605
+    |  `--'  | |  |__| |   \    /   |  `----. # noqa: W605
+     \______/   \______|    \__/     \______| # noqa: W605
 
     Ultima genomics variant calling toolkit
     """
 
 # initialize cli
-ugvc_cli = cli.CommandLineInterface(__file__, logo, modules)
+ugvc_cli = cli.CommandLineInterface(__file__, LOGO, modules)
 ugvc_cli.run(sys.argv)

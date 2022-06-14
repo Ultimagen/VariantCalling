@@ -20,13 +20,13 @@ Instructions below assume that the GATK was run using this reference file: `gs:/
 `conda env create -f software/VariantCalling/setup/environment.yml`
 This will create an environment called `genomics.py3`
 
-4. Install ugvc package: 
+4. Install ugvc package:
 ```
 conda activate genomics.py3
 cd software/VariantCalling
-pip install . 
+pip install .
 ```
- 
+
 
 ## Files required for the analysis (download locally)
 
@@ -57,11 +57,11 @@ UG-specific files (note that the exact location might be different dependent on 
 
 ## Running the filtering pipeline
 
-The filtering pipeline has two main steps: 
+The filtering pipeline has two main steps:
 
     * Training filtering model: in this step a small subset of known variants from the VCF is labeled as true positive and a small subset of variants from the VCF that fall on locations that tend to be problematic are labeled as false positive. Machine learning model (random forest) is then trained to distinguish between these sets
 
-    * Filtering the VCF: the model trained in the first step is then applied to the input VCF. At this point we add a PASS/LOW_SCORE filter as well as a numerical confidence score `TREE_SCORE`. Optionally, a blacklist object can be supplied with locations that can't be trusted and these will be labeled as `COHORT_FP`. 
+    * Filtering the VCF: the model trained in the first step is then applied to the input VCF. At this point we add a PASS/LOW_SCORE filter as well as a numerical confidence score `TREE_SCORE`. Optionally, a blacklist object can be supplied with locations that can't be trusted and these will be labeled as `COHORT_FP`.
 
 In this example we are filtering indexed VCF file `test.vcf.gz`
 
@@ -97,12 +97,12 @@ python train_models_pipeline.py \
     --annotate_intervals LCR-hs38.bed \
     --annotate_intervals exome.twist.bed \
     --annotate_intervals mappability.0.bed \
-    --output_file_prefix test.model    
+    --output_file_prefix test.model
 ```
 
 Verify that this command generated a file `test.model.pkl`
 
-### Filter VCF 
+### Filter VCF
 
 Activate the conda environment: `conda activate genomics.py3`
 
@@ -118,7 +118,7 @@ filter_variants_pipeline.py \
     --annotate_intervals mappability.0.bed \
     --hpol_filter_length_dist 12 10 \
     --reference_file ../genomes/Homo_sapiens_assembly38.fasta \
-    --output_file test.filter.vcf.gz 
+    --output_file test.filter.vcf.gz
 ```
 
-Confirm that this created a file called `test.filter.vcf.gz`. 
+Confirm that this created a file called `test.filter.vcf.gz`.

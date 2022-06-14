@@ -35,3 +35,4 @@ srcvm/
 *egg-info
 *.pytest_cache*
 test/test_outputs
+.python-version

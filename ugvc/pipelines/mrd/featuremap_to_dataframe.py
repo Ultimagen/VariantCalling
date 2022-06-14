@@ -15,9 +15,10 @@
 # DESCRIPTION
 #    Converts featuremap VCF-like file to dataframe
 # CHANGELOG in reverse chronological order
+from __future__ import annotations
+
 import argparse
 from collections import defaultdict
-from typing import List
 
 import pandas as pd
 import pysam
@@ -29,12 +30,14 @@ from ugvc.utils.consts import FileExtension
 from ugvc.vcfbed.variant_annotation import get_cycle_skip_dataframe, get_motif_around
 
 
-def __parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="featuremap_to_dataframe", description=run.__doc__
-    )
+def __parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="featuremap_to_dataframe", description=run.__doc__)
     parser.add_argument(
-        "-i", "--input", type=str, required=True, help="input featuremap file",
+        "-i",
+        "--input",
+        type=str,
+        required=True,
+        help="input featuremap file",
     )
     parser.add_argument(
         "-o",
@@ -70,7 +73,8 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         "--report_sense_strand_bases",
         default=False,
         action="store_true",
-        help="if True, the ref, alt, and motifs will be reported according to the sense strand and not according to the read orientation",
+        help="if True, the ref, alt, and motifs will be reported according to the sense strand "
+        "and not according to the read orientation",
     )
     parser.add_argument(
         "--show_progress_bar",
@@ -81,7 +85,7 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
     return parser.parse_args(argv[1:])
 
 
-def run(argv: List[str]):
+def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
     featuremap_to_dataframe(
@@ -155,8 +159,8 @@ def featuremap_to_dataframe(
             "rq",
         ]
 
-    with pysam.VariantFile(featuremap_vcf) as f:
-        vfi = map(
+    with pysam.VariantFile(featuremap_vcf) as variant_file:
+        vfi = map(  # pylint: disable=bad-builtin
             lambda x: defaultdict(
                 lambda: None,
                 x.info.items()
@@ -168,7 +172,7 @@ def featuremap_to_dataframe(
                 ]
                 + [(xf, x.info[xf]) for xf in x_fields],
             ),
-            f,
+            variant_file,
         )
         columns = ["chrom", "pos", "ref", "alt"] + x_fields
         df = pd.DataFrame(
@@ -185,8 +189,8 @@ def featuremap_to_dataframe(
 
     if report_read_orientation:
         is_reverse = (df["X_FLAGS"] & 16).astype(bool)
-        for c in ["ref", "alt"]:  # reverse value to match the read direction
-            df[c] = df[c].where(is_reverse, df[c].apply(revcomp))
+        for column in ("ref", "alt"):  # reverse value to match the read direction
+            df[column] = df[column].where(is_reverse, df[column].apply(revcomp))
 
     if reference_fasta is not None:
         df = (
@@ -201,16 +205,8 @@ def featuremap_to_dataframe(
             df["left_motif"] = df["left_motif"].where(is_reverse, right_motif_reverse)
             df["right_motif"] = df["right_motif"].where(is_reverse, left_motif_reverse)
 
-        df["ref_motif"] = (
-            df["left_motif"].str.slice(-1)
-            + df["ref"]
-            + df["right_motif"].str.slice(0, 1)
-        )
-        df["alt_motif"] = (
-            df["left_motif"].str.slice(-1)
-            + df["alt"]
-            + df["right_motif"].str.slice(0, 1)
-        )
+        df["ref_motif"] = df["left_motif"].str.slice(-1) + df["ref"] + df["right_motif"].str.slice(0, 1)
+        df["alt_motif"] = df["left_motif"].str.slice(-1) + df["alt"] + df["right_motif"].str.slice(0, 1)
         df = df.astype(
             {
                 "chrom": CHROM_DTYPE,
@@ -230,9 +226,7 @@ def featuremap_to_dataframe(
     df = df.set_index(["chrom", "pos"]).sort_index()
     if output_file is None:
         if featuremap_vcf.endswith(".vcf.gz"):
-            output_file = (
-                featuremap_vcf[: -len(".vcf.gz")] + FileExtension.PARQUET.value
-            )
+            output_file = featuremap_vcf[: -len(".vcf.gz")] + FileExtension.PARQUET.value
         else:
             output_file = f"featuremap_vcf{FileExtension.PARQUET.value}"
     df.to_parquet(output_file)

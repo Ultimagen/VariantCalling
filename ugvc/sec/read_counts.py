@@ -1,4 +1,4 @@
-from typing import Tuple
+from __future__ import annotations
 
 from ugvc.dna.strand_direction import StrandDirection
 
@@ -27,7 +27,7 @@ class ReadCounts:
         self.__reverse_support += read_counts.get_count(StrandDirection.REVERSE)
         self.__unknown_strand_support += read_counts.get_count(StrandDirection.UNKNOWN)
 
-    def get_counts(self) -> Tuple[int, int, int]:
+    def get_counts(self) -> tuple[int, int, int]:
         return (
             self.__forward_support,
             self.__reverse_support,
@@ -37,31 +37,21 @@ class ReadCounts:
     def get_count(self, strand: StrandDirection) -> int:
         if strand == StrandDirection.FORWARD:
             return self.__forward_support
-        elif strand == StrandDirection.REVERSE:
+        if strand == StrandDirection.REVERSE:
             return self.__reverse_support
-        else:
-            return self.__unknown_strand_support
+        return self.__unknown_strand_support
 
     def get_counts_tuple_as_str(self) -> str:
         return f"{self.__forward_support},{self.__reverse_support},{self.__unknown_strand_support}"
 
     def __repr__(self):
-        if (
-            self.__forward_support > 0 or self.__reverse_support > 0
-        ) and self.__unknown_strand_support == 0:
+        if (self.__forward_support > 0 or self.__reverse_support > 0) and self.__unknown_strand_support == 0:
             return f"{self.__forward_support}(+) {self.__reverse_support}(-)"
-        if (
-            self.__forward_support == 0 or self.__reverse_support == 0
-        ) and self.__unknown_strand_support > 0:
+        if (self.__forward_support == 0 or self.__reverse_support == 0) and self.__unknown_strand_support > 0:
             return f"{self.__unknown_strand_support}(?)"
-        if (
-            self.__forward_support == 0
-            and self.__reverse_support == 0
-            and self.__unknown_strand_support == 0
-        ):
+        if self.__forward_support == 0 and self.__reverse_support == 0 and self.__unknown_strand_support == 0:
             return "0"
-        else:
-            return f"{self.__forward_support}(+) {self.__reverse_support}(-) {self.__unknown_strand_support}(?)"
+        return f"{self.__forward_support}(+) {self.__reverse_support}(-) {self.__unknown_strand_support}(?)"
 
     def __eq__(self, other):
         return (

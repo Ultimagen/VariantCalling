@@ -16,20 +16,19 @@
 # DESCRIPTION
 #    Profile of errors per motif
 # CHANGELOG in reverse chronological order
+from __future__ import annotations
 
 import argparse
 import os
 import os.path
 from enum import Enum
 from functools import lru_cache
-from typing import List, Tuple
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
 
 from ugvc.dna.format import CYCLE_SKIP, CYCLE_SKIP_STATUS, DEFAULT_FLOW_ORDER
 from ugvc.dna.utils import revcomp
@@ -53,7 +52,8 @@ DEFAULT_ERROR_PER_POSITION_PREFIX = "error_per_position_per_motif"
 
 
 class FeatureMapColumnName(Enum):
-    """ Column names enum of SNP feature map dataframe (read from parquet file)"""
+    """Column names enum of SNP feature map dataframe (read from parquet file)"""
+
     CIGAR = "X_CIGAR"
     EDIT_DISTANCE = "X_EDIST"
     SCORE = "X_SCORE"
@@ -66,7 +66,8 @@ class FeatureMapColumnName(Enum):
 
 
 class ErrorRateColumnName(Enum):
-    """ Column names enum of error rate dataframe """
+    """Column names enum of error rate dataframe"""
+
     NAME = "name"
     REF = "ref"
     ALT = "alt"
@@ -98,21 +99,15 @@ def filter_substitutions_threshold(
     edit_distance_threshold: int = TH_X_EDIST,
     xscore_threshold: int = TH_X_SCORE,
 ):
-    """ Filter out the substitutions that don't appear above thresholds of edit distance and x score """
+    """Filter out the substitutions that don't appear above thresholds of edit distance and x score"""
     if allow_softlclip:
         threshold_filtered_df = substitutions_df[
-            (
-                substitutions_df[FeatureMapColumnName.EDIT_DISTANCE.value]
-                <= edit_distance_threshold
-            )
+            (substitutions_df[FeatureMapColumnName.EDIT_DISTANCE.value] <= edit_distance_threshold)
             & (substitutions_df[FeatureMapColumnName.SCORE.value] >= xscore_threshold)
         ]
     else:
         threshold_filtered_df = substitutions_df[
-            (
-                substitutions_df[FeatureMapColumnName.EDIT_DISTANCE.value]
-                <= edit_distance_threshold
-            )
+            (substitutions_df[FeatureMapColumnName.EDIT_DISTANCE.value] <= edit_distance_threshold)
             & (substitutions_df[FeatureMapColumnName.SCORE.value] >= xscore_threshold)
             & (~substitutions_df[FeatureMapColumnName.CIGAR.value].str.contains("S"))
         ]
@@ -131,24 +126,14 @@ def load_coverage_per_motif(coverage_file_name, motif_name):
 
 
 def get_cycle_skip_motifs(flow_order: str = DEFAULT_FLOW_ORDER):
-    """ Get cycle skip motifs """
+    """Get cycle skip motifs"""
     cycle_skip_df = get_cycle_skip_dataframe(flow_order)
 
     ref_cskp_motifs = cycle_skip_df[cycle_skip_df[CYCLE_SKIP_STATUS] == CYCLE_SKIP]
     ref_cskp_motifs = (
         ref_cskp_motifs.assign(
-            ref=[
-                x[1]
-                for x in ref_cskp_motifs.index.get_level_values(
-                    FeatureMapColumnName.REFERENCE_MOTIF.value
-                )
-            ],
-            alt=[
-                x[1]
-                for x in ref_cskp_motifs.index.get_level_values(
-                    FeatureMapColumnName.ALTERNATE_MOTIF.value
-                )
-            ],
+            ref=[x[1] for x in ref_cskp_motifs.index.get_level_values(FeatureMapColumnName.REFERENCE_MOTIF.value)],
+            alt=[x[1] for x in ref_cskp_motifs.index.get_level_values(FeatureMapColumnName.ALTERNATE_MOTIF.value)],
         )
         .reset_index()
         .set_index([REFERENCE, FeatureMapColumnName.ALTERNATIVE.value])
@@ -167,13 +152,10 @@ def _get_bins(
     max_positions_plot: int = MAX_POSITIONS_PLOT,
     position_plot_step_size: int = POSITION_PLOT_STEP_SIZE,
 ):
-    return (
-        np.arange(MIN_POSITIONS_PLOT, max_positions_plot + 1, position_plot_step_size)
-        - BINS_BIAS
-    )
+    return np.arange(MIN_POSITIONS_PLOT, max_positions_plot + 1, position_plot_step_size) - BINS_BIAS
 
 
-def calc_error_rate(  # pylint: disable=too-many-arguments
+def calc_error_rate(
     run_name: str,
     ref_cskp_motifs,
     single_substitutions_df,
@@ -187,22 +169,16 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
 
     bins = _get_bins(max_positions_plot, position_plot_step_size)
     bin_centers = (bins[1:] + bins[:-1]) / 2
-    h_length, _ = np.histogram(
-        single_substitutions_df[FeatureMapColumnName.LENGTH.value], bins=bins
-    )
+    h_length, _ = np.histogram(single_substitutions_df[FeatureMapColumnName.LENGTH.value], bins=bins)
     h_length_cumsum = np.cumsum(h_length[::-1])[::-1] / sum(h_length)
 
     for ref, alt in tqdm(ref_cskp_motifs.index.unique()):
         single_substitutions_cskp = single_substitutions_df[
             single_substitutions_df[FeatureMapColumnName.REFERENCE_MOTIF.value].isin(
-                ref_cskp_motifs.loc[
-                    (ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value
-                ].unique()
+                ref_cskp_motifs.loc[(ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value].unique()
             )
             & single_substitutions_df[FeatureMapColumnName.ALTERNATE_MOTIF.value].isin(
-                ref_cskp_motifs.loc[
-                    (ref, alt), FeatureMapColumnName.ALTERNATE_MOTIF.value
-                ].unique()
+                ref_cskp_motifs.loc[(ref, alt), FeatureMapColumnName.ALTERNATE_MOTIF.value].unique()
             )
         ]
 
@@ -210,25 +186,19 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
             single_substitutions_df[FeatureMapColumnName.REFERENCE_MOTIF.value].isin(
                 [
                     revcomp(x)
-                    for x in ref_cskp_motifs.loc[
-                    (ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value
-                    ].unique()
+                    for x in ref_cskp_motifs.loc[(ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value].unique()
                 ]
             )
             & single_substitutions_df[FeatureMapColumnName.ALTERNATE_MOTIF.value].isin(
                 [
                     revcomp(x)
-                    for x in ref_cskp_motifs.loc[
-                    (ref, alt), FeatureMapColumnName.ALTERNATE_MOTIF.value
-                    ].unique()
+                    for x in ref_cskp_motifs.loc[(ref, alt), FeatureMapColumnName.ALTERNATE_MOTIF.value].unique()
                 ]
             )
         ]
 
         ref_coverage = coverage_df.loc[
-            ref_cskp_motifs.loc[
-                (ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value
-            ].unique(),
+            ref_cskp_motifs.loc[(ref, alt), FeatureMapColumnName.REFERENCE_MOTIF.value].unique(),
             COVERAGE,
         ].sum()
 
@@ -270,7 +240,10 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
 
     # save the results to parquet file
     error_rate_results_df.to_parquet(
-        os.path.join(output_folder, f"{error_per_position_per_motif}.{run_name}{FileExtension.PARQUET.value}")
+        os.path.join(
+            output_folder,
+            f"{error_per_position_per_motif}.{run_name}{FileExtension.PARQUET.value}",
+        )
     )
 
     return error_rate_results_df
@@ -279,7 +252,7 @@ def calc_error_rate(  # pylint: disable=too-many-arguments
 # plot functions #
 
 
-def _create_plot(run_name: str) -> Tuple:
+def _create_plot(run_name: str) -> tuple:
     fig, axs = plt.subplots(2, 3, figsize=(20, 6), sharex=True)
     fig.subplots_adjust(hspace=0.3)
     artists = [fig.suptitle(f"{run_name}", y=1.05)]
@@ -297,28 +270,26 @@ def create_graphs(
     """Create output graphs of positional SNP error rate for each variant"""
     bins = _get_bins(max_positions_plot, position_plot_step_size)
 
-    tight_xlim = error_rate_results[
-        error_rate_results.filter(regex="count").max(axis=1) > 10
-    ][FeatureMapColumnName.INDEX.value].max()
+    tight_xlim = error_rate_results[error_rate_results.filter(regex="count").max(axis=1) > 10][
+        FeatureMapColumnName.INDEX.value
+    ].max()
 
     # Create basic plot
     fig, axs, artists = _create_plot(run_name)
 
-    for ax, (error_rate_run_name, ref, alt) in zip(
-        axs.flatten(), error_rate_results.index.unique()
-    ):
+    for ax_flatten, (error_rate_run_name, ref, alt) in zip(axs.flatten(), error_rate_results.index.unique()):
         error_rate_plot = error_rate_results.loc[(error_rate_run_name, ref, alt), :]
-        plt.sca(ax)
+        plt.sca(ax_flatten)
         plt.title(f"{ref}->{alt}", fontsize=FONT_SIZE)
 
-        for column, color, label in [
+        for column, color, label in (
             (ErrorRateColumnName.COUNT_FORWARD.value, "b", f"{ref}->{alt}"),
             (
                 ErrorRateColumnName.COUNT_REVERSE.value,
                 "r",
                 f"{revcomp(ref)}->{revcomp(alt)}",
             ),
-        ]:
+        ):
             norm = error_rate_plot[ErrorRateColumnName.COVERAGE.value] * (
                 error_rate_plot[ErrorRateColumnName.LENGTH_CDF.value]
                 / error_rate_plot[ErrorRateColumnName.LENGTH_CDF.value].sum()
@@ -326,9 +297,7 @@ def create_graphs(
             plt.plot(
                 error_rate_plot[ErrorRateColumnName.INDEX.value],
                 error_rate_plot[column].mask((error_rate_plot[column] < 10)) / norm,
-                label=f"{label} = {error_rate_plot[column].sum() / norm.sum():.1E}".replace(
-                    "E", r" $\cdot$ "
-                ).replace(
+                label=f"{label} = {error_rate_plot[column].sum() / norm.sum():.1E}".replace("E", r" $\cdot$ ").replace(
                     "-0", "$10^{-"
                 )
                 + "}$",
@@ -338,8 +307,8 @@ def create_graphs(
         formatter = mpl.ticker.ScalarFormatter(useMathText=True)
         formatter.set_scientific(True)
         formatter.set_powerlimits((-1, 1))
-        ax.yaxis.set_major_formatter(formatter)
-        plt.ylim(0, ax.get_ylim()[1])
+        ax_flatten.yaxis.set_major_formatter(formatter)
+        plt.ylim(0, ax_flatten.get_ylim()[1])
         plt.legend(fontsize="medium")
 
         if ref == "T":
@@ -366,10 +335,8 @@ def create_graphs(
     )
 
 
-def parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        prog="positional_error_rate_profile.py", description=run.__doc__
-    )
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="positional_error_rate_profile.py", description=run.__doc__)
 
     parser.add_argument(
         "--featuremap_single_substitutions_dataframe",
@@ -475,8 +442,6 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
     :param max_positions_plot: max positions for plotting graph
     :param edist_threshold: edit distance threshold to use for calculations
     :param xscore_threshold: s-score threshold to use for calculations
-
-    :return: None value return, the process saves created graphs in files and enable plotting them
     """
     # preprocess
     if not os.path.exists(output_folder):
@@ -518,8 +483,8 @@ def calc_positional_error_rate_profile(  # pylint: disable=too-many-arguments
     )
 
 
-def run(argv: List[str]):
-    """ Calculate positional error rate profile for all SNPs """
+def run(argv: list[str]):
+    """Calculate positional error rate profile for all SNPs"""
     print(f"positional_error_rate_profile.run called with {argv}")
     args = parse_args(argv)
     calc_positional_error_rate_profile(

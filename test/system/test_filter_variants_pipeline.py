@@ -9,9 +9,7 @@ class TestFilterVariantPipeline:
     general_inputs_dir = f"{test_dir}/resources/general/chr1_head"
 
     def test_filter_variants_pipeline(self, tmpdir):
-        output_file = (
-            f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.vcf.gz"
-        )
+        output_file = f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.vcf.gz"
         filter_variants_pipeline.run(
             [
                 "--input_file",

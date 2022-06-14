@@ -1,4 +1,6 @@
-from typing import Iterable, List, Optional
+from __future__ import annotations
+
+import collections
 
 import h5py
 import numpy as np
@@ -8,10 +10,10 @@ from pandas import DataFrame
 from ugvc import logger
 from ugvc.filtering import variant_filtering_utils
 
+# from typing import Iterable, List, Optional
 
-def read_hdf(
-    file_name: str, key: str = "all", skip_keys: Iterable[str] = ()
-) -> DataFrame:
+
+def read_hdf(file_name: str, key: str = "all", skip_keys: collections.abc.Iterable[str] = ()) -> DataFrame:
     """
     Read data-frame or data-frames from an h5 file
 
@@ -32,26 +34,24 @@ def read_hdf(
     data-frame or concat data-frame read from the h5 file according to key
     """
     if key == "all":
-        with h5py.File(file_name, "r") as f:
-            keys = list(f.keys())
+        with h5py.File(file_name, "r") as h5_file:
+            keys = list(h5_file.keys())
         for k in skip_keys:
             if k in keys:
                 keys.remove(k)
         dfs = [pd.read_hdf(file_name, key=key) for key in keys]
         return pd.concat(dfs)
-    elif key == "all_human_chrs":
-        dfs = [
-            pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X"]
-        ]
+    if key == "all_human_chrs":
+        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X"]]
         return pd.concat(dfs)
-    elif key == "all_somatic_chrs":
+    if key == "all_somatic_chrs":
         dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23))]
         return pd.concat(dfs)
-    else:
-        return pd.read_hdf(file_name, key=key)
+    # If not one of the special keys:
+    return pd.read_hdf(file_name, key=key)
 
 
-def get_h5_keys(file_name: str) -> List[str]:
+def get_h5_keys(file_name: str) -> list[str]:
     """
     Parameters
     ----------
@@ -62,17 +62,17 @@ def get_h5_keys(file_name: str) -> List[str]:
     -------
     list of keys in h5 file
     """
-    f = h5py.File(file_name, "r")
-    keys = list(f.keys())
-    f.close()
+    h5_file = h5py.File(file_name, "r")
+    keys = list(h5_file.keys())
+    h5_file.close()
     return keys
 
 
 def calc_accuracy_metrics(
     df: DataFrame,
     classify_column_name: str,
-    ignored_filters: Iterable[str] = (),
-    group_testing_column_name: Optional[str] = None,
+    ignored_filters: collections.abc.Iterable[str] = (),
+    group_testing_column_name: str | None = None,
 ) -> DataFrame:
     """
     Parameters
@@ -91,12 +91,10 @@ def calc_accuracy_metrics(
     data-frame with variant types and their scores
     """
 
-    df = validate_and_preprocess_concordance_df(df, group_testing_column_name)
+    df = validate_preprocess_concordance(df, group_testing_column_name)
     trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
     # calc recall,precision, f1 per variant category
-    accuracy_df = variant_filtering_utils.test_decision_tree_model(
-        df, trivial_classifier_set, classify_column_name
-    )
+    accuracy_df = variant_filtering_utils.test_decision_tree_model(df, trivial_classifier_set, classify_column_name)
 
     # Add summary for indels
     df_indels = df.copy()
@@ -123,8 +121,8 @@ def calc_accuracy_metrics(
 def calc_recall_precision_curve(
     df: DataFrame,
     classify_column_name: str,
-    ignored_filters: Iterable[str] = (),
-    group_testing_column_name: Optional[str] = None,
+    ignored_filters: collections.abc.Iterable[str] = None,
+    group_testing_column_name: str | None = None,
 ) -> DataFrame:
     """
     calc recall/precision curve
@@ -144,16 +142,20 @@ def calc_recall_precision_curve(
     -------
     data-frame with variant types and their recall-precision curves
     """
-    df = validate_and_preprocess_concordance_df(df, group_testing_column_name)
+
+    if ignored_filters is None:
+        ignored_filters = ()
+
+    df = validate_preprocess_concordance(df, group_testing_column_name)
     trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
-    recall_precision_curve_df = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    recall_precision_curve_df = variant_filtering_utils.get_decision_tree_pr_curve(
         df, trivial_classifier_set, classify_column_name
     )
 
     # Add summary for indels
     df_indels = df.copy()
     df_indels["group_testing"] = np.where(df_indels["indel"], "INDELS", "SNP")
-    all_indels = variant_filtering_utils.get_decision_tree_precision_recall_curve(
+    all_indels = variant_filtering_utils.get_decision_tree_pr_curve(
         df_indels,
         trivial_classifier_set,
         classify_column_name,
@@ -167,16 +169,12 @@ def calc_recall_precision_curve(
             variant_filtering_utils.get_empty_recall_precision_curve("INDELS"),
             ignore_index=True,
         )
-    recall_precision_curve_df = recall_precision_curve_df.append(
-        all_indels, ignore_index=True
-    )
+    recall_precision_curve_df = recall_precision_curve_df.append(all_indels, ignore_index=True)
 
     return recall_precision_curve_df
 
 
-def validate_and_preprocess_concordance_df(
-    df: DataFrame, group_testing_column_name: Optional[str] = None
-) -> DataFrame:
+def validate_preprocess_concordance(df: DataFrame, group_testing_column_name: str | None = None) -> DataFrame:
     """
     prepare concordance data-frame for accuracy assessment or fail if it's not possible to do
 
@@ -187,20 +185,18 @@ def validate_and_preprocess_concordance_df(
     group_testing_column_name:
         name of column to use later for group_testing
     """
-    assert (
-        "tree_score" in df.columns
-    ), "Input concordance file should be after applying a model"
+    assert "tree_score" in df.columns, "Input concordance file should be after applying a model"
     df.loc[pd.isnull(df["hmer_indel_nuc"]), "hmer_indel_nuc"] = "N"
     if np.any(pd.isnull(df["filter"])):
         logger.warning(
-            f"Null values in filter column (n={pd.isnull(df['filter']).sum()}). "
-            f"Setting them as PASS, but it is suspicious"
+            "Null values in filter column (n=%i). Setting them as PASS, but it is suspicious",
+            pd.isnull(df["filter"]).sum(),
         )
         df.loc[pd.isnull(df["filter"]), "filter"] = "PASS"
     if np.any(pd.isnull(df["tree_score"])):
         logger.warning(
-            f"Null values in concordance dataframe tree_score (n={pd.isnull(df['tree_score']).sum()}). "
-            f"Setting them as zero, but it is suspicious"
+            "Null values in concordance dataframe tree_score (n=%i). Setting them as zero, but it is suspicious",
+            pd.isnull(df["tree_score"]).sum(),
         )
         df.loc[pd.isnull(df["tree_score"]), "tree_score"] = 0
 
@@ -212,13 +208,13 @@ def validate_and_preprocess_concordance_df(
     if group_testing_column_name is not None:
         df["group_testing"] = df[group_testing_column_name]
         removed = pd.isnull(df["group_testing"])
-        logger.info(f"Removing {removed.sum()}/{df.shape[0]} variants with no type")
+        logger.info("Removing %i/%i variants with no type", removed.sum(), df.shape[0])
         df = df[~removed]
     return df
 
 
 def initialize_trivial_classifier(
-    ignored_filters: Iterable[str],
+    ignored_filters: collections.abc.Iterable[str],
 ) -> variant_filtering_utils.MaskedHierarchicalModel:
     """
     initialize a classifier that will be used to simply apply filter column on the variants
@@ -227,9 +223,7 @@ def initialize_trivial_classifier(
     -------
     A MaskedHierarchicalModel object representing trivial classifier which applied filter column to the variants
     """
-    trivial_classifier = variant_filtering_utils.SingleTrivialClassifierModel(
-        ignored_filters
-    )
+    trivial_classifier = variant_filtering_utils.SingleTrivialClassifierModel(ignored_filters)
     trivial_classifier_set = variant_filtering_utils.MaskedHierarchicalModel(
         _name="classifier",
         _group_column="group",
