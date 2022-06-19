@@ -10,7 +10,7 @@ import pandas as pd
 import pysam
 
 
-def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -> pd.DataFrame:
+def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None, scoring_field: str = None) -> pd.DataFrame:
     """Reads VCF file into dataframe, re
 
     Parameters
@@ -20,7 +20,11 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
     sample_id: int
         Index of sample to fetch (default: 0)
     chromosome: str
-            specific chromosome to load from vcf, (default: all chromosomes)
+        Specific chromosome to load from vcf, (default: all chromosomes)
+    scoring_field: str
+        The name of the field that is used to score the variants.
+        This value replaces the TREE_SCORE in the output data frame.
+        When None TREE_SCORE is not replaced (default: None)
 
     Returns
     -------
@@ -107,6 +111,10 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
         "AVERAGE_TREE_SCORE",
         "VQSLOD",
     ]
+
+    if scoring_field is not None and scoring_field not in columns:
+        columns.append(scoring_field)
+
     columns = [x for x in columns if x in header.info.keys() + header.formats.keys()] + [
         "CHROM",
         "POS",
@@ -118,6 +126,9 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None) -
     ]
 
     df = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[x.lower() for x in columns])
+
+    if scoring_field is not None:
+        df["tree_score"] = df[scoring_field.lower()]
 
     df["indel"] = df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
 

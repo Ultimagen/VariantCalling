@@ -341,6 +341,8 @@ def vcf2concordance(
     concordance_file: str,
     concordance_format: str = "GC",
     chromosome: str = None,
+    scoring_field: str = None,
+    replace_empty_filter_by_pass: bool = False,
 ) -> pd.DataFrame:
     """Generates concordance dataframe
 
@@ -354,6 +356,10 @@ def vcf2concordance(
         Either 'GC' or 'VCFEVAL' - format for the concordance_file
     chromosome: str
         Fetch a specific chromosome (Default - all)
+    scoring_field: str
+        The INFO field used to score the variants (e.g. QUAL or TREE_SCORE)
+    replace_empty_filter_by_pass: bool
+        If there are empty values in the FILTER column, should they be replaced by PASS
     Returns
     -------
     pd.DataFrame
@@ -475,7 +481,7 @@ def vcf2concordance(
 
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
 
-    original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome)
+    original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome, scoring_field=scoring_field)
 
     if concordance_format != "VCFEVAL":
         original.drop("qual", axis=1, inplace=True)
@@ -503,6 +509,10 @@ def vcf2concordance(
     )
     concordance.loc[missing_variants_non_fn, "classify"] = "fn"
     concordance.loc[missing_variants_non_fn, "classify_gt"] = "fn"
+
+    if (replace_empty_filter_by_pass):
+        concordance.loc[concordance['filter'] == '', 'filter'] = 'PASS'
+
     return concordance
 
 
