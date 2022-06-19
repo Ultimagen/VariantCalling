@@ -76,7 +76,7 @@ def run(argv: list[str]):
     df: DataFrame = read_hdf(args.input_file, key=ds_key, skip_keys=skip)
 
     # Enable evaluating concordance from vcf without tree-score field
-    if all(df["tree_score"].isna()):
+    if "tree_score" not in df.columns or all(df["tree_score"].isna()):
         df["tree_score"] = 1
 
     classify_column = "classify" if ignore_genotype else "classify_gt"
