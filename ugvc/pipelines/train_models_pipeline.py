@@ -129,11 +129,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default="single_sample",
     )
     ap_var.add_argument(
-        "--ignore_filter_status",
-        help="Ignore the `filter` and `tree_score` columns",
-        action="store_true",
-    )
-    ap_var.add_argument(
         "--verbosity",
         help="Verbosity: ERROR, WARNING, INFO, DEBUG",
         required=False,
@@ -188,9 +183,9 @@ def run(argv: list[str]):
 
             df = pd.concat(df, axis=0)
 
-        if args.ignore_filter_status:
-            df["filter"] = ""
-            df["tree_score"] = None
+        # Reset the FILTER and TREE_SCORE fields
+        df["filter"] = ''
+        df["tree_score"] = None
 
         df, annots = vcf_pipeline_utils.annotate_concordance(
             df,
@@ -325,9 +320,9 @@ def run(argv: list[str]):
             else:
                 calls_df = pd.read_hdf(args.input_file, "concordance")
 
-            if args.ignore_filter_status:
-                calls_df["filter"] = ""
-                calls_df["tree_score"] = None
+            # Reset the FILTER and TREE_SCORE columns
+            calls_df["filter"] = ''
+            calls_df["tree_score"] = None
 
             calls_df, _ = vcf_pipeline_utils.annotate_concordance(
                 calls_df,

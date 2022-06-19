@@ -55,9 +55,20 @@ def _contig_concordance_annotate_reinterpretation(
     concordance_tool,
     disable_reinterpretation,
     ignore_low_quality_fps,
+    scoring_field,
+    replace_empty_filter_by_pass,
 ):
-    logger.info(f"Reading {contig}")
-    concordance = vcf_pipeline_utils.vcf2concordance(results[0], results[1], concordance_tool, contig)
+    logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
+    logger.info("Reading %s", contig)
+    concordance = vcf_pipeline_utils.vcf2concordance(
+        results[0],
+        results[1],
+        concordance_tool,
+        contig,
+        scoring_field=scoring_field,
+        replace_empty_filter_by_pass=replace_empty_filter_by_pass
+    )
+
     annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
         concordance,
         reference,
@@ -68,6 +79,7 @@ def _contig_concordance_annotate_reinterpretation(
         hmer_run_length_dist=hpol_filter_length_dist,
         flow_order=flow_order,
     )
+
 
     if not disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
@@ -161,9 +173,16 @@ def get_parser(argv: list[str]) -> argparse.ArgumentParser:
         default=[10, 10],
     )
     ap_var.add_argument(
-        "--ignore_filter_status",
-        help="Ignore variant filter status",
+        "--replace_empty_filter_by_pass",
+        help="If there are empty values in the FILTER column, should they be replaced by PASS",
         action="store_true",
+    )
+    ap_var.add_argument(
+        "--scoring_field",
+        help="Name of the field used to score the variants (if it is not TREE_SCORE)",
+        required=False,
+        default=None,
+        type=str,
     )
     ap_var.add_argument(
         "--flow_order",
@@ -273,7 +292,13 @@ def run(argv: list[str]):
     # single interval-file concordance - will be saved in a single dataframe
 
     if not cmp_intervals.is_none():
-        concordance = vcf_pipeline_utils.vcf2concordance(results[0], results[1], args.concordance_tool)
+        concordance = vcf_pipeline_utils.vcf2concordance(
+            results[0],
+            results[1],
+            args.concordance_tool,
+            scoring_field=args.scoring_field,
+            replace_empty_filter_by_pass = args.replace_empty_filter_by_pass
+        )
         annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
             concordance,
             args.reference,
@@ -325,6 +350,8 @@ def run(argv: list[str]):
                 args.concordance_tool,
                 args.disable_reinterpretation,
                 args.is_mutect,
+                args.scoring_field,
+                args.replace_empty_filter_by_pass,
             )
             for contig in tqdm(contigs)
         )
