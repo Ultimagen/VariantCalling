@@ -12,10 +12,10 @@ from simppl.simple_pipeline import SimplePipeline
 
 import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.vcfbed.variant_annotation as annotation
-import ugvc.vcfbed.vcftools as vcftools
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.utils.exec_utils import print_and_execute
+from ugvc.vcfbed import vcftools
 
 
 class VcfPipelineUtils:
@@ -46,12 +46,12 @@ class VcfPipelineUtils:
             f"{input_prefix}.{x}.vcf.gz" for x in range(1, n_parts + 1)
         ]
         input_files = [x for x in input_files if os.path.exists(x)]
-        self.__execute(f'bcftools concat -o {output_fname} -O z {input_files}')
+        self.__execute(f"bcftools concat -o {output_fname} -O z {input_files}")
         self.index_vcf(output_fname)
 
     def index_vcf(self, vcf: str):
         """Tabix index on VCF"""
-        self.__execute(f'bcftools index -tf {vcf}')
+        self.__execute(f"bcftools index -tf {vcf}")
 
     def reheader_vcf(self, input_file: str, new_header: str, output_file: str):
         """Run bcftools reheader and index
@@ -69,7 +69,7 @@ class VcfPipelineUtils:
         -------
         None, generates `output_file`
         """
-        self.__execute(f'bcftools reheader -h {new_header} {input_file}')
+        self.__execute(f"bcftools reheader -h {new_header} {input_file}")
         self.index_vcf(output_file)
 
     def intersect_bed_files(self, input_bed1: str, input_bed2: str, bed_output: str) -> None:
@@ -83,15 +83,12 @@ class VcfPipelineUtils:
         bed_output: str
             Output bed intersected file
 
-        Return
-        ------
-        None
-            Writes output_fn file
+        Writes output_fn file
         """
-        self.__execute(f'bedtools intersect -a {input_bed1} -b {input_bed2}', output_file=bed_output)
+        self.__execute(f"bedtools intersect -a {input_bed1} -b {input_bed2}", output_file=bed_output)
 
     def intersect_with_intervals(self, input_fn: str, intervals_fn: str, output_fn: str) -> None:
-        """Intersects VCF with intervalList
+        """Intersects VCF with intervalList. Writes output_fn file
 
         Parameters
         ----------
@@ -102,22 +99,19 @@ class VcfPipelineUtils:
         output_fn: str
             Output file
 
-        Return
-        ------
-        None
-            Writes output_fn file
+
         """
         self.__execute(f"gatk SelectVariants -V {input_fn} -L {intervals_fn} -O {output_fn}")
 
     def run_genotype_concordance(
-            self,
-            input_file: str,
-            truth_file: str,
-            output_prefix: str,
-            comparison_intervals: Optional[str] = None,
-            input_sample: str = "NA12878",
-            truth_sample="HG001",
-            ignore_filter: bool = False,
+        self,
+        input_file: str,
+        truth_file: str,
+        output_prefix: str,
+        comparison_intervals: str | None = None,
+        input_sample: str = "NA12878",
+        truth_sample="HG001",
+        ignore_filter: bool = False,
     ):
         """Run GenotypeConcordance, correct the bug and reindex
 
@@ -137,32 +131,31 @@ class VcfPipelineUtils:
             Name of the sample in the truth file
         ignore_filter: bool
             Ignore status of the variant filter
-        Returns
-        -------
-        None
         """
-        genotype_concordance_command = f'picard GenotypeConcordance ' \
-                                       f'CALL_VCF={input_file} ' \
-                                       f'CALL_SAMPLE={input_sample} ' \
-                                       f'O={output_prefix} ' \
-                                       f'TRUTH_VCF={truth_file} ' \
-                                       f'TRUTH_SAMPLE={truth_sample} ' \
-                                       f'OUTPUT_VCF=true ' \
-                                       f'IGNORE_FILTER_STATUS={ignore_filter}'
+        genotype_concordance_command = (
+            f"picard GenotypeConcordance "
+            f"CALL_VCF={input_file} "
+            f"CALL_SAMPLE={input_sample} "
+            f"O={output_prefix} "
+            f"TRUTH_VCF={truth_file} "
+            f"TRUTH_SAMPLE={truth_sample} "
+            f"OUTPUT_VCF=true "
+            f"IGNORE_FILTER_STATUS={ignore_filter}"
+        )
         if comparison_intervals is not None:
-            genotype_concordance_command += 'INTERVALS={comparison_intervals}'
+            genotype_concordance_command += "INTERVALS={comparison_intervals}"
         self.fix_vcf_format(f"{output_prefix}.genotype_concordance")
 
     def run_vcfeval_concordance(
-            self,
-            input_file: str,
-            truth_file: str,
-            output_prefix: str,
-            ref_genome: str,
-            comparison_intervals: Optional[str] = None,
-            input_sample: str = "NA12878",
-            truth_sample="HG001",
-            ignore_filter: bool = False,
+        self,
+        input_file: str,
+        truth_file: str,
+        output_prefix: str,
+        ref_genome: str,
+        comparison_intervals: str | None = None,
+        input_sample: str = "NA12878",
+        truth_sample="HG001",
+        ignore_filter: bool = False,
     ):
         """Run vcfevalConcordance
 
@@ -184,24 +177,17 @@ class VcfPipelineUtils:
             Name of the sample in the truth file
         ignore_filter: bool
             Ignore status of the variant filter
-        Returns
-        -------
-        None
         """
 
         output_dir = os.path.dirname(output_prefix)
         SDF_path = ref_genome + ".sdf"
-        vcfeval_output_dir = os.path.join(
-            output_dir, os.path.basename(output_prefix) + ".vcfeval_output"
-        )
+        vcfeval_output_dir = os.path.join(output_dir, os.path.basename(output_prefix) + ".vcfeval_output")
 
         if os.path.isdir(vcfeval_output_dir):
             shutil.rmtree(vcfeval_output_dir)
 
         # filter the vcf to be only in the comparison_intervals.
-        filtered_truth_file = os.path.join(
-            output_dir, ".".join((os.path.basename(truth_file), "filtered", "vcf.gz"))
-        )
+        filtered_truth_file = os.path.join(output_dir, ".".join((os.path.basename(truth_file), "filtered", "vcf.gz")))
         if comparison_intervals is not None:
             self.intersect_with_intervals(truth_file, comparison_intervals, filtered_truth_file)
         else:
@@ -209,8 +195,10 @@ class VcfPipelineUtils:
             self.index_vcf(filtered_truth_file)
 
         # vcfeval calculation
-        vcfeval_command = f'rtg vcfeval -b {filtered_truth_file} --calls {input_file} -o {vcfeval_output_dir} ' \
-                          f'-t {SDF_path} -m combine --sample {truth_sample},{input_sample} --decompose'
+        vcfeval_command = (
+            f"rtg vcfeval -b {filtered_truth_file} --calls {input_file} -o {vcfeval_output_dir} "
+            f"-t {SDF_path} -m combine --sample {truth_sample},{input_sample} --decompose"
+        )
         if ignore_filter:
             vcfeval_command += " --all-records"
         self.__execute(vcfeval_command)
@@ -221,29 +209,30 @@ class VcfPipelineUtils:
         # make the vcfeval output file without weird variants
         self.__execute(
             f'bcftools norm -f {ref_genome} -m+any -o {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")}'
-            f' -O z {os.path.join(vcfeval_output_dir, "output.vcf.gz")}')
+            f' -O z {os.path.join(vcfeval_output_dir, "output.vcf.gz")}'
+        )
 
         # move the file to be compatible with the output file of the genotype
         # concordance
-        self.__execute(f'mv {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")} '
-                      f'{output_prefix + ".vcfeval_concordance.vcf.gz"}')
+        self.__execute(
+            f'mv {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")} '
+            f'{output_prefix + ".vcfeval_concordance.vcf.gz"}'
+        )
 
         # generate index file for the vcf.gz file
         self.index_vcf(output_prefix + ".vcfeval_concordance.vcf.gz")
 
     def fix_vcf_format(self, output_prefix):
-        self.__execute(f'gunzip -f {output_prefix}.vcf.gz')
-        with open(f"{output_prefix}.vcf") as input_file_handle:
-            with open(f"{output_prefix}.tmp", "w") as output_file_handle:
+        self.__execute(f"gunzip -f {output_prefix}.vcf.gz")
+        with open(f"{output_prefix}.vcf", encoding="utf-8") as input_file_handle:
+            with open(f"{output_prefix}.tmp", "w", encoding="utf-8") as output_file_handle:
                 for line in input_file_handle:
                     if line.startswith("##FORMAT=<ID=PS"):
-                        output_file_handle.write(
-                            line.replace("Type=Integer", "Type=String")
-                        )
+                        output_file_handle.write(line.replace("Type=Integer", "Type=String"))
                     else:
                         output_file_handle.write(line)
-        self.__execute(f'mv {output_file_handle.name} {input_file_handle.name}')
-        self.__execute(f'bgzip {input_file_handle.name}')
+        self.__execute(f"mv {output_file_handle.name} {input_file_handle.name}")
+        self.__execute(f"bgzip {input_file_handle.name}")
         self.index_vcf(f"{input_file_handle.name}.gz")
 
     def annotate_tandem_repeats(self, input_file: str, reference_fasta: str) -> None:
@@ -256,16 +245,13 @@ class VcfPipelineUtils:
         reference_fasta: str
             Reference file (should have .dict file nearby)
 
-        Returns
-        -------
-        None
-            Creates a copy of the input_file with .annotated.vcf.gz and the index
+        Creates a copy of the input_file with .annotated.vcf.gz and the index
         """
 
         output_file = input_file.replace("vcf.gz", "annotated.vcf.gz")
         self.__execute(f"gatk VariantAnnotator -V {input_file} -O {output_file} -R {reference_fasta} -A TandemRepeat")
 
-    def filter_bad_areas(self, input_file_calls: str, highconf_regions: str, runs_regions: Optional[str]):
+    def filter_bad_areas(self, input_file_calls: str, highconf_regions: str, runs_regions: str | None):
         """Looks at concordance only around high confidence areas and not around runs
 
         Parameters
@@ -281,16 +267,20 @@ class VcfPipelineUtils:
         highconf_file_name = input_file_calls.replace("vcf.gz", "highconf.vcf")
         runs_file_name = input_file_calls.replace("vcf.gz", "runs.vcf")
 
-        self.__execute(f'bedtools intersect -a {input_file_calls} -b {highconf_regions} '
-                      f'-nonamecheck -header -u', output_file=highconf_file_name)
+        self.__execute(
+            f"bedtools intersect -a {input_file_calls} -b {highconf_regions} " f"-nonamecheck -header -u",
+            output_file=highconf_file_name,
+        )
 
         self.__execute(f"bgzip -f {highconf_file_name}")
         highconf_file_name += ".gz"
         self.index_vcf(highconf_file_name)
 
         if runs_regions is not None:
-            self.__execute(f"bedtools subtract -a {highconf_file_name} "
-                          f"-b {runs_regions} -nonamecheck -A -header", output_file=runs_file_name)
+            self.__execute(
+                f"bedtools subtract -a {highconf_file_name} " f"-b {runs_regions} -nonamecheck -A -header",
+                output_file=runs_file_name,
+            )
 
             self.__execute(f"bgzip -f {runs_file_name}")
             runs_file_name += ".gz"
@@ -608,9 +598,9 @@ def annotate_concordance(
 
 
 def reinterpret_variants(
-        concordance_df: pd.DataFrame,
-        reference_fasta: str,
-        ignore_low_quality_fps: bool = False,
+    concordance_df: pd.DataFrame,
+    reference_fasta: str,
+    ignore_low_quality_fps: bool = False,
 ) -> pd.DataFrame:
     """Reinterprets the variants by comparing the variant to the ground truth in flow space
 

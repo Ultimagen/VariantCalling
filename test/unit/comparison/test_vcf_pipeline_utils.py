@@ -2,13 +2,13 @@ import subprocess
 from collections import Counter
 from os.path import exists
 from os.path import join as pjoin
+from test import get_resource_dir, test_dir
 
 import pandas as pd
 import pysam
 from simppl.simple_pipeline import SimplePipeline
 
-from test import get_resource_dir, test_dir
-from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, vcf2concordance, bed_file_length
+from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, bed_file_length, vcf2concordance
 
 inputs_dir = get_resource_dir(__file__)
 common_dir = pjoin(test_dir, "resources", "general")
@@ -45,20 +45,20 @@ class TestVCF2Concordance:
     def test_qual_not_nan(self):
         input_vcf = pjoin(inputs_dir, "chr2.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "chr2.conc.vcf.gz")
-        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert pd.isnull(result.query("classify!='fn'").qual).sum() == 0
         assert pd.isnull(result.query("classify!='fn'").sor).sum() == 0
 
     def test_filtered_out_missing(self):
         input_vcf = pjoin(inputs_dir, "hg002.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.conc.vcf.gz")
-        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert ((result["call"] == "IGN") & (pd.isnull(result["base"]))).sum() == 0
 
     def test_filtered_out_tp_became_fn(self):
         input_vcf = pjoin(inputs_dir, "hg002.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.conc.vcf.gz")
-        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert ((result["call"] == "IGN") & (result["base"] == "FN")).sum() > 0
         take = result[(result["call"] == "IGN") & (result["base"] == "FN")]
         assert (take["classify"] == "fn").all()
@@ -66,14 +66,14 @@ class TestVCF2Concordance:
     def test_excluded_regions_are_ignored(self):
         input_vcf = pjoin(inputs_dir, "hg002.excluded.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.excluded.conc.vcf.gz")
-        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert ((result["call"] == "OUT")).sum() == 0
         assert ((result["base"] == "OUT")).sum() == 0
 
     def test_all_ref_never_false_negative(self):
         input_vcf = pjoin(inputs_dir, "hg002.allref.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.allref.conc.vcf.gz")
-        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         calls = result[result["gt_ground_truth"] == (0, 0)].classify_gt.value_counts()
         assert "fn" not in calls.index
 

@@ -5,14 +5,13 @@ from os.path import basename, dirname
 from os.path import join as pjoin
 from os.path import splitext
 
-from ugvc.vcfbed.interval_file import IntervalFile
 from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils
+from ugvc.vcfbed.interval_file import IntervalFile
 
 CONCORDANCE_TOOL = "VCFEVAL"
 
 
-
-def pipeline( # pylint: disable=too-many-arguments
+def pipeline(  # pylint: disable=too-many-arguments
     vpu: VcfPipelineUtils,
     n_parts: int,
     input_prefix: str,
@@ -25,7 +24,7 @@ def pipeline( # pylint: disable=too-many-arguments
     output_dir: str | None = None,
     output_file_name: str | None = None,
     header: str | None = None,
-    runs_intervals: vcf_pipeline_utils.IntervalFile | None = None,
+    runs_intervals: IntervalFile | None = None,
     output_suffix: str | None = None,
     ignore_filter: bool = False,
     concordance_tool: str = CONCORDANCE_TOOL,

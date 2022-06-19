@@ -1,5 +1,6 @@
 # noqa: W605  flake8: invalid escape sequence '\ ' - used by logo
 # pylint: disable=anomalous-backslash-in-string
+# pylint: disable=wrong-import-position
 
 import sys
 from os.path import dirname
@@ -29,20 +30,8 @@ from ugvc.pipelines.mrd import (
     snp_error_rate,
 )
 
-from ugvc.pipelines import (coverage_analysis, evaluate_concordance,
-                            filter_variants_pipeline, run_comparison_pipeline,
-                            train_models_pipeline)
-from ugvc.pipelines.mrd import (collect_coverage_per_motif, concat_dataframes,
-                                create_control_signature,
-                                featuremap_to_dataframe,
-                                intersect_featuremap_with_signature,
-                                positional_error_rate_profile,
-                                prepare_data_from_mrd_pipeline, snp_error_rate)
 # import pipeline modules implementing run(argv) method
-from ugvc.pipelines.sec import (assess_sec_concordance,
-                                correct_systematic_errors, sec_training,
-                                sec_validation)
-
+from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 
 # create a list of imported pipeline modules
 modules = [

@@ -1,9 +1,10 @@
 import os
-from os.path import join as pjoin, exists
+from os.path import exists
+from os.path import join as pjoin
+from test import get_resource_dir, test_dir
 
 from simppl.simple_pipeline import SimplePipeline
 
-from test import get_resource_dir, test_dir
 from ugvc.vcfbed.interval_file import IntervalFile
 
 inputs_dir = get_resource_dir(__file__)
