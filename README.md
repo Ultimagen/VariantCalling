@@ -1,13 +1,25 @@
 # VariantCalling
-Variant calling with Ultima data
+
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+This package provides a set of tools to assist variant calling on Ultima data.
+The best practice pipeline is published [here](broad.io/ugworkspace). The code
+below is used mostly in the post-GATK filtering step.
+
+In addition, the code provides
+
+* Tools to perform evaluation of the callset relative to the ground truth.
+* Tools to perform building a database of noisy locaitons (SEC) and filtering callset relative to them - still undocumented
+* Set of tools for MRD (minimal residual disease) - still undocumented.
 
 ## Setup
+
 1. Clone VariantCalling repository to e.g. `software\VariantCalling`
 
 2. Create the three conda environments:
   ```
   conda env create -f setup/environment.yml
-  conda env create -f setup/other_envs/ucsd.yml
+  conda env create -f setup/other_envs/ucsc.yml
   conda env create -f setup/other_envs/cutadapt.yml
   ```
 3. Activate the main conda environment
@@ -32,8 +44,6 @@ Variant calling with Ultima data
       pip install -e .
       ```
 
- scripts should be available on the path and modules should be available for import through from ugvc import ...
-
 ## Using ugvc package
 
 ### Run through cli
@@ -51,7 +61,34 @@ python /path/to/ugvc <tool_name> <args>
 
 ### Run individual tools not through CLI
 
-See individual tool's documentation pages
+	coverage_analysis:
+		Run full coverage analysis of an aligned bam/cram file
+
+	evaluate_concordance:
+		Calculate precision and recall for compared HDF5
+
+	filter_variants_pipeline:
+		POST-GATK variant filtering
+
+	run_comparison_pipeline:
+		Concordance between VCF and ground truth
+
+	train_models_pipeline:
+		Train filtering models
+
+
+## Documentation of individual tools:
+
+* Train post-calling model: [train_models_pipeline](docs/train_models_pipeline.md)
+* Filter callset using pre-trained ML model: [filter_variants_pipeline](docs/filter_variants_pipeline.md)
+* Compare callset to ground truth: [run_comparison_pipeline](docs/run_comparison_pipeline.md)
+* Coverage bias analyses: [coverage_analysis](docs/coverage_analysis.md)
+* Evaluation of compared callsets: [evaluate_concordance](docs/evaluate_concordance.md)
+
+## Howtos
+
+* [How to post-filter a callset](docs/howto-callset-filter.md)
+* [Evaluation of UG callsets](docs/howto-evaluate-ug-callset.md)
 
 ## Test
 ### Run all tests
@@ -91,3 +128,24 @@ git-lfs track "*.new_suffix"
    2. Wait for CI tests to pass (green V sign)
 5. scripts that you want to be available on the path should be added to `setup.py`
 6. scripts that you want to be available to `ugvc` should be added to `__main__.py`
+7. Code changes should pass all pre-commit hooks
+
+## How To pre-commit
+pre-commit hooks are configured within `.pre-commit-config.yaml`
+
+install: https://pre-commit.com/#installation
+
+After pre-commit package is installed, you need to set git hooks scripts: `pre-commit install`
+After the installation it will run the pre-commit hooks for all files changed as part of the commit.
+For running all pre-commit hooks on all files (used for initial pre-commit run) use: `pre-commit run --all-files`
+
+# The hooks we use are:
+[pycln](https://github.com/hadialqattan/pycln) - remove unused import statements
+
+[isort](https://github.com/PyCQA/isort) - Python utility library to sort imports alphabetically, and automatically separated into sections and by type
+
+[black](https://github.com/psf/black) - uncompromising Python code formatter
+
+[flake8](https://gitlab.com/pycqa/flake8) - python coding style guide for PEP8
+
+[pylint](https://github.com/pycqa/pylint) - python static code analysis tool

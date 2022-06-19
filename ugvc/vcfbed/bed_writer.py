@@ -1,4 +1,5 @@
 import pandas as pd
+
 BED_COLUMN_CHROM = "chrom"
 BED_COLUMN_CHROM_START = "chromStart"
 BED_COLUMN_CHROM_END = "chromEnd"
@@ -6,7 +7,8 @@ BED_COLUMN_CHROM_END = "chromEnd"
 
 class BedWriter:
     def __init__(self, output_file: str):
-        self.fh = open(output_file, "w")
+        # pylint:disable=consider-using-with
+        self.fh_var = open(output_file, "w", encoding="utf-8")
 
     def write(
         self,
@@ -18,15 +20,15 @@ class BedWriter:
     ):
         if start > end:
             raise ValueError(f"start > end in write bed file: {start} > {end}")
-        self.fh.write(f"{chrom}\t{start}\t{end}")
+        self.fh_var.write(f"{chrom}\t{start}\t{end}")
         if description is not None:
-            self.fh.write(f"\t{description}")
+            self.fh_var.write(f"\t{description}")
         if score is not None:
-            self.fh.write(f"\t{score}")
-        self.fh.write("\n")
+            self.fh_var.write(f"\t{score}")
+        self.fh_var.write("\n")
 
     def close(self):
-        self.fh.close()
+        self.fh_var.close()
 
 
 def parse_intervals_file(intervalfile: str, threshold: int = 0) -> pd.DataFrame:
@@ -54,4 +56,5 @@ def parse_intervals_file(intervalfile: str, threshold: int = 0) -> pd.DataFrame:
     if threshold > 0:
         df = df[df["end"] - df["start"] > threshold]
     df.sort_values(["chromosome", "start"], inplace=True)
+    df["chromosome"] = df["chromosome"].astype("string")
     return df

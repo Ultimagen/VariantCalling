@@ -1,63 +1,70 @@
 #!/env/python
+# Copyright 2022 Ultima Genomics Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# DESCRIPTION
+#    Filter raw GATK callset using ML model
+# CHANGELOG in reverse chronological order
+from __future__ import annotations
+
 import argparse
 import logging
 import pickle
 import re
 import subprocess
 import sys
-from typing import List
 
 import numpy as np
 import pandas as pd
 import pysam
 import tqdm
 
-import ugvc.comparison.vcf_pipeline_utils as vcf_pipeline_utils
-import ugvc.filtering.variant_filtering_utils as variant_filtering_utils
-import ugvc.vcfbed.vcftools as vcftools
+from ugvc.comparison import vcf_pipeline_utils
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.filtering import variant_filtering_utils
 from ugvc.filtering.blacklist import blacklist_cg_insertions, merge_blacklists
+from ugvc.vcfbed import vcftools
 
 
-def parse_args(argv: List[str]) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(
-        prog="filter_variants_pipeline.py", description="Filter VCF"
-    )
-    ap.add_argument(
-        "--input_file", help="Name of the input VCF file", type=str, required=True
-    )
-    ap.add_argument("--model_file", help="Pickle model file", type=str, required=True)
-    ap.add_argument("--model_name", help="Model file", type=str, required=True)
-    ap.add_argument(
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    ap_var = argparse.ArgumentParser(prog="filter_variants_pipeline.py", description="Filter VCF")
+    ap_var.add_argument("--input_file", help="Name of the input VCF file", type=str, required=True)
+    ap_var.add_argument("--model_file", help="Pickle model file", type=str, required=True)
+    ap_var.add_argument("--model_name", help="Model file", type=str, required=True)
+    ap_var.add_argument(
         "--hpol_filter_length_dist",
         nargs=2,
         type=int,
         help="Length and distance to the hpol run to mark",
         default=[10, 10],
     )
-    ap.add_argument(
-        "--runs_file", help="Homopolymer runs file", type=str, required=True
-    )
-    ap.add_argument("--blacklist", help="Blacklist file", type=str, required=False)
-    ap.add_argument(
+    ap_var.add_argument("--runs_file", help="Homopolymer runs file", type=str, required=True)
+    ap_var.add_argument("--blacklist", help="Blacklist file", type=str, required=False)
+    ap_var.add_argument(
         "--blacklist_cg_insertions",
         help="Should CCG/GGC insertions be filtered out?",
         action="store_true",
     )
-    ap.add_argument(
-        "--reference_file", help="Indexed reference FASTA file", type=str, required=True
-    )
-    ap.add_argument("--output_file", help="Output VCF file", type=str, required=True)
-    ap.add_argument(
-        "--is_mutect", help="Is the input a result of mutect", action="store_true"
-    )
-    ap.add_argument(
+    ap_var.add_argument("--reference_file", help="Indexed reference FASTA file", type=str, required=True)
+    ap_var.add_argument("--output_file", help="Output VCF file", type=str, required=True)
+    ap_var.add_argument("--is_mutect", help="Is the input a result of mutect", action="store_true")
+    ap_var.add_argument(
         "--flow_order",
         help="Sequencing flow order (4 cycle)",
         required=False,
         default=DEFAULT_FLOW_ORDER,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--annotate_intervals",
         help="interval files for annotation (multiple possible)",
         required=False,
@@ -65,15 +72,15 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         default=None,
         action="append",
     )
-    return ap.parse_args(argv)
+    return ap_var.parse_args(argv)
 
 
-def protected_add(hdr, field, n_vals, type, description):
+def protected_add(hdr, field, n_vals, param_type, description):
     if field not in hdr:
-        hdr.add(field, n_vals, type, description)
+        hdr.add(field, n_vals, param_type, description)
 
 
-def run(argv: List[str]):
+def run(argv: list[str]):
     "POST-GATK variant filtering"
     args = parse_args(argv)
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
@@ -82,7 +89,7 @@ def run(argv: List[str]):
 
     try:
         df = vcftools.get_vcf_df(args.input_file)
-        df, annots = vcf_pipeline_utils.annotate_concordance(
+        df, _ = vcf_pipeline_utils.annotate_concordance(
             df,
             args.reference_file,
             runfile=args.runs_file,
@@ -94,10 +101,14 @@ def run(argv: List[str]):
             df["qual"] = (
                 df["tlod"].apply(lambda x: max(x) if isinstance(x, tuple) else 50) * 10
             )
+            df['mleaf'] = df['af']  # parameters needed for filtering
+            df['mleac'] = df['ac']  # parameters needed for filtering
+            if 'xc' not in df.columns:
+                df['xc'] = 1
 
         df.loc[df["gt"] == (1, 1), "sor"] = 0.5
-        with open(args.model_file, "rb") as mf:
-            models_dict = pickle.load(mf)
+        with open(args.model_file, "rb") as model_file:
+            models_dict = pickle.load(model_file)
         model_name = args.model_name
         models = models_dict[model_name]
 
@@ -125,9 +136,7 @@ def run(argv: List[str]):
 
         logger.info("Applying classifier proba")
         predictions_score = model_clsf.predict(df, get_numbers=True)
-        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(
-            df, predictions_score, model_clsf.tree_score_fpr
-        )
+        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
         # Do not output FPR if it could not be calculated from the calls
         output_fpr = True
         if len(set(prediction_fpr)) == 1:
@@ -145,12 +154,8 @@ def run(argv: List[str]):
         with pysam.VariantFile(args.input_file) as infile:
             hdr = infile.header
 
-            protected_add(
-                hdr.info, "HPOL_RUN", 1, "Flag", "In or close to homopolymer run"
-            )
-            protected_add(
-                hdr.filters, "LOW_SCORE", None, None, "Low decision tree score"
-            )
+            protected_add(hdr.info, "HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
+            protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
             protected_add(hdr.info, "BLACKLST", ".", "String", "blacklist")
 
             if args.blacklist_cg_insertions:
@@ -182,9 +187,9 @@ def run(argv: List[str]):
                         pass_flag = False
                     if blacklist[i] != "PASS":
                         blacklists_info = []
-                        for v in blacklist[i].split(";"):
-                            if v != "PASS":
-                                blacklists_info.append(v)
+                        for value in blacklist[i].split(";"):
+                            if value != "PASS":
+                                blacklists_info.append(value)
                         if len(blacklists_info) != 0:
                             rec.info["BLACKLST"] = blacklists_info
                     if pass_flag:
@@ -196,12 +201,7 @@ def run(argv: List[str]):
 
                     # fix the alleles of form <1> that our GATK adds
                     rec.ref = rec.ref if re.match(r"<[0-9]+>", rec.ref) is None else "*"
-                    rec.alleles = tuple(
-                        [
-                            y if re.match(r"<[0-9]+>", y) is None else "*"
-                            for y in rec.alleles
-                        ]
-                    )
+                    rec.alleles = (y if re.match(r"<[0-9]+>", y) is None else "*" for y in rec.alleles)
 
                     # Removing the edge case of multiple * alleles passed due to
                     # the above correction
@@ -212,7 +212,7 @@ def run(argv: List[str]):
 
         cmd = ["bcftools", "index", "-t", args.output_file]
         subprocess.check_call(cmd)
-        logger.info(f"Removed {skipped_records} malformed records")
+        logger.info("Removed %s malformed records", skipped_records)
         logger.info("Variant filtering run: success")
 
     except Exception as err:

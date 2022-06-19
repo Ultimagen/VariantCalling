@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import os
 import re
@@ -5,7 +7,6 @@ import subprocess
 import sys
 import tempfile
 from collections import Counter
-from typing import Optional, Union
 
 import boto3
 import numpy as np
@@ -13,7 +14,7 @@ import pandas as pd
 import pysam
 import tqdm
 
-ERROR_PROBS = "/home/ilya/proj/VariantCalling/work/190628/probability.csv"
+ERROR_PROBS = "probability.csv"
 
 
 def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray:
@@ -33,13 +34,10 @@ def get_matrix(testmatrices: np.ndarray, idx: int) -> np.ndarray:
     """
     if len(testmatrices.shape) == 4:
         return testmatrices[idx, 0, :, :].T
-    else:
-        return testmatrices[idx, :, :].T
+    return testmatrices[idx, :, :].T
 
 
-def save_tmp_kr_matrix(
-    tensor_name: str, n_classes: int, n_flows: int, output_dir: str
-) -> str:
+def save_tmp_kr_matrix(tensor_name: str, n_classes: int, n_flows: int, output_dir: str) -> str:
     """extract kr npy matrix from the probability tensor sequence
 
     Parameters
@@ -63,30 +61,30 @@ def save_tmp_kr_matrix(
         testmatrices = testmatrices.reshape(-1, 1, n_flows, n_classes)
     else:
         testmatrices = np.load(tensor_name, mmap_mode="r")
-    kr = np.squeeze(np.argmax(testmatrices, axis=3))
-    fid, tempname = tempfile.mkstemp(suffix=".npy", dir=output_dir)
-    np.save(tempname, kr)
+    kr_tag = np.squeeze(np.argmax(testmatrices, axis=3))
+    _, tempname = tempfile.mkstemp(suffix=".npy", dir=output_dir)
+    np.save(tempname, kr_tag)
     return tempname
 
 
-def get_kr(key_matrix: np.ndarray, idx: int, sf: int = 100) -> np.ndarray:
-    """Summary
+def get_kr(key_matrix: np.ndarray, idx: int, scale_factor: int = 100) -> np.ndarray:
+    """Returns a row of the key matrix
 
     Parameters
     ----------
     key_matrix : np.ndarray
-        Description
+        flowx x max_hmer array
     idx : int
-        Description
-    sf : int, optional
-        Description
+        row index to return
+    scale_factor : int, optional
+        scale factor of the result
 
     Returns
     -------
     np.ndarray
-        Description
+        Row of key matrix divided by the scale factor
     """
-    return (key_matrix[idx, :] + sf // 2) // sf
+    return (key_matrix[idx, :] + scale_factor // 2) // scale_factor
 
 
 def key2base(key: np.ndarray, flow_order: str) -> str:
@@ -117,24 +115,21 @@ def _calculate_correct_prob(matrix: np.ndarray) -> np.ndarray:
     matrix: np.ndarray
         Flow matrix
     """
-    kr = np.argmax(matrix, axis=0)
+    kr_tag = np.argmax(matrix, axis=0)
     high_err = np.argpartition(matrix, -2, axis=0)[-2, :]
-    return matrix[kr, np.arange(matrix.shape[1])] / (
-        matrix[kr, np.arange(matrix.shape[1])]
-        + matrix[high_err, np.arange(matrix.shape[1])]
+    return matrix[kr_tag, np.arange(matrix.shape[1])] / (
+        matrix[kr_tag, np.arange(matrix.shape[1])] + matrix[high_err, np.arange(matrix.shape[1])]
     )
 
 
-def _generate_quality(
-    seq: str, kr: np.ndarray = None, correct_prob: np.ndarray = None
-) -> str:
+def _generate_quality(seq: str, kr_tag: np.ndarray = None, correct_prob: np.ndarray = None) -> str:
     """Summary
 
     Parameters
     ----------
     seq : str
         Sequence
-    kr : np.ndarray
+    kr_tag : np.ndarray
         Kr (optional)
     correct_prob: np.ndarray
         probability (optional)
@@ -145,28 +140,25 @@ def _generate_quality(
         I of the length of the sequence
     """
 
-    if kr is None:
+    if kr_tag is None or correct_prob is None:
         return "I" * len(seq)
-    else:
 
-        error_prob = 1 - correct_prob
-        probs = error_prob[kr > 0]
-        tmp_kr = kr[kr > 0]
-        ends = np.cumsum(tmp_kr) - 1
-        starts = ends + 1 - tmp_kr
-        probs = probs / 2
-        output = np.zeros((tmp_kr.sum()))
-        output[ends] = output[ends] + probs
-        output[starts] = output[starts] + probs
-        output = np.clip(output, 0.0001, None)
-        error_phred = (-10 * np.log10(output)).astype(np.int8) + 33
-        quals = error_phred.view("c").tostring().decode()
-        return quals
+    error_prob = 1 - correct_prob
+    probs = error_prob[kr_tag > 0]
+    tmp_kr = kr_tag[kr_tag > 0]
+    ends = np.cumsum(tmp_kr) - 1
+    starts = ends + 1 - tmp_kr
+    probs = probs / 2
+    output = np.zeros((tmp_kr.sum()))
+    output[ends] = output[ends] + probs
+    output[starts] = output[starts] + probs
+    output = np.clip(output, 0.0001, None)
+    error_phred = (-10 * np.log10(output)).astype(np.int8) + 33
+    quals = error_phred.view("c").tostring().decode()
+    return quals
 
 
-def write_sequences(
-    tensor_name: str, seq_file_name: str, n_flows: int, n_classes: int, flow_order: str
-) -> int:
+def write_sequences(tensor_name: str, seq_file_name: str, n_flows: int, n_classes: int, flow_order: str) -> int:
     """Write convert the prob. tensor to sequences and write them to the file
 
     Parameters
@@ -195,14 +187,14 @@ def write_sequences(
 
     flow_order = (flow_order * n_flows)[:n_flows]
     count = 0
-    with open(seq_file_name, "w") as out:
+    with open(seq_file_name, "w", encoding="latin-1") as out:
         for i in range(testmatrices.shape[0]):
             matrix = get_matrix(testmatrices, i)
 
-            kr = np.argmax(matrix, axis=0)
-            seq = key2base(kr, flow_order)
+            kr_tag = np.argmax(matrix, axis=0)
+            seq = key2base(kr_tag, flow_order)
             correct_prob = _calculate_correct_prob(matrix)
-            qual = _generate_quality(seq, kr, correct_prob)
+            qual = _generate_quality(seq, kr_tag, correct_prob)
             assert len(seq) == len(qual), "Sequence of a different length with quality"
             out.write(f"{seq}\t{qual}\n")
             count += 1
@@ -213,32 +205,25 @@ def extract_tags(bamfile: str, output_file: str, tag_list: list) -> None:
     """Extracts specified tags and writes them into the TSV file
 
     Parameters
-    ----------
+     ----------
     bamfile : str
-        Input BAM file
-   output_file : str
-        Output txt file
+         Input BAM file
+    output_file : str
+         Output txt file
     tag_list : list
-        List of tags to extract
+         List of tags to extract
     """
-    with open(output_file, "w") as out:
+    with open(output_file, "w", encoding="latin-1") as out:
         with pysam.AlignmentFile(bamfile, check_sq=False) as inp:
             for rec in inp:
                 tags = [rec.get_tag(x, with_value_type=True) for x in tag_list]
-                out.write(
-                    "\t".join(
-                        [
-                            f"{tag_list[i]}:{tags[i][1]}:{tags[i][0]}"
-                            for i in range(len(tags))
-                        ]
-                    )
-                )
+                out.write("\t".join([f"{tag_list[i]}:{tags[i][1]}:{tags[i][0]}" for i in range(len(tags))]))
                 out.write("\n")
 
 
 def matrix_to_sparse(
     matrix: np.ndarray,
-    kr: np.ndarray,
+    kr_tag: np.ndarray,
     probability_threshold: float = 0,
     probability_sf: float = 10,
 ) -> tuple:
@@ -248,7 +233,7 @@ def matrix_to_sparse(
     ----------
     matrix : np.ndarray
         Input matrix
-    kr : np.ndarray
+    kr_tag : np.ndarray
         regressed key
     probability_threshold : float, optional
         threshold **ratio** to report
@@ -263,9 +248,9 @@ def matrix_to_sparse(
     probability_threshold = -probability_sf * np.log10(probability_threshold)
 
     tmp_matrix = matrix.copy()
-    kr_clip = np.clip(kr, 0, max_hmer)
-    kr_val = tmp_matrix[kr_clip, np.arange(len(kr))]
-    tmp_matrix[kr_clip, np.arange(len(kr))] = 0
+    kr_clip = np.clip(kr_tag, 0, max_hmer)
+    kr_val = tmp_matrix[kr_clip, np.arange(len(kr_tag))]
+    tmp_matrix[kr_clip, np.arange(len(kr_tag))] = 0
 
     row, column = np.nonzero(tmp_matrix)
     values = tmp_matrix[row, column]
@@ -273,15 +258,13 @@ def matrix_to_sparse(
     values = np.log10(values)
     norm_value = np.log10(np.clip(kr_val[column], 1e-10, None))
     normalized_values = -probability_sf * (values - norm_value)
-    normalized_values = np.clip(
-        normalized_values, -6 * probability_sf, 6 * probability_sf
-    ).astype(np.int16)
+    normalized_values = np.clip(normalized_values, -6 * probability_sf, 6 * probability_sf).astype(np.int16)
     suppress = normalized_values > probability_threshold
     return row[~suppress], column[~suppress], normalized_values[~suppress]
 
 
-def array_repr(x):
-    return ",".join([str(y) for y in x])
+def array_repr(input_array) -> str:
+    return ",".join([str(y) for y in input_array])
 
 
 def write_matrix_tags(
@@ -292,7 +275,8 @@ def write_matrix_tags(
     n_classes: int = 13,
     probability_threshold: float = 0.003,
     probability_sf: float = 10,
-) -> int:
+) -> tuple[int, int]:
+
     """Writes probability tensor into the text file
 
     Parameters
@@ -338,28 +322,26 @@ def write_matrix_tags(
     print(f"Read {testmatrices.shape[0]} predictions", flush=True, file=sys.stderr)
     empty = 0
     complete = 0
-    with open(output_file, "w") as out:
+    with open(output_file, "w", encoding="latin-1") as out:
         for idx in tqdm.tqdm(range(testmatrices.shape[0])):
             matrix = get_matrix(testmatrices, idx)
             if key is not None:
-                kr = key[idx, :]
+                kr_tag = key[idx, :]
             else:
-                kr = np.argmax(matrix, axis=0)
+                kr_tag = np.argmax(matrix, axis=0)
 
-            kh, kf, kd = matrix_to_sparse(
-                matrix, kr, probability_threshold, probability_sf
-            )
-            if len(kh) == 0 or len(kf) == 0 or len(kd) == 0:
+            kh_tag, kf_tag, kd_tag = matrix_to_sparse(matrix, kr_tag, probability_threshold, probability_sf)
+            if len(kh_tag) == 0 or len(kf_tag) == 0 or len(kd_tag) == 0:
                 out.write("\n")
                 empty += 1
                 continue
-            kr_str = array_repr(kr)
+            kr_str = array_repr(kr_tag)
             kr_str = "kr:B:C," + kr_str
-            kh_str = array_repr(kh)
+            kh_str = array_repr(kh_tag)
             kh_str = "kh:B:C," + kh_str
-            kf_str = array_repr(kf)
+            kf_str = array_repr(kf_tag)
             kf_str = "kf:B:S," + kf_str
-            kd_str = array_repr(kd)
+            kd_str = array_repr(kd_tag)
             kd_str = "kd:B:s," + kd_str
             out.write("\t".join((kr_str, kd_str, kh_str, kf_str)))
             out.write("\n")
@@ -381,7 +363,7 @@ def extract_header(input_bam: str, output_sam: str) -> None:
     ------------------
     None
     """
-    with open(output_sam, "w") as outfile:
+    with open(output_sam, "w", encoding="latin-1") as outfile:
         subprocess.check_call(["samtools", "view", "-H", input_bam], stdout=outfile)
 
 
@@ -404,38 +386,38 @@ def add_matrix_to_bam(
     replace_sequence_file : str, optional
         Description
     """
+    # pylint: disable=consider-using-with
+
     if replace_sequence_file is not None:
         rgbi_fname = output_bam + "rgbi.txt"
         extract_tags(input_bam, rgbi_fname, ["RG", "bi", "rq"])
 
-    re, we = os.pipe()
+    re_pipe, we_pipe = os.pipe()
     extract_header(input_bam, output_bam + ".hdr")
-    p1 = subprocess.Popen(["cat", output_bam + ".hdr"], stdout=we)
+    process1 = subprocess.Popen(["cat", output_bam + ".hdr"], stdout=we_pipe)
 
-    p4 = subprocess.Popen(["samtools", "view", "-b", "-o", output_bam, "-"], stdin=re)
-    p1.wait()
+    process4 = subprocess.Popen(["samtools", "view", "-b", "-o", output_bam, "-"], stdin=re_pipe)
+    process1.wait()
     if replace_sequence_file is None:
-        p2 = subprocess.Popen(["samtools", "view", input_bam], stdout=subprocess.PIPE)
+        process2 = subprocess.Popen(["samtools", "view", input_bam], stdout=subprocess.PIPE)
     else:
-        p2a = subprocess.Popen(["samtools", "view", input_bam], stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(
-            ["cut", "-f1-9"], stdin=p2a.stdout, stdout=subprocess.PIPE
-        )
-        p2a.stdout.close()
+        process2a = subprocess.Popen(["samtools", "view", input_bam], stdout=subprocess.PIPE)
+        process2 = subprocess.Popen(["cut", "-f1-9"], stdin=process2a.stdout, stdout=subprocess.PIPE)
+        process2a.stdout.close()
 
     if replace_sequence_file is None:
-        p3 = subprocess.Popen(["paste", "-", input_matrix], stdin=p2.stdout, stdout=we)
+        subprocess.Popen(["paste", "-", input_matrix], stdin=process2.stdout, stdout=we_pipe)
     else:
-        p3 = subprocess.Popen(
+        subprocess.Popen(
             ["paste", "-"] + [replace_sequence_file, rgbi_fname, input_matrix],
-            stdin=p2.stdout,
-            stdout=we,
+            stdin=process2.stdout,
+            stdout=we_pipe,
         )
 
-    p2.stdout.close()
-    os.close(we)
+    process2.stdout.close()
+    os.close(we_pipe)
 
-    p4.wait()
+    process4.wait()
     os.unlink(output_bam + ".hdr")
     if replace_sequence_file is not None:
         os.unlink(rgbi_fname)
@@ -525,23 +507,23 @@ def read_in_block(idx, block_size_in_reads):
 
 
 def block_idx_to_block_start_end(
-    block_idx, block_size_in_reads, total_number_of_reads=1150319344
-):
-    """Summary
+    block_idx: int, block_size_in_reads: int, total_number_of_reads: int = 1150319344
+) -> tuple:
+    """Helper function that returns offset of start and end of the block in number of reads
 
     Parameters
     ----------
-    block_idx : TYPE
-        Description
-    block_size_in_reads : TYPE
-        Description
+    block_idx : int
+        Index of the block
+    block_size_in_reads : int
+        reads in block
     total_number_of_reads : int, optional
-        Description
+        maximal number of reads
 
     Returns
     -------
-    TYPE
-        Description
+    tuple
+        index of the first and the last read in the block
     """
     return (
         block_idx * block_size_in_reads,
@@ -549,9 +531,7 @@ def block_idx_to_block_start_end(
     )
 
 
-def fetch_indices(
-    s3_url: str, n_flows: int, read_indices: np.ndarray, output_file: str = None
-):
+def fetch_indices(s3_url: str, n_flows: int, read_indices: np.ndarray, output_file: str = None):
     """Fetch keys that correspond to bead indices
 
     Parameters
@@ -562,33 +542,32 @@ def fetch_indices(
         Number of flows read
     read_indices : np.ndarray
         Array of indices to fetch
-
+    output_file: str
+        Name of the output File
 
     Returns
     -------
     TYPE
         Description
     """
-    s3 = boto3.resource("s3")
+    s3_location = boto3.resource("s3")
     bucket_name = re.split(r"/+", s3_url)[1]
     key = "/".join(re.split(r"/+", s3_url)[2:])
-    obj = s3.Object(bucket_name=bucket_name, key=key)
+    obj = s3_location.Object(bucket_name=bucket_name, key=key)
     total_number_of_reads = obj.content_length / n_flows / 2
     block_size_in_reads = 1000000
     if output_file is None:
         reads_regressed_signals = np.zeros((len(read_indices), n_flows), np.int16)
     else:
         reads_regressed_signals = np.zeros((block_size_in_reads, n_flows), np.int16)
-        output_f = open(output_file, "wb")
+        output_f = open(output_file, "wb")  # pylint: disable=consider-using-with
 
     cur_block_idx = -1
     cur_output_count = 0
     for i, read_id in enumerate(tqdm.tqdm(read_indices)):
         read_block = idx_to_block(read_id, block_size_in_reads)
         if read_block != cur_block_idx:
-            start, end = block_idx_to_block_start_end(
-                read_block, block_size_in_reads, total_number_of_reads
-            )
+            start, end = block_idx_to_block_start_end(read_block, block_size_in_reads, total_number_of_reads)
             cur_block_idx = read_block
             block = read_key_range(obj, start, end, n_flows)
         pos_in_block = read_in_block(read_id, block_size_in_reads)
@@ -600,7 +579,7 @@ def fetch_indices(
         if cur_output_count == block_size_in_reads:
             reads_regressed_signals.tofile(output_f)
             cur_output_count = 0
-    if cur_output_count > 0 and cur_output_count < block_size_in_reads:
+    if 0 < cur_output_count < block_size_in_reads:
         reads_regressed_signals[:cur_output_count, :].tofile(output_f)
     if output_file is not None:
         output_f.close()
@@ -614,7 +593,7 @@ def read_error_probs(
     left_motif_size: int = 5,
     right_motif_size: int = 5,
     n_regression_bins: int = 0,
-) -> Union[pd.DataFrame, list]:
+) -> pd.DataFrame | list:
     """Read error probs CSV and produces data frame
 
     Parameters
@@ -635,34 +614,19 @@ def read_error_probs(
     Union[pd.DataFrame, list]
     """
 
-    source_dataframe = pd.read_csv(error_probs_csv)
-    source_dataframe["left"] = source_dataframe["motif"].apply(
-        lambda x: x[:left_motif_size]
-    )
-    source_dataframe["right"] = source_dataframe["motif"].apply(
-        lambda x: x[-right_motif_size:]
-    )
+    source_dataframe = pd.DataFrame(pd.read_csv(error_probs_csv))
+    source_dataframe["left"] = source_dataframe["motif"].apply(lambda x: x[:left_motif_size])
+    source_dataframe["right"] = source_dataframe["motif"].apply(lambda x: x[-right_motif_size:])
     source_dataframe["middle"] = source_dataframe["motif"].apply(
         lambda x: x[left_motif_size + 1 : -right_motif_size - 1]
     )
     source_dataframe["hmer_letter"] = source_dataframe["middle"].apply(lambda x: x[1])
-    source_dataframe["hmer_number"] = (
-        source_dataframe["middle"].apply(lambda x: x[0]).astype(np.int)
-    )
+    source_dataframe["hmer_number"] = source_dataframe["middle"].apply(lambda x: x[0]).astype(np.int)
     source_dataframe.drop(["motif", "middle"], axis=1, inplace=True)
-    tups = [
-        tuple(x)
-        for x in source_dataframe[
-            ["left", "hmer_number", "hmer_letter", "right"]
-        ].values
-    ]
-    source_dataframe.index = pd.MultiIndex.from_tuples(
-        tups, names=["left", "hmer_number", "hmer_letter", "right"]
-    )
+    tups = [tuple(x) for x in source_dataframe[["left", "hmer_number", "hmer_letter", "right"]].values]
+    source_dataframe.index = pd.MultiIndex.from_tuples(tups, names=["left", "hmer_number", "hmer_letter", "right"])
 
-    source_dataframe.drop(
-        ["left", "right", "hmer_letter", "hmer_number"], axis=1, inplace=True
-    )
+    source_dataframe.drop(["left", "right", "hmer_letter", "hmer_number"], axis=1, inplace=True)
 
     assert (n_regression_bins > 0 and binned_by_quality) or (
         n_regression_bins == 0 and not binned_by_quality
@@ -670,16 +634,11 @@ def read_error_probs(
 
     if binned_by_quality:
         n_diffs = int(source_dataframe.shape[1] / n_regression_bins)
-        column_names = [
-            f"{x-int((n_diffs-1)/2)}_{y}"
-            for x in range(n_diffs)
-            for y in range(n_regression_bins)
-        ]
+        column_names = [f"{x-int((n_diffs-1)/2)}_{y}" for x in range(n_diffs) for y in range(n_regression_bins)]
         source_dataframe.columns = column_names
         return source_dataframe
-    else:
-        source_dataframe.columns = ["n(-1)", "n(0)", "n(+1)", "P(-1)", "P(0)", "P(+1)"]
-        return source_dataframe
+    source_dataframe.columns = ["n(-1)", "n(0)", "n(+1)", "P(-1)", "P(0)", "P(+1)"]
+    return source_dataframe
 
 
 def _convert_to_probs(source_dataframe: pd.DataFrame):
@@ -707,9 +666,7 @@ def _convert_to_probs(source_dataframe: pd.DataFrame):
     return source_dataframe
 
 
-def marginalize_error_probs(
-    source_dataframe: pd.DataFrame, left_drop: int = 0, right_drop: int = 0
-) -> pd.DataFrame:
+def marginalize_error_probs(source_dataframe: pd.DataFrame, left_drop: int = 0, right_drop: int = 0) -> pd.DataFrame:
     """Marginalize error probabilities by combining motifs sharing common suffix (left) or prefix (right)
     This function is useful for calculation of error probabilities of nucleotides that are close to the end
     of the read
@@ -729,37 +686,27 @@ def marginalize_error_probs(
         Description
     """
     # source_dataframe = source_dataframe.drop(0, axis=0, level='hmer_number').copy()
-    assert (
-        left_drop > 0 or right_drop > 0
-    ), "No marginalization needed for these drop values"
+    assert left_drop > 0 or right_drop > 0, "No marginalization needed for these drop values"
     len_left = len(source_dataframe.index.get_level_values("left")[0])
     len_right = len(source_dataframe.index.get_level_values("right")[0])
-    assert (
-        left_drop <= len_left and right_drop <= len_right
-    ), "Unable to marginalize on more nucs than exist"
+    assert left_drop <= len_left and right_drop <= len_right, "Unable to marginalize on more nucs than exist"
 
     groupby_left = source_dataframe.index.get_level_values("left").str[left_drop:]
     if right_drop > 0:
 
-        groupby_right = source_dataframe.index.get_level_values("right").str[
-            :-right_drop
-        ]
+        groupby_right = source_dataframe.index.get_level_values("right").str[:-right_drop]
     else:
         groupby_right = source_dataframe.index.get_level_values("right")
     groupby_length = source_dataframe.index.get_level_values("hmer_number")
     groupby_hmer = source_dataframe.index.get_level_values("hmer_letter")
 
-    mi = pd.MultiIndex.from_arrays(
-        (groupby_left, groupby_right, groupby_length, groupby_hmer)
-    )
+    renamed_index = pd.MultiIndex.from_arrays((groupby_left, groupby_right, groupby_length, groupby_hmer))
     source_dataframe1 = source_dataframe.copy()
-    source_dataframe1.index = mi
+    source_dataframe1.index = renamed_index
     gsource_dataframe = source_dataframe1.groupby(axis=0, level=[0, 1, 2, 3])
     source_dataframe1 = gsource_dataframe.agg(np.sum)
     # source_dataframe1 = _convert_to_probs(source_dataframe1)
-    source_dataframe = source_dataframe1.reorder_levels(
-        ["left", "hmer_number", "hmer_letter", "right"], axis=0
-    )
+    source_dataframe = source_dataframe1.reorder_levels(["left", "hmer_number", "hmer_letter", "right"], axis=0)
     # No need to add zero model since
     # source_dataframe = add_zero_model(source_dataframe)
     source_dataframe.sort_index(inplace=True)
@@ -794,7 +741,7 @@ def create_marginalize_dictionary(source_dataframe: pd.DataFrame) -> dict:
         for j in range(len_right + 1):
             if (len_left - i, len_right - j) in marginalize_dict:
                 continue
-            elif (len_left - i + 1, len_right - j) in marginalize_dict:
+            if (len_left - i + 1, len_right - j) in marginalize_dict:
                 source_dataframe = marginalize_dict[((len_left - i + 1, len_right - j))]
                 source_dataframe1 = marginalize_error_probs(source_dataframe, 1, 0)
                 marginalize_dict[(len_left - i, len_right - j)] = source_dataframe1
@@ -826,12 +773,8 @@ def add_zero_model(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     This function does not work yet with the new format of the error model
     """
     new_source_dataframe = source_dataframe.xs(1, axis=0, level="hmer_number").copy()
-    new_source_dataframe = pd.concat(
-        (new_source_dataframe,), keys=[0], names=["hmer_number"]
-    )
-    new_source_dataframe = new_source_dataframe.reorder_levels(
-        ["left", "hmer_number", "hmer_letter", "right"], axis=0
-    )
+    new_source_dataframe = pd.concat((new_source_dataframe,), keys=[0], names=["hmer_number"])
+    new_source_dataframe = new_source_dataframe.reorder_levels(["left", "hmer_number", "hmer_letter", "right"], axis=0)
 
     # there is no meaning for counts for now in this case
     new_source_dataframe[["n(0)", "n(-1)", "n(+1)"]] = 0
@@ -856,23 +799,14 @@ def split_by_signal_bins(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
     """
     column_name_regexp = r"([A-Za-z]*)\({0,1}([\-0-9]+)_([\-0-9]+)\){0,1}"
-    parsed_column_names = [
-        re.search(column_name_regexp, x).groups() for x in source_dataframe.columns
-    ]
-    parsed_column_names = sorted(
-        parsed_column_names, key=(lambda x: (int(x[2]), x[0], int(x[1])))
-    )
+    parsed_column_names = [re.search(column_name_regexp, x).groups() for x in source_dataframe.columns]
+    parsed_column_names = sorted(parsed_column_names, key=(lambda x: (int(x[2]), x[0], int(x[1]))))
     dfs = []
     grouped_column_names = itertools.groupby(parsed_column_names, lambda x: (x[2]))
-    for g in grouped_column_names:
-        take = [x for x in g[1]]
-        take_names = [
-            x[0] + "(" * (len(x[0]) > 0) + x[1] + "_" + x[2] + ")" * (len(x[0]) > 0)
-            for x in take
-        ]
-        new_name = [
-            x[0] + "(" * (len(x[0]) > 0) + x[1] + ")" * (len(x[0]) > 0) for x in take
-        ]
+    for grouped_columns in grouped_column_names:
+        take = list(grouped_columns[1])
+        take_names = [x[0] + "(" * (len(x[0]) > 0) + x[1] + "_" + x[2] + ")" * (len(x[0]) > 0) for x in take]
+        new_name = [x[0] + "(" * (len(x[0]) > 0) + x[1] + ")" * (len(x[0]) > 0) for x in take]
         new_name = [int(x) if x.isdigit() or x.startswith("-") else x for x in new_name]
         df = source_dataframe[take_names]
 
@@ -881,7 +815,7 @@ def split_by_signal_bins(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     return dfs
 
 
-def convert2readGivenData(source_dataframe: pd.DataFrame) -> pd.DataFrame:
+def convert2_read_given_data(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     """Convert probabilities in P(read | data = i ) to P(read=i | data)
 
     Parameters
@@ -922,9 +856,7 @@ def convert2readGivenData(source_dataframe: pd.DataFrame) -> pd.DataFrame:
     for err_idx in source_dataframe.columns[:bins_number]:
         tmp = source_dataframe[source_dataframe["dest({})".format(err_idx)] >= 0]
         tmp = tmp.reset_index()
-        tmp.sort_values(
-            ["left", "dest({})".format(err_idx), "hmer_letter", "right"], inplace=True
-        )
+        tmp.sort_values(["left", "dest({})".format(err_idx), "hmer_letter", "right"], inplace=True)
         dest_index = pd.MultiIndex.from_frame(
             tmp[["left", "dest({})".format(err_idx), "hmer_letter", "right"]],
             names=["left", "hmer_number", "hmer_letter", "right"],
@@ -932,12 +864,10 @@ def convert2readGivenData(source_dataframe: pd.DataFrame) -> pd.DataFrame:
 
         destination_contained = dest_index.isin(result_dataframe.index)
         dest_index = dest_index[destination_contained]
-        result_dataframe.loc[dest_index, err_idx] = np.array(tmp[-err_idx].values)[
+        result_dataframe.loc[dest_index, err_idx] = np.array(tmp[-err_idx].values)[destination_contained]
+        result_dataframe.loc[dest_index, "P({})".format(err_idx)] = np.array(tmp["P({})".format(-err_idx)].values)[
             destination_contained
         ]
-        result_dataframe.loc[dest_index, "P({})".format(err_idx)] = np.array(
-            tmp["P({})".format(-err_idx)].values
-        )[destination_contained]
 
     source_dataframe.drop(dest_columns, axis=1, inplace=True)
     result_dataframe.dropna(how="all", inplace=True)
@@ -976,32 +906,16 @@ class ErrorModel:
             Description
         """
         if n_bins > 0:
-            error_models = [
-                pd.read_hdf(error_model_file, key="bin_{}".format(b))
-                for b in range(n_bins)
-            ]
+            error_models = [pd.read_hdf(error_model_file, key="bin_{}".format(b)) for b in range(n_bins)]
             hashed_idcs = [[hash(x) for x in em.index] for em in error_models]
-            self.hashed_dict = [
-                dict(zip(hashed_idx, range(len(hashed_idx))))
-                for hashed_idx in hashed_idcs
-            ]
+            self.hashed_dict = [dict(zip(hashed_idx, range(len(hashed_idx)))) for hashed_idx in hashed_idcs]
             del hashed_idcs
             self.error_model = [
-                np.array(
-                    error_model[
-                        [
-                            x
-                            for x in error_model.columns
-                            if type(x) == str and x.startswith("P")
-                        ]
-                    ]
-                )
+                np.array(error_model[[x for x in error_model.columns if isinstance(x, str) and x.startswith("P")]])
                 for error_model in error_models
             ]
-            for i in range(len(self.error_model)):
-                self.error_model[i] = np.concatenate(
-                    (self.error_model[i], np.zeros((1, self.error_model[i].shape[1])))
-                )
+            for i, _ in enumerate(self.error_model):
+                self.error_model[i] = np.concatenate((self.error_model[i], np.zeros((1, self.error_model[i].shape[1]))))
             del error_models
         else:
             error_model = pd.read_hdf(error_model_file, key="error_model_hashed")
@@ -1009,12 +923,10 @@ class ErrorModel:
             self.hashed_dict = dict(zip(hashed_idx, range(len(hashed_idx))))
             del hashed_idx
             self.error_model = np.array(error_model[["P(-1)", "P(0)", "P(+1)"]])
-            self.error_model = np.concatenate(
-                (self.error_model, np.zeros((1, self.error_model.shape[1])))
-            )
+            self.error_model = np.concatenate((self.error_model, np.zeros((1, self.error_model.shape[1]))))
             del error_model
 
-    def hash2idx(self, hash_list: list, bins: Optional[np.ndarray] = None) -> list:
+    def hash2idx(self, hash_list: list, bins: np.ndarray | None = None) -> list:
         """Summary
 
         Parameters
@@ -1030,50 +942,41 @@ class ErrorModel:
             Description
         """
         if bins is None:
-            return [
-                self.hashed_dict.get(x, self.error_model.shape[0] - 1)
-                for x in hash_list
-            ]
-        else:
-            return [
-                self.hashed_dict[bins[i]].get(
-                    hash_list[i], self.error_model[bins[i]].shape[0] - 1
-                )
-                for i in range(len(bins))
-            ]
+            return [self.hashed_dict.get(x, self.error_model.shape[0] - 1) for x in hash_list]
+        return [
+            self.hashed_dict[bins[i]].get(hash_list[i], self.error_model[bins[i]].shape[0] - 1)
+            for i in range(len(bins))
+        ]
 
-    def get_hash(self, tuple_hash: int, bin: Optional[int] = None) -> np.array:
+    def get_hash(self, tuple_hash: int, hist_bin: int | None = None) -> np.array:
         """Summary
 
         Parameters
         ----------
         tuple_hash : int
-            Description
-        bin : Optional[int], optional
-            Description
+            Hash
+        hist_bin : int, optional
+            bin
 
         Returns
         -------
         np.array
-            Description
+            hash
         """
-        if bin is None:
+        if hist_bin is None:
             hashed_idx = self.hashed_dict.get(tuple_hash, self.error_model.shape[0] - 1)
             return self.error_model[hashed_idx, :]
-        else:
-            hashed_idx = self.hashed_dict[bin].get(
-                tuple_hash, self.error_model[bin].shape[0] - 1
-            )
-            return self.error_model[bin][hashed_idx, :]
+        hashed_idx = self.hashed_dict[hist_bin].get(tuple_hash, self.error_model[hist_bin].shape[0] - 1)
+        return self.error_model[hist_bin][hashed_idx, :]
 
-    def get_tuple(self, tup: tuple, bin: Optional[int] = None) -> np.array:
+    def get_tuple(self, tup: tuple, hist_bin: int | None = None) -> np.array:
         """Summary
 
         Parameters
         ----------
         tup : tuple
             Description
-        bin : Optional[int], optional
+        hist_bin : int, optional
             Description
 
         Returns
@@ -1081,19 +984,14 @@ class ErrorModel:
         np.array
             Description
         """
-        if bin is None:
+        if hist_bin is None:
             hashed_idx = self.hashed_dict.get(hash(tup), self.error_model.shape[0] - 1)
             return self.error_model[hashed_idx, :]
-        else:
-            hashed_idx = self.hashed_dict[bin].get(
-                hash(tup), self.error_model[bin].shape[0] - 1
-            )
-            return self.error_model[bin][hashed_idx, :]
+        hashed_idx = self.hashed_dict[hist_bin].get(hash(tup), self.error_model[hist_bin].shape[0] - 1)
+        return self.error_model[hist_bin][hashed_idx, :]
 
-    def get_index(
-        self, index_list: np.ndarray, bins: Optional[np.ndarray] = None
-    ) -> np.array:
-        """Summary
+    def get_index(self, index_list: np.ndarray, bins: np.ndarray | None = None) -> np.array:
+        """Indexing into error model
 
         Parameters
         ----------
@@ -1109,11 +1007,11 @@ class ErrorModel:
         """
         if bins is None:
             return self.error_model[index_list, :]
-        else:
-            output = np.zeros((len(index_list), self.error_model[0].shape[1]))
-            bins_set = Counter(bins)
 
-            for s in bins_set:
-                put = bins == s
-                output[put, :] = self.error_model[s][index_list[put], :]
-            return output
+        output = np.zeros((len(index_list), self.error_model[0].shape[1]))
+        bins_set: Counter = Counter(bins)
+
+        for bin_single in bins_set:
+            put = bins == bin_single
+            output[put, :] = self.error_model[bin_single][index_list[put], :]
+        return output

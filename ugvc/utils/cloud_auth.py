@@ -22,7 +22,8 @@ def get_gcs_token():
     """
     if GOOGLE_APPLICATION_CREDENTIALS in os.environ:
         # getting the credentials and project details for gcp project
-        credentials, your_project_id = default(scopes=[SCOPE])
+        # (second item is the project id, but it is not used later on)
+        credentials, _ = default(scopes=[SCOPE])
 
         # getting request object
         auth_req = Request()
@@ -36,11 +37,9 @@ def get_gcs_token():
 Alternatively, environment variable {GCS_OAUTH_TOKEN} could be set if a token already exists, but it was not"""
         )
 
-    r = requests.post(URL, data=PAYLOAD.format(token), headers=HEADERS)
-    if not r.reason == OK:
-        raise ValueError(
-            f"Could not verify token {token}\n\nResponse from server:\n{r.text}"
-        )
-    if not r.json()["expires_in"] > 0:
+    req = requests.post(URL, data=PAYLOAD.format(token), headers=HEADERS)
+    if not req.reason == OK:
+        raise ValueError(f"Could not verify token {token}\n\nResponse from server:\n{req.text}")
+    if not req.json()["expires_in"] > 0:
         raise ValueError(f"token {token} expired")
     return token

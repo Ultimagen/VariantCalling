@@ -12,22 +12,22 @@ from ugvc import logger
 from ugvc.dna.utils import revcomp
 
 
-def _get_sample_name_from_file_name(f, split_position=0):
+def _get_sample_name_from_file_name(file_name, split_position=0):
     """
     Internal formatting of filename for mrd pipeline
     Parameters
     ----------
-    f
+    :param: file_name
         file name
-    split_position
+    :param: split_position
         which position relative to splittinmg by "." the sample name is
 
-    Returns
+    :return:
     -------
 
     """
     return (
-        basename(f)
+        basename(file_name)
         .split(".")[split_position]
         .replace("-", "_")
         .replace("_filtered_signature", "")  # remove generic suffixes
@@ -47,25 +47,20 @@ def _get_hmer_length(ref, left_motif, right_motif):
 
     Parameters
     ----------
-    ref
+    :param: ref
         reference base (single base)
-    left_motif
+    :param: left_motif
         left motif
-    right_motif
+    :param: right_motif
         right motif
 
-    Returns
+    :return:
     -------
 
     """
 
     left_motif_len = len(left_motif)
-    x = np.array(
-        [
-            (k == ref, sum(1 for _ in v))
-            for k, v in itertools.groupby(left_motif + ref + right_motif)
-        ]
-    )
+    x = np.array([(k == ref, sum(1 for _ in v)) for k, v in itertools.groupby(left_motif + ref + right_motif)])
     return x[np.argmax(x[:, 1].cumsum() >= left_motif_len + 1), 1]
 
 
@@ -82,78 +77,73 @@ def read_signature(
     """
     Read signature (variant calling output, generally mutect) results to dataframe.
 
-    Parameters
-    ----------
-    signature_vcf_files
+    :param: signature_vcf_files
         File name or a list of file names
-    output_parquet
+    :param: output_parquet
         File name to save result to, default None
-    coverage_bw_files
+    :param: coverage_bw_files
         Coverage bigwig files generated with "coverage_analysis full_analysis", defualt None
-    sample_name
+    :param: sample_name
         sample name in the vcf to take allele fraction (AF) from. Checked with "a in b" so it doesn't have to be the
         full sample name, but does have to return a unique result. Default: "tumor"
-    x_columns_name_dict
+    :param: x_columns_name_dict
         Dictionary of INFO fields starting with "X-" (custom UG fields) to read as keys and respective columns names
         as values, if None (default) this value if used:
         {"X-CSS": "cycle_skip_status","X-GCC": "gc_content","X-LM": "left_motif","X-RM": "right_motif"}
-    columns_to_drop
+    :param: columns_to_drop
         List of columns to drop, as values, if None (default) this value if used: ["X-IC"]
-    verbose
+    :param: verbose
         show verbose debug messages
-    raise_exception_on_sample_not_found
+    :param: raise_exception_on_sample_not_found
         if True (default False) and the sample name could not be found to determine AF, raise a ValueError
 
-
-    Returns
-    -------
+    :raises ValueError: may be raised
 
     """
-    if not isinstance(signature_vcf_files, str) and isinstance(
-        signature_vcf_files, Iterable
-    ):
-        logger.debug(f"Reading and merging signature files:\n{signature_vcf_files}")
+    if not isinstance(signature_vcf_files, str) and isinstance(signature_vcf_files, Iterable):
+        logger.debug(f"Reading and merging signature files:\n {signature_vcf_files}")
         df_sig = pd.concat(
             (
                 read_signature(
-                    f,
+                    file_name,
                     output_parquet=None,
                     sample_name=sample_name,
                     x_columns_name_dict=x_columns_name_dict,
                     columns_to_drop=columns_to_drop,
                     verbose=j == 0,  # only verbose in first iteration
                 )
-                .assign(signature=_get_sample_name_from_file_name(f, split_position=0))
+                .assign(signature=_get_sample_name_from_file_name(file_name, split_position=0))
                 .reset_index()
                 .set_index(["signature", "chrom", "pos"])
-                for j, f in enumerate(np.unique(signature_vcf_files))
+                for j, file_name in enumerate(np.unique(signature_vcf_files))
             )
         )
 
     else:
-        if x_columns_name_dict is None:
-            x_columns_name_dict = {
-                "X-CSS": "cycle_skip_status",
-                "X-GCC": "gc_content",
-                "X-LM": "left_motif",
-                "X-RM": "right_motif",
-                "X_CSS": "cycle_skip_status",
-                "X_GCC": "gc_content",
-                "X_LM": "left_motif",
-                "X_RM": "right_motif",
-            }
-        if columns_to_drop is None:
-            columns_to_drop = ["X-IC", "X_IC"]
+        x_columns_name_dict = x_columns_name_dict or {
+            "X-CSS": "cycle_skip_status",
+            "X-GCC": "gc_content",
+            "X-LM": "left_motif",
+            "X-RM": "right_motif",
+            "X_CSS": "cycle_skip_status",
+            "X_GCC": "gc_content",
+            "X_LM": "left_motif",
+            "X_RM": "right_motif",
+        }
+        columns_to_drop = columns_to_drop or ["X-IC", "X_IC"]
+
         if verbose:
             logger.debug(f"x_columns_name_dict:\n{x_columns_name_dict}")
             logger.debug(f"columns_to_drop:\n{columns_to_drop}")
 
-        entries = list()
+        entries = []
         logger.debug(f"Reading vcf file {signature_vcf_files}")
-        with pysam.VariantFile(signature_vcf_files) as f:
+
+        with pysam.VariantFile(signature_vcf_files) as variant_file:
             tumor_sample = None
-            x_columns = list()
-            for j, rec in enumerate(f):
+            x_columns = []
+
+            for j, rec in enumerate(variant_file):
                 if j == 0:
                     x_columns = [
                         k
@@ -167,9 +157,7 @@ def read_signature(
                     if verbose:
                         logger.debug(f"Reading x_columns: {x_columns}")
                 if tumor_sample is None:
-                    candidate_sample_name = list(
-                        filter(lambda x: sample_name in x, rec.samples.keys())
-                    )
+                    candidate_sample_name = list(filter(lambda x: sample_name in x, rec.samples.keys()))
                     if len(candidate_sample_name) == 1:
                         tumor_sample = candidate_sample_name[0]
                     elif raise_exception_on_sample_not_found:
@@ -179,7 +167,8 @@ def read_signature(
                             )
                         if len(candidate_sample_name) > 1:
                             raise ValueError(
-                                f"{len(candidate_sample_name)} samples contained input string {sample_name}, expected just 1. Sample names: {rec.samples.keys()}"
+                                f"{len(candidate_sample_name)} samples contained input string {sample_name}, "
+                                f"expected just 1. Sample names: {rec.samples.keys()}"
                             )
                     else:  # leave AF blank
                         tumor_sample = "UNKNOWN"
@@ -201,33 +190,24 @@ def read_signature(
                             ),
                             (
                                 rec.samples[tumor_sample]["DP"]
-                                if tumor_sample != "UNKNOWN"
-                                and "DP" in rec.samples[tumor_sample]
+                                if tumor_sample != "UNKNOWN" and "DP" in rec.samples[tumor_sample]
                                 else np.nan
                             ),
                             "MAP_UNIQUE" in rec.info,
                             "LCR" in rec.info,
                             "EXOME" in rec.info,
-                            rec.info["LONG_HMER"]
-                            if "LONG_HMER" in rec.info
-                            else np.nan,
+                            rec.info["LONG_HMER"] if "LONG_HMER" in rec.info else np.nan,
                             rec.info["TLOD"][0]
-                            if "TLOD" in rec.info
-                            and isinstance(rec.info["TLOD"], Iterable)
+                            if "TLOD" in rec.info and isinstance(rec.info["TLOD"], Iterable)
                             else np.nan,
                             rec.info["SOR"] if "SOR" in rec.info else np.nan,
                         ]
-                        + [
-                            rec.info[c][0]
-                            if isinstance(rec.info[c], tuple)
-                            else rec.info[c]
-                            for c in x_columns
-                        ]
+                        + [rec.info[c][0] if isinstance(rec.info[c], tuple) else rec.info[c] for c in x_columns]
                     )
                 )
         if verbose:
             logger.debug(f"Done reading vcf file {signature_vcf_files}")
-            logger.debug(f"Converting to dataframe")
+            logger.debug("Converting to dataframe")
         df_sig = (
             pd.DataFrame(
                 entries,
@@ -253,45 +233,43 @@ def read_signature(
             .set_index(["chrom", "pos"])
         )
         if verbose:
-            logger.debug(f"Done converting to dataframe")
+            logger.debug("Done converting to dataframe")
 
     df_sig = df_sig.sort_index()
 
-    if (
-        coverage_bw_files is not None and len(coverage_bw_files) > 0
-    ):  # collect coverage per locus
+    if coverage_bw_files:  # collect coverage per locus
         try:
-            logger.debug(f"Reading input from bigwig coverage data")
+            logger.debug("Reading input from bigwig coverage data")
             f_bw = [bw.open(x) for x in coverage_bw_files]
-            df_list = list()
+            df_list = []
+
             for chrom, df_tmp in tqdm(df_sig.groupby(level="chrom")):
                 if df_tmp.shape[0] == 0:
                     continue
                 found_correct_file = False
+
+                f_bw_chrom = {}
                 for f_bw_chrom in f_bw:
                     if chrom in f_bw_chrom.chroms():
                         found_correct_file = True
                         break
+
                 if not found_correct_file:
-                    raise ValueError(
-                        f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}"
-                    )
+                    raise ValueError(f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}")
+
                 chrom_start = df_tmp.index.get_level_values("pos") - 1
                 chrom_end = df_tmp.index.get_level_values("pos")
                 df_list.append(
                     df_tmp.assign(
                         coverage=np.concatenate(
-                            [
-                                f_bw_chrom.values(chrom, x, y, numpy=True)
-                                for x, y in zip(chrom_start, chrom_end)
-                            ]
+                            [f_bw_chrom.values(chrom, x, y, numpy=True) for x, y in zip(chrom_start, chrom_end)]
                         )
                     )
                 )
         finally:
             if "f_bw" in locals():
-                for f in f_bw:
-                    f.close()
+                for variant_file in f_bw:
+                    variant_file.close()
         df_sig = pd.concat(df_list).astype({"coverage": int})
 
     logger.debug("Calculating reference hmer")
@@ -299,9 +277,7 @@ def read_signature(
         df_sig[["hmer"]]
         .assign(
             hmer_calc=df_sig.apply(
-                lambda row: _get_hmer_length(
-                    row["ref"], row["left_motif"], row["right_motif"]
-                ),
+                lambda row: _get_hmer_length(row["ref"], row["left_motif"], row["right_motif"]),
                 axis=1,
             )
         )
@@ -328,7 +304,9 @@ def read_signature(
 
 
 def read_intersection_dataframes(
-    intersected_featuremaps_parquet, snp_error_rate=None, output_parquet=None,
+    intersected_featuremaps_parquet,
+    snp_error_rate=None,
+    output_parquet=None,
 ):
     """
     Read featuremap dataframes from several intersections of one featuremaps with several signatures, each is annotated
@@ -336,27 +314,30 @@ def read_intersection_dataframes(
 
     Parameters
     ----------
-    intersected_featuremaps_parquet
+    :param: intersected_featuremaps_parquet
         list of featuremaps intesected with various signatures
-    snp_error_rate
+    :param: snp_error_rate
         snp error rate result generated from mrd.snp_error_rate
-    output_parquet
+    :param: output_parquet
         File name to save result to, default None
 
-    Returns
+    :return:
     -------
     dataframe
 
     """
-    logger.debug(
-        f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps"
-    )
+    logger.debug(f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps")
     df_int = pd.concat(
         (
             pd.read_parquet(f)
             .assign(signature=_get_sample_name_from_file_name(f, split_position=1))
             .reset_index()
-            .astype({"chrom": str, "pos": int,})
+            .astype(
+                {
+                    "chrom": str,
+                    "pos": int,
+                }
+            )
             .set_index(["signature", "chrom", "pos"])
             for f in intersected_featuremaps_parquet
         )
@@ -365,27 +346,23 @@ def read_intersection_dataframes(
     if snp_error_rate is not None:
         logger.debug("Merging with SNP error rate")
         df_snp_error_rate = (
-            pd.read_hdf(snp_error_rate, "/motif_1")
-            .set_index(["ref_motif", "alt"])
-            .filter(regex="error_rate_")
+            pd.read_hdf(snp_error_rate, "/motif_1").set_index(["ref_motif", "alt"]).filter(regex="error_rate_")
         )
         df_int = df_int.merge(
-            df_snp_error_rate, left_on=["ref_motif", "alt"], right_index=True,
+            df_snp_error_rate,
+            left_on=["ref_motif", "alt"],
+            right_index=True,
         )
 
     logger.debug("Setting ref/alt direction to match reference and not read")
     is_reverse = (df_int["X_FLAGS"] & 16).astype(bool)
-    for c in ["ref", "alt", "ref_motif", "alt_motif"]:
-        df_int.loc[:, c] = df_int[c].where(is_reverse, df_int[c].apply(revcomp))
+    for column in ("ref", "alt", "ref_motif", "alt_motif"):
+        df_int.loc[:, column] = df_int[column].where(is_reverse, df_int[column].apply(revcomp))
 
     left_motif_reverse = df_int["left_motif"].apply(revcomp)
     right_motif_reverse = df_int["right_motif"].apply(revcomp)
-    df_int.loc[:, "left_motif"] = df_int["left_motif"].where(
-        is_reverse, right_motif_reverse
-    )
-    df_int.loc[:, "right_motif"] = df_int["right_motif"].where(
-        is_reverse, left_motif_reverse
-    )
+    df_int.loc[:, "left_motif"] = df_int["left_motif"].where(is_reverse, right_motif_reverse)
+    df_int.loc[:, "right_motif"] = df_int["right_motif"].where(is_reverse, left_motif_reverse)
     df_int = df_int.sort_index()
     df_int.columns = [x.replace("-", "_") for x in df_int.columns]
     if output_parquet is not None:

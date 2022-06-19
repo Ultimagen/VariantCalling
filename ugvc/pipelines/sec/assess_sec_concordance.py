@@ -1,28 +1,38 @@
 #!/env/python
+
+# Copyright 2022 Ultima Genomics Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# DESCRIPTION
+#    Evaluate results of SEC
+# CHANGELOG in reverse chronological order
+
+from __future__ import annotations
+
 import os
 import sys
 from os.path import basename, dirname, splitext
-from typing import Tuple
 
 import pandas as pd
 from pandas import DataFrame, Series
 from simppl.cli import get_parser
 
 from ugvc import logger
-from ugvc.comparison.concordance_utils import (
-    calc_accuracy_metrics,
-    read_hdf,
-    validate_and_preprocess_concordance_df,
-)
+from ugvc.comparison.concordance_utils import calc_accuracy_metrics, read_hdf, validate_preprocess_concordance
 from ugvc.comparison.vcf_pipeline_utils import annotate_concordance
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.filtering.variant_filtering_utils import apply_filter
 from ugvc.utils.stats_utils import get_precision, get_recall
-
-"""
-Given a concordance h5 input, an exclude-list, and SEC refined exclude-list
-Apply each exclude-list on the variants and measure the differences between the results.
-"""
 
 
 def parse_args(argv):
@@ -32,9 +42,7 @@ def parse_args(argv):
         help="path to h5 file describing comparison of variant calling to ground-truth",
         required=True,
     )
-    parser.add_argument(
-        "--genome_fasta", help="path to fasta file of reference genome", required=True
-    )
+    parser.add_argument("--genome_fasta", help="path to fasta file of reference genome", required=True)
     parser.add_argument(
         "--raw_exclude_list",
         help="bed file containing raw exclude-list (SEC input)",
@@ -70,12 +78,15 @@ def parse_args(argv):
 
 
 def write_bed(df: DataFrame, bed_path: str):
-    df[["chrom", "pos-1", "pos", "description"]].to_csv(
-        bed_path, index=False, sep="\t", header=None
-    )
+    df[["chrom", "pos-1", "pos", "description"]].to_csv(bed_path, index=False, sep="\t", header=None)
 
 
 class AssessSECConcordance:
+    """
+    Given a concordance h5 input, an exclude-list, and SEC refined exclude-list
+    Apply each exclude-list on the variants and measure the differences between the results.
+    """
+
     def __init__(
         self,
         input_file,
@@ -87,7 +98,6 @@ class AssessSECConcordance:
         hcr,
         out_pref,
     ):
-        self.input_file = input_file
         self.ref_genome_file = ref_genome_file
         self.dataset_key = dataset_key
         self.classify_column = classify_column
@@ -99,13 +109,13 @@ class AssessSECConcordance:
 
         os.makedirs(dirname(out_pref), exist_ok=True)
 
-        logger.info(f"read_hdf: {dataset_key}")
+        logger.info("read_hdf: %s", dataset_key)
         self.df: DataFrame = read_hdf(input_file, key=dataset_key)
-        validate_and_preprocess_concordance_df(self.df)
+        validate_preprocess_concordance(self.df)
 
     def assess_sec_concordance(self):
-        logger.info(f"annotate concordance with exclude_lists")
-        self.df, annots = annotate_concordance(
+        logger.info("annotate concordance with exclude_lists")
+        self.df, _ = annotate_concordance(
             self.df,
             self.ref_genome_file,
             runfile=self.hcr,
@@ -116,16 +126,12 @@ class AssessSECConcordance:
         stats_table = calc_accuracy_metrics(self.df, self.classify_column)
         stats_table.to_csv(f"{self.out_pref}.original.stats.csv", sep=";", index=False)
         # Apply original filters
-        self.df[self.classify_column] = apply_filter(
-            self.df[self.classify_column], self.df["filter"] != "PASS"
-        )
-        self.write_status_bed_files(
-            self.df, f"{self.out_pref}.original", self.df[self.classify_column]
-        )
+        self.df[self.classify_column] = apply_filter(self.df[self.classify_column], self.df["filter"] != "PASS")
+        self.write_status_bed_files(self.df, f"{self.out_pref}.original", self.df[self.classify_column])
 
-        for i, exclude_list_bed_file in enumerate(self.exclude_lists_beds):
+        for exclude_list_bed_file in self.exclude_lists_beds:
             exclude_list_name = splitext(basename(exclude_list_bed_file))[0]
-            logger.info(f"exclude calls from {exclude_list_name}")
+            logger.info("exclude calls from %s", exclude_list_name)
 
             if exclude_list_bed_file == self.sec_exclude_list:
                 exclude_list_annot_df = self.__update_sec_call_type_and_sec_filter()
@@ -133,24 +139,16 @@ class AssessSECConcordance:
             else:
                 # update simple blacklist filter
                 exclude_list_annot_df = self.df.copy()
-                exclude_list_annot_df.loc[
-                    self.df[exclude_list_name], "filter"
-                ] = "BLACKLIST"
+                exclude_list_annot_df.loc[self.df[exclude_list_name], "filter"] = "BLACKLIST"
 
-            stats_table = calc_accuracy_metrics(
-                exclude_list_annot_df, self.classify_column
-            )
+            stats_table = calc_accuracy_metrics(exclude_list_annot_df, self.classify_column)
             is_filtered = exclude_list_annot_df["filter"] != "PASS"
             exclude_list_annot_df[self.classify_column] = apply_filter(
                 exclude_list_annot_df[self.classify_column], is_filtered
             )
 
-            stats_table.to_csv(
-                f"{self.out_pref}.{exclude_list_name}.stats.csv", sep=";", index=False
-            )
-            exclude_list_annot_df.to_hdf(
-                f"{self.out_pref}.{exclude_list_name}.h5", self.dataset_key
-            )
+            stats_table.to_csv(f"{self.out_pref}.{exclude_list_name}.stats.csv", sep=";", index=False)
+            exclude_list_annot_df.to_hdf(f"{self.out_pref}.{exclude_list_name}.h5", self.dataset_key)
             self.write_status_bed_files(
                 exclude_list_annot_df,
                 f"{self.out_pref}.{exclude_list_name}",
@@ -173,52 +171,43 @@ class AssessSECConcordance:
         exclude_list_annot_df[sec_exclude_list_name] = False
         exclude_list_annot_df.loc[relevant_filtered_loci, sec_exclude_list_name] = True
         exclude_list_annot_df["sec_call_type"] = "out_of_exclude_list"
-        exclude_list_annot_df.loc[
+        exclude_list_annot_df.loc[relevant_exclude_list_loci, "sec_call_type"] = exclude_list_df.loc[
             relevant_exclude_list_loci, "sec_call_type"
-        ] = exclude_list_df.loc[relevant_exclude_list_loci, "sec_call_type"]
+        ]
         exclude_list_annot_df.loc[relevant_filtered_loci, "filter"] = "SEC"
         return exclude_list_annot_df
 
     def __dissect_and_print_sec_quality_metrics(self, sec_annot_df: DataFrame):
         sec_call_types = {"novel", "known", "unobserved"}
         sec_pass_tp_df = sec_annot_df[
-            (self.df[self.classify_column] == "tp")
-            & (sec_annot_df["sec_call_type"].isin(sec_call_types))
+            (self.df[self.classify_column] == "tp") & (sec_annot_df["sec_call_type"].isin(sec_call_types))
         ]
         sec_filter_tp_df = sec_annot_df[
-            (self.df[self.classify_column] == "tp")
-            & (sec_annot_df["sec_call_type"] == "reference")
+            (self.df[self.classify_column] == "tp") & (sec_annot_df["sec_call_type"] == "reference")
         ]
         sec_pass_fp_df = sec_annot_df[
-            (self.df[self.classify_column] == "fp")
-            & (sec_annot_df["sec_call_type"].isin(sec_call_types))
+            (self.df[self.classify_column] == "fp") & (sec_annot_df["sec_call_type"].isin(sec_call_types))
         ]
         sec_filter_fp_df = sec_annot_df[
-            (self.df[self.classify_column] == "fp")
-            & (sec_annot_df["sec_call_type"] == "reference")
+            (self.df[self.classify_column] == "fp") & (sec_annot_df["sec_call_type"] == "reference")
         ]
 
-        with open(f"{self.out_pref}.sec.stats.csv", "w") as fh:
-            fh.write(
-                "variant_type,filtered-tp,passed-tp,filtered-fp,passed-fp,SEC-recall,SEC-precision\n"
-            )
+        with open(f"{self.out_pref}.sec.stats.csv", "w", encoding="utf-8") as file_handle:
+            file_handle.write("variant_type,filtered-tp,passed-tp,filtered-fp,passed-fp,SEC-recall,SEC-precision\n")
             sec_dfs = [
                 sec_pass_tp_df,
                 sec_filter_tp_df,
                 sec_pass_fp_df,
                 sec_filter_fp_df,
             ]
-            for variant_type in ["snp", "h-indel", "non-h-indel"]:
-                sec_dfs_var_type = [
-                    df[df["variant_type"] == variant_type] for df in sec_dfs
-                ]
-                sec_pass_tp, sec_filter_tp, sec_pass_fp, sec_filter_fp = (
-                    df.shape[0] for df in sec_dfs_var_type
-                )
-                sec_recall = get_recall(fn=sec_filter_tp, tp=sec_pass_tp)
-                sec_precision = get_precision(fp=sec_pass_fp, tp=sec_filter_fp)
-                fh.write(
-                    f"{variant_type},{sec_filter_tp},{sec_pass_tp},{sec_filter_fp},{sec_pass_fp},{sec_recall},{sec_precision}\n"
+            for variant_type in ("snp", "h-indel", "non-h-indel"):
+                sec_dfs_var_type = [df[df["variant_type"] == variant_type] for df in sec_dfs]
+                sec_pass_tp, sec_filter_tp, sec_pass_fp, sec_filter_fp = (df.shape[0] for df in sec_dfs_var_type)
+                sec_recall = get_recall(false_negatives=sec_filter_tp, true_positives=sec_pass_tp)
+                sec_precision = get_precision(false_positives=sec_pass_fp, true_positives=sec_filter_fp)
+                file_handle.write(
+                    f"{variant_type},{sec_filter_tp},{sec_pass_tp},{sec_filter_fp},"
+                    f"{sec_pass_fp},{sec_recall},{sec_precision}\n"
                 )
                 write_bed(
                     sec_dfs_var_type[0],
@@ -237,34 +226,28 @@ class AssessSECConcordance:
                     f"{self.out_pref}.{variant_type}.sec_filtered_fp.bed",
                 )
 
-        with open(f"{self.out_pref}.all_types.stats.csv", "w") as fh:
-            fh.write("sec_call_type,variant_type,passed-tp,passed-fp,precision\n")
-            for sec_call_type in [
+        with open(f"{self.out_pref}.all_types.stats.csv", "w", encoding="utf-8") as file_handle:
+            file_handle.write("sec_call_type,variant_type,passed-tp,passed-fp,precision\n")
+            for sec_call_type in (
                 "non_noise_allele",
                 "uncorrelated",
                 "unobserved",
                 "known",
                 "novel",
-            ]:
-                for variant_type in ["snp", "h-indel", "non-h-indel"]:
+            ):
+                for variant_type in ("snp", "h-indel", "non-h-indel"):
                     pass_tp_df = sec_annot_df[
-                        (self.df[self.classify_column] == "tp")
-                        & (sec_annot_df["sec_call_type"] == sec_call_type)
+                        (self.df[self.classify_column] == "tp") & (sec_annot_df["sec_call_type"] == sec_call_type)
                     ]
                     pass_fp_df = sec_annot_df[
-                        (self.df[self.classify_column] == "fp")
-                        & (sec_annot_df["sec_call_type"] == sec_call_type)
+                        (self.df[self.classify_column] == "fp") & (sec_annot_df["sec_call_type"] == sec_call_type)
                     ]
-                    pass_tp_df, pass_fp_df = (
-                        df[df["variant_type"] == variant_type]
-                        for df in [pass_tp_df, pass_fp_df]
-                    )
+
+                    pass_tp_df, pass_fp_df = (df[df["variant_type"] == variant_type] for df in (pass_tp_df, pass_fp_df))
                     pass_tp = pass_tp_df.shape[0]
                     pass_fp = pass_fp_df.shape[0]
-                    precision = get_precision(fp=pass_fp, tp=pass_tp)
-                    fh.write(
-                        f"{sec_call_type},{variant_type},{pass_tp},{pass_fp},{precision}\n"
-                    )
+                    precision = get_precision(false_positives=pass_fp, true_positives=pass_tp)
+                    file_handle.write(f"{sec_call_type},{variant_type},{pass_tp},{pass_fp},{precision}\n")
                     write_bed(
                         pass_tp_df,
                         "{out_pref}.{variant_type}.{sec_call_type}_passed_tp.bed",
@@ -274,22 +257,15 @@ class AssessSECConcordance:
                         "{out_pref}.{variant_type}.{sec_call_type}_passed_fp.bed",
                     )
 
-    def write_status_bed_files(
-        self, df: DataFrame, out_pref: str, classification: Series
-    ) -> Tuple[str, str, str]:
+    @staticmethod
+    def write_status_bed_files(df: DataFrame, out_pref: str, classification: Series) -> tuple[str, str, str]:
         df["pos-1"] = df["pos"] - 1
         if "sec_call_type" in df.columns:
             df["description"] = (
-                df["variant_type"]
-                + "_"
-                + df["hmer_indel_length"].astype(str)
-                + "_"
-                + df["sec_call_type"]
+                df["variant_type"] + "_" + df["hmer_indel_length"].astype(str) + "_" + df["sec_call_type"]
             )
         else:
-            df["description"] = (
-                df["variant_type"] + "_" + df["hmer_indel_length"].astype(str)
-            )
+            df["description"] = df["variant_type"] + "_" + df["hmer_indel_length"].astype(str)
         df.loc[df["description"].isna(), "description"] = "missing"
         indels = df[df["indel"]]
         fn_indel = indels[classification == "fn"]
@@ -309,9 +285,9 @@ class AssessSECConcordance:
 
 def run(argv):
     """
-  Given a concordance h5 input, an exclusion candidates bed, and a SEC refined exclude-list (bed)
-  Apply each exclusion list on the variants and measure the differences between the results.
-  """
+    Given a concordance h5 input, an exclusion candidates bed, and a SEC refined exclude-list (bed)
+    Apply each exclusion list on the variants and measure the differences between the results.
+    """
     args = parse_args(argv)
     input_file = args.concordance_h5_input
     ref_genome_file = args.genome_fasta

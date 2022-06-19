@@ -18,20 +18,13 @@ def test_fix_errors():
     data = pd.read_hdf(pjoin(inputs_dir, "h5_file_unitest.h5"), key="concordance")
     df = _fix_errors(data)
     assert all(
-        df[((df["call"] == "TP") & ((df["base"] == "TP") | (df["base"].isna())))][
-            "gt_ground_truth"
-        ].eq(
-            df[(df["call"] == "TP") & ((df["base"] == "TP") | (df["base"].isna()))][
-                "gt_ultima"
-            ]
+        df[((df["call"] == "TP") & ((df["base"] == "TP") | (df["base"].isna())))]["gt_ground_truth"].eq(
+            df[(df["call"] == "TP") & ((df["base"] == "TP") | (df["base"].isna()))]["gt_ultima"]
         )
     )
 
     # (None, TP) (None,FN_CA)
-    assert (
-            df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].size
-            == 0
-    )
+    assert df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].size == 0
     # (FP_CA,FN_CA), (FP_CA,None)
     temp_df = df.loc[
         (df["call"] == "FP_CA") & ((df["base"] == "FN_CA") | (df["base"].isna())),
@@ -39,22 +32,10 @@ def test_fix_errors():
     ]
     assert all(
         temp_df.apply(
-            lambda x: (
-                              (x["gt_ultima"][0] == x["gt_ground_truth"][0])
-                              & (x["gt_ultima"][1] != x["gt_ground_truth"][1])
-                      )
-                      | (
-                              (x["gt_ultima"][1] == x["gt_ground_truth"][1])
-                              & (x["gt_ultima"][0] != x["gt_ground_truth"][0])
-                      )
-                      | (
-                              (x["gt_ultima"][0] == x["gt_ground_truth"][1])
-                              & (x["gt_ultima"][1] != x["gt_ground_truth"][0])
-                      )
-                      | (
-                              (x["gt_ultima"][1] == x["gt_ground_truth"][0])
-                              & (x["gt_ultima"][0] != x["gt_ground_truth"][1])
-                      ),
+            lambda x: ((x["gt_ultima"][0] == x["gt_ground_truth"][0]) & (x["gt_ultima"][1] != x["gt_ground_truth"][1]))
+            | ((x["gt_ultima"][1] == x["gt_ground_truth"][1]) & (x["gt_ultima"][0] != x["gt_ground_truth"][0]))
+            | ((x["gt_ultima"][0] == x["gt_ground_truth"][1]) & (x["gt_ultima"][1] != x["gt_ground_truth"][0]))
+            | ((x["gt_ultima"][1] == x["gt_ground_truth"][0]) & (x["gt_ultima"][0] != x["gt_ground_truth"][1])),
             axis=1,
         )
     )
@@ -64,26 +45,20 @@ class TestVCF2Concordance:
     def test_qual_not_nan(self):
         input_vcf = pjoin(inputs_dir, "chr2.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "chr2.conc.vcf.gz")
-        result = vcf2concordance(
-            input_vcf, concordance_vcf, "VCFEVAL"
-        )
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert pd.isnull(result.query("classify!='fn'").qual).sum() == 0
         assert pd.isnull(result.query("classify!='fn'").sor).sum() == 0
 
     def test_filtered_out_missing(self):
         input_vcf = pjoin(inputs_dir, "hg002.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.conc.vcf.gz")
-        result = vcf2concordance(
-            input_vcf, concordance_vcf, "VCFEVAL"
-        )
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert ((result["call"] == "IGN") & (pd.isnull(result["base"]))).sum() == 0
 
     def test_filtered_out_tp_became_fn(self):
         input_vcf = pjoin(inputs_dir, "hg002.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.conc.vcf.gz")
-        result = vcf2concordance(
-            input_vcf, concordance_vcf, "VCFEVAL"
-        )
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert ((result["call"] == "IGN") & (result["base"] == "FN")).sum() > 0
         take = result[(result["call"] == "IGN") & (result["base"] == "FN")]
         assert (take["classify"] == "fn").all()
@@ -91,18 +66,14 @@ class TestVCF2Concordance:
     def test_excluded_regions_are_ignored(self):
         input_vcf = pjoin(inputs_dir, "hg002.excluded.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.excluded.conc.vcf.gz")
-        result = vcf2concordance(
-            input_vcf, concordance_vcf, "VCFEVAL"
-        )
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         assert ((result["call"] == "OUT")).sum() == 0
         assert ((result["base"] == "OUT")).sum() == 0
 
     def test_all_ref_never_false_negative(self):
         input_vcf = pjoin(inputs_dir, "hg002.allref.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.allref.conc.vcf.gz")
-        result = vcf2concordance(
-            input_vcf, concordance_vcf, "VCFEVAL"
-        )
+        result = vcf_pipeline_utils.vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         calls = result[result["gt_ground_truth"] == (0, 0)].classify_gt.value_counts()
         assert "fn" not in calls.index
 
@@ -128,9 +99,7 @@ class TestVCFevalRun:
         assert exists(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz")
         assert exists(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz.tbi")
 
-        with pysam.VariantFile(
-                str(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz")
-        ) as vcf:
+        with pysam.VariantFile(str(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz")) as vcf:
             calls = Counter([x.info["CALL"] for x in vcf])
         assert calls == {"FP": 99, "TP": 1}
 
@@ -149,9 +118,7 @@ class TestVCFevalRun:
         assert exists(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz")
         assert exists(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz.tbi")
 
-        with pysam.VariantFile(
-                str(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz")
-        ) as vcf:
+        with pysam.VariantFile(str(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz")) as vcf:
             calls = Counter([x.info["CALL"] for x in vcf])
         assert calls == {"FP": 91, "TP": 1, "IGN": 8}
 
@@ -167,9 +134,9 @@ def test_intersect_bed_files(mocker, tmp_path):
 
     # Test without simple pipeline
     spy_subprocess = mocker.spy(subprocess, "call")
+
     VcfPipelineUtils().intersect_bed_files(bed1, bed2, output_path)
     spy_subprocess.assert_called_once_with(["bedtools", "intersect", "-a", bed1, "-b", bed2], stdout=mocker.ANY)
-
     assert exists(output_path)
 
 

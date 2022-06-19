@@ -1,6 +1,4 @@
-import os
-from os.path import join as pjoin
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 import pysam
@@ -9,10 +7,9 @@ from ugvc.dna import utils as dnautils
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.utils import misc_utils as utils
 
-from . import readExpander
+from . import read_expander
 
 error_rates = np.logspace(0.001, 0.01, 10)
-_workdir = pjoin(os.environ["HOME"], "proj/VariantCalling/work/190605/")
 
 # We always allow for a bit of error
 # _CONFUSION_MATRIX = np.load(pjoin(_workdir, "confusion.npy"))
@@ -22,11 +19,9 @@ _workdir = pjoin(os.environ["HOME"], "proj/VariantCalling/work/190605/")
 CONFUSION_MATRIX = np.NaN
 
 
-def generateFlowMatrix(
-    gtr_calls: np.ndarray, confusion_matrix: np.ndarray = CONFUSION_MATRIX
-) -> np.ndarray:
+def generate_flow_matrix(gtr_calls: np.ndarray, confusion_matrix: np.ndarray = CONFUSION_MATRIX) -> np.ndarray:
     """
-    Generates a flow matrix from the ground truth flows with low probabilities for
+    generate_flow_matrixa flow matrix from the ground truth flows with low probabilities for
 
     Parameters
     ----------
@@ -59,22 +54,16 @@ def generateFlowMatrix(
 
     flow_matrix = confusion_matrix[gtr_calls, :].T
     minconf = confusion_matrix.min()
-    mutation_flow_matrix = (
-        np.ones((confusion_matrix.shape[0], len(mutations))) * minconf
-    )
+    mutation_flow_matrix = np.ones((confusion_matrix.shape[0], len(mutations))) * minconf
 
-    mutation_flow_matrix[
-        gtr_calls[mutations], range(len(mutations))
-    ] = non_mutation_probs
-    mutation_flow_matrix[
-        mutation_profile[mutations], range(len(mutations))
-    ] = mutation_probs
+    mutation_flow_matrix[gtr_calls[mutations], range(len(mutations))] = non_mutation_probs
+    mutation_flow_matrix[mutation_profile[mutations], range(len(mutations))] = mutation_probs
     mutation_flow_matrix = mutation_flow_matrix / mutation_flow_matrix.sum(axis=0)
     flow_matrix[:, mutations] = mutation_flow_matrix
     return flow_matrix
 
 
-def getFlow2Base(flow_order: str, desired_length: int) -> np.ndarray:
+def get_flow2_base(flow_order: str, desired_length: int) -> np.ndarray:
     """
     Given order of flows - what base corresponds to each flow
 
@@ -89,17 +78,13 @@ def getFlow2Base(flow_order: str, desired_length: int) -> np.ndarray:
     np.ndarray
             Array of bases
     """
-    flow_order = np.tile(
-        np.array(list(flow_order)), int(desired_length / len(flow_order)) + 1
-    )
+    flow_order = np.tile(np.array(list(flow_order)), int(desired_length / len(flow_order)) + 1)
     flow_order = flow_order[:desired_length]
     return flow_order
 
 
-def get_rflow_order(
-    flow_matrix: np.ndarray, flow_order: str = DEFAULT_FLOW_ORDER
-) -> str:
-    """Finds the flow of the first base of the reverse of the expected sequence
+def get_rflow_order(flow_matrix: np.ndarray, flow_order: str = DEFAULT_FLOW_ORDER) -> str:
+    """Finds the flowget of the first base of the reverse of the expected sequence
     Parameters
     ----------
     flow_matrix: np.ndarray
@@ -118,9 +103,7 @@ def get_rflow_order(
     return rflow[: len(flow_order)]
 
 
-def keySpace2BaseSpace(
-    flow_matrix: np.ndarray, flow_order: str = DEFAULT_FLOW_ORDER
-) -> tuple:
+def key_space2_base_space(flow_matrix: np.ndarray, flow_order: str = DEFAULT_FLOW_ORDER) -> tuple:
     """
     Converts from matrix of hmer probabilities to sequence (most probable)
 
@@ -139,18 +122,18 @@ def keySpace2BaseSpace(
             3. Array of the call for each flow (integer array)
 
     """
-    flow_order = getFlow2Base(flow_order, flow_matrix.shape[1])
+    flow_order = get_flow2_base(flow_order, flow_matrix.shape[1])
     n_reps = np.argmax(flow_matrix, axis=0)
     n_reps_shifted = np.array([0] + list(np.argmax(flow_matrix, axis=0)))[:-1]
     flow2base = -1 + np.cumsum(n_reps_shifted)
     return "".join(np.repeat(flow_order, n_reps)), flow2base, n_reps
 
 
-def identifyMutations(
+def identify_mutations(
     flow_matrix: np.ndarray,
     n_mutations: int,
     threshold: float,
-    gtr_calls: Optional[np.ndarray] = None,
+    gtr_calls: np.ndarray | None = None,
 ) -> tuple:
     """
     Identifies mutations to report in the read
@@ -204,9 +187,7 @@ def identifyMutations(
     return tmp[1], tmp[0]
 
 
-def getLikelihood(
-    flow_matrix: np.ndarray, gtr_calls: Optional[np.ndarray] = None
-) -> float:
+def get_likelihood(flow_matrix: np.ndarray, gtr_calls: np.ndarray | None = None) -> float:
     """
     Return log likelihood of the path in flow matrix
 
@@ -230,10 +211,10 @@ def getLikelihood(
     return likelihood
 
 
-def getMutationChange(
+def get_mutation_change(
     gtr_calls: np.ndarray,
     mutation: tuple,
-    baseCalls: str,
+    base_calls: str,
     key2base: np.ndarray,
     flow_order: str = DEFAULT_FLOW_ORDER,
 ) -> tuple:
@@ -246,7 +227,7 @@ def getMutationChange(
             List of original (unmutated hmers)
     mutation: tuple
             (int, int) - flow index, new hmer
-    baseCalls: str
+    base_calls: str
             ground truth read
     key2base: np.ndarray
             For each flow - what was the last generated base BEFORE the call
@@ -259,47 +240,41 @@ def getMutationChange(
             Pos, old sequence, new sequence
     """
 
-    flow_order = "".join(getFlow2Base(flow_order, len(gtr_calls)))
+    flow_order = "".join(get_flow2_base(flow_order, len(gtr_calls)))
 
-    a = gtr_calls[mutation[0]]
-    b = mutation[1]
-    diff = a - b
+    ref_alleles = gtr_calls[mutation[0]]
+    alt_alleles = mutation[1]
+    diff = ref_alleles - alt_alleles
     assert diff != 0, "No mutation in this position"
     seq_base = key2base[mutation[0]]
     if diff > 0:
         # DELETION
         if seq_base >= 0:
             start_pos = seq_base
-            start_seq = baseCalls[start_pos : start_pos + diff + 1]
-            end_seq = baseCalls[start_pos]
+            start_seq = base_calls[start_pos : start_pos + diff + 1]
+            end_seq = base_calls[start_pos]
         elif seq_base < 0:
             # If we are deleting the first bases in the key
             start_pos = 0
-            start_seq = baseCalls[start_pos : start_pos + diff + 1]
-            end_seq = baseCalls[start_pos + diff]
+            start_seq = base_calls[start_pos : start_pos + diff + 1]
+            end_seq = base_calls[start_pos + diff]
 
     elif diff < 0:
         # INSERTION
         start_pos = seq_base
         if seq_base >= 0:
-            start_seq = baseCalls[start_pos : start_pos + 1]
-            end_seq = baseCalls[start_pos : start_pos + 1] + flow_order[mutation[0]] * (
-                -diff
-            )
+            start_seq = base_calls[start_pos : start_pos + 1]
+            end_seq = base_calls[start_pos : start_pos + 1] + flow_order[mutation[0]] * (-diff)
         elif seq_base == -1:
             start_pos = 0
-            start_seq = baseCalls[start_pos : start_pos + 1]
-            end_seq = (
-                flow_order[mutation[0]] * (-diff) + baseCalls[start_pos : start_pos + 1]
-            )
+            start_seq = base_calls[start_pos : start_pos + 1]
+            end_seq = flow_order[mutation[0]] * (-diff) + base_calls[start_pos : start_pos + 1]
     assert start_pos >= 0, "Assertion failed - start_pos < 0"
-    assert len(start_seq) != len(
-        end_seq
-    ), "Assertion failed - no difference b/w alleles"
+    assert len(start_seq) != len(end_seq), "Assertion failed - no difference b/w alleles"
     return start_pos, start_seq, end_seq
 
 
-def getLogLikDiff(flow_matrix: np.ndarray, gtr_calls: np.ndarray, mutation: tuple):
+def get_log_lik_diff(flow_matrix: np.ndarray, gtr_calls: np.ndarray, mutation: tuple):
     """
     Reurns difference in log likelihood of reads
 
@@ -318,10 +293,10 @@ def getLogLikDiff(flow_matrix: np.ndarray, gtr_calls: np.ndarray, mutation: tupl
     return new - original
 
 
-def seqToRecord(
+def seq_to_record(
     seq: str,
     rname: str,
-    llk: float = Optional[float],
+    llk: float,
     alts: list = None,
     ralts: list = None,
 ) -> pysam.AlignedSegment:
@@ -357,21 +332,21 @@ def seqToRecord(
     seg.mapping_quality = 255
     seg.cigarstring = "*"
 
-    def alt2str(x):
-        return "%d,%s,%s,%.2f" % x
+    def alt2str(allele_repr):
+        return "%d,%s,%s,%.2f" % allele_repr
 
     alts = sorted(alts, key=lambda x: (x[3], x[0]))
     # note different sorting order for ralts so that it is the same as alts when we reverse
     ralts = sorted(ralts, key=lambda x: (x[3], -x[0]))
     rseq = dnautils.revcomp(seq)
 
-    for a in alts:
-        assert validate_alt(seq, a), "Weird mutation sequence"
-    for a in ralts:
-        assert validate_alt(rseq, a), "Weird rmutation sequence"
+    for alt in alts:
+        assert validate_alt(seq, alt), "Weird mutation sequence"
+    for ralt in ralts:
+        assert validate_alt(rseq, ralt), "Weird rmutation sequence"
     valts = [validate_rcalt_v2(*x, seq, rseq) for x in zip(alts, ralts)]
-    for a in valts:
-        assert a, "Weird rvariant"
+    for valt in valts:
+        assert valt, "Weird rvariant"
     alts = sorted(alts, key=lambda x: x[0])
     ralts = sorted(ralts, key=lambda x: (x[0]))
 
@@ -402,9 +377,8 @@ def validate_rcalt_v2(alt: tuple, ralt: tuple, seq: str, rseq: str) -> bool:
 
 
 def apply_variant(seq: str, variant: tuple) -> str:
-    """Apply variant to sequence
-    """
-    return readExpander.ReadExpander.get_read_variant_str(seq, [variant])
+    """Apply variant to sequence"""
+    return read_expander.get_read_variant_str(seq, [variant])
 
 
 def validate_alt(seq: str, alt: tuple) -> bool:
