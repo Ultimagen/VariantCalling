@@ -1,15 +1,32 @@
 #!/env/python
+# Copyright 2022 Ultima Genomics Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# DESCRIPTION
+#    MRD data preparation pipeline
+# CHANGELOG in reverse chronological order
+from __future__ import annotations
+
 import argparse
 import os
 import sys
 from os.path import join as pjoin
-from typing import List
 
 from ugvc.mrd.mrd_utils import read_intersection_dataframes, read_signature
 from ugvc.utils.consts import FileExtension
 
 
-def parse_args(argv: List[str]) -> argparse.Namespace:
+def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="prepare_data", description=run.__doc__)
     parser.add_argument(
         "-f",
@@ -69,7 +86,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     return parser.parse_args(argv[1:])
 
 
-def run(argv: List[str]):
+def run(argv: list[str]):
     """Aggregate the outputs from the MRDFeatureMap pipeline and prepare dataframes for analysis"""
     args_in = parse_args(argv)
     prepare_data_from_mrd_pipeline(
@@ -114,11 +131,12 @@ def prepare_data_from_mrd_pipeline(
     Returns
     -------
     dataframe
+
+    :raises OSError: in case the file already exists and function executed with no force overwrite
+    :raises ValueError: may be raised
     """
     if output_dir is not None and output_basename is None:
-        raise ValueError(
-            f"output_dir is not None ({output_dir}) but output_basename is"
-        )
+        raise ValueError(f"output_dir is not None ({output_dir}) but output_basename is")
     if output_dir is not None:
         os.makedirs(output_dir, exist_ok=True)
 

@@ -1,7 +1,8 @@
-import logging
+from __future__ import annotations
+
 from collections import OrderedDict
+from collections.abc import Callable, Iterable
 from enum import Enum
-from typing import Callable, Iterable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -13,49 +14,43 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 import ugvc.utils.misc_utils as utils
-from ugvc.utils.stats_utils import (
-    get_f1,
-    get_precision,
-    get_recall,
-    precision_recall_curve,
-)
+from ugvc import logger
+from ugvc.utils.stats_utils import get_f1, get_precision, get_recall, precision_recall_curve
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
-class vcfType(Enum):
-    single_sample = 1
-    joint = 2
+class VcfType(Enum):
+    SINGLE_SAMPLE = 1
+    JOINT = 2
 
 
 class SingleModel:
+    # pylint: disable=too-few-public-methods
     def __init__(self, threshold_dict: dict, is_greater_then: dict):
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
 
     def predict(self, df: pd.DataFrame) -> pd.Series:
         result_vec = np.ones(df.shape[0], dtype=np.bool)
-        for v in self.threshold_dict:
-            result_vec = result_vec & (
-                (df[v] > self.threshold_dict[v]) == self.is_greater_then[v]
-            )
+        for var in self.threshold_dict:
+            result_vec = result_vec & ((df[var] > self.threshold_dict[var]) == self.is_greater_then[var])
         return np.where(np.array(result_vec), "tp", "fp")
 
 
 class SingleRegressionModel:
-    def __init__(
-        self, threshold_dict: dict, is_greater_then: dict, score_translation: list
-    ):
+    # pylint: disable=too-few-public-methods
+    def __init__(self, threshold_dict: dict, is_greater_then: dict, score_translation: list):
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
         self.score = score_translation
 
     def predict_proba(self, df: pd.DataFrame) -> pd.Series:
         results = []
-        for v in self.threshold_dict:
+        for var in self.threshold_dict:
             result_v = (
-                np.array(df[v])[:, np.newaxis] > self.threshold_dict[v][np.newaxis, :]
-            ) == self.is_greater_then[v]
+                np.array(df[var])[:, np.newaxis] > self.threshold_dict[var][np.newaxis, :]
+            ) == self.is_greater_then[var]
             results.append(result_v)
         result_vec = np.all(results, axis=0)
         scores = result_vec.mean(axis=1)
@@ -69,20 +64,20 @@ class SingleTrivialClassifierModel:
 
     def predict(self, df: pd.DataFrame) -> np.array:
         def pass_filter(filter_str):
-            return all(
-                [_filter in self.ignored_filters for _filter in filter_str.split(";")]
-            )
+            return all(_filter in self.ignored_filters for _filter in filter_str.split(";"))
 
-        pf = df["filter"].apply(pass_filter)
-        return np.where(np.array(pf), "tp", "fp")
+        pfiltered = df["filter"].apply(pass_filter)
+        return np.where(np.array(pfiltered), "tp", "fp")
 
-    def predict_proba(self, df: pd.DataFrame) -> np.array:
+    @staticmethod
+    def predict_proba(df: pd.DataFrame) -> np.array:
         res = np.array(df.tree_score.fillna(0))
         res_comp = 1 - res
         return np.vstack((res_comp, res)).T
 
 
 class MaskedHierarchicalModel:
+    # pylint: disable=too-few-public-methods
     BLOCK_SIZE = 1000000
 
     def __init__(
@@ -90,7 +85,7 @@ class MaskedHierarchicalModel:
         _name: str,
         _group_column: str,
         _models_dict: dict,
-        transformer: Optional[sklearn_pandas.DataFrameMapper] = None,
+        transformer: sklearn_pandas.DataFrameMapper | None = None,
         tree_score_fpr=None,
         threshold=None,
     ):
@@ -101,9 +96,7 @@ class MaskedHierarchicalModel:
         self.tree_score_fpr = tree_score_fpr
         self.threshold = threshold
 
-    def predict(
-        self, df: pd.DataFrame, mask_column: Optional[str] = None, get_numbers=False
-    ) -> pd.Series:
+    def predict(self, df: pd.DataFrame, mask_column: str = None, get_numbers=False) -> pd.Series:
         """
         Makes prediction on the dataframe, optionally ignoring false-negative calls
 
@@ -111,7 +104,8 @@ class MaskedHierarchicalModel:
         ----------
         df: pd.DataFrame
             Input dataframe
-        mask_column: str or None (default)
+        mask_column: str
+            or None (default)
             Column to look at to determine if the variant is false-negative
         get_numbers: bool
             While predicting, we can get the probability score (True) or get the classification (False)
@@ -131,18 +125,19 @@ class MaskedHierarchicalModel:
         groups = set(df[self.group_column])
         gvecs = [df[self.group_column] == g for g in groups]
         result = pd.Series(["fn"] * df.shape[0], index=df.index)
-        for i, g in enumerate(groups):
+        for i, group_val in enumerate(groups):
             threshold = self.threshold
             result[(~mask) & (gvecs[i])] = self._predict_by_blocks(
-                self.models[g],
-                apply_df[apply_df[self.group_column] == g],
+                self.models[group_val],
+                apply_df[apply_df[self.group_column] == group_val],
                 get_numbers=get_numbers,
-                threshold=threshold[g] if (threshold is not None) else threshold,
+                threshold=threshold[group_val] if (threshold is not None) else threshold,
             )
         return result
 
-    def _adjusted_classes(self, y_scores, t):
-        return ["tp" if y >= t else "fp" for y in y_scores]
+    @staticmethod
+    def _adjusted_classes(y_scores, t_val):
+        return ["tp" if y >= t_val else "fp" for y in y_scores]
 
     def _predict_by_blocks(self, model, df, get_numbers=False, threshold=0):
         predictions = []
@@ -151,29 +146,19 @@ class MaskedHierarchicalModel:
             # or when the query is class probability (get_numbers=True)
             # In the first case if the model has a threshold, we call "predict_proba" function and
             # apply the threshold. Otherwise, we call a "predict" function
-            if (
-                not get_numbers and threshold is None
-            ):  # model with no threshold that just returns class
+            if not get_numbers and threshold is None:  # model with no threshold that just returns class
                 predict_fcn = model.predict
             else:
                 predict_fcn = model.predict_proba
 
             if self.transformer is not None:
                 predictions.append(
-                    predict_fcn(
-                        self.transformer.fit_transform(
-                            df.iloc[i : i + MaskedHierarchicalModel.BLOCK_SIZE, :]
-                        )
-                    )
+                    predict_fcn(self.transformer.fit_transform(df.iloc[i : i + MaskedHierarchicalModel.BLOCK_SIZE, :]))
                 )
             else:
-                predictions.append(
-                    predict_fcn(df.iloc[i : i + MaskedHierarchicalModel.BLOCK_SIZE, :])
-                )
+                predictions.append(predict_fcn(df.iloc[i : i + MaskedHierarchicalModel.BLOCK_SIZE, :]))
         if not get_numbers and threshold is not None:
-            predictions = self._adjusted_classes(
-                np.vstack(predictions)[:, 1], threshold
-            )
+            predictions = self._adjusted_classes(np.vstack(predictions)[:, 1], threshold)
         elif not get_numbers and threshold is None:
             predictions = np.hstack(predictions)
         elif get_numbers:
@@ -184,11 +169,11 @@ class MaskedHierarchicalModel:
 
 def train_threshold_models(
     concordance: pd.DataFrame,
-    vtype: vcfType,
-    interval_size: Optional[int] = None,
+    vtype: VcfType,
+    interval_size: int | None = None,
     classify_column: str = "classify",
-    annots: list = [],
-) -> Tuple[MaskedHierarchicalModel, pd.DataFrame]:
+    annots: list = None,
+) -> tuple[MaskedHierarchicalModel, pd.DataFrame]:
     """Trains threshold classifier and regressor
 
     Parameters
@@ -209,23 +194,35 @@ def train_threshold_models(
     tuple
         Classifier model and concordance
     """
-
+    if annots is None:
+        annots = []
     train_selection_functions = get_training_selection_functions()
     concordance = add_grouping_column(concordance, train_selection_functions, "group")
-    concordance = add_testing_train_split_column(
-        concordance, "group", "test_train_split", classify_column
+    concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
+    logger.debug(
+        "******Minimal test loc: %i",
+        np.nonzero(np.array(concordance["test_train_split"]))[0].min(),
     )
+    logger.debug(
+        "******Maximal test loc: %i",
+        np.nonzero(np.array(concordance["test_train_split"]))[0].max(),
+    )
+    logger.debug(
+        "******Average test loc: %i",
+        np.nonzero(np.array(concordance["test_train_split"]))[0].mean(),
+    )
+
     transformer = feature_prepare(output_df=True, annots=annots, vtype=vtype)
     transformer.fit(concordance)
     groups = set(concordance["group"])
     classifier_models = {}
     fpr_values = {}
     thresholds = {}
-    for g in groups:
-        classifier_models[g], fpr_values[g], thresholds[g] = train_threshold_model(
+    for g_val in groups:
+        (classifier_models[g_val], fpr_values[g_val], thresholds[g_val],) = train_threshold_model(
             concordance=concordance,
             test_train_split=concordance["test_train_split"],
-            selection=concordance["group"] == g,
+            selection=concordance["group"] == g_val,
             gtr_column=classify_column,
             transformer=transformer,
             interval_size=interval_size,
@@ -252,9 +249,9 @@ def train_threshold_model(
     selection: pd.Series,
     gtr_column: str,
     transformer: sklearn_pandas.DataFrameMapper,
-    vtype: vcfType,
+    vtype: VcfType,
     interval_size: int,
-    annots: list = [],
+    annots: list = None,
 ) -> tuple:
     """Trains threshold regressor and classifier models
 
@@ -272,18 +269,19 @@ def train_threshold_model(
         Feature mapper
     interval_size: int
         number of bases in the interval
+    annots: list
+        annotations added tp features
     vtype: string
         The type of the input vcf. Either "single_sample" or "joint"
     """
-
+    if annots is None:
+        annots = []
     features, _, qual_column = modify_features_based_on_vcf_type(vtype)
 
     quals = np.linspace(0, 500, 49)
     sors = np.linspace(0, 10, 49)
 
-    pairs_qual_sor_threshold = [
-        (quals[i], sors[j]) for i in range(len(quals)) for j in range(len(sors))
-    ]
+    pairs_qual_sor_threshold = [(quals[i], sors[j]) for i in range(len(quals)) for j in range(len(sors))]
 
     fns = np.array(concordance[gtr_column] == "fn")
     train_data = concordance[selection & (~fns) & test_train_split][features + annots]
@@ -296,9 +294,9 @@ def train_threshold_model(
     train_qual = train_data[qual_column]
     train_sor = train_data["sor"]
 
-    qq = train_qual.to_numpy()[:, np.newaxis] > quals[np.newaxis, :]
-    ss = train_sor.to_numpy()[:, np.newaxis] < sors[np.newaxis, :]
-    predictions_tp = qq[..., np.newaxis] & ss[:, np.newaxis, :]
+    qq_val = train_qual.to_numpy()[:, np.newaxis] > quals[np.newaxis, :]
+    ss_val = train_sor.to_numpy()[:, np.newaxis] < sors[np.newaxis, :]
+    predictions_tp = qq_val[..., np.newaxis] & ss_val[:, np.newaxis, :]
     tps = (predictions_tp & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
     fns = ((~predictions_tp) & enclabels[:, np.newaxis, np.newaxis]).sum(axis=0)
     fps = (predictions_tp & (~enclabels[:, np.newaxis, np.newaxis])).sum(axis=0)
@@ -311,13 +309,13 @@ def train_threshold_model(
         columns=[("recall", "var"), ("precision", "var")],
     )
 
-    f1 = (
+    f1_val = (
         2
         * results_df[("recall", "var")]
         * results_df[("precision", "var")]
         / (results_df[("recall", "var")] + results_df[("precision", "var")])
     )
-    results_df["f1"] = f1
+    results_df["f1"] = f1_val
     best = results_df["f1"].idxmax()
 
     rsi = get_r_s_i(results_df, "var")[-1].copy()
@@ -382,25 +380,23 @@ def get_all_precision_recalls(results: pd.DataFrame) -> dict:
         Values - dataframes for plotting precision recall curve, that for group g should
         be plotted as `df.plot(('recall',g), ('precision',g))
     """
-    groups = set([x[1] for x in results.columns])
+    groups = {[x[1] for x in results.columns]}
     result = {}
-    for g in groups:
-        tmp = get_r_s_i(results, g)[-1]
-        result[g] = np.array(np.vstack((tmp[("recall", g)], tmp[("precision", g)]))).T
+    for g_val in groups:
+        tmp = get_r_s_i(results, g_val)[-1]
+        result[g_val] = np.array(np.vstack((tmp[("recall", g_val)], tmp[("precision", g_val)]))).T
     return result
 
 
 def tuple_break(x):
-    """Returns the first element in the tuple
-    """
+    """Returns the first element in the tuple"""
     if isinstance(x, tuple):
         return x[0]
     return 0 if (x is None or np.isnan(x)) else x
 
 
 def tuple_break_second(x):
-    """Returns the second element in the tuple
-    """
+    """Returns the second element in the tuple"""
     if isinstance(x, tuple):
         return x[1]
     return 0 if (x is None or np.isnan(x)) else x
@@ -415,8 +411,8 @@ def motif_encode_left(x):
     x_list = list(x)
     x_list.reverse()
     num = 0
-    for c in x_list:
-        num = 10 * num + bases.get(c, 0)
+    for c_val in x_list:
+        num = 10 * num + bases.get(c_val, 0)
     return num
 
 
@@ -428,8 +424,8 @@ def motif_encode_right(x):
     bases = {"A": 1, "T": 2, "G": 3, "C": 4, "N": 5}
     x_list = list(x)
     num = 0
-    for c in x_list:
-        num = 10 * num + bases.get(c, 0)
+    for c_val in x_list:
+        num = 10 * num + bases.get(c_val, 0)
     return num
 
 
@@ -442,14 +438,13 @@ def allele_encode(x):
 
 
 def gt_encode(x):
-    """Checks whether the variant is heterozygous(0) or homozygous(1)
-    """
+    """Checks whether the variant is heterozygous(0) or homozygous(1)"""
     if x == (1, 1):
         return 1
     return 0
 
 
-def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
+def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     """Modify training features based on the type of the vcf
 
     Parameters
@@ -460,6 +455,11 @@ def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
     Returns
     -------
     list of features, list of transform, column used for qual (qual or qd)
+
+    Raises
+    ------
+    ValueError
+        If vcf is of unrecognized type.
     """
 
     default_filler = impute.SimpleImputer(strategy="constant", fill_value=0)
@@ -521,9 +521,7 @@ def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
 
     if vtype == "single_sample":
         qual_column = "qual"
-        features.extend(
-            ["qual", "ps", "ac", "ad", "gt", "xc", "gq", "pl", "af", "mleac", "mleaf"]
-        )
+        features.extend(["qual", "ps", "ac", "ad", "gt", "xc", "gq", "pl", "af", "mleac", "mleaf"])
         transform_list.extend(
             [
                 ("qual", None),
@@ -548,9 +546,7 @@ def modify_features_based_on_vcf_type(vtype: vcfType = "single_sample"):
     return [features, transform_list, qual_column]
 
 
-def feature_prepare(
-    vtype: vcfType, output_df: bool = False, annots: list = []
-) -> sklearn_pandas.DataFrameMapper:
+def feature_prepare(vtype: VcfType, output_df: bool = False, annots: list = None) -> sklearn_pandas.DataFrameMapper:
     """Prepare dataframe for analysis (encode features, normalize etc.)
 
     Parameters
@@ -567,7 +563,8 @@ def feature_prepare(
     tuple
         Mapper, list of features
     """
-
+    if annots is None:
+        annots = []
     _, transform_list, _ = modify_features_based_on_vcf_type(vtype)
 
     for annot in annots:
@@ -578,6 +575,7 @@ def feature_prepare(
 
 
 def train_model(
+    # pylint: disable=too-many-arguments
     concordance: pd.DataFrame,
     test_train_split: np.ndarray,
     selection: pd.Series,
@@ -585,11 +583,11 @@ def train_model(
     transformer: sklearn_pandas.DataFrameMapper,
     interval_size: int,
     classify_model,
-    vtype: vcfType,
-    annots: list = [],
+    vtype: VcfType,
+    annots: list = None,
     exome_weight: int = 1,
     exome_weight_annotation: str = None,
-) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+) -> tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     """Trains model on a subset of dataframe that is already dividied into a testing and training set
 
     Parameters
@@ -610,6 +608,10 @@ def train_model(
         Weight value for the exome variants
     exome_weight_annotation: str
         Exome weight annotation name
+    interval_size: int
+        Number of bases in interval
+    classify_model: RandomForestClassifier
+        random forest classifier
     vtype: string
         The type of the input vcf. Either "single_sample" or "joint"
 
@@ -618,6 +620,8 @@ def train_model(
     tuple:
         Trained classifier model, fpr trees-core mapping, classify threshold
     """
+    if annots is None:
+        annots = []
 
     features, _, _ = modify_features_based_on_vcf_type(vtype)
 
@@ -632,14 +636,8 @@ def train_model(
 
     model = classify_model
 
-    if (
-        exome_weight != 1
-        and (exome_weight_annotation is not None)
-        and isinstance(model, RandomForestClassifier)
-    ):
-        sample_weight = concordance[test_train_split & selection & (~fns)][
-            features + annots
-        ][exome_weight_annotation]
+    if exome_weight != 1 and (exome_weight_annotation is not None) and isinstance(model, RandomForestClassifier):
+        sample_weight = concordance[test_train_split & selection & (~fns)][features + annots][exome_weight_annotation]
         sample_weight = sample_weight.apply(lambda x: exome_weight if x else 1)
 
         model.fit(train_data, labels, sample_weight=sample_weight)
@@ -647,38 +645,36 @@ def train_model(
         model.fit(train_data, labels)
 
     tree_scores = model.predict_proba(train_data)[:, 1]
-    curve = precision_recall_curve(
-        labels, tree_scores, fn_mask=(labels == "fn"), pos_label="tp"
-    )
-    precision, recall, f1, preditions = curve
+    curve = precision_recall_curve(labels, tree_scores, fn_mask=(labels == "fn"), pos_label="tp")
+    precision, recall, f1_val, predictions = curve  # pylint: disable=unused-variable
     # get the best f1 threshold
-    threshold = preditions[np.argmax(f1)]
+    threshold = predictions[np.argmax(f1_val)]
 
     if gtr_column == "classify":  # there is gt
-        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(
-            tree_scores, labels, test_train_split, interval_size
-        )
+        tree_scores_sorted, fpr_values = fpr_tree_score_mapping(tree_scores, labels, test_train_split, interval_size)
         return (
             model,
-            pd.concat([pd.Series(tree_scores_sorted), fpr_values], axis=1,),
+            pd.concat(
+                [pd.Series(tree_scores_sorted), fpr_values],
+                axis=1,
+            ),
             threshold,
         )
-    else:
-        return model, None, threshold
+    return model, None, threshold
 
 
-def train_model_RF(
+def train_model_rf(
     concordance: pd.DataFrame,
     test_train_split: np.ndarray,
     selection: pd.Series,
     gtr_column: str,
     transformer: sklearn_pandas.DataFrameMapper,
-    vtype: vcfType,
+    vtype: VcfType,
     interval_size: int,
-    annots: list = [],
+    annots: list = None,
     exome_weight: int = 1,
     exome_weight_annotation: str = None,
-) -> Tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
+) -> tuple[DecisionTreeClassifier, DecisionTreeRegressor, pd.DataFrame]:
     """Trains model on a subset of dataframe that is already divided into a testing and training set
 
     Parameters
@@ -701,11 +697,16 @@ def train_model_RF(
         Exome weight annotation name
     vtype: string
         The type of the input vcf. Either "single_sample" or "joint"
+    interval_size: int
+        Number of bases in interval
+
     Returns
     -------
     Trained classifier model
     """
-    model = RandomForestClassifier(n_estimators=40, max_depth=8)
+    if annots is None:
+        annots = []
+    model = RandomForestClassifier(n_estimators=40, max_depth=8, random_state=42)
 
     return train_model(
         concordance,
@@ -722,10 +723,10 @@ def train_model_RF(
     )
 
 
-def _validate_data(data: Union[np.ndarray, pd.Series, pd.DataFrame]) -> None:
+def _validate_data(data: np.ndarray | pd.Series | pd.DataFrame) -> None:
     """Validates that the data does not contain nulls"""
 
-    if type(data) == np.ndarray:
+    if type(data) == np.ndarray:  # pylint: disable=unidiomatic-typecheck
         test_data = data
     else:
         test_data = data.to_numpy()
@@ -733,13 +734,11 @@ def _validate_data(data: Union[np.ndarray, pd.Series, pd.DataFrame]) -> None:
         if len(test_data.shape) == 1 or test_data.shape[1] <= 1:
             assert pd.isnull(test_data).sum() == 0, "data vector contains null"
         else:
-            for c in range(test_data.shape[1]):
-                assert (
-                    pd.isnull(test_data[:, c]).sum() == 0
-                ), f"Data matrix contains null in column {c}"
-    except AssertionError as af:
-        logger.error(str(af))
-        raise af
+            for c_val in range(test_data.shape[1]):
+                assert pd.isnull(test_data[:, c_val]).sum() == 0, f"Data matrix contains null in column {c_val}"
+    except AssertionError as af_val:
+        logger.error(str(af_val))
+        raise af_val
 
 
 def fpr_tree_score_mapping(
@@ -765,7 +764,7 @@ def fpr_tree_score_mapping(
         -------
         pd.Series:
             FPR value for each variant sorted in increased order
-        """
+    """
     # in case we do not run frp - interval_size is None
     if interval_size is None:
         return np.zeros(len(tree_scores)), pd.Series(np.zeros(len(tree_scores)))
@@ -777,7 +776,7 @@ def fpr_tree_score_mapping(
         if labels[cur_ind] == "fp":
             cur_fpr = cur_fpr + 1
         fpr.append((cur_fpr / train_part) / interval_size)
-    return tree_scores[tree_scores_sorted_inds], pd.Series(fpr[::-1]) * 10 ** 6
+    return tree_scores[tree_scores_sorted_inds], pd.Series(fpr[::-1]) * 10**6
 
 
 def get_basic_selection_functions():
@@ -793,8 +792,7 @@ def get_basic_selection_functions():
 
 
 def get_training_selection_functions():
-    """
-    """
+    """get_training_selection_functions"""
     sfs = []
     names = []
     sfs.append(lambda x: np.logical_not(x.indel))
@@ -817,18 +815,18 @@ def find_thresholds(
     pairs = []
     selection_functions = sf_generator()
     concordance = add_grouping_column(concordance, selection_functions, "group")
-    for q in tqdm.tqdm_notebook(quals):
-        for s in sors:
-            pairs.append((q, s))
+    for q_val in tqdm.tqdm_notebook(quals):
+        for s_val in sors:
+            pairs.append((q_val, s_val))
             tmp = (
                 concordance[
-                    ((concordance["qual"] > q) & (concordance["sor"] < s))
+                    ((concordance["qual"] > q_val) & (concordance["sor"] < s_val))
                     | (concordance[classify_column] == "fn")
                 ][[classify_column, "group"]]
             ).copy()
             tmp1 = (
                 concordance[
-                    ((concordance["qual"] < q) | (concordance["sor"] > s))
+                    ((concordance["qual"] < q_val) | (concordance["sor"] > s_val))
                     & (concordance[classify_column] == "tp")
                 ][[classify_column, "group"]]
             ).copy()
@@ -850,9 +848,7 @@ def find_thresholds(
     return results_df
 
 
-def add_grouping_column(
-    df: pd.DataFrame, selection_functions: dict, column_name: str
-) -> pd.DataFrame:
+def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name: str) -> pd.DataFrame:
     """
     Add a column for grouping according to the values of selection functions
 
@@ -877,9 +873,7 @@ def add_grouping_column(
     return df
 
 
-def tree_score_to_fpr(
-    df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: pd.DataFrame
-) -> pd.DataFrame:
+def tree_score_to_fpr(df: pd.DataFrame, prediction_score: pd.Series, tree_score_fpr: pd.DataFrame) -> pd.DataFrame:
     """
     Deduce frp value from the tree_score and the tree score fpr mapping
 
@@ -888,7 +882,9 @@ def tree_score_to_fpr(
         df: pd.DataFrame
             concordance dataframe
         prediction_score: pd.Series
-        tree_score_fpr: dict -> pd.DataFrame
+            prediction_score
+        tree_score_fpr: pd.DataFrame
+            dict -> pd.DataFrame
             dictionary of group -> df were the df is
             2 columns of tree score and its corresponding fpr in increasing order of tree_score
             and the group key is snp, h-indel, non-h-indel
@@ -898,7 +894,7 @@ def tree_score_to_fpr(
         pd.DataFrame
             df with column_name added to it that is filled with the fpr value according
             to the tree score fpr mapping
-        """
+    """
 
     fpr_values = pd.Series(np.zeros(len(prediction_score)))
     fpr_values.index = prediction_score.index
@@ -919,18 +915,10 @@ def get_testing_selection_functions() -> OrderedDict:
     sfs = OrderedDict()
     sfs["SNP"] = lambda x: np.logical_not(x.indel)
     sfs["Non-hmer INDEL"] = lambda x: x.indel & (x.hmer_indel_length == 0)
-    sfs["HMER indel <= 4"] = (
-        lambda x: x.indel & (x.hmer_indel_length > 0) & (x.hmer_indel_length < 5)
-    )
-    sfs["HMER indel (4,8)"] = (
-        lambda x: x.indel & (x.hmer_indel_length >= 5) & (x.hmer_indel_length < 8)
-    )
-    sfs["HMER indel [8,10]"] = (
-        lambda x: x.indel & (x.hmer_indel_length >= 8) & (x.hmer_indel_length <= 10)
-    )
-    sfs["HMER indel 11,12"] = (
-        lambda x: x.indel & (x.hmer_indel_length >= 11) & (x.hmer_indel_length <= 12)
-    )
+    sfs["HMER indel <= 4"] = lambda x: x.indel & (x.hmer_indel_length > 0) & (x.hmer_indel_length < 5)
+    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x.hmer_indel_length >= 5) & (x.hmer_indel_length < 8)
+    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x.hmer_indel_length >= 8) & (x.hmer_indel_length <= 10)
+    sfs["HMER indel 11,12"] = lambda x: x.indel & (x.hmer_indel_length >= 11) & (x.hmer_indel_length <= 12)
     sfs["HMER indel > 12"] = lambda x: x.indel & (x.hmer_indel_length > 12)
     return sfs
 
@@ -939,30 +927,37 @@ def add_testing_train_split_column(
     concordance: pd.DataFrame,
     training_groups_column: str,
     test_train_split_column: str,
-    gtr_column: str,
+    gtr_column: str,  # pylint: disable=unused-argument
     min_test_set: int = 50,
     max_train_set: int = 200000,
     test_set_fraction: float = 0.5,
 ) -> pd.DataFrame:
     """Adds a column that divides each training group into a train/test set. Supports
-    requirements for the minimal testing set size, maximal training test size and the fraction of test
+    requirements for the minimal testing set size, maximal training test size and the fraction of test.
+    The training set size of each group will be:
+
+    train_test_size = min(group_size-min_test_size, max_train_set, group_size * (1-test_sec_frac))
+
+    TODO: gtr_column currently has no effect and false negatives are chosen for test and train sets.
+    (it is assumed that they are removed in the input)
 
     Parameters
     ----------
     concordance: pd.DataFrame
         Input data frame
-    testing_groups_column: str
-        Name of the grouping column
+    training_groups_column: str
+        Name of the grouping column. Testing/training split will be performed separately
+        for each group
     test_train_split_column: str
         Name of the splitting column
     gtr_column: str
         Name of the column that contains ground truth (will exclude fns)
     min_test_set: int
-        Default - 2000
+        Default - 2000, minimal size of the testing set of each variant group
     max_train_set: int
-        Default - 200000
+        Default - 200000, maximal size of the training set of each variant group
     test_set_fraction: float
-        Default - 0.5
+        Default - 0.5, desired fraction of the test set
 
     Returns
     -------
@@ -972,24 +967,25 @@ def add_testing_train_split_column(
     groups = set(concordance[training_groups_column])
 
     test_train_split_vector = np.zeros(concordance.shape[0], dtype=np.bool)
-    for g in groups:
-        group_vector = concordance[training_groups_column] == g
+    for g_val in groups:
+
+        group_vector = concordance[training_groups_column] == g_val
         locations = group_vector.to_numpy().nonzero()[0]
         assert group_vector.sum() >= min_test_set, "Group size too small for training"
         train_set_size = int(
             min(
                 group_vector.sum() - min_test_set,
                 max_train_set,
-                group_vector.sum() * (1 - test_set_fraction),
+                np.round(group_vector.sum() * (1 - test_set_fraction)),
             )
         )
+
         test_set_size = group_vector.sum() - train_set_size
-        assert (
-            test_set_size >= min_test_set
-        ), f"Test set size too small -> test:{test_set_size}, train:{train_set_size}"
+        assert test_set_size >= min_test_set, f"Test set size too small -> test:{test_set_size}, train:{train_set_size}"
         assert (
             train_set_size <= max_train_set
         ), f"Train set size too big -> test:{test_set_size}, train:{train_set_size}"
+        np.random.seed(42)  # making everything deterministic
         train_set = locations[
             np.random.choice(
                 np.arange(group_vector.sum(), dtype=np.int),
@@ -1009,8 +1005,8 @@ def train_model_wrapper(
     interval_size: int,
     train_function,
     model_name: str,
-    vtype: vcfType,
-    annots: list = [],
+    vtype: VcfType,
+    annots: list = None,
     exome_weight: int = 1,
     exome_weight_annotation: str = None,
     use_train_test_split: bool = True,
@@ -1047,26 +1043,40 @@ def train_model_wrapper(
         Models for each group, DataFrame with group for a hierarchy group and test_train_split columns
 
     """
-    logger.info("Train model " + model_name)
+    if annots is None:
+        annots = []
+    logger.info("Train model %s", model_name)
     train_selection_functions = get_training_selection_functions()
     concordance = add_grouping_column(concordance, train_selection_functions, "group")
     if use_train_test_split:
-        concordance = add_testing_train_split_column(
-            concordance, "group", "test_train_split", classify_column
-        )
+        concordance = add_testing_train_split_column(concordance, "group", "test_train_split", classify_column)
     else:
         concordance["test_train_split"] = True
+
+    logger.debug(
+        "******Minimal test loc: %i",
+        np.nonzero(np.array(concordance["test_train_split"]))[0].min(),
+    )
+    logger.debug(
+        "******Maximal test loc: %i",
+        np.nonzero(np.array(concordance["test_train_split"]))[0].max(),
+    )
+    logger.debug(
+        "******Average test loc: %i",
+        np.nonzero(np.array(concordance["test_train_split"]))[0].mean(),
+    )
+
     transformer = feature_prepare(annots=annots, vtype=vtype)
     transformer.fit(concordance)
     groups = set(concordance["group"])
     classifier_models: dict = {}
     fpr_values: dict = {}
     thresholds: dict = {}
-    for g in groups:
-        classifier_models[g], fpr_values[g], thresholds[g] = train_function(
+    for g_val in groups:
+        classifier_models[g_val], fpr_values[g_val], thresholds[g_val] = train_function(
             concordance=concordance,
             test_train_split=concordance["test_train_split"],
-            selection=concordance["group"] == g,
+            selection=concordance["group"] == g_val,
             gtr_column=classify_column,
             transformer=transformer,
             vtype=vtype,
@@ -1117,15 +1127,11 @@ def test_decision_tree_model(
     """
 
     if add_testing_group_column:
-        concordance = add_grouping_column(
-            concordance, get_testing_selection_functions(), "group_testing"
-        )
+        concordance = add_grouping_column(concordance, get_testing_selection_functions(), "group_testing")
         groups = list(get_testing_selection_functions().keys())
 
     else:
-        assert (
-            "group_testing" in concordance.columns
-        ), "group_testing column should be given"
+        assert "group_testing" in concordance.columns, "group_testing column should be given"
         groups = list(set(concordance["group_testing"]))
 
     # get filter status as True='tp' False='fp'
@@ -1148,18 +1154,14 @@ def test_decision_tree_model(
             "initial_f1",
         ]
     )
-    for g in groups:
-        select = (concordance["group_testing"] == g) & (
-            ~concordance["test_train_split"]
-        )
+    for g_val in groups:
+        select = (concordance["group_testing"] == g_val) & (~concordance["test_train_split"])
         group_df = concordance[select]
 
         # apply filters on classification
         is_filtered: pd.Series = predictions[select] != "tp"
 
-        post_filtering_classification = apply_filter(
-            group_df[classify_column], is_filtered
-        )
+        post_filtering_classification = apply_filter(group_df[classify_column], is_filtered)
 
         pre_filtering_tp = int((group_df[classify_column] == "tp").sum())
         pre_filtering_fp = int((group_df[classify_column] == "fp").sum())
@@ -1177,7 +1179,7 @@ def test_decision_tree_model(
 
         accuracy_df = accuracy_df.append(
             {
-                "group": g,
+                "group": g_val,
                 "tp": post_filtering_tp,
                 "fp": post_filtering_fp,
                 "fn": post_filtering_fn,
@@ -1197,7 +1199,7 @@ def test_decision_tree_model(
 
 
 def get_empty_recall_precision(category: str) -> dict:
-    """ Return empty recall precision dictionary for category given """
+    """Return empty recall precision dictionary for category given"""
     return {
         "group": category,
         "tp": 0,
@@ -1215,9 +1217,7 @@ def get_empty_recall_precision(category: str) -> dict:
     }
 
 
-def apply_filter(
-    pre_filtering_classification: pd.Series, is_filtered: pd.Series
-) -> pd.Series:
+def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series) -> pd.Series:
     """
     Parameters
     ----------
@@ -1232,16 +1232,12 @@ def apply_filter(
         classification to 'tp', 'fp', 'fn', 'tn' after applying filter
     """
     post_filtering_classification = pre_filtering_classification.copy()
-    post_filtering_classification.iloc[
-        is_filtered & (post_filtering_classification == "fp")
-    ] = "tn"
-    post_filtering_classification.iloc[
-        is_filtered & (post_filtering_classification == "tp")
-    ] = "fn"
+    post_filtering_classification.iloc[is_filtered & (post_filtering_classification == "fp")] = "tn"
+    post_filtering_classification.iloc[is_filtered & (post_filtering_classification == "tp")] = "fn"
     return post_filtering_classification
 
 
-def get_decision_tree_precision_recall_curve(
+def get_decision_tree_pr_curve(
     concordance: pd.DataFrame,
     model: MaskedHierarchicalModel,
     classify_column: str,
@@ -1269,31 +1265,31 @@ def get_decision_tree_precision_recall_curve(
     """
 
     if add_testing_group_column:
-        concordance = add_grouping_column(
-            concordance, get_testing_selection_functions(), "group_testing"
-        )
+        concordance = add_grouping_column(concordance, get_testing_selection_functions(), "group_testing")
         groups = list(get_testing_selection_functions().keys())
 
     else:
-        assert (
-            "group_testing" in concordance.columns
-        ), "group_testing column should be given"
+        assert "group_testing" in concordance.columns, "group_testing column should be given"
         groups = list(set(concordance["group_testing"]))
 
     predictions = model.predict(concordance, classify_column, get_numbers=True)
     accuracy_df = pd.DataFrame(
-        columns=["group", "predictions", "precision", "recall", "f1",]
+        columns=[
+            "group",
+            "predictions",
+            "precision",
+            "recall",
+            "f1",
+        ]
     )
 
-    for g in groups:
-        select = (concordance["group_testing"] == g) & (
-            ~concordance["test_train_split"]
-        )
+    for g_val in groups:
+        select = (concordance["group_testing"] == g_val) & (~concordance["test_train_split"])
 
         if select.sum() == 0:
             accuracy_df = accuracy_df.append(
                 {
-                    "group": g,
+                    "group": g_val,
                     "predictions": [],
                     "precision": [],
                     "recall": [],
@@ -1316,15 +1312,15 @@ def get_decision_tree_precision_recall_curve(
             pos_label="tp",
         )
 
-        precision, recall, f1, prediction_values = curve
+        precision, recall, f1_val, prediction_values = curve
 
         accuracy_df = accuracy_df.append(
             {
-                "group": g,
+                "group": g_val,
                 "predictions": prediction_values,
                 "precision": precision,
                 "recall": recall,
-                "f1": f1,
+                "f1": f1_val,
             },
             ignore_index=True,
         )
@@ -1333,7 +1329,7 @@ def get_decision_tree_precision_recall_curve(
 
 
 def get_empty_recall_precision_curve(category: str) -> dict:
-    """ Return empty recall precision curve dictionary for category given """
+    """Return empty recall precision curve dictionary for category given"""
     return {
         "group": category,
         "precision": [],
@@ -1342,9 +1338,7 @@ def get_empty_recall_precision_curve(category: str) -> dict:
     }
 
 
-def calculate_unfiltered_model(
-    concordance: pd.DataFrame, classify_column: str
-) -> tuple:
+def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
     """Calculates precision and recall on the unfiltered data
 
     Parameters
@@ -1364,8 +1358,8 @@ def calculate_unfiltered_model(
     concordance = add_grouping_column(concordance, selection_functions, "group")
     all_groups = set(concordance["group"])
     models = {}
-    for g in all_groups:
-        models[g] = SingleModel({}, {})
+    for g_val in all_groups:
+        models[g_val] = SingleModel({}, {})
     result = MaskedHierarchicalModel("unfiltered", "group", models)
     concordance["test_train_split"] = np.zeros(concordance.shape[0], dtype=np.bool)
     recalls_precisions = test_decision_tree_model(concordance, result, classify_column)
@@ -1373,6 +1367,10 @@ def calculate_unfiltered_model(
 
 
 class VariantSelectionFunctions(Enum):
+    # Disable all the no-member,no-self-argument violations in this function
+    # pylint: disable=no-self-argument
+    # pylint: disable=no-member
+    # pylint: disable=invalid-name
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
 
     def ALL(df: pd.DataFrame) -> np.ndarray:

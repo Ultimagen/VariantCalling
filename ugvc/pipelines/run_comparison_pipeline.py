@@ -1,9 +1,27 @@
 #!/env/python
+# Copyright 2022 Ultima Genomics Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# DESCRIPTION
+#    Compare UG callset to ground truth (preferentially using VCFEVAL as an engine)
+# CHANGELOG in reverse chronological order
+
+from __future__ import annotations
+
 import argparse
 import os
 import sys
 from shutil import copyfile
-from typing import List
 
 import pandas as pd
 import pysam
@@ -11,36 +29,34 @@ from joblib import Parallel, delayed
 from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
-import ugvc.comparison.comparison_pipeline as comparison_pipeline
-import ugvc.comparison.vcf_pipeline_utils as vcf_pipeline_utils
-import ugvc.vcfbed.vcftools as vcftools
 from ugvc import logger
+from ugvc.vcfbed.interval_file import IntervalFile
+from ugvc.comparison import comparison_pipeline, vcf_pipeline_utils
 from ugvc.comparison.concordance_utils import read_hdf
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.vcfbed.interval_file import IntervalFile
 
 MIN_CONTIG_LENGTH = 100000
 
 
+# pylint: disable=too-many-arguments
 def _contig_concordance_annotate_reinterpretation(
-        results,
-        contig,
-        reference,
-        bw_high_quality,
-        bw_all_quality,
-        annotate_intervals,
-        runs_intervals,
-        hpol_filter_length_dist,
-        flow_order,
-        base_name_outputfile,
-        concordance_tool,
-        disable_reinterpretation,
-        ignore_low_quality_fps,
+    # pylint: disable=too-many-arguments
+    results,
+    contig,
+    reference,
+    bw_high_quality,
+    bw_all_quality,
+    annotate_intervals,
+    runs_intervals,
+    hpol_filter_length_dist,
+    flow_order,
+    base_name_outputfile,
+    concordance_tool,
+    disable_reinterpretation,
+    ignore_low_quality_fps,
 ):
     logger.info(f"Reading {contig}")
-    concordance = vcf_pipeline_utils.vcf2concordance(
-        results[0], results[1], concordance_tool, contig
-    )
+    concordance = vcf_pipeline_utils.vcf2concordance(results[0], results[1], concordance_tool, contig)
     annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
         concordance,
         reference,
@@ -56,52 +72,48 @@ def _contig_concordance_annotate_reinterpretation(
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
             annotated_concordance, reference, ignore_low_quality_fps
         )
-    logger.debug(f"{contig}: {annotated_concordance.shape}")
+    logger.debug("%s: %s", contig, annotated_concordance.shape)
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
 
 
-def get_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(
-        prog="run_comparison_pipeline.py", description="Compare VCF to ground truth"
-    )
-    ap.add_argument(
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    ap_var = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
+    ap_var.add_argument(
         "--n_parts",
         help="Number of parts that the VCF is split into",
         required=True,
         type=int,
     )
-    ap.add_argument(
-        "--input_prefix", help="Prefix of the input file", required=True, type=str
-    )
-    ap.add_argument("--output_file", help="Output h5 file", required=True, type=str)
-    ap.add_argument(
+    ap_var.add_argument("--input_prefix", help="Prefix of the input file", required=True, type=str)
+    ap_var.add_argument("--output_file", help="Output h5 file", required=True, type=str)
+    ap_var.add_argument(
         "--output_interval",
         help="Output bed file of intersected intervals",
         required=True,
         type=str,
     )
-    ap.add_argument("--gtr_vcf", help="Ground truth VCF file", required=True, type=str)
-    ap.add_argument(
+    ap_var.add_argument("--gtr_vcf", help="Ground truth VCF file", required=True, type=str)
+    ap_var.add_argument(
         "--cmp_intervals",
         help="Ranges on which to perform comparison (bed/interval_list)",
         required=False,
         type=str,
         default=None,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--highconf_intervals",
         help="High confidence intervals (bed/interval_list)",
         required=True,
         type=str,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--runs_intervals",
         help="Runs intervals (bed/interval_list)",
         required=False,
         type=str,
         default=None,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--annotate_intervals",
         help="interval files for annotation (multiple possible)",
         required=False,
@@ -109,11 +121,9 @@ def get_parser() -> argparse.ArgumentParser:
         default=None,
         action="append",
     )
-    ap.add_argument("--reference", help="Reference genome", required=True, type=str)
-    ap.add_argument(
-        "--reference_dict", help="Reference genome dictionary", required=False, type=str
-    )
-    ap.add_argument(
+    ap_var.add_argument("--reference", help="Reference genome", required=True, type=str)
+    ap_var.add_argument("--reference_dict", help="Reference genome dictionary", required=False, type=str)
+    ap_var.add_argument(
         "--coverage_bw_high_quality",
         help="BigWig file with coverage only on high mapq reads",
         required=False,
@@ -121,7 +131,7 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         action="append",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--coverage_bw_all_quality",
         help="BigWig file with coverage on all mapq reads",
         required=False,
@@ -129,89 +139,85 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
         action="append",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--call_sample_name",
         help="Name of the call sample",
         required=True,
         default="sm1",
     )
-    ap.add_argument(
-        "--truth_sample_name", help="Name of the truth sample", required=True
-    )
-    ap.add_argument(
-        "--header_file", help="Desired header", required=False, default=None
-    )
-    ap.add_argument(
+    ap_var.add_argument("--truth_sample_name", help="Name of the truth sample", required=True)
+    ap_var.add_argument("--header_file", help="Desired header", required=False, default=None)
+    ap_var.add_argument(
         "--filter_runs",
         help="Should variants on hmer runs be filtered out",
         action="store_true",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--hpol_filter_length_dist",
         nargs=2,
         type=int,
         help="Length and distance to the hpol run to mark",
         default=[10, 10],
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--ignore_filter_status",
         help="Ignore variant filter status",
         action="store_true",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--flow_order",
         type=str,
         help="Sequencing flow order (4 cycle)",
         required=False,
         default=DEFAULT_FLOW_ORDER,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--output_suffix",
         help="Add suffix to the output file",
         required=False,
         default="",
         type=str,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--concordance_tool",
         help="The concordance method to use (GC or VCFEVAL)",
         required=False,
         default="VCFEVAL",
         type=str,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--disable_reinterpretation",
         help="Should re-interpretation be run",
         action="store_true",
     )
-    ap.add_argument(
-        "--is_mutect", help="Are the VCFs output of Mutect (false)", action="store_true"
+    ap_var.add_argument(
+        "--special_chromosome",
+        help="The chromosome that would be used for the \
+        'concordance' dataframe (whole genome mode only)",
+        default="chr9",
     )
-    ap.add_argument(
-        "--n_jobs", help="n_jobs of parallel on contigs", type=int, default=-1
-    )
-    ap.add_argument(
+    ap_var.add_argument("--is_mutect", help="Are the VCFs output of Mutect (false)", action="store_true")
+    ap_var.add_argument("--n_jobs", help="n_jobs of parallel on contigs", type=int, default=-1)
+    ap_var.add_argument(
         "--verbosity",
         help="Verbosity: ERROR, WARNING, INFO, DEBUG",
         required=False,
         default="INFO",
     )
-    return ap
+    return ap_var.parse_args(argv)
 
 
-def run(argv: List[str]):
-    """Concordance between VCF and ground truth"""
-    parser = get_parser()
-    SimplePipeline.add_parse_args(parser)
-    args = parser.parse_args(argv[1:])
-    sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout, name=__name__)
-    vpu = vcf_pipeline_utils.VcfPipelineUtils(sp)
+def run(argv: list[str]):
+    "Concordance between VCF and ground truth"
+    args = parse_args(argv)
+    logging.basicConfig(
+        level=getattr(logging, args.verbosity),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
-    cmp_intervals = IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
-    highconf_intervals = \
-        IntervalFile(sp, args.highconf_intervals, args.reference, args.reference_dict)
-    runs_intervals = \
-        IntervalFile(sp, args.runs_intervals, args.reference, args.reference_dict)
+    cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference, args.reference_dict)
+    highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference, args.reference_dict)
+    runs_intervals = vcf_pipeline_utils.IntervalFile(args.runs_intervals, args.reference, args.reference_dict)
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():  # interval of highconf_intervals
@@ -264,9 +270,7 @@ def run(argv: List[str]):
     # single interval-file concordance - will be saved in a single dataframe
 
     if not cmp_intervals.is_none():
-        concordance = vcf_pipeline_utils.vcf2concordance(
-            results[0], results[1], args.concordance_tool
-        )
+        concordance = vcf_pipeline_utils.vcf2concordance(results[0], results[1], args.concordance_tool)
         annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
             concordance,
             args.reference,
@@ -286,9 +290,7 @@ def run(argv: List[str]):
             )
         annotated_concordance.to_hdf(args.output_file, key="concordance", mode="a")
         # hack until we totally remove chr9
-        annotated_concordance.to_hdf(
-            args.output_file, key="comparison_result", mode="a"
-        )
+        annotated_concordance.to_hdf(args.output_file, key="comparison_result", mode="a")
         vcftools.bed_files_output(
             annotated_concordance,
             args.output_file,
@@ -298,12 +300,10 @@ def run(argv: List[str]):
 
     # whole-genome concordance - will be saved in dataframe per chromosome
     else:
-        with pysam.VariantFile(results[0]) as vf:
+        with pysam.VariantFile(results[0]) as variant_file:
             # we filter out short contigs to prevent huge files
             contigs = [
-                x
-                for x in vf.header.contigs
-                if vf.header.contigs[x].length > MIN_CONTIG_LENGTH
+                x for x in variant_file.header.contigs if variant_file.header.contigs[x].length > MIN_CONTIG_LENGTH
             ]
 
         base_name_outputfile = os.path.splitext(args.output_file)[0]
@@ -333,16 +333,15 @@ def run(argv: List[str]):
             h5_temp = read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             if h5_temp.shape == (0, 0):  # empty dataframes are dropped to save space
                 continue
-            else:
-                df_columns = pd.DataFrame(columns=h5_temp.columns)
-                break
+            df_columns = pd.DataFrame(columns=h5_temp.columns)
+            break
 
         for contig in contigs:
             h5_temp = read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             if h5_temp.shape == (0, 0):  # empty dataframes get default columns
                 h5_temp = pd.concat((h5_temp, df_columns), axis=1)
             h5_temp.to_hdf(args.output_file, mode="a", key=contig)
-            if contig == "chr9":
+            if contig == args.special_chromosome:
                 h5_temp.to_hdf(args.output_file, mode="a", key="concordance")
             os.remove(f"{base_name_outputfile}{contig}.h5")
 

@@ -1,4 +1,22 @@
 #!/env/python
+# Copyright 2022 Ultima Genomics Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# DESCRIPTION
+#    Collect statistics for a report
+# CHANGELOG in reverse chronological order
+
+
 import argparse
 import itertools
 import logging
@@ -7,10 +25,10 @@ import subprocess
 import numpy as np
 import pandas as pd
 
-import ugvc.comparison.vcf_pipeline_utils as vcf_pipeline_utils
 import ugvc.vcfbed.variant_annotation as annotation
-import ugvc.vcfbed.vcftools as vcftools
+from ugvc.comparison import vcf_pipeline_utils
 from ugvc.dna.utils import revcomp
+from ugvc.vcfbed import vcftools
 
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
@@ -30,13 +48,10 @@ def insertion_deletion_statistics(df):
         for hlen in range(1, 13):
             df_len = df[df["hmer_indel_length"] == hlen]
             length_col = []
-            for ind_clas in ["ins", "del"]:
+            for ind_clas in ("ins", "del"):
                 df_ind = df_len[df_len["indel_classify"] == ind_clas]
-                for nuc in [("A", "T"), ("G", "C")]:
-                    df_nuc = df_ind[
-                        (df_ind["hmer_indel_nuc"] == nuc[0])
-                        | (df_ind["hmer_indel_nuc"] == nuc[1])
-                    ]
+                for nuc in (("A", "T"), ("G", "C")):
+                    df_nuc = df_ind[(df_ind["hmer_indel_nuc"] == nuc[0]) | (df_ind["hmer_indel_nuc"] == nuc[1])]
                     length_col.append(df_nuc.shape[0])
             hmer_stat[hlen] = length_col
         return pd.DataFrame(data=hmer_stat, index=["ins A", "ins G", "del A", "del G"])
@@ -56,9 +71,7 @@ def allele_freq_hist(df, nbins=100):
     result = {}
     for group in df["variant_type"].unique():
         histogram_data, _ = np.histogram(
-            df[df["variant_type"] == group]["af"].apply(
-                lambda x: x[0] if isinstance(x, tuple) else x
-            ),
+            df[df["variant_type"] == group]["af"].apply(lambda x: x[0] if isinstance(x, tuple) else x),
             bins,
         )
         result[group] = pd.Series(histogram_data)
@@ -76,16 +89,20 @@ def snp_statistics(df, ref_fasta):
     df["alt_1"] = df["alleles"].apply(lambda x: x[1])
     df["alt_2"] = df["alleles"].apply(lambda x: x[2] if len(x) > 2 else None)
 
-    for j in range(1, 7):
-        df[f"pl_{j}"] = df["pl"].apply(
-            lambda x: x[j] if ((x is not None) and (len(x) > j)) else np.nan
-        )
+    def get_by_index(x, index):
+        return x[index] if ((x is not None) and (len(x) > index)) else np.nan
 
-    for j in range(1, 3):
-        df[f"gt_{j}"] = df["gt"].apply(lambda x: x[j] if len(x) > j else np.nan)
+    for ind in range(1, 7):
+        # pylint: disable=cell-var-from-loop
+        df[f"pl_{ind}"] = df["pl"].apply(lambda x: get_by_index(x, ind))
 
-    for j in range(1, 4):
-        df[f"ad_{j}"] = df["ad"].apply(lambda x: x[j] if len(x) > j else np.nan)
+    for ind in range(1, 3):
+        # pylint: disable=cell-var-from-loop
+        df[f"gt_{ind}"] = df["gt"].apply(lambda x: get_by_index(x, ind))
+
+    for ind in range(1, 4):
+        # pylint: disable=cell-var-from-loop
+        df[f"ad_{ind}"] = df["ad"].apply(lambda x: get_by_index(x, ind))
 
     df = df.drop(columns=["alleles", "gt", "pl", "ad", "af"])
 
@@ -122,11 +139,7 @@ def snp_statistics(df, ref_fasta):
         ]
     )
 
-    df_snp["ref_motif"] = (
-        df_snp["left_motif"].str.slice(-1)
-        + df_snp["ref"]
-        + df_snp["right_motif"].str.slice(0, 1)
-    )
+    df_snp["ref_motif"] = df_snp["left_motif"].str.slice(-1) + df_snp["ref"] + df_snp["right_motif"].str.slice(0, 1)
 
     motifs_bothstrands = (
         df_snp.groupby(["ref_motif", "alt_1"])
@@ -158,17 +171,19 @@ def snp_statistics(df, ref_fasta):
     return motifs
 
 
-def variant_eval_statistics(
-    vcf_input, reference, dbsnp, output_prefix, annotation_names=[]
+def variant_eval_statistics(  # pylint: disable=dangerous-default-value
+    vcf_input,
+    reference,
+    dbsnp,
+    output_prefix,
+    annotation_names=[],
 ):
     annotation_names_str = [f"--SELECT_NAMES {x}" for x in annotation_names]
-    annotation_conditions_str = [
-        f'--SELECT_EXPS vc.hasAttribute("{x}")' for x in annotation_names
-    ]
+    annotation_conditions_str = [f'--SELECT_EXPS vc.hasAttribute("{x}")' for x in annotation_names]
     cmd = (
         [
             "gatk",
-            f"VariantEval",
+            "VariantEval",
             "--eval",
             f"{vcf_input}",
             "--reference",
@@ -184,23 +199,23 @@ def variant_eval_statistics(
     logger.info(" ".join(cmd))
     subprocess.check_call(" ".join(cmd).split())
 
-    with open(f"{output_prefix}.txt") as f:
-        data = _parse_single_report(f)
+    with open(f"{output_prefix}.txt", "r", encoding="latin-1") as output_file:
+        data = _parse_single_report(output_file)
     return data
 
 
-def _parse_single_report(f):
-    def _parse_single_table(f):
-        headers = f.readline().split()
+def _parse_single_report(report):
+    def _parse_single_table(input_table):
+        headers = input_table.readline().split()
         table = []
-        line = f.readline().strip("\n").split()
+        line = input_table.readline().strip("\n").split()
         while len(line) == len(headers):
             table.append(line)
-            line = f.readline().strip("\n").split()
+            line = input_table.readline().strip("\n").split()
 
         return pd.DataFrame(table, columns=headers)
 
-    data = dict()
+    data = {}
     tables_to_read = pd.Series(
         [
             "CompOverlap",
@@ -214,39 +229,46 @@ def _parse_single_report(f):
             "MultiallelicSummary",
         ]
     )
-    for l in f:
-        is_specific_table = tables_to_read.apply(lambda x: x in f"#:GATKTable:{x}" in l)
+    for line in report:
+        is_specific_table = tables_to_read.apply(
+            # pylint: disable=cell-var-from-loop
+            lambda x: x
+            in f"#:GATKTable:{x}"
+            in line
+        )
         start_table = sum(is_specific_table) > 0
         if start_table:
             table_name = tables_to_read[np.where(is_specific_table)[0][0]]
-            df = _parse_single_table(f)
+            df = _parse_single_table(report)
             data[table_name] = df
     return data
 
 
-def run_eval_tables_only(args):
+def run_eval_tables_only(arg_values):
     eval_tables = variant_eval_statistics(
-        args.input_file,
-        args.reference,
-        args.dbsnp,
-        args.output_prefix,
-        args.annotation_names,
+        arg_values.input_file,
+        arg_values.reference,
+        arg_values.dbsnp,
+        arg_values.output_prefix,
+        arg_values.annotation_names,
     )
-    for eval_table_name in eval_tables.keys():
-        eval_tables[eval_table_name].to_hdf(
-            f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}"
-        )
+    for eval_table_name, eval_table in eval_tables:
+        eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 
-def run_full_analysis(args):
+def run_full_analysis(arg_values):
     eval_tables = variant_eval_statistics(
-        args.input_file, args.reference, args.dbsnp, args.output_prefix, []
+        arg_values.input_file,
+        arg_values.reference,
+        arg_values.dbsnp,
+        arg_values.output_prefix,
+        [],
     )
 
     logger.info("Converting vcf to df")
-    df = vcftools.get_vcf_df(args.input_file)
+    df = vcftools.get_vcf_df(arg_values.input_file)
     logger.info("Annotating vcf")
-    annotated_df, _ = vcf_pipeline_utils.annotate_concordance(df, args.reference)
+    annotated_df, _ = vcf_pipeline_utils.annotate_concordance(df, arg_values.reference)
 
     logger.info("insertion/ deletion statistics")
     ins_del_df = insertion_deletion_statistics(df)
@@ -255,17 +277,15 @@ def run_full_analysis(args):
     af_df = allele_freq_hist(annotated_df)
 
     logger.info("snps motifs statistics")
-    snp_motifs = snp_statistics(df, args.reference)
+    snp_motifs = snp_statistics(df, arg_values.reference)
 
     logger.info("save all statistics in h5 file")
-    ins_del_df["hete"].to_hdf(f"{args.output_prefix}.h5", key="ins_del_hete")
-    ins_del_df["homo"].to_hdf(f"{args.output_prefix}.h5", key="ins_del_homo")
-    af_df.to_hdf(f"{args.output_prefix}.h5", key="af_hist")
-    snp_motifs.to_hdf(f"{args.output_prefix}.h5", key="snp_motifs")
-    for eval_table_name in eval_tables.keys():
-        eval_tables[eval_table_name].to_hdf(
-            f"{args.output_prefix}.h5", key=f"eval_{eval_table_name}"
-        )
+    ins_del_df["hete"].to_hdf(f"{arg_values.output_prefix}.h5", key="ins_del_hete")
+    ins_del_df["homo"].to_hdf(f"{arg_values.output_prefix}.h5", key="ins_del_homo")
+    af_df.to_hdf(f"{arg_values.output_prefix}.h5", key="af_hist")
+    snp_motifs.to_hdf(f"{arg_values.output_prefix}.h5", key="snp_motifs")
+    for eval_table_name, eval_table in eval_tables.items():
+        eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 
 if __name__ == "__main__":
@@ -275,40 +295,20 @@ if __name__ == "__main__":
     )
 
     subparsers = ap.add_subparsers()
-    full_analysis = subparsers.add_parser(
-        name="full_analysis", description="Run teh full analysis of no_gt_report"
-    )
+    full_analysis = subparsers.add_parser(name="full_analysis", description="Run teh full analysis of no_gt_report")
 
-    full_analysis.add_argument(
-        "--input_file", help="Input vcf file", required=True, type=str
-    )
-    full_analysis.add_argument(
-        "--dbsnp", help="dbsnp vcf file", required=True, type=str
-    )
-    full_analysis.add_argument(
-        "--reference", help="Reference genome", required=True, type=str
-    )
-    full_analysis.add_argument(
-        "--output_prefix", help="output file", required=True, type=str
-    )
+    full_analysis.add_argument("--input_file", help="Input vcf file", required=True, type=str)
+    full_analysis.add_argument("--dbsnp", help="dbsnp vcf file", required=True, type=str)
+    full_analysis.add_argument("--reference", help="Reference genome", required=True, type=str)
+    full_analysis.add_argument("--output_prefix", help="output file", required=True, type=str)
     full_analysis.set_defaults(func=run_full_analysis)
 
     # Run variant eval only - for JC report
-    parser_eval_tables = subparsers.add_parser(
-        name="variant_eval", description="Run variant eval only"
-    )
-    parser_eval_tables.add_argument(
-        "--input_file", help="Input vcf file", required=True, type=str
-    )
-    parser_eval_tables.add_argument(
-        "--dbsnp", help="dbsnp vcf file", required=True, type=str
-    )
-    parser_eval_tables.add_argument(
-        "--reference", help="Reference genome", required=True, type=str
-    )
-    parser_eval_tables.add_argument(
-        "--output_prefix", help="output file", required=True, type=str
-    )
+    parser_eval_tables = subparsers.add_parser(name="variant_eval", description="Run variant eval only")
+    parser_eval_tables.add_argument("--input_file", help="Input vcf file", required=True, type=str)
+    parser_eval_tables.add_argument("--dbsnp", help="dbsnp vcf file", required=True, type=str)
+    parser_eval_tables.add_argument("--reference", help="Reference genome", required=True, type=str)
+    parser_eval_tables.add_argument("--output_prefix", help="output file", required=True, type=str)
     parser_eval_tables.add_argument(
         "--annotation_names",
         help="annotation name to filter on",

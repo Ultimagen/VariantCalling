@@ -1,59 +1,64 @@
 #!/env/python
+# Copyright 2022 Ultima Genomics Inc.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+# DESCRIPTION
+#    Evaluate performance of a callset given its comparison to the ground truth
+# CHANGELOG in reverse chronological order
+from __future__ import annotations
+
 import argparse
 import sys
-from typing import List
 
 from pandas import DataFrame
 
-from ugvc.comparison.concordance_utils import (
-    calc_accuracy_metrics,
-    calc_recall_precision_curve,
-    read_hdf,
-)
+from ugvc.comparison.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve, read_hdf
 from ugvc.vcfbed import vcftools
 
 
-def parse_args(argv: List[str]):
-    ap = argparse.ArgumentParser(
-        prog="evaluate_concordance.py", description=run.__doc__
-    )
-    ap.add_argument(
-        "--input_file", help="Name of the input h5 file", type=str, required=True
-    )
-    ap.add_argument(
-        "--output_prefix", help="Prefix to output files", type=str, required=True
-    )
-    ap.add_argument(
-        "--dataset_key", help="h5 dataset name, such as chromosome name", default="all"
-    )
-    ap.add_argument(
+def parse_args(argv: list[str]):
+    ap_var = argparse.ArgumentParser(prog="evaluate_concordance.py", description=run.__doc__)
+    ap_var.add_argument("--input_file", help="Name of the input h5 file", type=str, required=True)
+    ap_var.add_argument("--output_prefix", help="Prefix to output files", type=str, required=True)
+    ap_var.add_argument("--dataset_key", help="h5 dataset name, such as chromosome name", default="all")
+    ap_var.add_argument(
         "--ignore_genotype",
         help="ignore genotype when comparing to ground-truth",
         action="store_true",
         default=False,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--ignore_filters",
         help="comma separated list of filters to ignore",
         default="HPOL_RUN",
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--output_bed",
         help="output bed files of fp/fn/tp per variant-type",
         action="store_true",
         default=False,
     )
-    ap.add_argument(
+    ap_var.add_argument(
         "--use_for_group_testing",
         help="Column in the h5 to use for grouping (or generate default groupings)",
         type=str,
     )
 
-    args = ap.parse_args(argv)
+    args = ap_var.parse_args(argv)
     return args
 
 
-def run(argv: List[str]):
+def run(argv: list[str]):
     """Calculate precision and recall for compared HDF5"""
     args = parse_args(argv)
     ds_key = args.dataset_key
@@ -76,15 +81,11 @@ def run(argv: List[str]):
 
     classify_column = "classify" if ignore_genotype else "classify_gt"
 
-    accuracy_df = calc_accuracy_metrics(
-        df, classify_column, ignored_filters, group_testing_column
-    )
+    accuracy_df = calc_accuracy_metrics(df, classify_column, ignored_filters, group_testing_column)
     accuracy_df.to_hdf(f"{out_pref}.h5", key="optimal_recall_precision")
     accuracy_df.to_csv(f"{out_pref}.stats.csv", sep=";", index=False)
 
-    recall_precision_curve_df = calc_recall_precision_curve(
-        df, classify_column, ignored_filters
-    )
+    recall_precision_curve_df = calc_recall_precision_curve(df, classify_column, ignored_filters)
     recall_precision_curve_df.to_hdf(f"{out_pref}.h5", key="recall_precision_curve")
     if output_bed:
         vcftools.bed_files_output(df, f"{out_pref}.h5", mode="w", create_gt_diff=True)

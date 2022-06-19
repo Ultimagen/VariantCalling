@@ -10,16 +10,13 @@ import argparse
 import os
 import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from ugvc.utils.cloud_sync import cloud_sync, dir_path
 
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Download aws s3 or google storage file to a corresponding local path"
-    )
-    parser.add_argument(
-        "cloud_path", type=str, help="full path to aws s3 / google storage file"
-    )
+    parser = argparse.ArgumentParser(description="Download aws s3 or google storage file to a corresponding local path")
+    parser.add_argument("cloud_path", type=str, help="full path to aws s3 / google storage file")
     parser.add_argument(
         "--local_dir",
         type=dir_path,

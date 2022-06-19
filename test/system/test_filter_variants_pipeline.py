@@ -9,9 +9,7 @@ class TestFilterVariantPipeline:
     general_inputs_dir = f"{test_dir}/resources/general/chr1_head"
 
     def test_filter_variants_pipeline(self, tmpdir):
-        output_file = (
-            f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.vcf.gz"
-        )
+        output_file = f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.vcf.gz"
         filter_variants_pipeline.run(
             [
                 "--input_file",
@@ -36,7 +34,6 @@ class TestFilterVariantPipeline:
                 f"{self.general_inputs_dir}/mappability.0.bed",
                 "--annotate_intervals",
                 f"{self.general_inputs_dir}/hmers_7_and_higher.bed",
-                "--is_mutect",
                 "--output_file",
                 output_file,
                 "--blacklist",
@@ -45,4 +42,4 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
-        assert {"LOW_SCORE": 51, "PASS": 857} == dict(df["filter"].value_counts())
+        assert {"LOW_SCORE": 104, "PASS": 804} == dict(df["filter"].value_counts())

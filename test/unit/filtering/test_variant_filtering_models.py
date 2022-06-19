@@ -8,9 +8,7 @@ from ugvc.filtering.variant_filtering_utils import SingleTrivialClassifierModel
 class TestVariantFilteringModels(unittest.TestCase):
     def test_single_trivial_classifier(self):
         model = SingleTrivialClassifierModel()
-        df = pd.DataFrame(
-            {"filter": ["PASS", "HPOL_RUN", "LOW_SCORE", "COHORT_FP;HPOL_RUN"]}
-        )
+        df = pd.DataFrame({"filter": ["PASS", "HPOL_RUN", "LOW_SCORE", "COHORT_FP;HPOL_RUN"]})
 
         predictions = model.predict(df)
         self.assertEqual(["tp", "fp", "fp", "fp"], list(predictions))

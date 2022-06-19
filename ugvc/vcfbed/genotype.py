@@ -9,4 +9,4 @@ class Genotype:
         return "/".join(["0" for _ in self.genotype_str.split("/")])
 
     def is_reference(self):
-        return all(["0" == a for a in self.genotype_str.split("/")])
+        return all(a == "0" for a in self.genotype_str.split("/"))

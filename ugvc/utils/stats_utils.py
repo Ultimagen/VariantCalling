@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
 
 import numpy as np
 from scipy.stats import multinomial
@@ -9,7 +9,7 @@ from ugvc.utils.math_utils import safe_divide
 # Goodness of fit functions
 
 
-def scale_contingency_table(table: List[int], n: int) -> List[int]:
+def scale_contingency_table(table: list[int], n: int) -> list[int]:
     """
     Parameters
     ----------
@@ -25,11 +25,11 @@ def scale_contingency_table(table: List[int], n: int) -> List[int]:
     if sum_table > 0:
         scaled_table = np.array(table) * (n / sum_table)
         return list(np.round(scaled_table).astype(int))
-    else:
-        return table
+    # if sum_table == 0:
+    return table
 
 
-def get_corrected_multinomial_frequencies(counts: List[int]) -> np.array:
+def correct_multinomial_frequencies(counts: list[int]) -> np.array:
     """
 
     Parameters
@@ -45,7 +45,7 @@ def get_corrected_multinomial_frequencies(counts: List[int]) -> np.array:
     return corrected_counts / np.sum(corrected_counts)
 
 
-def multinomial_likelihood(actual: List[int], expected: List[int]) -> float:
+def multinomial_likelihood(actual: list[int], expected: list[int]) -> float:
     """
     Calculate the likelihood of observing actual, under the multinomial distribution described by expected
 
@@ -59,13 +59,11 @@ def multinomial_likelihood(actual: List[int], expected: List[int]) -> float:
     -------
     Likelihood of expected distribution given actual observation
     """
-    freq_expected = get_corrected_multinomial_frequencies(expected)
+    freq_expected = correct_multinomial_frequencies(expected)
     return multinomial.pmf(x=actual, n=sum(actual), p=freq_expected)
 
 
-def multinomial_likelihood_ratio(
-    actual: List[int], expected: List[int]
-) -> Tuple[float, float]:
+def multinomial_likelihood_ratio(actual: list[int], expected: list[int]) -> tuple[float, float]:
     likelihood = multinomial_likelihood(actual, expected)
     max_likelihood = multinomial_likelihood(actual, actual)
     likelihood_ratio = likelihood / max_likelihood
@@ -75,33 +73,33 @@ def multinomial_likelihood_ratio(
 # Metrics functions
 
 
-def get_precision(fp: int, tp: int) -> float:
+def get_precision(false_positives: int, true_positives: int) -> float:
     """
-    Get the precision, as defined from tp and fp
+    Get the precision, as defined from tp and false_positives
 
     Parameters
     ----------
-    fp : int
+    false_positives : int
         number of false positive observation (detected but false)
-    tp : int
+    true_positives : int
         number of true positive observations (detected true)
 
     Returns
     -------
     The precision score
     """
-    return 1 - safe_divide(fp, fp + tp)
+    return 1 - safe_divide(false_positives, false_positives + true_positives)
 
 
-def get_recall(fn: int, tp: int) -> float:
+def get_recall(false_negatives: int, true_positives: int) -> float:
     """
-    Get the recall, as defined from tp and fn
+    Get the recall, as defined from true_positives and false_negatives
 
     Parameters
     ----------
-    fn : int
+    false_negatives : int
         number of false negative observations (missed true)
-    tp : int
+    true_positives : int
         number of true positive observation (detected true)
 
     Returns
@@ -109,7 +107,7 @@ def get_recall(fn: int, tp: int) -> float:
     The recall score
     """
 
-    return 1 - safe_divide(fn, fn + tp)
+    return 1 - safe_divide(false_negatives, false_negatives + true_positives)
 
 
 def get_f1(precision: float, recall: float) -> float:
@@ -134,7 +132,7 @@ def precision_recall_curve(
     gtr: np.ndarray,
     predictions: np.ndarray,
     fn_mask: np.ndarray,
-    pos_label: Optional[Union[str, int]] = 1,
+    pos_label: str | int | None = 1,
     min_class_counts_to_output: int = 20,
 ) -> tuple:
     """Calculates precision/recall curve from double prediction scores and ground truth
@@ -156,16 +154,14 @@ def precision_recall_curve(
     Returns
     -------
     tuple
-        precisions, recalls, f1, prediction_values
+        precisions, recalls, f1_score, prediction_values
     """
 
     if len(gtr) == 0:
         return np.array([]), np.array([]), np.array([]), np.array([])
 
     assert len(set(gtr)) <= 2, "Only up to two classes of variant labels are possible"
-    assert len(fn_mask) == len(
-        predictions
-    ), "FN mask should be of the length of predictions"
+    assert len(fn_mask) == len(predictions), "FN mask should be of the length of predictions"
 
     gtr_select = gtr[~fn_mask]
     gtr_select = gtr_select == pos_label
@@ -185,19 +181,17 @@ def precision_recall_curve(
     recalls = raw_recall * recall_correction
     recalls = recalls[:-1]  # remove the 1,0 value that sklearn adds
     precisions = raw_precision[:-1]
-    f1 = 2 * (recalls * precisions) / (recalls + precisions + np.finfo(float).eps)
+    f1_score = 2 * (recalls * precisions) / (recalls + precisions + np.finfo(float).eps)
 
     # Find the score cutoff at which too few calls remain (to remove areas where the precision recall curve is noisy)
     predictions_select = np.sort(predictions_select)
     if len(predictions_select) > 0:
-        threshold_cutoff = predictions_select[
-            max(0, len(predictions_select) - min_class_counts_to_output)
-        ]
+        threshold_cutoff = predictions_select[max(0, len(predictions_select) - min_class_counts_to_output)]
     else:
         threshold_cutoff = 0
 
     mask = thresholds > threshold_cutoff
-    return precisions[~mask], recalls[~mask], f1[~mask], thresholds[~mask]
+    return precisions[~mask], recalls[~mask], f1_score[~mask], thresholds[~mask]
 
 
 def generate_sample_from_dist(vals: np.ndarray, probs: np.ndarray) -> np.ndarray:
