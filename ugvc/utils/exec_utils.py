@@ -1,12 +1,11 @@
 import subprocess
 
 from simppl.simple_pipeline import SimplePipeline
+
 from ugvc import logger
 
 
-def print_and_execute(command: str,
-                      output_file: str = None,
-                      simple_pipeline: SimplePipeline = None):
+def print_and_execute(command: str, output_file: str = None, simple_pipeline: SimplePipeline = None):
     """
     Print and execute command through simple_pipeline or subprocess
     Parameters
@@ -18,14 +17,13 @@ def print_and_execute(command: str,
     """
     if simple_pipeline is None:
         logger.info(command)
-        cmd = command.split(' ')
+        cmd = command.split(" ")
         if output_file is not None:
-            with open(output_file, "w") as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 subprocess.call(cmd, stdout=f)
         else:
             subprocess.check_call(cmd)
+    elif output_file is not None:
+        simple_pipeline.print_and_run(f"{command} > {output_file}")
     else:
-        if output_file is not None:
-            simple_pipeline.print_and_run(f'{command} > {output_file}')
-        else:
-            simple_pipeline.print_and_run(command)
+        simple_pipeline.print_and_run(command)
