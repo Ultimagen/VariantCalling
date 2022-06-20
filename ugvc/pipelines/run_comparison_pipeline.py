@@ -27,17 +27,19 @@ from shutil import copyfile
 import pandas as pd
 import pysam
 from joblib import Parallel, delayed
+from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
+from ugvc import logger
 from ugvc.comparison import comparison_pipeline, vcf_pipeline_utils
 from ugvc.comparison.concordance_utils import read_hdf
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.vcfbed import vcftools
+from ugvc.vcfbed.interval_file import IntervalFile
 
 MIN_CONTIG_LENGTH = 100000
 
 
-# pylint: disable=too-many-arguments
 def _contig_concordance_annotate_reinterpretation(
     # pylint: disable=too-many-arguments
     results,
@@ -54,8 +56,7 @@ def _contig_concordance_annotate_reinterpretation(
     disable_reinterpretation,
     ignore_low_quality_fps,
 ):
-    logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
-    logger.info("Reading %s", contig)
+    logger.info(f"Reading {contig}")
     concordance = vcf_pipeline_utils.vcf2concordance(results[0], results[1], concordance_tool, contig)
     annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
         concordance,
@@ -76,8 +77,7 @@ def _contig_concordance_annotate_reinterpretation(
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
 
 
-def parse_args(argv: list[str]) -> argparse.Namespace:
-
+def get_parser(argv: list[str]) -> argparse.ArgumentParser:
     ap_var = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
     ap_var.add_argument(
         "--n_parts",
@@ -205,35 +205,35 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=False,
         default="INFO",
     )
-    return ap_var.parse_args(argv)
+    return ap_var
 
 
 def run(argv: list[str]):
-    "Concordance between VCF and ground truth"
-    args = parse_args(argv)
-    logging.basicConfig(
-        level=getattr(logging, args.verbosity),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+    """Concordance between VCF and ground truth"""
+    parser = get_parser(argv)
+    SimplePipeline.add_parse_args(parser)
+    args = parser.parse_args(argv[1:])
+    logger.setLevel(getattr(logging, args.verbosity))
+    sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout, name=__name__)
+    vpu = vcf_pipeline_utils.VcfPipelineUtils(sp)
 
-    cmp_intervals = vcf_pipeline_utils.IntervalFile(args.cmp_intervals, args.reference, args.reference_dict)
-    highconf_intervals = vcf_pipeline_utils.IntervalFile(args.highconf_intervals, args.reference, args.reference_dict)
-    runs_intervals = vcf_pipeline_utils.IntervalFile(args.runs_intervals, args.reference, args.reference_dict)
+    cmp_intervals = IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
+    highconf_intervals = IntervalFile(sp, args.highconf_intervals, args.reference, args.reference_dict)
+    runs_intervals = IntervalFile(sp, args.runs_intervals, args.reference, args.reference_dict)
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():  # interval of highconf_intervals
+        print(f'copy {args.highconf_intervals} to {args.output_interval}')
         copyfile(highconf_intervals.as_bed_file(), args.output_interval)
     else:
-        vcf_pipeline_utils.intersect_bed_files(
-            cmp_intervals.as_bed_file(),
-            highconf_intervals.as_bed_file(),
-            args.output_interval,
-        )
+        vpu.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
+
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     pd.DataFrame(args_dict, index=[0]).to_hdf(args.output_file, key="input_args")
 
     if args.filter_runs:
         results = comparison_pipeline.pipeline(
+            vpu,
             args.n_parts,
             args.input_prefix,
             args.gtr_vcf,
@@ -252,6 +252,7 @@ def run(argv: list[str]):
         )
     else:
         results = comparison_pipeline.pipeline(
+            vpu,
             args.n_parts,
             args.input_prefix,
             args.gtr_vcf,
@@ -263,7 +264,7 @@ def run(argv: list[str]):
             None,
             args.output_file,
             args.header_file,
-            vcf_pipeline_utils.IntervalFile(),
+            IntervalFile(sp),
             args.output_suffix,
             args.ignore_filter_status,
             args.concordance_tool,
@@ -360,4 +361,4 @@ def run(argv: list[str]):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run(sys.argv)
