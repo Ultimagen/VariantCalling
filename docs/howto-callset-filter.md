@@ -12,7 +12,7 @@ Instructions below assume that the GATK was run using this reference file: `gs:/
 
 ## Installation
 
-1. Copy the VariantCalling directory to your machine (e.g. to `software/VariantCalling/`)
+1. Clone the `VariantCalling` repository (e.g. to `software/VariantCalling`)
 
 2. Create a clean conda environment defined by `software/VariantCalling/setup/environment.yml`
 
@@ -55,7 +55,8 @@ UG-specific files (note that the exact location might be different dependent on 
     * `mappability.0.bed` - high mappability locations from the UCSC
 
 
-## Running the filtering pipeline
+## Germline callset 
+### Running the filtering pipeline
 
 The filtering pipeline has two main steps:
 
@@ -66,13 +67,13 @@ The filtering pipeline has two main steps:
 In this example we are filtering indexed VCF file `test.vcf.gz`
 
 
-### Model training
+#### Model training
 
 Activate the conda environment
 
 `conda activate genomics.py3`
 
-#### Add dbSNP annotations to the input VCF
+##### Add dbSNP annotations to the input VCF
 
 ```
     gatk --java-options "-Xms10000m" VariantAnnotator \
@@ -83,7 +84,7 @@ Activate the conda environment
     -A StrandOddsRatio
 ```
 
-#### Train filtering model
+##### Train filtering model
 
 ```
 python train_models_pipeline.py \
@@ -102,7 +103,7 @@ python train_models_pipeline.py \
 
 Verify that this command generated a file `test.model.pkl`
 
-### Filter VCF
+#### Filter VCF
 
 Activate the conda environment: `conda activate genomics.py3`
 
