@@ -16,6 +16,7 @@
 # DESCRIPTION
 #    Train ML models to filter callset
 # CHANGELOG in reverse chronological order
+
 from __future__ import annotations
 
 import argparse

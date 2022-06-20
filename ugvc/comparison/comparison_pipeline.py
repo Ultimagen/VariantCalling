@@ -5,24 +5,26 @@ from os.path import basename, dirname
 from os.path import join as pjoin
 from os.path import splitext
 
-from ugvc.comparison import vcf_pipeline_utils
+from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils
+from ugvc.vcfbed.interval_file import IntervalFile
 
 CONCORDANCE_TOOL = "VCFEVAL"
 
 
 def pipeline(  # pylint: disable=too-many-arguments
+    vpu: VcfPipelineUtils,
     n_parts: int,
     input_prefix: str,
     truth_file: str,
-    cmp_intervals: vcf_pipeline_utils.IntervalFile,
-    highconf_intervals: vcf_pipeline_utils.IntervalFile,
+    cmp_intervals: IntervalFile,
+    highconf_intervals: IntervalFile,
     ref_genome: str,
     call_sample: str,
     truth_sample: str,
     output_dir: str | None = None,
     output_file_name: str | None = None,
     header: str | None = None,
-    runs_intervals: vcf_pipeline_utils.IntervalFile | None = None,
+    runs_intervals: IntervalFile | None = None,
     output_suffix: str | None = None,
     ignore_filter: bool = False,
     concordance_tool: str = CONCORDANCE_TOOL,
@@ -33,6 +35,8 @@ def pipeline(  # pylint: disable=too-many-arguments
 
     Parameters
     ----------
+    vpu: VcfPipelineUtils
+        VcfPipelineUtils object for executing common functions via unix shell
     n_parts : int
         For input VCF split into number of parts - specifiy the number of parts. Specify
         zero for complete VCF
@@ -89,7 +93,7 @@ def pipeline(  # pylint: disable=too-many-arguments
     else:
         output_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.vcf.gz")
     if n_parts > 0:
-        vcf_pipeline_utils.combine_vcf(n_parts, input_prefix, output_fn)
+        vpu.combine_vcf(n_parts, input_prefix, output_fn)
     else:
         output_fn = input_prefix + ".vcf.gz"
 
@@ -99,7 +103,7 @@ def pipeline(  # pylint: disable=too-many-arguments
         reheader_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.rhdr.vcf.gz")
 
     if header is not None:
-        vcf_pipeline_utils.reheader_vcf(output_fn, header, reheader_fn)
+        vpu.reheader_vcf(output_fn, header, reheader_fn)
     else:
         shutil.copy(output_fn, reheader_fn)
         shutil.copy(".".join((output_fn, "tbi")), ".".join((reheader_fn, "tbi")))
@@ -110,12 +114,10 @@ def pipeline(  # pylint: disable=too-many-arguments
         select_intervals_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.intsct.vcf.gz")
 
     if not cmp_intervals.is_none():
-        vcf_pipeline_utils.intersect_with_intervals(
-            reheader_fn, cmp_intervals.as_interval_list_file(), select_intervals_fn
-        )
+        vpu.intersect_with_intervals(reheader_fn, cmp_intervals.as_interval_list_file(), select_intervals_fn)
     else:
         shutil.copy(reheader_fn, select_intervals_fn)
-        vcf_pipeline_utils.index_vcf(select_intervals_fn)
+        vpu.index_vcf(select_intervals_fn)
 
     if output_file_name is None:
         output_prefix = select_intervals_fn[: select_intervals_fn.index(".intsct.vcf.gz")]
@@ -123,7 +125,7 @@ def pipeline(  # pylint: disable=too-many-arguments
         output_prefix = splitext(output_file_name)[0]
 
     if concordance_tool == "VCFEVAL":
-        vcf_pipeline_utils.run_vcfeval_concordance(
+        vpu.run_vcfeval_concordance(
             select_intervals_fn,
             truth_file,
             output_prefix,
@@ -135,7 +137,7 @@ def pipeline(  # pylint: disable=too-many-arguments
         )
         output_prefix = f"{output_prefix}.vcfeval_concordance"
     else:
-        vcf_pipeline_utils.run_genotype_concordance(
+        vpu.run_genotype_concordance(
             select_intervals_fn,
             truth_file,
             output_prefix,
@@ -146,15 +148,15 @@ def pipeline(  # pylint: disable=too-many-arguments
         )
         output_prefix = f"{output_prefix}.genotype_concordance"
 
-    vcf_pipeline_utils.annotate_tandem_repeats(output_prefix + ".vcf.gz", ref_genome)
+    vpu.annotate_tandem_repeats(output_prefix + ".vcf.gz", ref_genome)
     output_prefix = f"{output_prefix}.annotated"
 
-    vcf_pipeline_utils.filter_bad_areas(
+    vpu.filter_bad_areas(
         select_intervals_fn,
         highconf_intervals.as_bed_file(),
         runs_intervals.as_bed_file(),
     )
-    vcf_pipeline_utils.filter_bad_areas(
+    vpu.filter_bad_areas(
         output_prefix + ".vcf.gz",
         highconf_intervals.as_bed_file(),
         runs_intervals.as_bed_file(),
