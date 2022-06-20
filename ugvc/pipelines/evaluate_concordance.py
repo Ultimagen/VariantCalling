@@ -24,6 +24,7 @@ from pandas import DataFrame
 
 from ugvc.comparison.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve, read_hdf
 from ugvc.vcfbed import vcftools
+from ugvc import logger
 
 
 def parse_args(argv: list[str]):
@@ -78,6 +79,7 @@ def run(argv: list[str]):
     # Enable evaluating concordance from vcf without tree-score field
     if "tree_score" not in df.columns or all(df["tree_score"].isna()):
         df["tree_score"] = 1
+        logger.warning('No tree-score field in comparison hdf input, expect invalid recall/precision curves')
 
     classify_column = "classify" if ignore_genotype else "classify_gt"
 
