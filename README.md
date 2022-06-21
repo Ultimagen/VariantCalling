@@ -13,36 +13,15 @@ In addition, the code provides
 * Set of tools for MRD (minimal residual disease) - still undocumented.
 
 ## Setup
-
+1. Make sure git-lfs is installed on your system if you want to clone test resources along with the code (https://git-lfs.github.com/)
 1. Clone VariantCalling repository to e.g. `software\VariantCalling`
+1. Create the three conda environments:
+   * `conda env create -f setup/environment.yml` 
+   * `conda env create -f setup/other_envs/ucsc.yml`
+   * `conda env create -f setup/other_envs/cutadapt.yml`
 
-2. Create the three conda environments:
-  ```
-  conda env create -f setup/environment.yml
-  conda env create -f setup/other_envs/ucsc.yml
-  conda env create -f setup/other_envs/cutadapt.yml
-  ```
-3. Activate the main conda environment
-
-  ```
-  conda activate genomics.py3
-  ```
-
-4. Install `ugvc` package
-
-   a. User
-
-      ```
-      cd VariantCalling
-      pip install .
-      ```
-
-   b. Developer
-      Install in editable mode
-      ```
-      cd VariantCalling
-      pip install -e .
-      ```
+1. Activate the main conda environment
+   * `conda activate genomics.py3`
 
 ## Using ugvc package
 
@@ -91,6 +70,13 @@ python /path/to/ugvc <tool_name> <args>
 * [Evaluation of UG callsets](docs/howto-evaluate-ug-callset.md)
 
 ## Test
+
+### Recommended way to run tests for external users
+```
+./run_tests.sh
+``` 
+This script will validate that test resources were correctly cloned, and only then run tests
+
 ### Run all tests
 ```
 python -m pytest
