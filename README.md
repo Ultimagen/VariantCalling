@@ -22,7 +22,7 @@ In addition, the code provides
   conda env create -f setup/other_envs/ucsc.yml
   conda env create -f setup/other_envs/cutadapt.yml
   ```
-4.Activate the main conda environment
+4. Activate the main conda environment
   ```
   conda activate genomics.py3
   ```
@@ -94,7 +94,7 @@ python /path/to/ugvc <tool_name> <args>
 ```
 ./run_tests.sh
 ``` 
-This script will validate that test resources were correctly cloned, and onlt then run tests
+This script will validate that test resources were correctly cloned, and only then run tests
 
 ### Run all tests
 ```
