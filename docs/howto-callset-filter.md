@@ -130,7 +130,7 @@ Current post-calling filtering of somatic pipeline is a python script that appli
 
 ### Filter VCF
 
-To filter the VCF, one needs access to a filtering model and to [install](## Installation) the VariantCalling package. Assume the filtering model is `ug_v0.6.1.model.pkl`. 
+To filter the VCF, one needs access to a filtering model and to [install](# Installation) the VariantCalling package. Assume the filtering model is `ug_v0.6.1.model.pkl`. 
 
 ```
 filter_variants_pipeline.py \
