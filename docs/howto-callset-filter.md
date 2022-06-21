@@ -123,3 +123,27 @@ filter_variants_pipeline.py \
 ```
 
 Confirm that this created a file called `test.filter.vcf.gz`.
+
+## Somatic callset
+
+Current post-calling filtering of somatic pipeline is a python script that applies a simple model that uses TLOD and SOR of the variant to assign confidence score TREE_SCORE to each variant. TREE_SCORE is correlated to the probability that the call is true positive. The script also assigns each variant a PASS/LOW_SCORE filter, but we suggest ignoring it as it is tuned to a high false positive rate, instead, increasing thresholds of TREE_SCORE allows for selecting more and more stringent set of variant calls. 
+
+### Filter VCF
+
+To filter the VCF, one needs access to a filtering model and to [install](## Installation) the VariantCalling package. Assume the filtering model is `ug_v0.6.1.model.pkl`. 
+
+```
+filter_variants_pipeline.py \
+          --input_file output.annotated.vcf.gz \
+          --model_file ug_v0.6.1.model.pkl \
+          --model_name threshold_model_ignore_gt_incl_hpol_runs \
+          --runs_file runs.conservative.bed \
+          --hpol_filter_length_dist 12 10 \
+          --reference_file Homo_sapiens_assembly38.fasta \
+          --annotate_intervals LCR-hs38.bed \
+          --annotate_intervals exome.twist.bed \
+          --annotate_intervals mappability.0.bed \
+          --annotate_intervals hmers_7_and_higher.bed \
+          --is_mutect \
+          --output_file output.filtered.vcf.gz
+```
