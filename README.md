@@ -14,21 +14,19 @@ In addition, the code provides
 
 ## Setup
 
-1. Clone VariantCalling repository to e.g. `software\VariantCalling`
-
-2. Create the three conda environments:
-  ```
+1. Make sure git-lfs is installed on your system if you want to clone test resources along with the code (https://git-lfs.github.com/)
+2. Clone VariantCalling repository to e.g. `software\VariantCalling`
+3. Create the three conda environments:
+```
   conda env create -f setup/environment.yml
   conda env create -f setup/other_envs/ucsc.yml
   conda env create -f setup/other_envs/cutadapt.yml
   ```
-3. Activate the main conda environment
-
+4.Activate the main conda environment
   ```
   conda activate genomics.py3
   ```
-
-4. Install `ugvc` package
+5. Install `ugvc` package
 
    a. User
 
@@ -91,6 +89,13 @@ python /path/to/ugvc <tool_name> <args>
 * [Evaluation of UG callsets](docs/howto-evaluate-ug-callset.md)
 
 ## Test
+
+### Recommended way to run tests for external users
+```
+./run_tests.sh
+``` 
+This script will validate that test resources were correctly cloned, and onlt then run tests
+
 ### Run all tests
 ```
 python -m pytest
