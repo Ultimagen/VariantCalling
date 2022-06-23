@@ -511,6 +511,7 @@ def vcf2concordance(
     concordance.loc[missing_variants_non_fn, "classify_gt"] = "fn"
 
     if (replace_empty_filter_by_pass):
+        logger.info("Replacing empty values in FILTER by PASS")
         concordance.loc[concordance['filter'] == '', 'filter'] = 'PASS'
 
     return concordance

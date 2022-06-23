@@ -17,6 +17,7 @@ class TestRunComparisonPipeline:
 
         run_comparison_pipeline.run(
             [
+                "run_comparison_pipeline",
                 "--n_parts",
                 "0",
                 "--hpol_filter_length_dist",
