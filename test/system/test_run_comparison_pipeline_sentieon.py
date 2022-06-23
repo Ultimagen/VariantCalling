@@ -42,7 +42,7 @@ class TestRunComparisonPipeline:
                 "UGAv3-20",
                 "--truth_sample_name",
                 "HG001",
-                "--ignore_filter_status",
+                "--replace_empty_filter_by_pass",
                 "--flow_order",
                 DEFAULT_FLOW_ORDER,
                 "--annotate_intervals",
