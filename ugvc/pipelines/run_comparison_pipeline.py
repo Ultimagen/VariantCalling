@@ -173,6 +173,11 @@ def get_parser(argv: list[str]) -> argparse.ArgumentParser:
         default=[10, 10],
     )
     ap_var.add_argument(
+        "--ignore_filter_status",
+        help="Ignore variant filter status",
+        action="store_true",
+    )
+    ap_var.add_argument(
         "--replace_empty_filter_by_pass",
         help="If there are empty values in the FILTER column, should they be replaced by PASS",
         action="store_true",
@@ -266,7 +271,7 @@ def run(argv: list[str]):
             args.header_file,
             runs_intervals,
             args.output_suffix,
-            args.replace_empty_filter_by_pass,
+            args.ignore_filter_status,
             args.concordance_tool,
         )
     else:
@@ -285,7 +290,7 @@ def run(argv: list[str]):
             args.header_file,
             IntervalFile(sp),
             args.output_suffix,
-            args.replace_empty_filter_by_pass,
+            args.ignore_filter_status,
             args.concordance_tool,
         )
 
