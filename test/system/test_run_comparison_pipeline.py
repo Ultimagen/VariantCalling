@@ -43,7 +43,6 @@ class TestRunComparisonPipeline:
                 "UGAv3-51",
                 "--truth_sample_name",
                 "HG004",
-                "--ignore_filter_status",
                 "--flow_order",
                 DEFAULT_FLOW_ORDER,
                 "--annotate_intervals",
