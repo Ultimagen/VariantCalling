@@ -266,7 +266,7 @@ def run(argv: list[str]):
             args.header_file,
             runs_intervals,
             args.output_suffix,
-            args.ignore_filter_status,
+            args.replace_empty_filter_by_pass,
             args.concordance_tool,
         )
     else:
@@ -285,7 +285,7 @@ def run(argv: list[str]):
             args.header_file,
             IntervalFile(sp),
             args.output_suffix,
-            args.ignore_filter_status,
+            args.replace_empty_filter_by_pass,
             args.concordance_tool,
         )
 
