@@ -59,6 +59,7 @@ class TestRunComparisonPipeline:
                 f"{self.inputs_dir}/004797-UGAv3-51.chr1.q0.Q0.l0.w1.depth.chr1_1_1000000.bw",
                 "--coverage_bw_high_quality",
                 f"{self.inputs_dir}/004797-UGAv3-51.chr1.q0.Q20.l0.w1.depth.chr1_1_1000000.bw",
+                "--replace_empty_filter_by_pass",
             ]
         )
         df = read_hdf(f"{tmpdir}/004797-UGAv3-51.comp.h5", key="chr1")
