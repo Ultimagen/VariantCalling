@@ -252,8 +252,8 @@ def run_eval_tables_only(arg_values):
         arg_values.output_prefix,
         arg_values.annotation_names,
     )
-    for eval_table_name, eval_table in eval_tables:
-        eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
+    for eval_table_name in eval_tables:
+        eval_tables[eval_table_name].to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 
 def run_full_analysis(arg_values):
