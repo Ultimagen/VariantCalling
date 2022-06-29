@@ -179,12 +179,12 @@ def get_parser(argv: list[str]) -> argparse.ArgumentParser:
     )
     ap_var.add_argument(
         "--replace_empty_filter_by_pass",
-        help="If there are empty values in the FILTER column, should they be replaced by PASS",
+        help="If there are empty values (dots) in the vcf FILTER column, should they be replaced by PASS",
         action="store_true",
     )
     ap_var.add_argument(
         "--scoring_field",
-        help="Name of the field used to score the variants (if it is not TREE_SCORE)",
+        help="The pipeline expects a TREE_SCORE column in order to score the variants. If another field is provided via scoring_field then its values will be copied to the TREE_SCORE column",
         required=False,
         default=None,
         type=str,
