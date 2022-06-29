@@ -357,9 +357,11 @@ def vcf2concordance(
     chromosome: str
         Fetch a specific chromosome (Default - all)
     scoring_field: str
-        The INFO field used to score the variants (e.g. QUAL or TREE_SCORE)
+        The name of the INFO field that is used to score the variants.
+        This value replaces the TREE_SCORE in the output data frame.
+        When None TREE_SCORE is not replaced (default: None)
     replace_empty_filter_by_pass: bool
-        If there are empty values in the FILTER column, should they be replaced by PASS
+        If there are empty values in the FILTER column (dots in the vcf), should they be replaced by PASS
     Returns
     -------
     pd.DataFrame

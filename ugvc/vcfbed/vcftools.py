@@ -300,7 +300,7 @@ class FilterWrapper:
         return self
 
     def get_h_mer(self, val_start: int = 1, val_end: int = 999):
-        row_cond = (self.df["hmer_indel_length"] >= val_start) & (self.df["indel"] is True)
+        row_cond = (self.df["hmer_indel_length"] >= val_start) & (self.df["indel"])
         self.df = self.df.loc[row_cond, :]
         row_cond = (self.df["hmer_indel_length"] <= val_end)
         self.df = self.df.loc[row_cond, :]
@@ -311,12 +311,12 @@ class FilterWrapper:
     # and longer (i.e. TG -> TCAG) which is two errors and will be
     # called non-hmer indel
     def get_non_h_mer(self):
-        row_cond = (self.df["hmer_indel_length"] == 0) & (self.df["indel"] is True) & (self.df["indel_length"] > 1)
+        row_cond = (self.df["hmer_indel_length"] == 0) & (self.df["indel"]) & (self.df["indel_length"] > 1)
         self.df = self.df.loc[row_cond, :]
         return self
 
     def get_h_mer_0(self):
-        row_cond = (self.df["hmer_indel_length"] == 0) & (self.df["indel"] is True) & (self.df["indel_length"] == 1)
+        row_cond = (self.df["hmer_indel_length"] == 0) & (self.df["indel"]) & (self.df["indel_length"] == 1)
         self.df = self.df.loc[row_cond, :]
         return self
 

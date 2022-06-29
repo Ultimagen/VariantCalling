@@ -62,6 +62,5 @@ class TestRunComparisonPipeline:
                 "2",
             ]
         )
-        assert os.path.exists(f"{tmpdir}/004777-UGAv3-20.pred.chr1_1_1000000.comp.h5")
-#        df = read_hdf(f"{tmpdir}/004777-UGAv3-20.pred.chr1_1_1000000.comp.h5", key="chr1")
-#        assert {"tp": 346, "fn": 29, "fp": 27} == dict(df["classify"].value_counts())
+        df = read_hdf(f"{tmpdir}/004777-UGAv3-20.pred.chr1_1_1000000.comp.h5", key="chr1")
+        assert {'tp': 305, 'fn': 9, 'fp': 7} == dict(df["classify"].value_counts())
