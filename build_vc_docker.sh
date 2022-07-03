@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_BASE_NAME="gcr.io/terra-project-249020/jukebox_vc:"
+DOCKER_BASE_NAME="gcr.io/ultima-data-307918/jukebox_vc:"
 
 function usage () {
   echo -e "
@@ -8,6 +8,7 @@ function usage () {
 
   -v | --version    git tag or hash to checkout VariantCalling
   -t | --tag        tag with the version number for resulting docker (e.g. 1.1)
+  -base | --docker_base_name docker base name (default is : \"gcr.io/ultima-data-307918/jukebox_vc:\" )
   -h | --help       print usage and exit
 " >&2
   exit $1
@@ -35,6 +36,14 @@ function parse_args () {
 	    		tag=$2
     	fi; shift 2;;
 
+      -base | --docker_base_name )
+      if [ -z $2 ] || [ $(echo $2 | head -c 1) == "-" ]; then
+	    		echo -e "\033[1m$1 requires container registry path\033[0m" >&2
+	    		usage 1
+	    	else
+	    		docker_base_name=$2
+    	fi; shift 2;;
+
       -h | --help ) usage 0;;
 
 	    *) echo -e "\033[1mUnknown option or argument: $1, run $0 -h |--help for usage\033[0m" >&2; exit 1;;
@@ -59,6 +68,15 @@ if [ -z "${tag}" ]; then
     exit 1
   else
     tag="${tag_line}"
+  fi
+fi
+
+if [ -z "${tag}" ]; then
+  if [ "${docker_base_name}" == "" ]; then
+    echo -e "\033[1mdocker base name not specified, using default: $DOCKER_BASE_NAME\033[0m" >&2
+    exit 1
+  else
+    docker_base_name="${DOCKER_BASE_NAME}"
   fi
 fi
 
@@ -90,7 +108,7 @@ echo -e "\033[1mMemorize commit hash\033[0m"
 commit_hash=$(git log -1 --oneline | awk '{ print $1 }')
 version_for_docker="${commit_hash:0:6}"
 
-docker_name="${DOCKER_BASE_NAME}${tag}_${version_for_docker}"
+docker_name="${docker_base_name}${tag}_${version_for_docker}"
 echo -e "\033[1mComplete docker name will be: ${docker_name}\033[0m"
 docker build . -f Dockerfile.jbvc -t ${docker_name}
 
