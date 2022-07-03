@@ -6,7 +6,7 @@ Instructions below assume that the GATK was run using this reference file: `gs:/
 
 ## Prerequisites
 
-    1. Machine with a large memory footprint (32G)
+    1. Machine with a large RAM (>=32G)
 
     2. Conda installation
 
