@@ -71,7 +71,7 @@ if [ -z "${tag}" ]; then
   fi
 fi
 
-if [ -z "${tag}" ]; then
+if [ -z "${docker_base_name}" ]; then
   if [ "${docker_base_name}" == "" ]; then
     echo -e "\033[1mdocker base name not specified, using default: $DOCKER_BASE_NAME\033[0m" >&2
     exit 1
