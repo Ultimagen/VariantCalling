@@ -72,12 +72,8 @@ if [ -z "${tag}" ]; then
 fi
 
 if [ -z "${docker_base_name}" ]; then
-  if [ "${docker_base_name}" == "" ]; then
-    echo -e "\033[1mdocker base name not specified, using default: $DOCKER_BASE_NAME\033[0m" >&2
-    exit 1
-  else
-    docker_base_name="${DOCKER_BASE_NAME}"
-  fi
+  docker_base_name="${DOCKER_BASE_NAME}"
+  echo -e "\033[1mdocker base name not specified, using default: $docker_base_name\033[0m" >&2
 fi
 
 abs_script_path=$(realpath $0 | xargs -I {} dirname {} )
