@@ -56,7 +56,6 @@ def _contig_concordance_annotate_reinterpretation(
     disable_reinterpretation,
     ignore_low_quality_fps,
     scoring_field,
-    replace_empty_filter_by_pass,
 ):
     logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
     logger.info("Reading %s", contig)
@@ -66,7 +65,6 @@ def _contig_concordance_annotate_reinterpretation(
         concordance_tool,
         contig,
         scoring_field=scoring_field,
-        replace_empty_filter_by_pass=replace_empty_filter_by_pass
     )
 
     annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
@@ -175,11 +173,6 @@ def get_parser(argv: list[str]) -> argparse.ArgumentParser:
     ap_var.add_argument(
         "--ignore_filter_status",
         help="Ignore variant filter status",
-        action="store_true",
-    )
-    ap_var.add_argument(
-        "--replace_empty_filter_by_pass",
-        help="If there are empty values (dots) in the vcf FILTER column, should they be replaced by PASS",
         action="store_true",
     )
     ap_var.add_argument(
@@ -302,7 +295,6 @@ def run(argv: list[str]):
             results[1],
             args.concordance_tool,
             scoring_field=args.scoring_field,
-            replace_empty_filter_by_pass = args.replace_empty_filter_by_pass
         )
         annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
             concordance,
@@ -356,7 +348,6 @@ def run(argv: list[str]):
                 args.disable_reinterpretation,
                 args.is_mutect,
                 args.scoring_field,
-                args.replace_empty_filter_by_pass,
             )
             for contig in tqdm(contigs)
         )
