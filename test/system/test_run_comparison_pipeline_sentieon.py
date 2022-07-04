@@ -43,7 +43,6 @@ class TestRunComparisonPipeline:
                 "UGAv3-20",
                 "--truth_sample_name",
                 "HG001",
-                "--replace_empty_filter_by_pass",
                 "--flow_order",
                 DEFAULT_FLOW_ORDER,
                 "--annotate_intervals",
@@ -56,8 +55,7 @@ class TestRunComparisonPipeline:
                 f"{self.general_inputs_dir}/hmers_7_and_higher.bed",
                 "--disable_reinterpretation",
                 "--scoring_field",
-                "QUAL",
-                "--replace_empty_filter_by_pass",
+                "ML_PROB",
                 "--n_jobs",
                 "2",
             ]

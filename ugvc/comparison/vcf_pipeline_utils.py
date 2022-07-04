@@ -342,7 +342,6 @@ def vcf2concordance(
     concordance_format: str = "GC",
     chromosome: str = None,
     scoring_field: str = None,
-    replace_empty_filter_by_pass: bool = False,
 ) -> pd.DataFrame:
     """Generates concordance dataframe
 
@@ -360,8 +359,6 @@ def vcf2concordance(
         The name of the INFO field that is used to score the variants.
         This value replaces the TREE_SCORE in the output data frame.
         When None TREE_SCORE is not replaced (default: None)
-    replace_empty_filter_by_pass: bool
-        If there are empty values in the FILTER column (dots in the vcf), should they be replaced by PASS
     Returns
     -------
     pd.DataFrame
@@ -511,10 +508,6 @@ def vcf2concordance(
     )
     concordance.loc[missing_variants_non_fn, "classify"] = "fn"
     concordance.loc[missing_variants_non_fn, "classify_gt"] = "fn"
-
-    if (replace_empty_filter_by_pass):
-        logger.info("Replacing empty values in FILTER by PASS")
-        concordance.loc[concordance['filter'] == '', 'filter'] = 'PASS'
 
     return concordance
 
