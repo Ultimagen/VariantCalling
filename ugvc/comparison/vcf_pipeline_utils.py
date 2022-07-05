@@ -341,6 +341,7 @@ def vcf2concordance(
     concordance_file: str,
     concordance_format: str = "GC",
     chromosome: str = None,
+    scoring_field: str = None,
 ) -> pd.DataFrame:
     """Generates concordance dataframe
 
@@ -354,6 +355,10 @@ def vcf2concordance(
         Either 'GC' or 'VCFEVAL' - format for the concordance_file
     chromosome: str
         Fetch a specific chromosome (Default - all)
+    scoring_field: str
+        The name of the INFO field that is used to score the variants.
+        This value replaces the TREE_SCORE in the output data frame.
+        When None TREE_SCORE is not replaced (default: None)
     Returns
     -------
     pd.DataFrame
@@ -475,7 +480,7 @@ def vcf2concordance(
 
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
 
-    original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome)
+    original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome, scoring_field=scoring_field)
 
     if concordance_format != "VCFEVAL":
         original.drop("qual", axis=1, inplace=True)
@@ -503,6 +508,7 @@ def vcf2concordance(
     )
     concordance.loc[missing_variants_non_fn, "classify"] = "fn"
     concordance.loc[missing_variants_non_fn, "classify_gt"] = "fn"
+
     return concordance
 
 

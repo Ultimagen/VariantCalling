@@ -109,3 +109,21 @@ def test_get_region_around_variant():
     vpos = 100
     vlocs = []
     assert vcftools.get_region_around_variant(vpos, vlocs, 10) == (95, 105)
+
+
+class TestGetVcfDf:
+    def test_get_vcf_df(self):
+        input_vcf = pjoin(inputs_dir, "test_get_vcf_df.vcf.gz")
+        df = vcftools.get_vcf_df(input_vcf)
+        non_nan_columns = list(df.dropna(axis=1, how="all").columns)
+        non_nan_columns.sort()
+        assert non_nan_columns == ['ac', 'ad', 'af', 'alleles', 'an', 'baseqranksum', 'chrom', 'db',
+                             'dp', 'excesshet', 'filter', 'fs', 'gnomad_af', 'gq', 'gt', 'id',
+                             'indel', 'mleac', 'mleaf', 'mq', 'mqranksum', 'pl', 'pos', 'qd', 'qual',
+                             'readposranksum', 'ref', 'sor', 'tree_score', 'variant_type',
+                             'x_css', 'x_gcc', 'x_ic', 'x_il', 'x_lm', 'x_rm']
+
+    def test_get_vcf_df_use_qual(self):
+        input_vcf = pjoin(inputs_dir, "test_get_vcf_df.vcf.gz")
+        df = vcftools.get_vcf_df(input_vcf, scoring_field="QUAL")
+        assert all(df["qual"]==df["tree_score"])
