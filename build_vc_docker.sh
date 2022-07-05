@@ -22,7 +22,7 @@ function parse_args () {
 	  case "$1" in
 	    -v | --version )
 			if [ -z $2 ] || [ $(echo $2 | head -c 1) == "-" ]; then
-	    		echo -e "\033[1m$1 requires host ip as an argument\033[0m" >&2
+	    		echo -e "\033[1m$1 requires git branch/tag/commit to checkout\033[0m" >&2
 	    		usage 1
 	    	else
 	    		version=$2
@@ -30,7 +30,7 @@ function parse_args () {
 
 	    -t | --tag )
 			if [ -z $2 ] || [ $(echo $2 | head -c 1) == "-" ]; then
-	    		echo -e "\033[1m$1 requires inventory path as an argument\033[0m" >&2
+	    		echo -e "\033[1m$1 requires docker tag\033[0m" >&2
 	    		usage 1
 	    	else
 	    		tag=$2
