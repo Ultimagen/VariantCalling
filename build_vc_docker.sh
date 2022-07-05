@@ -8,7 +8,7 @@ function usage () {
 
   -v | --version    git tag or hash to checkout VariantCalling
   -t | --tag        tag with the version number for resulting docker (e.g. 1.1)
-  -base | --docker_base_name docker base name (default is : \"gcr.io/ultima-data-307918/jukebox_vc:\" )
+  -base | --docker_base_name docker base name (default is : \"${DOCKER_BASE_NAME}\" )
   -h | --help       print usage and exit
 " >&2
   exit $1
