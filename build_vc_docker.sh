@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_BASE_NAME="gcr.io/ultima-data-307918/jukebox_vc:"
+DOCKER_BASE_NAME="gcr.io/ultima-data-307918/ugvc:"
 
 function usage () {
   echo -e "
