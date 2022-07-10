@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_BASE_NAME="gcr.io/terra-project-249020/jukebox_vc:"
+DOCKER_BASE_NAME="gcr.io/ultima-data-307918/ugvc:"
 
 function usage () {
   echo -e "
@@ -8,6 +8,7 @@ function usage () {
 
   -v | --version    git tag or hash to checkout VariantCalling
   -t | --tag        tag with the version number for resulting docker (e.g. 1.1)
+  -base | --docker_base_name docker base name (default is : \"${DOCKER_BASE_NAME}\" )
   -h | --help       print usage and exit
 " >&2
   exit $1
@@ -21,7 +22,7 @@ function parse_args () {
 	  case "$1" in
 	    -v | --version )
 			if [ -z $2 ] || [ $(echo $2 | head -c 1) == "-" ]; then
-	    		echo -e "\033[1m$1 requires host ip as an argument\033[0m" >&2
+	    		echo -e "\033[1m$1 requires git branch/tag/commit to checkout\033[0m" >&2
 	    		usage 1
 	    	else
 	    		version=$2
@@ -29,10 +30,18 @@ function parse_args () {
 
 	    -t | --tag )
 			if [ -z $2 ] || [ $(echo $2 | head -c 1) == "-" ]; then
-	    		echo -e "\033[1m$1 requires inventory path as an argument\033[0m" >&2
+	    		echo -e "\033[1m$1 requires docker tag\033[0m" >&2
 	    		usage 1
 	    	else
 	    		tag=$2
+    	fi; shift 2;;
+
+      -base | --docker_base_name )
+      if [ -z $2 ] || [ $(echo $2 | head -c 1) == "-" ]; then
+	    		echo -e "\033[1m$1 requires container registry path\033[0m" >&2
+	    		usage 1
+	    	else
+	    		docker_base_name=$2
     	fi; shift 2;;
 
       -h | --help ) usage 0;;
@@ -60,6 +69,11 @@ if [ -z "${tag}" ]; then
   else
     tag="${tag_line}"
   fi
+fi
+
+if [ -z "${docker_base_name}" ]; then
+  docker_base_name="${DOCKER_BASE_NAME}"
+  echo -e "\033[1mdocker base name not specified, using default: $docker_base_name\033[0m" >&2
 fi
 
 abs_script_path=$(realpath $0 | xargs -I {} dirname {} )
@@ -90,7 +104,7 @@ echo -e "\033[1mMemorize commit hash\033[0m"
 commit_hash=$(git log -1 --oneline | awk '{ print $1 }')
 version_for_docker="${commit_hash:0:6}"
 
-docker_name="${DOCKER_BASE_NAME}${tag}_${version_for_docker}"
+docker_name="${docker_base_name}${tag}_${version_for_docker}"
 echo -e "\033[1mComplete docker name will be: ${docker_name}\033[0m"
 docker build . -f Dockerfile.jbvc -t ${docker_name}
 
