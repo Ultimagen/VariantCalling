@@ -27,6 +27,7 @@ import os.path
 import pickle
 import subprocess
 import sys
+from collections import defaultdict
 from enum import Enum
 from typing import TextIO
 
@@ -192,10 +193,12 @@ class SystematicErrorCorrector:
         chr_pos_tuples = []
 
         with open(f"{self.output_file}.log", "w", encoding="utf-8") as log_stream:
-
+            progress_count = 0
             current_chr = ""
+            call_counts = defaultdict(int)
             # For each position in the relevant-coords bed file, compare observation to expected distribution of alleles
             for line in self.relevant_coords:
+                progress_count += 1
                 fields = line.split("\t")
                 chrom, start, end = fields[0], fields[1], fields[2]
 
@@ -246,6 +249,11 @@ class SystematicErrorCorrector:
 
                     for sec_record in call.sec_records:
                         log_stream.write(f"{sec_record}\n")
+
+                    call_counts[call.call_type.value] += 1
+
+                    if progress_count % 100000 == 0:
+                        logger.info(f'processed {progress_count} records. call_counts: {dict(call_counts)}')
 
                     if self.output_type == OutputType.PICKLE:
                         self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
