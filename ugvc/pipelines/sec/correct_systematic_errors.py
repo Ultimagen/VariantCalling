@@ -266,6 +266,7 @@ class SystematicErrorCorrector:
                     log_stream.write(f"{chrom}\t{pos}\t{call}\n\n")
 
             self.__finalize(bed_writer, chr_pos_tuples, log_stream, vcf_writer)
+        logger.info('Systematic error correction finished with success')
 
     @staticmethod
     def did_call_non_excluded_alleles(fields, observed_variant, sample_info):
