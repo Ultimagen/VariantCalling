@@ -1,6 +1,6 @@
-library(cn.mops)
-library(magrittr)
-library(argparse)
+suppressPackageStartupMessages(library(cn.mops))
+suppressPackageStartupMessages(library(magrittr))
+suppressPackageStartupMessages(library(argparse))
 
 # create parser object
 parser <- ArgumentParser()
@@ -35,6 +35,6 @@ parser$add_argument("-o", "--base_file_name",
 args <- parser$parse_args()
 
 refSeqNames=unlist(strsplit(args$refSeqNames_string, ","))
-bamDataRanges_RC <- getReadCountsFromBAM(args$input_bam_file, refSeqNames=args$refSeqNames, WL=args$window_length ,parallel=args$parallel);
+bamDataRanges_RC <- getReadCountsFromBAM(args$input_bam_file, refSeqNames=refSeqNames, WL=args$window_length ,parallel=args$parallel);
 save(bamDataRanges_RC, file=paste(args$base_file_name,".ReadCounts.Rdata",sep = ""));
 write.csv(as.data.frame(bamDataRanges_RC),paste(args$base_file_name,".ReadCounts.csv",sep=""),row.names = FALSE)
