@@ -30,8 +30,7 @@ class SimplePipeline:
         self.name = name
         self.logging_extra = None
 
-        # logger = logging.getLogger('simple_pipeline')
-        logger = logging.getLogger('ugvc.utils.simple_pipeline')
+        logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
         logger.propagate = False
 
