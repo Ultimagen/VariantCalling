@@ -67,9 +67,11 @@ DEFAULT_METRICS_TO_REPORT = [
     "AlignmentSummaryMetrics",
     "Contamination",
     "DuplicationMetrics",
+    "FlowBasedDuplicationMetrics",
     "GcBiasDetailMetrics",
     "GcBiasSummaryMetrics",
     "QualityYieldMetrics",
+    "QualityYieldMetricsFlow",
     "RawWgsMetrics",
     "WgsMetrics",
     "stats_coverage",
@@ -93,7 +95,6 @@ def metrics2df(doc: dict, metrics_to_report: list = None) -> pd.DataFrame:
     pd.DataFrame
         1xn dataframe with two level index on columns: (metric_type, metric_name)
     """
-
     if metrics_to_report is None:
         metrics_to_report = DEFAULT_METRICS_TO_REPORT
 
