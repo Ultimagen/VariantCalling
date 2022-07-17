@@ -29,7 +29,7 @@ class VcfPipelineUtils:
         self.sp = simple_pipeline
 
     def __execute(self, command: str, output_file: str = None):
-        print_and_execute(command, output_file=output_file, simple_pipeline=self.sp)
+        print_and_execute(command, output_file=output_file, simple_pipeline=self.sp, module_name=__name__)
 
     def combine_vcf(self, n_parts: int, input_prefix: str, output_fname: str):
         """Combines VCF in parts from GATK and indices the result
