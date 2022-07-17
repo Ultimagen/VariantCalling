@@ -14,7 +14,7 @@ In addition, the code provides
 
 ## Setup
 1. Make sure git-lfs is installed on your system if you want to clone test resources along with the code (https://git-lfs.github.com/)
-1. Clone VariantCalling repository to e.g. `software\VariantCalling`
+1. Clone VariantCalling repository to e.g. `software/VariantCalling`
 1. Create the three conda environments:
    * `conda env create -f setup/environment.yml` 
    * `conda env create -f setup/other_envs/ucsc.yml`
@@ -22,6 +22,9 @@ In addition, the code provides
 
 1. Activate the main conda environment
    * `conda activate genomics.py3`
+1. Install the package
+   * `cd software/VariantCalling`
+   * pip install .
 
 ## Using ugvc package
 
