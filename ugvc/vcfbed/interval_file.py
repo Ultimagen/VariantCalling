@@ -17,7 +17,7 @@ class IntervalFile:
         ref_dict: str | None = None,
     ):
         self.sp = sp
-        print(f'init interval_file with {cmp_intervals}')
+        logger.info(f'init interval_file with {cmp_intervals}')
         # determine the file type and create the other temporary copy
         if cmp_intervals is None:
             self._is_none: bool = True
@@ -64,4 +64,4 @@ class IntervalFile:
         return self._is_none
 
     def __execute(self, command: str, output_file: str = None):
-        print_and_execute(command, output_file=output_file, simple_pipeline=self.sp)
+        print_and_execute(command, output_file=output_file, simple_pipeline=self.sp, module_name=__name__)
