@@ -1,16 +1,16 @@
-library(cn.mops)
-library(magrittr)
+suppressPackageStartupMessages(library(cn.mops))
+suppressPackageStartupMessages(library(magrittr))
+suppressPackageStartupMessages(library(argparse))
 
-# read arguments
-args = commandArgs(trailingOnly=TRUE)
-if (length(args)<2) {
-  stop("Too few arguments supplied", call.=FALSE)
-} else if (length(args)==2) {
-  cohort_reads_count_file=args[1]
-  sample_reads_count_file=args[2]
-} else if (length(args)>2) {
-  stop("Too many arguments supplied", call.=FALSE)
-}
+parser <- ArgumentParser()
+parser$add_argument("-cohort_rc", "--cohort_reads_count_file",
+                    help="input cohort reads count file in Rdata format")
+parser$add_argument("-sample_rc", "--sample_reads_count_file",
+                    help="input sample reads count file in Rdata format")
+args <- parser$parse_args()
+
+cohort_reads_count_file <- args$cohort_reads_count_file
+sample_reads_count_file <- args$sample_reads_count_file
 
 # load reads count Rdata file
 RC_obj<-load(cohort_reads_count_file)
