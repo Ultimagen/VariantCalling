@@ -2,7 +2,6 @@ suppressPackageStartupMessages(library(cn.mops))
 suppressPackageStartupMessages(library(magrittr))
 suppressPackageStartupMessages(library(argparse))
 
-# create parser object
 parser <- ArgumentParser()
 
 parser$add_argument("-i", "--input_bam_file",
@@ -19,19 +18,6 @@ parser$add_argument("-p", "--parallel",
 parser$add_argument("-o", "--base_file_name",
                     help="out base file name")
 
-# read arguments
-# args = commandArgs(trailingOnly=TRUE)
-# if (length(args)<5) {
-#   stop("Too few arguments supplied", call.=FALSE)
-# } else if (length(args)==5) {
-#   input_bam_file=args[1]
-#   refSeqNames_string=args[2]
-#   WL=args[3]
-#   parallel = args[4]
-#   base_file_name = args[5]
-# } else if (length(args)>5) {
-#   stop("Too many arguments supplied", call.=FALSE)
-# }
 args <- parser$parse_args()
 
 refSeqNames=unlist(strsplit(args$refSeqNames_string, ","))
