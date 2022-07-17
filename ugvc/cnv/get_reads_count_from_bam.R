@@ -10,7 +10,7 @@ parser$add_argument("-i", "--input_bam_file",
 parser$add_argument("-refseq", "--refSeqNames_string",
                     help="chromosomes names in comma seperated format. e.g, chr1,chr2,chrX" ,
                     default="chr1,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr20,chr21,chr22,chrX,chrY")
-arser$add_argument("-wl", "--window_length",
+parser$add_argument("-wl", "--window_length",
                    help="window length (#bp) for which reads count is calculated for",
                    type="int", default=1000)
 parser$add_argument("-p", "--parallel",
