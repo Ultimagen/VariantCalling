@@ -1,6 +1,6 @@
 import subprocess
 
-from ugvc.utils.simple_pipeline import SimplePipeline
+from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
 

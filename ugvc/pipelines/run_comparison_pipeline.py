@@ -27,7 +27,7 @@ from shutil import copyfile
 import pandas as pd
 import pysam
 from joblib import Parallel, delayed
-from ugvc.utils.simple_pipeline import SimplePipeline
+from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
