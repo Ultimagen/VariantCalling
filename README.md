@@ -24,7 +24,7 @@ In addition, the code provides
    * `conda activate genomics.py3`
 1. Install the package
    * `cd software/VariantCalling`
-   * pip install .
+   * `pip install .`
 
 ## Using ugvc package
 
