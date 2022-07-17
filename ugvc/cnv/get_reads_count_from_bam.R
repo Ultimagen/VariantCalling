@@ -32,8 +32,9 @@ parser$add_argument("-o", "--base_file_name",
 # } else if (length(args)>5) {
 #   stop("Too many arguments supplied", call.=FALSE)
 # }
+args <- parser$parse_args()
 
-refSeqNames=unlist(strsplit(refSeqNames_string, ","))
-bamDataRanges_RC <- getReadCountsFromBAM(input_bam_file, refSeqNames=refSeqNames, WL=window_length ,parallel=parallel);
-save(bamDataRanges_RC, file=paste(base_file_name,".ReadCounts.Rdata",sep = ""));
-write.csv(as.data.frame(bamDataRanges_RC),paste(base_file_name,".ReadCounts.csv",sep=""),row.names = FALSE)
+refSeqNames=unlist(strsplit(args$refSeqNames_string, ","))
+bamDataRanges_RC <- getReadCountsFromBAM(args$input_bam_file, refSeqNames=args$refSeqNames, WL=args$window_length ,parallel=args$parallel);
+save(bamDataRanges_RC, file=paste(args$base_file_name,".ReadCounts.Rdata",sep = ""));
+write.csv(as.data.frame(bamDataRanges_RC),paste(args$base_file_name,".ReadCounts.csv",sep=""),row.names = FALSE)
