@@ -6,7 +6,7 @@ parser <- ArgumentParser()
 parser$add_argument("-cohort_rc", "--cohort_reads_count_file",
                     help="input cohort reads count file in Rdata format")
 parser$add_argument("-minWidth", "--min_width_val",
-                    help="input sample reads count file in Rdata format",
+                    help="min width parameter value",
                     type="integer",default=2)
 parser$add_argument("-p", "--parallel",
                     help="number of parallel process",
