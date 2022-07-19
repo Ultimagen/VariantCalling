@@ -231,7 +231,7 @@ def run(argv: list[str]):
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
     logger.setLevel(getattr(logging, args.verbosity))
-    sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True, output_stream=sys.stdout, name=__name__)
+    sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True)
     vpu = vcf_pipeline_utils.VcfPipelineUtils(sp)
 
     cmp_intervals = IntervalFile(sp, args.cmp_intervals, args.reference, args.reference_dict)
@@ -240,7 +240,7 @@ def run(argv: list[str]):
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():  # interval of highconf_intervals
-        print(f'copy {args.highconf_intervals} to {args.output_interval}')
+        logger.info(f'copy {args.highconf_intervals} to {args.output_interval}')
         copyfile(highconf_intervals.as_bed_file(), args.output_interval)
     else:
         vpu.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
