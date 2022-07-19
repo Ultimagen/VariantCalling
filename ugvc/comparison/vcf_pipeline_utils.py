@@ -478,6 +478,15 @@ def vcf2concordance(
         "classify_gt",
     ] = "fp"
 
+    # cases where we called wrong allele and then filtered out - are false negatives, not false positives
+    if concordance_format == "VCFEVAL":
+        called_fn = (concordance_df['base'] == "FN") | (concordance_df['base'] == "FN_CA")
+        marked_fp = concordance_df['classify'] == "fp"
+        concordance_df.loc[called_fn & marked_fp, "classify"] = "fn"
+        marked_fp = concordance_df['classify_gt'] == "fp"
+        concordance_df.loc[called_fn & marked_fp, "classify_gt"] = "fn"
+
+
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
 
     original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome, scoring_field=scoring_field)

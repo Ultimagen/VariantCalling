@@ -17,7 +17,6 @@ class IntervalFile:
         ref_dict: str | None = None,
     ):
         self.sp = sp
-        logger.info(f'init interval_file with {cmp_intervals}')
         # determine the file type and create the other temporary copy
         if cmp_intervals is None:
             self._is_none: bool = True
