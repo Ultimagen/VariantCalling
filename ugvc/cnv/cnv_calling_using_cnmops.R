@@ -43,17 +43,28 @@ resCNMOPS_Int <-calcIntegerCopyNumbers(resCNMOPS)
 
 saveRDS(resCNMOPS_Int,file="cohort.cnmops.rds")
 
+hdf5_out_file_name="cohort.cnmops_outputs.hdf5"
+h5createFile(hdf5_out_file_name)
+
 df_cnvs<-as.data.frame(cnvs(resCNMOPS_Int))
 write.csv(df_cnvs,"cohort.cnmops.cnvs.csv", row.names = FALSE,quote=FALSE)
+h5write(df_cnvs, hdf5_out_file_name,"df_cnvs")
 
-# df_cnvr<-as.data.frame(cnvr(resCNMOPS_Int))
-# write.csv(df_cnvr,"cohort.cnmops.cnvr.csv", row.names = FALSE,quote=FALSE)
-#
-# individualCall_df<-as.data.frame(individualCall(resCNMOPS_Int))
-# write.csv(individualCall_df,"cohort.cnmops.individualCall.csv",row.names = FALSE, quote=FALSE)
-#
-# inicall_df<-as.data.frame(iniCall(resCNMOPS_Int))
-# write.csv(inicall_df,"cohort.cnmops.inicall.csv",row.names = FALSE, quote=FALSE)
-#
-# integerCopyNumber_df<-as.data.frame(integerCopyNumber(resCNMOPS_Int))
-# write.csv(integerCopyNumber_df,"cohort.cnmops.integerCopyNumber.csv",row.names = FALSE, quote=FALSE)
+df_cnvr<-as.data.frame(cnvr(resCNMOPS_Int))
+h5write(df_cnvr, hdf5_out_file_name,"df_cnvr")
+#write.csv(df_cnvr,"cohort.cnmops.cnvr.csv", row.names = FALSE,quote=FALSE)
+
+df_individual_call<-as.data.frame(individualCall(resCNMOPS_Int))
+h5write(df_individual_call, hdf5_out_file_name,"df_individual_call")
+#write.csv(individualCall_df,"cohort.cnmops.individualCall.csv",row.names = FALSE, quote=FALSE)
+
+df_inicall<-as.data.frame(iniCall(resCNMOPS_Int))
+h5write(df_inicall, hdf5_out_file_name,"df_inicall")
+#write.csv(inicall_df,"cohort.cnmops.inicall.csv",row.names = FALSE, quote=FALSE)
+
+df_integer_copy_number<-as.data.frame(integerCopyNumber(resCNMOPS_Int))
+h5write(df_integer_copy_number, hdf5_out_file_name,"df_integer_copy_number")
+#write.csv(integerCopyNumber_df,"cohort.cnmops.integerCopyNumber.csv",row.names = FALSE, quote=FALSE)
+
+
+
