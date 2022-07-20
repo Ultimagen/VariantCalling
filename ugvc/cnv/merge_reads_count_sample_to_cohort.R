@@ -1,23 +1,24 @@
 suppressPackageStartupMessages(library(cn.mops))
 suppressPackageStartupMessages(library(magrittr))
 suppressPackageStartupMessages(library(argparse))
+suppressPackageStartupMessages(library(rhdf5))
 
 parser <- ArgumentParser()
 parser$add_argument("-cohort_rc", "--cohort_reads_count_file",
-                    help="input cohort reads count file in Rdata format")
+                    help="input cohort reads count file in rds format")
 parser$add_argument("-sample_rc", "--sample_reads_count_file",
-                    help="input sample reads count file in Rdata format")
+                    help="input sample reads count file in rds format")
 args <- parser$parse_args()
 
 cohort_reads_count_file <- args$cohort_reads_count_file
 sample_reads_count_file <- args$sample_reads_count_file
 
 # load reads count Rdata file
-RC_obj<-load(cohort_reads_count_file)
+RC_obj<- readRDS(file = cohort_reads_count_file )
 gr1<-get(RC_obj)
 rm(RC_obj)
 
-RC_obj<-load(sample_reads_count_file)
+RC_obj<-readRDS(file = sample_reads_count_file)
 gr2<-get(RC_obj)
 rm(RC_obj)
 
@@ -31,5 +32,6 @@ merged_cohort_reads_count <- GRanges(
 )
 
 # save merged cohort
-save(merged_cohort_reads_count,file="merged_cohort_reads_count.RData")
-write.csv(as.data.frame(merged_cohort_reads_count),"merged_cohort_reads_count.csv", row.names = FALSE)
+saveRDS(merged_cohort_reads_count,file="merged_cohort_reads_count.rds")
+h5write(merged_cohort_reads_count,"merged_cohort_reads_count.hdf5","merged_cohort_reads_count")
+
