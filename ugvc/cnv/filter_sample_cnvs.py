@@ -41,12 +41,12 @@ def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file):
 
 def filter_by_length(bed_file, length_cutoff):
 
-    cmd = 'awk \'$3-$2<' + str(length_cutoff) + '\' ' + bed_file + ' > ' + bed_file.rstrip('.bed') + 'len.bed'
+    cmd = 'awk \'$3-$2<' + str(length_cutoff) + '\' ' + bed_file + ' > ' + bed_file.rstrip('.bed') + '.len.bed'
     os.system(cmd)
-    cmd = 'cat ' + bed_file.rstrip('.bed') + 'len.bed' + ' | awk \'{print $1"\t"$2"\t"$3"\tLEN"}\' > ' \
-          + bed_file.rstrip('.bed') + 'len.annotate.bed'
+    cmd = 'cat ' + bed_file.rstrip('.bed') + '.len.bed' + ' | awk \'{print $1"\t"$2"\t"$3"\tLEN"}\' > ' \
+          + bed_file.rstrip('.bed') + '.len.annotate.bed'
     os.system(cmd)
-    out_file = bed_file.rstrip('.bed') + 'len.annotate.bed'
+    out_file = bed_file.rstrip('.bed') + '.len.annotate.bed'
     return out_file
 
 
@@ -61,11 +61,11 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, len
     os.system(cmd)
     cmd = bedtools + ' sort -i filters.annotate.unsorted.bed > filters.annotate.bed'
     os.system(cmd)
-    cmd = bedtools + ' sort - i ' + bed_file + ' > ' + bed_file.rstrip('.bed') + 'sorted.bed'
+    cmd = bedtools + ' sort -i ' + bed_file + ' > ' + bed_file.rstrip('.bed') + '.sorted.bed'
     os.system(cmd)
 
     # annotate bed files by filters
-    cmd = bedmap + ' --echo --echo-map-id-uniq --delim \'\t\' ' + bed_file.rstrip('.bed') + 'sorted.bed' +\
+    cmd = bedmap + ' --echo --echo-map-id-uniq --delim \'\t\' ' + bed_file.rstrip('.bed') + '.sorted.bed' +\
           ' filters.annotate.unsorted.bed' + ' > ' + bed_file.rstrip('.bed') + 'annotate.bed'
     os.system(cmd)
     cmd = 'cat ' + bed_file.rstrip('.bed') + 'annotate.bed | awk awk \'$5==""\' > ' +\
