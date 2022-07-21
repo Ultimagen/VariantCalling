@@ -93,9 +93,9 @@ args.add_argument("--min_cnv_length", required=True, type=int, default=10000)
 
 args = args.parse_args()
 
-[out_annotate_file, out_filtered_file] = annotate_bed(args.input_bed_file, args.intersection_cutoff,
+[out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(args.input_bed_file, args.intersection_cutoff,
              args.coverage_lcr_file, args.intersection_cutoff,
              args.blocklist, args.min_cnv_length)
 print("output files:")
-print(out_annotate_file)
-print(out_filtered_file)
+print(out_annotate_bed_file)
+print(out_filtered_bed_file)
