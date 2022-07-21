@@ -3,7 +3,7 @@ import unittest
 import pandas as pd
 
 from ugvc.filtering.variant_filtering_utils import SingleTrivialClassifierModel
-
+inputs_dir = get_resource_dir(__file__)
 
 class TestVariantFilteringModels(unittest.TestCase):
     def test_single_trivial_classifier(self):
