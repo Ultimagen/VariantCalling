@@ -59,18 +59,22 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, len
     # merge all filters and sort
     cmd = 'cat ' + lcr_bed_file + ' ' + black_bed_file + ' ' + length_bed_file + ' > filters.annotate.unsorted.bed'
     os.system(cmd)
-    cmd = 'sort -k1,1V -k2,2n -k3,3n filters.annotate.unsorted.bed > filters.annotate.bed'
+    cmd = bedtools + ' sort -i filters.annotate.unsorted.bed > filters.annotate.bed'
     os.system(cmd)
-    cmd = 'sort -k1,1V -k2,2n -k3,3n ' + bed_file + ' > ' + bed_file.rstrip('.bed') + '.sorted.bed'
+    cmd = bedtools + ' sort -i ' + bed_file + ' > ' + bed_file.rstrip('.bed') + '.sorted.bed'
     os.system(cmd)
 
     # annotate bed files by filters
     cmd = bedmap + ' --echo --echo-map-id-uniq --delim \'\\t\' ' + bed_file.rstrip('.bed') + '.sorted.bed' +\
-          ' filters.annotate.bed' + ' > ' + bed_file.rstrip('.bed') + '.annotate.bed'
+          ' filters.annotate.bed' + ' > ' + bed_file.rstrip('.bed') + 'unsorted.annotate.bed'
+    os.system(cmd)
+    cmd = 'sort -k1,1V -k2,2n -k3,3n ' + bed_file.rstrip('.bed') + 'unsorted.annotate.bed > '\
+          + bed_file.rstrip('.bed') + '.annotate.bed'
     os.system(cmd)
     cmd = 'cat ' + bed_file.rstrip('.bed') + '.annotate.bed | awk \'$5==""\' > ' +\
           bed_file.rstrip('.bed') + '.filter.bed'
     os.system(cmd)
+    
     out_annotate_file = bed_file.rstrip('.bed') + '.annotate.bed'
     out_filtered_file = bed_file.rstrip('.bed') + '.filter.bed'
     return [out_annotate_file, out_filtered_file]
