@@ -1,6 +1,6 @@
+import unittest
 from ugvc.cnv.filter_sample_cnvs import annotate_bed
 
-import unittest
 from os.path import join as pjoin
 import filecmp
 
