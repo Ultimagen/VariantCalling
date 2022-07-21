@@ -1,5 +1,5 @@
 import unittest
-from ugvc.cnv.filter_sample_cnvs import annotate_bed
+from ugvc.cnv import filter_sample_cnvs
 
 from os.path import join as pjoin
 import filecmp
@@ -16,7 +16,7 @@ class TestFilterSampleCnvs(unittest.TestCase):
         blocklist = pjoin(inputs_dir, "blocklist.bed")
         intersection_cutoff = 0.5
         min_cnv_length = 10000
-        [out_annotate_file, out_filtered_file] = annotate_bed(input_bed_file, intersection_cutoff,
+        [out_annotate_file, out_filtered_file] = filter_sample_cnvs.annotate_bed(input_bed_file, intersection_cutoff,
                                                               coverage_lcr_file, intersection_cutoff,
                                                               blocklist, min_cnv_length)
 
