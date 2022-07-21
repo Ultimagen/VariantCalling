@@ -67,12 +67,13 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, len
     # annotate bed files by filters
     cmd = bedmap + ' --echo --echo-map-id-uniq --delim \'\\t\' ' + bed_file.rstrip('.bed') + '.sorted.bed' +\
           ' filters.annotate.bed' + ' > ' + bed_file.rstrip('.bed') + '.annotate.bed'
-    print(cmd)
     os.system(cmd)
     cmd = 'cat ' + bed_file.rstrip('.bed') + '.annotate.bed | awk \'$5==""\' > ' +\
           bed_file.rstrip('.bed') + '.filter.bed'
     os.system(cmd)
-
+    out_annotate_file = bed_file.rstrip('.bed') + '.annotate.bed'
+    out_filtered_file = bed_file.rstrip('.bed') + '.filter.bed'
+    return [out_annotate_file, out_filtered_file]
 
 
 args = argparse.ArgumentParser(
@@ -89,6 +90,9 @@ args.add_argument("--min_cnv_length", required=True, type=int, default=10000)
 args = args.parse_args()
 
 bed_file = args.sample_name + ".cnvs.bed"
-annotate_bed(bed_file, args.intersection_cutoff,
+[out_annotate_file, out_filtered_file] = annotate_bed(bed_file, args.intersection_cutoff,
              args.coverage_lcr_file, args.intersection_cutoff,
              args.blocklist, args.min_cnv_length)
+print("output files:")
+print(out_annotate_file)
+print(out_filtered_file)
