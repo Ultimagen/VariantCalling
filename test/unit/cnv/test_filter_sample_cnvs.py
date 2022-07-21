@@ -1,12 +1,10 @@
 import unittest
-from ugvc.cnv import filter_sample_cnvs
-
 from os.path import join as pjoin
 import filecmp
-
 from test import get_resource_dir
-inputs_dir = get_resource_dir(__file__)
+from ugvc.cnv import filter_sample_cnvs
 
+inputs_dir = get_resource_dir(__file__)
 
 class TestFilterSampleCnvs(unittest.TestCase):
     def test_annotate_bed(self):
