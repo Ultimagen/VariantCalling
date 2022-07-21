@@ -154,31 +154,36 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, len
     return [out_annotate_file, out_filtered_file]
 
 
-args = argparse.ArgumentParser(
-    prog="filter_sample_cnvs.py", description="Filter cnvs bed file by: UG-CNV-LCR , blocklist , length"
-)
-args.add_argument("--input_bed_file", help="input bed file with .bed suffix", required=True, type=str)
-args.add_argument(
-    "--intersection_cutoff",
-    help="intersection cutoff for bedtools substruct function",
-    required=True,
-    type=float,
-    default=0.5,
-)
-args.add_argument("--coverage_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
-args.add_argument("--blocklist", help="blocklist bed file", required=True, type=str)
-args.add_argument("--min_cnv_length", required=True, type=int, default=10000)
+def main():
+    args = argparse.ArgumentParser(
+        prog="filter_sample_cnvs.py", description="Filter cnvs bed file by: UG-CNV-LCR , blocklist , length"
+    )
+    args.add_argument("--input_bed_file", help="input bed file with .bed suffix", required=True, type=str)
+    args.add_argument(
+        "--intersection_cutoff",
+        help="intersection cutoff for bedtools substruct function",
+        required=True,
+        type=float,
+        default=0.5,
+    )
+    args.add_argument("--coverage_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
+    args.add_argument("--blocklist", help="blocklist bed file", required=True, type=str)
+    args.add_argument("--min_cnv_length", required=True, type=int, default=10000)
 
-args = args.parse_args()
+    args = args.parse_args()
 
-[out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(
-    args.input_bed_file,
-    args.intersection_cutoff,
-    args.coverage_lcr_file,
-    args.intersection_cutoff,
-    args.blocklist,
-    args.min_cnv_length,
-)
-print("output files:")
-print(out_annotate_bed_file)
-print(out_filtered_bed_file)
+    [out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(
+        args.input_bed_file,
+        args.intersection_cutoff,
+        args.coverage_lcr_file,
+        args.intersection_cutoff,
+        args.blocklist,
+        args.min_cnv_length,
+    )
+    print("output files:")
+    print(out_annotate_bed_file)
+    print(out_filtered_bed_file)
+
+
+if __name__ == "__main__":
+    main()
