@@ -1,7 +1,9 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+# pylint: disable=wrong-import-position
+
 # NOTE - this script relies on boto3, which is not installed in the system python by default. The option are either:
 # 1. Add this line to ~/.bashrc and use it to call cloud_sync:
-#  alias cloud_sync="conda run -n genomics.py3 python /home/ubuntu/proj/VariantCalling/src/python/scripts/cloud_sync.py"
+#  alias cloud_sync="conda run -n genomics.py3 python /home/ubuntu/proj/VariantCalling/ugvc/scripts/cloud_sync.py"
 # 2. Use with "python cloud_sync.py" from an env where boto3 is installed
 # 3. Install boto3 in the system python3
 
@@ -10,9 +12,8 @@ import argparse
 import os
 import sys
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from ugvc.utils.cloud_sync import cloud_sync, dir_path
-
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download aws s3 or google storage file to a corresponding local path")
