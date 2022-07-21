@@ -66,10 +66,10 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, len
 
     # annotate bed files by filters
     cmd = bedmap + ' --echo --echo-map-id-uniq --delim \'\t\' ' + bed_file.rstrip('.bed') + '.sorted.bed' +\
-          ' filters.annotate.unsorted.bed' + ' > ' + bed_file.rstrip('.bed') + 'annotate.bed'
+          ' filters.annotate.unsorted.bed' + ' > ' + bed_file.rstrip('.bed') + '.annotate.bed'
     os.system(cmd)
-    cmd = 'cat ' + bed_file.rstrip('.bed') + 'annotate.bed | awk awk \'$5==""\' > ' +\
-          bed_file.rstrip('.bed') + 'filter.bed'
+    cmd = 'cat ' + bed_file.rstrip('.bed') + '.annotate.bed | awk \'$5==""\' > ' +\
+          bed_file.rstrip('.bed') + '.filter.bed'
     os.system(cmd)
 
 
