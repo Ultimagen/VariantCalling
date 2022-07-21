@@ -74,7 +74,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, len
     cmd = 'cat ' + bed_file.rstrip('.bed') + '.annotate.bed | awk \'$5==""\' > ' +\
           bed_file.rstrip('.bed') + '.filter.bed'
     os.system(cmd)
-    
+
     out_annotate_file = bed_file.rstrip('.bed') + '.annotate.bed'
     out_filtered_file = bed_file.rstrip('.bed') + '.filter.bed'
     return [out_annotate_file, out_filtered_file]
@@ -84,7 +84,7 @@ args = argparse.ArgumentParser(
     prog="filter_sample_cnvs.py",
     description="Filter cnvs bed file by: UG-CNV-LCR , blocklist , length"
 )
-args.add_argument("--sample_name", required=True, type=str)
+args.add_argument("--input_bed_file",help="input bed file with .bed suffix", required=True, type=str)
 args.add_argument("--intersection_cutoff", help="intersection cutoff for bedtools substruct function",
                   required=True, type=float , default=0.5)
 args.add_argument("--coverage_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
@@ -93,8 +93,7 @@ args.add_argument("--min_cnv_length", required=True, type=int, default=10000)
 
 args = args.parse_args()
 
-bed_file = args.sample_name + ".cnvs.bed"
-[out_annotate_file, out_filtered_file] = annotate_bed(bed_file, args.intersection_cutoff,
+[out_annotate_file, out_filtered_file] = annotate_bed(args.input_bed_file, args.intersection_cutoff,
              args.coverage_lcr_file, args.intersection_cutoff,
              args.blocklist, args.min_cnv_length)
 print("output files:")
