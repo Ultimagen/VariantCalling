@@ -59,9 +59,9 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, len
     # merge all filters and sort
     cmd = 'cat ' + lcr_bed_file + ' ' + black_bed_file + ' ' + length_bed_file + ' > filters.annotate.unsorted.bed'
     os.system(cmd)
-    cmd = bedtools + ' sort -i filters.annotate.unsorted.bed > filters.annotate.bed'
+    cmd = 'sort -k1,1V -k2,2n -k3,3n filters.annotate.unsorted.bed > filters.annotate.bed'
     os.system(cmd)
-    cmd = bedtools + ' sort -i ' + bed_file + ' > ' + bed_file.rstrip('.bed') + '.sorted.bed'
+    cmd = 'sort -k1,1V -k2,2n -k3,3n ' + bed_file + ' > ' + bed_file.rstrip('.bed') + '.sorted.bed'
     os.system(cmd)
 
     # annotate bed files by filters
