@@ -117,12 +117,12 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
     out_filters_sorted = prefix + "filters.annotate.bed"
     cmd = bedtools + " sort -i " + out_filters_unsorted + " > " + out_filters_sorted
     os.system(cmd)
-    out_bed_file_sorted = os.path.basename(bed_file).rstrip(".bed") + ".sorted.bed"
+    out_bed_file_sorted = prefix + os.path.basename(bed_file).rstrip(".bed") + ".sorted.bed"
     cmd = bedtools + " sort -i " + bed_file + " > " + out_bed_file_sorted
     os.system(cmd)
 
     # annotate bed files by filters
-    out_unsorted_annotate = os.path.basename(bed_file) + "unsorted.annotate.bed"
+    out_unsorted_annotate = prefix + os.path.basename(bed_file) + "unsorted.annotate.bed"
     cmd = (
         bedmap
         + " --echo --echo-map-id-uniq --delim '\\t' "
@@ -133,7 +133,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
         + out_unsorted_annotate
     )
     os.system(cmd)
-    out_annotate = os.path.basename(bed_file) + ".annotate.bed"
+    out_annotate = prefix + os.path.basename(bed_file) + ".annotate.bed"
     cmd = (
         "sort -k1,1V -k2,2n -k3,3n "
         + out_unsorted_annotate
@@ -141,7 +141,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
         + out_annotate
     )
     os.system(cmd)
-    out_filtered = os.path.basename(bed_file) + "filter.bed"
+    out_filtered = prefix + os.path.basename(bed_file) + "filter.bed"
     cmd = (
         "cat " + out_annotate + " | awk '$5==\"\"' > " + out_filtered
     )
