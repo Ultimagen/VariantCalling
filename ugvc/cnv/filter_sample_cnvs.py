@@ -22,7 +22,7 @@ def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
         + " > "
         + out_lcr_file
     )
-    print(cmd)
+    
     os.system(cmd)
     out_lcr_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".lcr.filtered_out.bed"
     cmd = (
@@ -36,7 +36,7 @@ def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
         + " > "
         + out_lcr_filtered_out_file
     )
-    print(cmd)
+    
     os.system(cmd)
     out_lcr_annotate_file = prefix + out_filename.rstrip(".bed") + ".lcr.annotate.bed"
     cmd = (
@@ -45,7 +45,7 @@ def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
         + ' | awk \'{print $1"\t"$2"\t"$3"\tUG-CNV-LCR"}\' > '
         + out_lcr_annotate_file
     )
-    print(cmd)
+    
     os.system(cmd)
 
     return out_lcr_annotate_file
@@ -66,7 +66,7 @@ def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
         + out_blocklist_file
     )
     out_blocklist_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".blocklist.filtered_out.bed"
-    print(cmd)
+    
     os.system(cmd)
     cmd = (
         bedtools
@@ -79,7 +79,7 @@ def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
         + " > "
         + out_blocklist_filtered_out_file
     )
-    print(cmd)
+    
     os.system(cmd)
     out_blocklist_annotate_file = prefix + out_filename.rstrip(".bed") + ".blocklist.annotate.bed"
     cmd = (
@@ -88,7 +88,7 @@ def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
         + ' | awk \'{print $1"\t"$2"\t"$3"\tBLOCKLIST"}\' > '
         + out_blocklist_annotate_file
     )
-    print(cmd)
+    
     os.system(cmd)
 
     return out_blocklist_annotate_file
@@ -98,7 +98,7 @@ def filter_by_length(bed_file, length_cutoff, prefix):
     out_filename = os.path.basename(bed_file)
     out_len_file = prefix + out_filename.rstrip(".bed") + ".len.bed"
     cmd = "awk '$3-$2<" + str(length_cutoff) + "' " + bed_file + " > " + out_len_file
-    print(cmd)
+    
     os.system(cmd)
     out_len_annotate_file = prefix + out_filename.rstrip(".bed") + ".len.annotate.bed"
     cmd = (
@@ -107,7 +107,7 @@ def filter_by_length(bed_file, length_cutoff, prefix):
         + ' | awk \'{print $1"\t"$2"\t"$3"\tLEN"}\' > '
         + out_len_annotate_file
     )
-    print(cmd)
+    
     os.system(cmd)
     return out_len_annotate_file
 
@@ -121,16 +121,16 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
     # merge all filters and sort
     out_filters_unsorted = prefix + "filters.annotate.unsorted.bed"
     cmd = "cat " + lcr_bed_file + " " + black_bed_file + " " + length_bed_file + " > " + out_filters_unsorted
-    print(cmd)
+    
     os.system(cmd)
     out_filters_sorted = prefix + "filters.annotate.bed"
-    print(cmd)
+    
     cmd = bedtools + " sort -i " + out_filters_unsorted + " > " + out_filters_sorted
-    print(cmd)
+    
     os.system(cmd)
     out_bed_file_sorted = prefix + os.path.basename(bed_file).rstrip(".bed") + ".sorted.bed"
     cmd = bedtools + " sort -i " + bed_file + " > " + out_bed_file_sorted
-    print(cmd)
+    
     os.system(cmd)
 
     # annotate bed files by filters
@@ -144,7 +144,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
         + " > "
         + out_unsorted_annotate
     )
-    print(cmd)
+    
     os.system(cmd)
     out_annotate = prefix + os.path.basename(bed_file).rstrip(".bed") + ".annotate.bed"
     cmd = (
@@ -153,13 +153,13 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
         + " > "
         + out_annotate
     )
-    print(cmd)
+    
     os.system(cmd)
     out_filtered = prefix + os.path.basename(bed_file).rstrip(".bed") + ".filter.bed"
     cmd = (
         "cat " + out_annotate + " | awk '$5==\"\"' > " + out_filtered
     )
-    print(cmd)
+    
     os.system(cmd)
 
     return [out_annotate, out_filtered]
