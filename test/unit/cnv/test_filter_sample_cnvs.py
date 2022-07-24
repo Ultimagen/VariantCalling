@@ -11,6 +11,7 @@ class TestFilterSampleCnvs(unittest.TestCase):
     def test_annotate_bed(self, tmpdir):
         input_bed_file = pjoin(inputs_dir, "unfiltered_cnvs.bed")
         expected_out_filtered_bed_file = pjoin(inputs_dir, "filtered_cnvs.bed")
+        expected_out_annotate_bed_file = pjoin(inputs_dir, "annotate_cnv.bed")
         coverage_lcr_file = pjoin(inputs_dir, "UG-CNV-LCR.bed")
         blocklist = pjoin(inputs_dir, "blocklist.bed")
         intersection_cutoff = 0.5
@@ -22,5 +23,7 @@ class TestFilterSampleCnvs(unittest.TestCase):
 
         self.assertTrue(filecmp.cmp(out_filtered_file, expected_out_filtered_bed_file),
                         'filtered cnvs list is not identical to expected list')
+        self.assertTrue(filecmp.cmp(out_annotate_file, expected_out_annotate_bed_file),
+                        'annotate cnvs list is not identical to expected list')
 
         
