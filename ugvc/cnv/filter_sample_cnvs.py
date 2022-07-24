@@ -4,8 +4,11 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-bedtools = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/bedtools"
-bedmap = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/bedmap"
+#bedtools = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/bedtools"
+#bedmap = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/bedmap"
+
+bedtools = "bedtools"
+bedmap = "bedmap"
 
 
 def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
