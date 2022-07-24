@@ -5,9 +5,10 @@ from os.path import join as pjoin
 from test import get_resource_dir
 from ugvc.cnv.filter_sample_cnvs import annotate_bed
 
-inputs_dir = get_resource_dir(__file__)
 
 class TestFilterSampleCnvs(unittest.TestCase):
+    inputs_dir = get_resource_dir(__file__)
+
     def test_annotate_bed(self, tmpdir):
         input_bed_file = pjoin(inputs_dir, "unfiltered_cnvs.bed")
         expected_out_filtered_bed_file = pjoin(inputs_dir, "filtered_cnvs.bed")
