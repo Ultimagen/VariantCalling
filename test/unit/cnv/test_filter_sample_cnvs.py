@@ -16,10 +16,12 @@ class TestFilterSampleCnvs(unittest.TestCase):
         blocklist = pjoin(inputs_dir, "blocklist.bed")
         intersection_cutoff = 0.5
         min_cnv_length = 10000
-        os.chdir(tmpdir)
+        prefix = tmpdir
+        #os.chdir(tmpdir)
+        print(tmpdir)
         [out_annotate_file, out_filtered_file] = annotate_bed(input_bed_file, intersection_cutoff,
                                                               coverage_lcr_file, intersection_cutoff,
-                                                              blocklist, min_cnv_length)
+                                                              blocklist, prefix, min_cnv_length)
 
         self.assertTrue(filecmp.cmp(out_filtered_file, expected_out_filtered_bed_file),
                         'filtered cnvs list is not identical to expected list')
