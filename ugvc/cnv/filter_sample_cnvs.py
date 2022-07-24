@@ -9,7 +9,8 @@ bedmap = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/bedmap"
 
 
 def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
-    out_lcr_file = prefix + '/' + bed_file.rstrip(".bed") + ".lcr.bed"
+    out_filename = os.path.basename(bed_file)
+    out_lcr_file = prefix + out_filename.rstrip(".bed") + ".lcr.bed"
     cmd = (
         bedtools
         + " subtract -N -f "
@@ -22,7 +23,7 @@ def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
         + out_lcr_file
     )
     os.system(cmd)
-    out_lcr_filtered_out_file = prefix + '/' + bed_file.rstrip(".bed") + ".lcr.filtered_out.bed"
+    out_lcr_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".lcr.filtered_out.bed"
     cmd = (
         bedtools
         + " subtract -N -f "
@@ -35,7 +36,7 @@ def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
         + out_lcr_filtered_out_file
     )
     os.system(cmd)
-    out_lcr_annotate_file = prefix + '/' + bed_file.rstrip(".bed") + ".lcr.annotate.bed"
+    out_lcr_annotate_file = prefix + out_filename.rstrip(".bed") + ".lcr.annotate.bed"
     cmd = (
         "cat "
         + out_lcr_filtered_out_file
@@ -48,7 +49,8 @@ def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
 
 
 def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
-    out_blocklist_file = prefix + '/' + bed_file.rstrip(".bed") + ".blocklist.bed"
+    out_filename = os.path.basename(bed_file)
+    out_blocklist_file = prefix + out_filename.rstrip(".bed") + ".blocklist.bed"
     cmd = (
         bedtools
         + " subtract -N -f "
@@ -60,7 +62,7 @@ def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
         + " > "
         + out_blocklist_file
     )
-    out_blocklist_filtered_out_file = prefix + '/' + bed_file.rstrip(".bed") + ".blocklist.filtered_out.bed"
+    out_blocklist_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".blocklist.filtered_out.bed"
     os.system(cmd)
     cmd = (
         bedtools
@@ -74,7 +76,7 @@ def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
         + out_blocklist_filtered_out_file
     )
     os.system(cmd)
-    out_blocklist_annotate_file = prefix + '/' + bed_file.rstrip(".bed") + ".blocklist.annotate.bed"
+    out_blocklist_annotate_file = prefix + out_filename.rstrip(".bed") + ".blocklist.annotate.bed"
     cmd = (
         "cat "
         + out_blocklist_filtered_out_file
@@ -87,11 +89,11 @@ def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
 
 
 def filter_by_length(bed_file, length_cutoff, prefix):
-
-    out_len_file = prefix + '/' + bed_file.rstrip(".bed") + ".len.bed"
+    out_filename = os.path.basename(bed_file)
+    out_len_file = prefix + out_filename.rstrip(".bed") + ".len.bed"
     cmd = "awk '$3-$2<" + str(length_cutoff) + "' " + bed_file + " > " + out_len_file
     os.system(cmd)
-    out_len_annotate_file = prefix + '/' + bed_file.rstrip(".bed") + ".len.annotate.bed"
+    out_len_annotate_file = prefix + out_filename.rstrip(".bed") + ".len.annotate.bed"
     cmd = (
         "cat "
         + out_len_file
@@ -146,6 +148,12 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
     return [out_annotate_file, out_filtered_file]
 
 
+def check_path(path):
+    if not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+        print("creating out directory : " + path)
+
+
 def main():
     args = argparse.ArgumentParser(
         prog="filter_sample_cnvs.py", description="Filter cnvs bed file by: UG-CNV-LCR , blocklist , length"
@@ -169,7 +177,8 @@ def main():
 
     prefix = ""
     if args.out_prefix:
-        prefix = args.out_prefix
+        prefix = args.out_directory
+        prefix = prefix.rstrip("/") + "/"
     [out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(
         args.input_bed_file,
         args.intersection_cutoff,
