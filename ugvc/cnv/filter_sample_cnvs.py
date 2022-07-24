@@ -111,41 +111,43 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
     length_bed_file = filter_by_length(bed_file, length_cutoff, prefix)
 
     # merge all filters and sort
-    cmd = "cat " + lcr_bed_file + " " + black_bed_file + " " + length_bed_file + " > filters.annotate.unsorted.bed"
+    out_filters_unsorted = prefix + "filters.annotate.unsorted.bed"
+    cmd = "cat " + lcr_bed_file + " " + black_bed_file + " " + length_bed_file + " > " + out_filters_unsorted
     os.system(cmd)
-    cmd = bedtools + " sort -i filters.annotate.unsorted.bed > filters.annotate.bed"
+    out_filters_sorted = prefix + "filters.annotate.bed"
+    cmd = bedtools + " sort -i " + out_filters_unsorted + " > " + out_filters_sorted
     os.system(cmd)
-    cmd = bedtools + " sort -i " + bed_file + " > " + bed_file.rstrip(".bed") + ".sorted.bed"
+    out_bed_file_sorted = os.path.basename(bed_file).rstrip(".bed") + ".sorted.bed"
+    cmd = bedtools + " sort -i " + bed_file + " > " + out_bed_file_sorted
     os.system(cmd)
 
     # annotate bed files by filters
+    out_unsorted_annotate = os.path.basename(bed_file) + "unsorted.annotate.bed"
     cmd = (
         bedmap
         + " --echo --echo-map-id-uniq --delim '\\t' "
-        + bed_file.rstrip(".bed")
-        + ".sorted.bed"
-        + " filters.annotate.bed"
+        + out_bed_file_sorted
+        + " "
+        + out_filters_sorted
         + " > "
-        + bed_file.rstrip(".bed")
-        + "unsorted.annotate.bed"
+        + out_unsorted_annotate
     )
     os.system(cmd)
+    out_annotate = os.path.basename(bed_file) + ".annotate.bed"
     cmd = (
         "sort -k1,1V -k2,2n -k3,3n "
-        + bed_file.rstrip(".bed")
-        + "unsorted.annotate.bed > "
-        + bed_file.rstrip(".bed")
-        + ".annotate.bed"
+        + out_unsorted_annotate
+        + " > "
+        + out_annotate
     )
     os.system(cmd)
+    out_filtered = os.path.basename(bed_file) + "filter.bed"
     cmd = (
-        "cat " + bed_file.rstrip(".bed") + ".annotate.bed | awk '$5==\"\"' > " + bed_file.rstrip(".bed") + ".filter.bed"
+        "cat " + out_annotate + " | awk '$5==\"\"' > " + out_filtered
     )
     os.system(cmd)
 
-    out_annotate_file = bed_file.rstrip(".bed") + ".annotate.bed"
-    out_filtered_file = bed_file.rstrip(".bed") + ".filter.bed"
-    return [out_annotate_file, out_filtered_file]
+    return [out_annotate, out_filtered]
 
 
 def check_path(path):
@@ -176,7 +178,7 @@ def main():
     args = args.parse_args()
 
     prefix = ""
-    if args.out_prefix:
+    if args.out_directory:
         prefix = args.out_directory
         prefix = prefix.rstrip("/") + "/"
     [out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(
