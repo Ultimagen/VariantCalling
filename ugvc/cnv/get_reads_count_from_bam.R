@@ -27,4 +27,4 @@ bamDataRanges_RC <- getReadCountsFromBAM(args$input_bam_file, refSeqNames=refSeq
 saveRDS(bamDataRanges_RC, file = paste(args$base_file_name,".ReadCounts.rds",sep = ""))
 hdf5_out_file_name <- paste(args$base_file_name,".ReadCounts.hdf5",sep = "")
 h5createFile(hdf5_out_file_name)
-h5write(bamDataRanges_RC, hdf5_out_file_name,"bamDataRanges_RC")
+h5write(as.data.frame(bamDataRanges_RC), hdf5_out_file_name,"bamDataRanges_RC")
