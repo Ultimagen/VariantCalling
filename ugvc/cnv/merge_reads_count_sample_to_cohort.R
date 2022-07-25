@@ -12,15 +12,9 @@ args <- parser$parse_args()
 
 cohort_reads_count_file <- args$cohort_reads_count_file
 sample_reads_count_file <- args$sample_reads_count_file
-
-# load reads count Rdata file
-RC_obj<- readRDS(file = cohort_reads_count_file )
-gr1<-get(RC_obj)
-rm(RC_obj)
-
-RC_obj<-readRDS(file = sample_reads_count_file)
-gr2<-get(RC_obj)
-rm(RC_obj)
+# load reads count rds files
+gr1<- readRDS(file = cohort_reads_count_file )
+gr2<-readRDS(file = sample_reads_count_file)
 
 # merge sample to cohort
 merged_cohort_reads_count <- GRanges(
