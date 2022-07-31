@@ -35,7 +35,7 @@ cohort_reads_count_file <- args$cohort_reads_count_file
 min_width_val <- args$min_width_val
 cores <- args$parallel
 
-readRDS(file = cohort_reads_count_file) #variable name : merged_cohort_reads_count
+merged_cohort_reads_count <- readRDS(file = cohort_reads_count_file) #variable name : merged_cohort_reads_count
 
 resCNMOPS <- cn.mops(merged_cohort_reads_count,parallel=cores,minWidth = as.integer(min_width_val) )
 resCNMOPS_Int <-calcIntegerCopyNumbers(resCNMOPS)
