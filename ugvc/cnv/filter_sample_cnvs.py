@@ -1,7 +1,9 @@
 import argparse
+import logging
 import os
 import warnings
 
+from ugvc import logger
 from ugvc.vcfbed import filter_bed
 
 warnings.filterwarnings("ignore")
@@ -59,7 +61,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
 def check_path(path):
     if not os.path.exists(os.path.dirname(path)):
         os.makedirs(os.path.dirname(path))
-        print("creating out directory : " + path)
+        logger.info("creating out directory : " + path)
 
 
 def main():
@@ -84,8 +86,15 @@ def main():
         required=False,
         type=str,
     )
+    parser.add_argument(
+        "--verbosity",
+        help="Verbosity: ERROR, WARNING, INFO, DEBUG",
+        required=False,
+        default="INFO",
+    )
 
     args = parser.parse_args()
+    logger.setLevel(getattr(logging, args.verbosity))
 
     prefix = ""
     if args.out_directory:
@@ -101,9 +110,9 @@ def main():
         args.min_cnv_length,
     )
 
-    print("output files:")
-    print(out_annotate_bed_file)
-    print(out_filtered_bed_file)
+    logger.info("output files:")
+    logger.info(out_annotate_bed_file)
+    logger.info(out_filtered_bed_file)
 
 
 if __name__ == "__main__":
