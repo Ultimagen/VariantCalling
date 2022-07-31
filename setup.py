@@ -25,7 +25,7 @@ setup(
         "ugvc/pipelines/sec/correct_systematic_errors.py",
         "ugvc/pipelines/sec/sec_training.py",
         "ugvc/scripts/convert_h5_to_json.py",
-        "ugvc/vcfbed/filter_bed.py",
+        "ugvc/cnv/filter_sample_cnvs.py",
     ],
     package_data={
         "ugvc": [
