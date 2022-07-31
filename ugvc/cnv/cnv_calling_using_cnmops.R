@@ -35,7 +35,6 @@ cohort_reads_count_file <- args$cohort_reads_count_file
 min_width_val <- args$min_width_val
 cores <- args$parallel
 
-#load(cohort_reads_count_file)
 readRDS(file = cohort_reads_count_file) #variable name : merged_cohort_reads_count
 
 resCNMOPS <- cn.mops(merged_cohort_reads_count,parallel=cores,minWidth = as.integer(min_width_val) )
@@ -65,6 +64,3 @@ h5write(df_inicall, hdf5_out_file_name,"df_inicall")
 df_integer_copy_number<-as.data.frame(integerCopyNumber(resCNMOPS_Int))
 h5write(df_integer_copy_number, hdf5_out_file_name,"df_integer_copy_number")
 #write.csv(integerCopyNumber_df,"cohort.cnmops.integerCopyNumber.csv",row.names = FALSE, quote=FALSE)
-
-
-
