@@ -61,10 +61,19 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
 def check_path(path):
     if not os.path.exists(os.path.dirname(path)):
         os.makedirs(os.path.dirname(path))
-        logger.info("creating out directory : " + path)
+        logger.info("creating out directory : %s", path)
 
 
-def main():
+def run():
+    """
+    Given a bed file, this script will filter it by :
+    1. lcr bed (UG-CNV-LCR) file
+    2. blocklist
+    3. length
+    output consists of 2 files:
+    - annotated bed file with filtering tags
+    - filtered bed file
+    """
     parser = argparse.ArgumentParser(
         prog="filter_sample_cnvs.py", description="Filter cnvs bed file by: UG-CNV-LCR , blocklist , length"
     )
@@ -116,4 +125,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run()
