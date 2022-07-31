@@ -12,6 +12,7 @@ path = f"{dirname(dirname(__file__))}"
 if path not in sys.path:
     sys.path.insert(0, path)
 
+from ugvc.cnv import filter_sample_cnvs
 from ugvc.pipelines import (
     coverage_analysis,
     evaluate_concordance,
@@ -41,6 +42,7 @@ modules = [
     filter_variants_pipeline,
     run_comparison_pipeline,
     train_models_pipeline,
+    filter_sample_cnvs,
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]

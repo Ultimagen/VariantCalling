@@ -7,11 +7,13 @@ RUN apt-get install nano
 COPY setup/environment.yml /VariantCalling/setup/
 COPY setup/other_envs/cutadapt.yml /VariantCalling/setup/other_envs/
 COPY setup/other_envs/ucsc.yml /VariantCalling/setup/other_envs/
+COPY setup/other_envs/cnmops.yml /VariantCalling/setup/other_envs/
 
 RUN conda update -n base -c defaults conda && \
     conda env create -f /VariantCalling/setup/environment.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cutadapt.yml && \
     conda env create -f /VariantCalling/setup/other_envs/ucsc.yml && \
+    conda env create -f /VariantCalling/setup/other_envs/cnmops.yml && \
     conda init --all
 
 RUN source ~/.bashrc && \
