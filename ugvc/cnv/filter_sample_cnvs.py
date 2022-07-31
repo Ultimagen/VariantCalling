@@ -4,87 +4,123 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-# bedtools = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/bedtools"
-# bedmap = "/home/ubuntu/miniconda3/envs/genomics.py3/bin/bedmap"
-
 bedtools = "bedtools"
 bedmap = "bedmap"
 
 
-def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
-    out_filename = os.path.basename(bed_file)
-    out_lcr_file = prefix + out_filename.rstrip(".bed") + ".lcr.bed"
-    cmd = bedtools + " subtract -N -f " + str(lcr_cutoff) + " -a " + bed_file + " -b " + lcr_file + " > " + out_lcr_file
-
-    os.system(cmd)
-    out_lcr_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".lcr.filtered_out.bed"
+def filter_by_bed_file(in_bed_file, filtration_cutoff, filtering_bed_file, prefix, tag):
+    out_filename = os.path.basename(in_bed_file)
+    out_filtered_bed_file = prefix + out_filename.rstrip(".bed") + "." + tag + ".bed"
     cmd = (
         bedtools
         + " subtract -N -f "
-        + str(lcr_cutoff)
+        + str(filtration_cutoff)
         + " -a "
-        + bed_file
+        + in_bed_file
         + " -b "
-        + out_lcr_file
+        + filtering_bed_file
         + " > "
-        + out_lcr_filtered_out_file
+        + out_filtered_bed_file
     )
 
     os.system(cmd)
-    out_lcr_annotate_file = prefix + out_filename.rstrip(".bed") + ".lcr.annotate.bed"
-    cmd = (
-        "cat "
-        + out_lcr_filtered_out_file
-        + ' | awk \'{print $1"\t"$2"\t"$3"\tUG-CNV-LCR"}\' > '
-        + out_lcr_annotate_file
-    )
-
-    os.system(cmd)
-
-    return out_lcr_annotate_file
-
-
-def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
-    out_filename = os.path.basename(bed_file)
-    out_blocklist_file = prefix + out_filename.rstrip(".bed") + ".blocklist.bed"
+    filtered_out_records = prefix + out_filename.rstrip(".bed") + "." + tag + ".filtered_out.bed"
     cmd = (
         bedtools
         + " subtract -N -f "
-        + str(diff_cutoff)
+        + str(filtration_cutoff)
         + " -a "
-        + bed_file
+        + in_bed_file
         + " -b "
-        + diff_bed_file
+        + out_filtered_bed_file
         + " > "
-        + out_blocklist_file
-    )
-    out_blocklist_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".blocklist.filtered_out.bed"
-
-    os.system(cmd)
-    cmd = (
-        bedtools
-        + " subtract -N -f "
-        + str(diff_cutoff)
-        + " -a "
-        + bed_file
-        + " -b "
-        + out_blocklist_file
-        + " > "
-        + out_blocklist_filtered_out_file
+        + filtered_out_records
     )
 
     os.system(cmd)
-    out_blocklist_annotate_file = prefix + out_filename.rstrip(".bed") + ".blocklist.annotate.bed"
-    cmd = (
-        "cat "
-        + out_blocklist_filtered_out_file
-        + ' | awk \'{print $1"\t"$2"\t"$3"\tBLOCKLIST"}\' > '
-        + out_blocklist_annotate_file
-    )
+    out_annotate_file = prefix + out_filename.rstrip(".bed") + "." + tag + ".annotate.bed"
+    cmd = "cat " + filtered_out_records + ' | awk \'{print $1"\t"$2"\t"$3"\tUG-CNV-LCR"}\' > ' + out_annotate_file
 
     os.system(cmd)
 
-    return out_blocklist_annotate_file
+    return out_annotate_file
+
+
+# def filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix):
+#     out_filename = os.path.basename(bed_file)
+#     out_lcr_file = prefix + out_filename.rstrip(".bed") + ".lcr.bed"
+#     cmd = bedtools + " subtract -N -f " + str(lcr_cutoff) + " -a " + bed_file + " -b " + lcr_file +\
+#     " > " + out_lcr_file
+#
+#     os.system(cmd)
+#     out_lcr_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".lcr.filtered_out.bed"
+#     cmd = (
+#         bedtools
+#         + " subtract -N -f "
+#         + str(lcr_cutoff)
+#         + " -a "
+#         + bed_file
+#         + " -b "
+#         + out_lcr_file
+#         + " > "
+#         + out_lcr_filtered_out_file
+#     )
+#
+#     os.system(cmd)
+#     out_lcr_annotate_file = prefix + out_filename.rstrip(".bed") + ".lcr.annotate.bed"
+#     cmd = (
+#         "cat "
+#         + out_lcr_filtered_out_file
+#         + ' | awk \'{print $1"\t"$2"\t"$3"\tUG-CNV-LCR"}\' > '
+#         + out_lcr_annotate_file
+#     )
+#
+#     os.system(cmd)
+#
+#     return out_lcr_annotate_file
+
+
+# def filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix):
+#     out_filename = os.path.basename(bed_file)
+#     out_blocklist_file = prefix + out_filename.rstrip(".bed") + ".blocklist.bed"
+#     cmd = (
+#         bedtools
+#         + " subtract -N -f "
+#         + str(diff_cutoff)
+#         + " -a "
+#         + bed_file
+#         + " -b "
+#         + diff_bed_file
+#         + " > "
+#         + out_blocklist_file
+#     )
+#     out_blocklist_filtered_out_file = prefix + out_filename.rstrip(".bed") + ".blocklist.filtered_out.bed"
+#
+#     os.system(cmd)
+#     cmd = (
+#         bedtools
+#         + " subtract -N -f "
+#         + str(diff_cutoff)
+#         + " -a "
+#         + bed_file
+#         + " -b "
+#         + out_blocklist_file
+#         + " > "
+#         + out_blocklist_filtered_out_file
+#     )
+#
+#     os.system(cmd)
+#     out_blocklist_annotate_file = prefix + out_filename.rstrip(".bed") + ".blocklist.annotate.bed"
+#     cmd = (
+#         "cat "
+#         + out_blocklist_filtered_out_file
+#         + ' | awk \'{print $1"\t"$2"\t"$3"\tBLOCKLIST"}\' > '
+#         + out_blocklist_annotate_file
+#     )
+#
+#     os.system(cmd)
+#
+#     return out_blocklist_annotate_file
 
 
 def filter_by_length(bed_file, length_cutoff, prefix):
@@ -102,8 +138,10 @@ def filter_by_length(bed_file, length_cutoff, prefix):
 
 def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, prefix, length_cutoff=10000):
     # get filters regions
-    lcr_bed_file = filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix)
-    black_bed_file = filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix)
+    # lcr_bed_file = filter_by_lcr(bed_file, lcr_cutoff, lcr_file, prefix)
+    lcr_bed_file = filter_by_bed_file(bed_file, lcr_cutoff, lcr_file, prefix, "lcr")
+    # black_bed_file = filter_by_blocklist(bed_file, diff_cutoff, diff_bed_file, prefix)
+    black_bed_file = filter_by_bed_file(bed_file, diff_cutoff, diff_bed_file, prefix, "blocklist")
     length_bed_file = filter_by_length(bed_file, length_cutoff, prefix)
 
     # merge all filters and sort

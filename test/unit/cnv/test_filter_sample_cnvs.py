@@ -1,11 +1,9 @@
 import filecmp
-import os
-import unittest
 from os.path import join as pjoin
-from test import get_resource_dir, test_dir
+from test import get_resource_dir
+
 from ugvc.cnv.filter_sample_cnvs import annotate_bed
 
-#class TestFilterSampleCnvs(unittest.TestCase):
 
 class TestFilterSampleCnvs:
     inputs_dir = get_resource_dir(__file__)
@@ -19,17 +17,16 @@ class TestFilterSampleCnvs:
         intersection_cutoff = 0.5
         min_cnv_length = 10000
         prefix = f"{tmpdir}/"
-        #os.chdir(tmpdir)
-        print(tmpdir)
-        [out_annotate_file, out_filtered_file] = annotate_bed(input_bed_file, intersection_cutoff,
-                                                              coverage_lcr_file, intersection_cutoff,
-                                                              blocklist, prefix, min_cnv_length)
+
+        [out_annotate_file, out_filtered_file] = annotate_bed(
+            input_bed_file,
+            intersection_cutoff,
+            coverage_lcr_file,
+            intersection_cutoff,
+            blocklist,
+            prefix,
+            min_cnv_length,
+        )
 
         assert filecmp.cmp(out_filtered_file, expected_out_filtered_bed_file)
         assert filecmp.cmp(out_annotate_file, expected_out_annotate_bed_file)
-#        self.assertTrue(filecmp.cmp(out_filtered_file, expected_out_filtered_bed_file),
-#                        'filtered cnvs list is not identical to expected list')
-#        self.assertTrue(filecmp.cmp(out_annotate_file, expected_out_annotate_bed_file),
-#                        'annotate cnvs list is not identical to expected list')
-
-        
