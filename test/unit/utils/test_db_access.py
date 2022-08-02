@@ -70,3 +70,9 @@ class TestDBAccess:
         all_inputs = pd.concat((db_access.metrics2df(x, metrics_to_report) for x in docs), axis=0)
 
         assert all_inputs.equals(pd.read_hdf(pjoin(self.input_dir, "expected_metrics_df.h5"), key="df"))
+
+    def test_read_nexus_inputs(self):
+        docs = db_access.query_database({"metadata_sequencingRunId": "011776"}, collection="samples")
+        assert len(docs) == 23
+        df = pd.concat(db_access.nexus_metrics_to_df(x) for x in docs)
+        assert df.equals(pd.read_hdf(pjoin(self.input_dir, "expected_nexus_df.h5"), key="df"))
