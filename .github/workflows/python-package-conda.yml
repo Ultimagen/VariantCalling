@@ -27,6 +27,7 @@ jobs:
         run: |
           conda env update --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadapt.yml --name cutadapt
+          conda env create --file setup/other_envs/cnmops.yml
           conda env update --file setup/environment.yml --name base
       - name: Install as a package
         run: |
