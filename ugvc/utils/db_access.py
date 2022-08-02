@@ -8,9 +8,18 @@ from __future__ import annotations
 import json
 import os
 import warnings
+from enum import Enum
+from typing import Any
 
 import pandas as pd
 import pymongo
+
+
+class Collections(Enum):
+    CROMWELL = "pipelines"
+    RUNS = "runs"
+    SAMPLES = "samples"
+    EXECUTIONS = "executions"
 
 
 def initialize_client() -> pymongo.MongoClient:
@@ -34,7 +43,11 @@ DISABLE_PAPYRUS_ACCESS = False
 if "PAPYRUS_ACCESS_STRING" in os.environ:
     my_client = initialize_client()
     my_db = my_client["pipelines"]
-    my_collection = my_db["pipelines"]
+    collections = {}
+    collections[Collections.CROMWELL] = my_db["pipelines"]
+    collections[Collections.RUNS] = my_db["runs"]
+    collections[Collections.EXECUTIONS] = my_db["runs.executions"]
+    collections[Collections.SAMPLES] = my_db["runs.executions.samples"]
 else:
     warnings.warn("Define PAPYRUS_ACCESS_STRING environmental variable to enable access to Papyrus")
     warnings.warn(
@@ -43,7 +56,7 @@ else:
     DISABLE_PAPYRUS_ACCESS = True
 
 
-def query_database(query: dict) -> list:
+def query_database(query: dict, collection: str = "pipelines", **kwargs: Any) -> list:
     """Querying pipelines database. For easy access
     Define PAPYRUS_ACCESS_STRING environmental variable
     Example: export PAPYRUS_ACCESS_STRING=mongodb+srv://[user]:[passwd]@testcluster.jm2x3.mongodb.net/test
@@ -52,6 +65,10 @@ def query_database(query: dict) -> list:
     ----------
     query : dict
         Pymongo query (dictionary)
+    collection: str
+        Supported - 'pipelines' (default), 'runs', 'executions', samples'
+    **kwargs: Any
+        kwargs to pass to pymongo.find
 
     Returns
     -------
@@ -60,7 +77,7 @@ def query_database(query: dict) -> list:
     """
 
     assert not DISABLE_PAPYRUS_ACCESS, "Database access not available through PAPYRUS_ACCESS_STRING"
-    return list(my_collection.find(query))
+    return list(collections[Collections(collection)].find(query, **kwargs))
 
 
 DEFAULT_METRICS_TO_REPORT = [
@@ -136,6 +153,26 @@ def inputs2df(doc: dict) -> pd.DataFrame:
     inputs = pd.Series(doc["inputs"])
     outputs = pd.Series(doc["outputs"])
     return pd.DataFrame(pd.concat((metadata, inputs, outputs))).T.set_index("workflowId")
+
+
+def nexus_metrics_to_df(input_dict: dict) -> pd.DataFrame:
+    """Returns a dataframe of nexus metrics from run/execution/sample documentation
+
+    Parameters
+    ----------
+    input_dict: dict
+        Dictionary from mongoDB
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe of parameters
+    """
+    s = pd.Series(input_dict).drop("_id")
+    values = s.values
+    index = pd.MultiIndex.from_tuples([x.split("_") for x in s.index])
+    name = s["metadata_sequencingRunId"]
+    return pd.DataFrame(columns=[name], index=index, data=values).T
 
 
 def _cleanup_metadata(input_dict: dict) -> dict:
