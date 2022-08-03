@@ -94,12 +94,14 @@ def calc_accuracy_metrics(
     df = validate_preprocess_concordance(df, group_testing_column_name)
     trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
     # calc recall,precision, f1 per variant category
-    accuracy_df = variant_filtering_utils.test_decision_tree_model(df, trivial_classifier_set, classify_column_name)
+    accuracy_df = variant_filtering_utils.eval_decision_tree_model(
+        df, trivial_classifier_set, classify_column_name, group_testing_column_name is None
+    )
 
     # Add summary for indels
     df_indels = df.copy()
     df_indels["group_testing"] = np.where(df_indels["indel"], "INDELS", "SNP")
-    all_indels = variant_filtering_utils.test_decision_tree_model(
+    all_indels = variant_filtering_utils.eval_decision_tree_model(
         df_indels,
         trivial_classifier_set,
         classify_column_name,
@@ -149,7 +151,7 @@ def calc_recall_precision_curve(
     df = validate_preprocess_concordance(df, group_testing_column_name)
     trivial_classifier_set = initialize_trivial_classifier(ignored_filters)
     recall_precision_curve_df = variant_filtering_utils.get_decision_tree_pr_curve(
-        df, trivial_classifier_set, classify_column_name
+        df, trivial_classifier_set, classify_column_name, group_testing_column_name is None
     )
 
     # Add summary for indels
@@ -200,7 +202,7 @@ def validate_preprocess_concordance(df: DataFrame, group_testing_column_name: st
         )
         df.loc[pd.isnull(df["tree_score"]), "tree_score"] = 0
 
-    # set for compatability with test_decision_tree_model
+    # set for compatability with eval_decision_tree_model
     df["group"] = "all"
     df["test_train_split"] = False
 
