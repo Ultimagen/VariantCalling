@@ -131,6 +131,7 @@ class TestConcordanceUtils(unittest.TestCase):
             "precision": 1.0,
             "recall": np.round(n_tp / (n_tp + n_fn), 5),
             "f1": np.round(get_f1(n_tp / (n_tp + n_fn), 1.0), 5),
+            "threshold": 0.5
         }
         # DataFrame dict contains index->value dictionaries per each column
         expected_indels = {"group": {7: "INDELS"}}

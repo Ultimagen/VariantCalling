@@ -1099,7 +1099,7 @@ def train_model_wrapper(
     )
 
 
-def test_decision_tree_model(
+def eval_decision_tree_model(
     concordance: pd.DataFrame,
     model: MaskedHierarchicalModel,
     classify_column: str,
@@ -1133,7 +1133,6 @@ def test_decision_tree_model(
     else:
         assert "group_testing" in concordance.columns, "group_testing column should be given"
         groups = list(set(concordance["group_testing"]))
-
     # get filter status as True='tp' False='fp'
     predictions = model.predict(df=concordance, mask_column=classify_column)
 
@@ -1273,29 +1272,16 @@ def get_decision_tree_pr_curve(
         groups = list(set(concordance["group_testing"]))
 
     predictions = model.predict(concordance, classify_column, get_numbers=True)
-    accuracy_df = pd.DataFrame(
-        columns=[
-            "group",
-            "predictions",
-            "precision",
-            "recall",
-            "f1",
-        ]
-    )
+    accuracy_df = pd.DataFrame(columns=["group", "predictions", "precision", "recall", "f1", "threshold"])
 
+    MIN_EXAMPLE_COUNT = 20
     for g_val in groups:
         select = (concordance["group_testing"] == g_val) & (~concordance["test_train_split"])
-
+        logger.debug(f"{g_val}: {select.sum()}")
         if select.sum() == 0:
-            accuracy_df = accuracy_df.append(
-                {
-                    "group": g_val,
-                    "predictions": [],
-                    "precision": [],
-                    "recall": [],
-                    "f1": [],
-                },
-                ignore_index=True,
+            logger.debug(f"appending empty recall precision for {g_val}")
+            accuracy_df = pd.concat(
+                (accuracy_df, pd.DataFrame(pd.Series(get_empty_recall_precision_curve(g_val))).T),
             )
             continue
 
@@ -1310,19 +1296,32 @@ def get_decision_tree_pr_curve(
             np.array(group_predictions),
             fn_mask=(classification == "fn"),
             pos_label="tp",
+            min_class_counts_to_output=MIN_EXAMPLE_COUNT,
         )
 
         precision, recall, f1_val, prediction_values = curve
+        if len(f1_val) > 0:
+            threshold_loc = np.argmax(f1_val)
+            threshold = prediction_values[threshold_loc]
+        else:
+            threshold = 0
 
-        accuracy_df = accuracy_df.append(
-            {
-                "group": g_val,
-                "predictions": prediction_values,
-                "precision": precision,
-                "recall": recall,
-                "f1": f1_val,
-            },
-            ignore_index=True,
+        accuracy_df = pd.concat(
+            (
+                accuracy_df,
+                pd.DataFrame(
+                    pd.Series(
+                        {
+                            "group": g_val,
+                            "predictions": prediction_values,
+                            "precision": precision,
+                            "recall": recall,
+                            "f1": f1_val,
+                            "threshold": threshold,
+                        }
+                    )
+                ).T,
+            ),
         )
 
     return accuracy_df
@@ -1330,12 +1329,7 @@ def get_decision_tree_pr_curve(
 
 def get_empty_recall_precision_curve(category: str) -> dict:
     """Return empty recall precision curve dictionary for category given"""
-    return {
-        "group": category,
-        "precision": [],
-        "recall": [],
-        "f1": [],
-    }
+    return {"group": category, "predictions": [], "precision": [], "recall": [], "f1": [], "threshold": 0}
 
 
 def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) -> tuple:
@@ -1362,7 +1356,7 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
         models[g_val] = SingleModel({}, {})
     result = MaskedHierarchicalModel("unfiltered", "group", models)
     concordance["test_train_split"] = np.zeros(concordance.shape[0], dtype=np.bool)
-    recalls_precisions = test_decision_tree_model(concordance, result, classify_column)
+    recalls_precisions = eval_decision_tree_model(concordance, result, classify_column)
     return result, recalls_precisions
 
 

@@ -110,7 +110,8 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, chromosome: str = None, s
         "STR",
         "AVERAGE_TREE_SCORE",
         "VQSLOD",
-        "BLACKLST"
+        "BLACKLST",
+        "SCORE"
     ]
 
     if scoring_field is not None and scoring_field not in columns:

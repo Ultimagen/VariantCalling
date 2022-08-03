@@ -184,7 +184,7 @@ def run(argv: list[str]):
             df = pd.concat(df, axis=0)
 
         # Reset the FILTER and TREE_SCORE fields
-        df["filter"] = ''
+        df["filter"] = ""
         df["tree_score"] = None
 
         df, annots = vcf_pipeline_utils.annotate_concordance(
@@ -228,7 +228,7 @@ def run(argv: list[str]):
             vtype=args.vcf_type,
         )
 
-        recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(
+        recall_precision_no_gt = variant_filtering_utils.eval_decision_tree_model(
             df_tmp, models_thr_no_gt, classify_column=classify_clm
         )
 
@@ -236,7 +236,7 @@ def run(argv: list[str]):
             df_tmp, models_thr_no_gt, classify_column=classify_clm
         )
         df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
-        recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
+        recall_precision_no_gt_train = variant_filtering_utils.eval_decision_tree_model(
             df_tmp, models_thr_no_gt, classify_column=classify_clm
         )
 
@@ -267,14 +267,14 @@ def run(argv: list[str]):
             vtype=args.vcf_type,
         )
 
-        recall_precision_no_gt = variant_filtering_utils.test_decision_tree_model(df_tmp, models_rf_no_gt, classify_clm)
+        recall_precision_no_gt = variant_filtering_utils.eval_decision_tree_model(df_tmp, models_rf_no_gt, classify_clm)
 
         recall_precision_curve_no_gt = variant_filtering_utils.get_decision_tree_pr_curve(
             df_tmp, models_rf_no_gt, classify_clm
         )
 
         df_tmp["test_train_split"] = ~df_tmp["test_train_split"]
-        recall_precision_no_gt_train = variant_filtering_utils.test_decision_tree_model(
+        recall_precision_no_gt_train = variant_filtering_utils.eval_decision_tree_model(
             df_tmp, models_rf_no_gt, classify_clm
         )
 
@@ -321,7 +321,7 @@ def run(argv: list[str]):
                 calls_df = pd.read_hdf(args.input_file, "concordance")
 
             # Reset the FILTER and TREE_SCORE columns
-            calls_df["filter"] = ''
+            calls_df["filter"] = ""
             calls_df["tree_score"] = None
 
             calls_df, _ = vcf_pipeline_utils.annotate_concordance(

@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 
 from pandas import DataFrame
 
+from ugvc import logger
 from ugvc.comparison.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve, read_hdf
 from ugvc.vcfbed import vcftools
-from ugvc import logger
 
 
 def parse_args(argv: list[str]):
@@ -32,6 +33,7 @@ def parse_args(argv: list[str]):
     ap_var.add_argument("--input_file", help="Name of the input h5 file", type=str, required=True)
     ap_var.add_argument("--output_prefix", help="Prefix to output files", type=str, required=True)
     ap_var.add_argument("--dataset_key", help="h5 dataset name, such as chromosome name", default="all")
+    ap_var.add_argument("--score_key", help="info key name for calculating the score", default="tree_score")
     ap_var.add_argument(
         "--ignore_genotype",
         help="ignore genotype when comparing to ground-truth",
@@ -54,6 +56,12 @@ def parse_args(argv: list[str]):
         help="Column in the h5 to use for grouping (or generate default groupings)",
         type=str,
     )
+    ap_var.add_argument(
+        "--verbosity",
+        help="Verbosity: ERROR, WARNING, INFO, DEBUG",
+        required=False,
+        default="INFO",
+    )
 
     args = ap_var.parse_args(argv)
     return args
@@ -62,6 +70,7 @@ def parse_args(argv: list[str]):
 def run(argv: list[str]):
     """Calculate precision and recall for compared HDF5"""
     args = parse_args(argv)
+    logger.setLevel(getattr(logging, args.verbosity))
     ds_key = args.dataset_key
     out_pref = args.output_prefix
     ignore_genotype = args.ignore_genotype
@@ -77,20 +86,25 @@ def run(argv: list[str]):
     df: DataFrame = read_hdf(args.input_file, key=ds_key, skip_keys=skip)
 
     # Enable evaluating concordance from vcf without tree-score field
-    if "tree_score" not in df.columns or all(df["tree_score"].isna()):
-        df["tree_score"] = 1
-        logger.warning('No tree-score field in comparison hdf input, expect invalid recall/precision curves')
+    score_column = args.score_key.lower()
+    if score_column not in df.columns or all(df[score_column].isna()):
+        df[score_column] = 1
+        logger.warning(f"No {score_column} field in comparison hdf input, expect invalid recall/precision curves")
 
+    # TODO: make selection of the scoring column cleaner. Currently tree_score is hard coded as a scoring column in
+    #       multiple places, and it was too much work to convert it.
+    df["tree_score"] = df[score_column]
     classify_column = "classify" if ignore_genotype else "classify_gt"
 
     accuracy_df = calc_accuracy_metrics(df, classify_column, ignored_filters, group_testing_column)
     accuracy_df.to_hdf(f"{out_pref}.h5", key="optimal_recall_precision")
     accuracy_df.to_csv(f"{out_pref}.stats.csv", sep=";", index=False)
 
-    recall_precision_curve_df = calc_recall_precision_curve(df, classify_column, ignored_filters)
+    recall_precision_curve_df = calc_recall_precision_curve(df, classify_column, ignored_filters, group_testing_column)
     recall_precision_curve_df.to_hdf(f"{out_pref}.h5", key="recall_precision_curve")
     if output_bed:
         vcftools.bed_files_output(df, f"{out_pref}.h5", mode="w", create_gt_diff=True)
+    recall_precision_curve_df[["group", "threshold"]].to_csv(f"{out_pref}.thresholds.csv", index=None)
 
 
 if __name__ == "__main__":
