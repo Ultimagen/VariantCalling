@@ -27,6 +27,7 @@ def pipeline(  # pylint: disable=too-many-arguments
     runs_intervals: IntervalFile | None = None,
     output_suffix: str | None = None,
     ignore_filter: bool = False,
+    revert_hom_ref: bool = False,
     concordance_tool: str = CONCORDANCE_TOOL,
 ) -> tuple[str, str]:
     """
@@ -71,6 +72,8 @@ def pipeline(  # pylint: disable=too-many-arguments
     ignore_filter : bool, optional
         Should the filter status **of calls only** be ignored. Filter status of truth is always
         taken into account
+    revert_hom_ref : bool, optional
+        Should the hom ref calls filtered out be reverted (deepVariant only)
     concordance_tool : str, optional
         GC - GenotypeConcordance (picard) or VCFEVAL (default)
 
@@ -109,14 +112,25 @@ def pipeline(  # pylint: disable=too-many-arguments
         shutil.copy(".".join((output_fn, "tbi")), ".".join((reheader_fn, "tbi")))
 
     if not output_suffix:
+        revert_fn = pjoin(output_dir, input_prefix_basename + ".rev.hom.ref.vcf.gz")
+    else:
+        revert_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.rev.hom.ref.vcf.gz")
+
+    if revert_hom_ref:
+        vpu.reverse_hom_calls(reheader_fn)
+    else:
+        shutil.copy(reheader_fn, revert_fn)
+        shutil.copy(".".join((reheader_fn, "tbi")), ".".join((revert_fn, "tbi")))
+
+    if not output_suffix:
         select_intervals_fn = pjoin(output_dir, input_prefix_basename + ".intsct.vcf.gz")
     else:
         select_intervals_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.intsct.vcf.gz")
 
     if not cmp_intervals.is_none():
-        vpu.intersect_with_intervals(reheader_fn, cmp_intervals.as_interval_list_file(), select_intervals_fn)
+        vpu.intersect_with_intervals(revert_fn, cmp_intervals.as_interval_list_file(), select_intervals_fn)
     else:
-        shutil.copy(reheader_fn, select_intervals_fn)
+        shutil.copy(revert_fn, select_intervals_fn)
         vpu.index_vcf(select_intervals_fn)
 
     if output_file_name is None:
