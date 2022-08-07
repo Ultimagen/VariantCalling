@@ -1,6 +1,7 @@
+import shutil
 import subprocess
 from collections import Counter
-from os.path import exists
+from os.path import basename, exists
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
@@ -9,6 +10,7 @@ import pysam
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, bed_file_length, vcf2concordance
+from ugvc.vcfbed import vcftools
 
 inputs_dir = get_resource_dir(__file__)
 common_dir = pjoin(test_dir, "resources", "general")
@@ -39,6 +41,23 @@ def test_fix_errors():
             axis=1,
         )
     )
+
+
+def test_reverse_hom_ref(tmpdir):
+    input_vcf = pjoin(inputs_dir, "dv.input.vcf.gz")
+    vpu = VcfPipelineUtils()
+    shutil.copyfile(input_vcf, pjoin(tmpdir, basename(input_vcf)))
+    vpu.reverse_hom_calls(pjoin(tmpdir, basename(input_vcf)))
+    expected_output_file = pjoin(tmpdir, basename(input_vcf).replace(".vcf.gz", ".rev.hom.ref.vcf.gz.tbi"))
+    assert exists(expected_output_file)
+    expected_output_file = pjoin(tmpdir, basename(input_vcf).replace(".vcf.gz", ".rev.hom.ref.vcf.gz"))
+    assert exists(expected_output_file)
+    input_df = vcftools.get_vcf_df(input_vcf)
+    select = (input_df["filter"] != "PASS") & ((input_df["gt"] == (0, 0)) | (input_df["gt"] == (None, None)))
+    assert select.sum() > 0
+    input_df = vcftools.get_vcf_df(expected_output_file)
+    select = (input_df["filter"] != "PASS") & ((input_df["gt"] == (0, 0)) | (input_df["gt"] == (None, None)))
+    assert select.sum() == 0
 
 
 class TestVCF2Concordance:
