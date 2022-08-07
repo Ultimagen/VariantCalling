@@ -286,17 +286,18 @@ class VcfPipelineUtils:
             runs_file_name += ".gz"
             self.index_vcf(runs_file_name)
 
-    def reverse_hom_calls(self, input_file_calls: str) -> None:
+    def reverse_hom_calls(self, input_file_calls: str, output_file_calls: str) -> None:
         """Reverse homozygous reference calls in deepVariant to filtered dheterozygous so that max recall can be
         calculated
 
         Parameters
         ----------
         input_file_calls : str
-            Input file
+            Input file name
+        output_file_calls : str
+            Output file name
         """
 
-        output_file_calls = input_file_calls.replace(".vcf.gz", ".rev.hom.ref.vcf.gz")
         with pysam.VariantFile(input_file_calls) as input_file:
             with pysam.VariantFile(output_file_calls, "w", header=input_file.header) as output_file:
                 for rec in input_file:

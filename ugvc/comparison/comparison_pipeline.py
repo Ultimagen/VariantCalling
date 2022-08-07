@@ -117,7 +117,7 @@ def pipeline(  # pylint: disable=too-many-arguments
         revert_fn = pjoin(output_dir, input_prefix_basename + f".{output_suffix}.rev.hom.ref.vcf.gz")
 
     if revert_hom_ref:
-        vpu.reverse_hom_calls(reheader_fn)
+        vpu.reverse_hom_calls(reheader_fn, revert_fn)
     else:
         shutil.copy(reheader_fn, revert_fn)
         shutil.copy(".".join((reheader_fn, "tbi")), ".".join((revert_fn, "tbi")))
