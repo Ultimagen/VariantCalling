@@ -47,11 +47,12 @@ def test_reverse_hom_ref(tmpdir):
     input_vcf = pjoin(inputs_dir, "dv.input.vcf.gz")
     vpu = VcfPipelineUtils()
     shutil.copyfile(input_vcf, pjoin(tmpdir, basename(input_vcf)))
-    vpu.reverse_hom_calls(pjoin(tmpdir, basename(input_vcf)))
-    expected_output_file = pjoin(tmpdir, basename(input_vcf).replace(".vcf.gz", ".rev.hom.ref.vcf.gz.tbi"))
-    assert exists(expected_output_file)
     expected_output_file = pjoin(tmpdir, basename(input_vcf).replace(".vcf.gz", ".rev.hom.ref.vcf.gz"))
+    expected_output_index_file = pjoin(tmpdir, basename(input_vcf).replace(".vcf.gz", ".rev.hom.ref.vcf.gz.tbi"))
+
+    vpu.reverse_hom_calls(pjoin(tmpdir, basename(input_vcf)), expected_output_file)
     assert exists(expected_output_file)
+    assert exists(expected_output_index_file)
     input_df = vcftools.get_vcf_df(input_vcf)
     select = (input_df["filter"] != "PASS") & ((input_df["gt"] == (0, 0)) | (input_df["gt"] == (None, None)))
     assert select.sum() > 0
