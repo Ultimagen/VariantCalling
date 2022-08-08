@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import sys
 import warnings
 
 from ugvc import logger
@@ -12,15 +13,14 @@ bedtools = "bedtools"
 bedmap = "bedmap"
 
 
-def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, prefix, length_cutoff=10000):
+def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
     # get filters regions
     lcr_bed_file = filter_bed.filter_by_bed_file(bed_file, lcr_cutoff, lcr_file, prefix, "lcr")
-    black_bed_file = filter_bed.filter_by_bed_file(bed_file, diff_cutoff, diff_bed_file, prefix, "blocklist")
     length_bed_file = filter_bed.filter_by_length(bed_file, length_cutoff, prefix)
 
     # merge all filters and sort
     out_filters_unsorted = prefix + "filters.annotate.unsorted.bed"
-    cmd = "cat " + lcr_bed_file + " " + black_bed_file + " " + length_bed_file + " > " + out_filters_unsorted
+    cmd = "cat " + lcr_bed_file + " " + length_bed_file + " > " + out_filters_unsorted
 
     os.system(cmd)
     out_filters_sorted = prefix + "filters.annotate.bed"
@@ -51,7 +51,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, diff_cutoff, diff_bed_file, pre
 
     os.system(cmd)
     out_filtered = prefix + os.path.basename(bed_file).rstrip(".bed") + ".filter.bed"
-    cmd = "cat " + out_annotate + " | awk '$5==\"\"' > " + out_filtered
+    cmd = "cat " + out_annotate + " | awk '$5==\"\"' | cut -f1-4 > " + out_filtered
 
     os.system(cmd)
 
@@ -64,18 +64,17 @@ def check_path(path):
         logger.info("creating out directory : %s", path)
 
 
-def run():
+def run(argv):
     """
     Given a bed file, this script will filter it by :
-    1. lcr bed (UG-CNV-LCR) file
-    2. blocklist
+    1. lcr bed (ug_cnv_lcr) file
     3. length
     output consists of 2 files:
     - annotated bed file with filtering tags
     - filtered bed file
     """
     parser = argparse.ArgumentParser(
-        prog="filter_sample_cnvs.py", description="Filter cnvs bed file by: UG-CNV-LCR , blocklist , length"
+        prog="filter_sample_cnvs.py", description="Filter cnvs bed file by: ug_cnv_lcr, length"
     )
     parser.add_argument("--input_bed_file", help="input bed file with .bed suffix", required=True, type=str)
     parser.add_argument(
@@ -86,7 +85,6 @@ def run():
         default=0.5,
     )
     parser.add_argument("--coverage_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
-    parser.add_argument("--blocklist", help="blocklist bed file", required=True, type=str)
     parser.add_argument("--min_cnv_length", required=True, type=int, default=10000)
     parser.add_argument(
         "--out_directory",
@@ -102,7 +100,7 @@ def run():
         default="INFO",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     logger.setLevel(getattr(logging, args.verbosity))
 
     prefix = ""
@@ -110,13 +108,7 @@ def run():
         prefix = args.out_directory
         prefix = prefix.rstrip("/") + "/"
     [out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(
-        args.input_bed_file,
-        args.intersection_cutoff,
-        args.coverage_lcr_file,
-        args.intersection_cutoff,
-        args.blocklist,
-        prefix,
-        args.min_cnv_length,
+        args.input_bed_file, args.intersection_cutoff, args.coverage_lcr_file, prefix, args.min_cnv_length
     )
 
     logger.info("output files:")
@@ -125,4 +117,4 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    run(sys.argv)
