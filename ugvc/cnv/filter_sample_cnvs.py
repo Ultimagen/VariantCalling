@@ -51,7 +51,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
 
     os.system(cmd)
     out_filtered = prefix + os.path.basename(bed_file).rstrip(".bed") + ".filter.bed"
-    cmd = "cat " + out_annotate + " | awk '$5==\"\"' > " + out_filtered
+    cmd = "cat " + out_annotate + " | awk '$5==\"\"' | cut -f1-4 > " + out_filtered
 
     os.system(cmd)
 
