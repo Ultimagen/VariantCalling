@@ -53,10 +53,9 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
         + out_unsorted_annotate
         + ' | awk \'{if($5=="")'
         + "{print $0}"
-        + 'else{print $1"\t"$2"\t"$3"\t"$5}}\' > '
+        + 'else{print $1"\t"$2"\t"$3"\t"$5}}\' | sed \'s/\t$//\' > '
         + out_combined_info
     )
-    print(cmd)
     os.system(cmd)
 
     out_annotate = prefix + os.path.basename(bed_file).rstrip(".bed") + ".annotate.bed"
@@ -64,7 +63,7 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
     os.system(cmd)
 
     out_filtered = prefix + os.path.basename(bed_file).rstrip(".bed") + ".filter.bed"
-    cmd = "cat " + out_annotate + ' | grep -v "|" > ' + out_filtered
+    cmd = "cat " + out_annotate + " | grep -v \"|\" | sed 's/\t$//' > " + out_filtered
 
     os.system(cmd)
 
