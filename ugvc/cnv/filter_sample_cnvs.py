@@ -15,7 +15,7 @@ bedmap = "bedmap"
 
 def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
     # get filters regions
-    lcr_bed_file = filter_bed.filter_by_bed_file(bed_file, lcr_cutoff, lcr_file, prefix, "lcr")
+    lcr_bed_file = filter_bed.filter_by_bed_file(bed_file, lcr_cutoff, lcr_file, prefix, "UG-CNV-LCR")
     length_bed_file = filter_bed.filter_by_length(bed_file, length_cutoff, prefix)
 
     # merge all filters and sort
@@ -44,14 +44,27 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
         + " > "
         + out_unsorted_annotate
     )
-
     os.system(cmd)
+    # combine to 4th column
+
+    out_combined_info = prefix + os.path.basename(bed_file).rstrip(".bed") + ".unsorted.annotate.combined.bed"
+    cmd = (
+        "cat "
+        + out_unsorted_annotate
+        + ' | awk \'{if($5=="")'
+        + "{print $0}"
+        + 'else{print $1"\t"$2"\t"$3"\t"$5}}\' > '
+        + out_combined_info
+    )
+    print(cmd)
+    os.system(cmd)
+
     out_annotate = prefix + os.path.basename(bed_file).rstrip(".bed") + ".annotate.bed"
-    cmd = "sort -k1,1V -k2,2n -k3,3n " + out_unsorted_annotate + " > " + out_annotate
-
+    cmd = "sort -k1,1V -k2,2n -k3,3n " + out_combined_info + " > " + out_annotate
     os.system(cmd)
+
     out_filtered = prefix + os.path.basename(bed_file).rstrip(".bed") + ".filter.bed"
-    cmd = "cat " + out_annotate + " | awk '$5==\"\"' | cut -f1-4 > " + out_filtered
+    cmd = "cat " + out_annotate + ' | grep -v "|" > ' + out_filtered
 
     os.system(cmd)
 
