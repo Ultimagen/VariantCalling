@@ -15,7 +15,7 @@ bedmap = "bedmap"
 
 def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
     # get filters regions
-    lcr_bed_file = filter_bed.filter_by_bed_file(bed_file, lcr_cutoff, lcr_file, prefix, "lcr")
+    lcr_bed_file = filter_bed.filter_by_bed_file(bed_file, lcr_cutoff, lcr_file, prefix, "UG-CNV-LCR")
     length_bed_file = filter_bed.filter_by_length(bed_file, length_cutoff, prefix)
 
     # merge all filters and sort
@@ -44,14 +44,26 @@ def annotate_bed(bed_file, lcr_cutoff, lcr_file, prefix, length_cutoff=10000):
         + " > "
         + out_unsorted_annotate
     )
-
     os.system(cmd)
+    # combine to 4th column
+
+    out_combined_info = prefix + os.path.basename(bed_file).rstrip(".bed") + ".unsorted.annotate.combined.bed"
+    cmd = (
+        "cat "
+        + out_unsorted_annotate
+        + ' | awk \'{if($5=="")'
+        + "{print $0}"
+        + 'else{print $1"\t"$2"\t"$3"\t"$5}}\' | sed \'s/\t$//\' > '
+        + out_combined_info
+    )
+    os.system(cmd)
+
     out_annotate = prefix + os.path.basename(bed_file).rstrip(".bed") + ".annotate.bed"
-    cmd = "sort -k1,1V -k2,2n -k3,3n " + out_unsorted_annotate + " > " + out_annotate
-
+    cmd = "sort -k1,1V -k2,2n -k3,3n " + out_combined_info + " > " + out_annotate
     os.system(cmd)
+
     out_filtered = prefix + os.path.basename(bed_file).rstrip(".bed") + ".filter.bed"
-    cmd = "cat " + out_annotate + " | awk '$5==\"\"' | cut -f1-4 > " + out_filtered
+    cmd = "cat " + out_annotate + " | grep -v \"|\" | sed 's/\t$//' > " + out_filtered
 
     os.system(cmd)
 
@@ -84,7 +96,7 @@ def run(argv):
         type=float,
         default=0.5,
     )
-    parser.add_argument("--coverage_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
+    parser.add_argument("--cnv_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
     parser.add_argument("--min_cnv_length", required=True, type=int, default=10000)
     parser.add_argument(
         "--out_directory",
@@ -100,7 +112,7 @@ def run(argv):
         default="INFO",
     )
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
     logger.setLevel(getattr(logging, args.verbosity))
 
     prefix = ""
@@ -108,7 +120,7 @@ def run(argv):
         prefix = args.out_directory
         prefix = prefix.rstrip("/") + "/"
     [out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(
-        args.input_bed_file, args.intersection_cutoff, args.coverage_lcr_file, prefix, args.min_cnv_length
+        args.input_bed_file, args.intersection_cutoff, args.cnv_lcr_file, prefix, args.min_cnv_length
     )
 
     logger.info("output files:")
