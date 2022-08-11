@@ -112,7 +112,7 @@ def run(argv):
         default="INFO",
     )
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
     logger.setLevel(getattr(logging, args.verbosity))
 
     prefix = ""
