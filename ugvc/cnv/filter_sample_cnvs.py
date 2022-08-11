@@ -96,7 +96,7 @@ def run(argv):
         type=float,
         default=0.5,
     )
-    parser.add_argument("--coverage_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
+    parser.add_argument("--cnv_lcr_file", help="UG-CNV-LCR bed file", required=True, type=str)
     parser.add_argument("--min_cnv_length", required=True, type=int, default=10000)
     parser.add_argument(
         "--out_directory",
@@ -120,7 +120,7 @@ def run(argv):
         prefix = args.out_directory
         prefix = prefix.rstrip("/") + "/"
     [out_annotate_bed_file, out_filtered_bed_file] = annotate_bed(
-        args.input_bed_file, args.intersection_cutoff, args.coverage_lcr_file, prefix, args.min_cnv_length
+        args.input_bed_file, args.intersection_cutoff, args.cnv_lcr_file, prefix, args.min_cnv_length
     )
 
     logger.info("output files:")
