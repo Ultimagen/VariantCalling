@@ -286,8 +286,8 @@ class VcfPipelineUtils:
             runs_file_name += ".gz"
             self.index_vcf(runs_file_name)
 
-    def reverse_hom_calls(self, input_file_calls: str, output_file_calls: str) -> None:
-        """Reverse homozygous reference calls in deepVariant to filtered dheterozygous so that max recall can be
+    def transform_hom_calls_to_het_calls(self, input_file_calls: str, output_file_calls: str) -> None:
+        """Reverse homozygous reference calls in deepVariant to filtered heterozygous so that max recall can be
         calculated
 
         Parameters
