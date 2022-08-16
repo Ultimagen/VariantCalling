@@ -43,7 +43,7 @@ def test_fix_errors():
     )
 
 
-def test_reverse_hom_ref(tmpdir):
+def test_transform_hom_calls_to_het_calls(tmpdir):
     input_vcf = pjoin(inputs_dir, "dv.input.vcf.gz")
     vpu = VcfPipelineUtils()
     shutil.copyfile(input_vcf, pjoin(tmpdir, basename(input_vcf)))
