@@ -57,7 +57,6 @@ def _contig_concordance_annotate_reinterpretation(
     ignore_low_quality_fps,
     scoring_field,
 ):
-    logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_comparison_pipeline")
     logger.info("Reading %s", contig)
     concordance = vcf_pipeline_utils.vcf2concordance(
         results[0],
@@ -78,7 +77,6 @@ def _contig_concordance_annotate_reinterpretation(
         flow_order=flow_order,
     )
 
-
     if not disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
             annotated_concordance, reference, ignore_low_quality_fps
@@ -87,7 +85,7 @@ def _contig_concordance_annotate_reinterpretation(
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
 
 
-def get_parser(argv: list[str]) -> argparse.ArgumentParser:
+def get_parser() -> argparse.ArgumentParser:
     ap_var = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
     ap_var.add_argument(
         "--n_parts",
@@ -170,14 +168,16 @@ def get_parser(argv: list[str]) -> argparse.ArgumentParser:
         help="Length and distance to the hpol run to mark",
         default=[10, 10],
     )
+    ap_var.add_argument("--ignore_filter_status", help="Ignore variant filter status", action="store_true")
     ap_var.add_argument(
-        "--ignore_filter_status",
-        help="Ignore variant filter status",
+        "--revert_hom_ref",
+        help="For DeepVariant callsets - revert filtered hom_ref to het_ref for max recall calculation",
         action="store_true",
     )
     ap_var.add_argument(
         "--scoring_field",
-        help="The pipeline expects a TREE_SCORE column in order to score the variants. If another field is provided via scoring_field then its values will be copied to the TREE_SCORE column",
+        help="The pipeline expects a TREE_SCORE column in order to score the variants. If another field is \
+        provided via scoring_field then its values will be copied to the TREE_SCORE column",
         required=False,
         default=None,
         type=str,
@@ -227,7 +227,7 @@ def get_parser(argv: list[str]) -> argparse.ArgumentParser:
 
 def run(argv: list[str]):
     """Concordance between VCF and ground truth"""
-    parser = get_parser(argv)
+    parser = get_parser()
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
     logger.setLevel(getattr(logging, args.verbosity))
@@ -240,7 +240,7 @@ def run(argv: list[str]):
 
     # intersect intervals and output as a bed file
     if cmp_intervals.is_none():  # interval of highconf_intervals
-        logger.info(f'copy {args.highconf_intervals} to {args.output_interval}')
+        logger.info(f"copy {args.highconf_intervals} to {args.output_interval}")
         copyfile(highconf_intervals.as_bed_file(), args.output_interval)
     else:
         vpu.intersect_bed_files(cmp_intervals.as_bed_file(), highconf_intervals.as_bed_file(), args.output_interval)
@@ -284,6 +284,7 @@ def run(argv: list[str]):
             IntervalFile(sp),
             args.output_suffix,
             args.ignore_filter_status,
+            args.revert_hom_ref,
             args.concordance_tool,
         )
 
