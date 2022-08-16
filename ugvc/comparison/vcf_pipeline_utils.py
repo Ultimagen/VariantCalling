@@ -286,6 +286,30 @@ class VcfPipelineUtils:
             runs_file_name += ".gz"
             self.index_vcf(runs_file_name)
 
+    def transform_hom_calls_to_het_calls(self, input_file_calls: str, output_file_calls: str) -> None:
+        """Reverse homozygous reference calls in deepVariant to filtered heterozygous so that max recall can be
+        calculated
+
+        Parameters
+        ----------
+        input_file_calls : str
+            Input file name
+        output_file_calls : str
+            Output file name
+        """
+
+        with pysam.VariantFile(input_file_calls) as input_file:
+            with pysam.VariantFile(output_file_calls, "w", header=input_file.header) as output_file:
+                for rec in input_file:
+                    if (
+                        rec.samples[0]["GT"] == (0, 0)
+                        or rec.samples[0]["GT"] == (None, None)
+                        and "PASS" not in rec.filter
+                    ):
+                        rec.samples[0]["GT"] = (0, 1)
+                    output_file.write(rec)
+        self.index_vcf(output_file_calls)
+
 
 def _fix_errors(df):
     """Fixes errors that complicated VCFEVAL VCF format introduces"""
@@ -480,12 +504,11 @@ def vcf2concordance(
 
     # cases where we called wrong allele and then filtered out - are false negatives, not false positives
     if concordance_format == "VCFEVAL":
-        called_fn = (concordance_df['base'] == "FN") | (concordance_df['base'] == "FN_CA")
-        marked_fp = concordance_df['classify'] == "fp"
+        called_fn = (concordance_df["base"] == "FN") | (concordance_df["base"] == "FN_CA")
+        marked_fp = concordance_df["classify"] == "fp"
         concordance_df.loc[called_fn & marked_fp, "classify"] = "fn"
-        marked_fp = concordance_df['classify_gt'] == "fp"
+        marked_fp = concordance_df["classify_gt"] == "fp"
         concordance_df.loc[called_fn & marked_fp, "classify_gt"] = "fn"
-
 
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
 
