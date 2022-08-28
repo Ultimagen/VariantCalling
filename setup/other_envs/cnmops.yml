@@ -16,7 +16,7 @@ dependencies:
   - bioconductor-cn.mops=1.40.0=r41h619a076_1
   - bioconductor-exomecopy=1.40.0=r41h5c21468_1
   - bioconductor-genomeinfodb=1.30.0=r41hdfd78af_0
-  - bioconductor-genomeinfodbdata=1.2.7=r41hdfd78af_1
+  - bioconductor-genomeinfodbdata=1.2.7=r41hdfd78af_2
   - bioconductor-genomicranges=1.46.1=r41h5c21468_0
   - bioconductor-iranges=2.28.0=r41h5c21468_1
   - bioconductor-rhdf5=2.38.0=r41h8b353c4_2
