@@ -43,9 +43,9 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, sample_name: str = None, 
         lambda x: defaultdict(
             lambda: None,
             x.info.items()
-           + (x.samples[sample_id].items() if sample_id else
-             (x.samples[[s for s in x.samples].index(
-                 sample_name)].items() if sample_name is not None else []))
+             + (x.samples[[s for s in x.samples].index(
+                  sample_name)].items() if sample_name is not None else
+               (x.samples[sample_id].items() if sample_id is not None else []))
             + [
                 ("QUAL", x.qual),
                 ("CHROM", x.chrom),
