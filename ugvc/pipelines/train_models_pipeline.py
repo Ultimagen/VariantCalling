@@ -159,13 +159,27 @@ def run(argv: list[str]):
         raise af_var
 
     try:
+        FIELDS_TO_IGNORE = [
+            "X_IC",
+            "X_IL",
+            "X_HIL",
+            "X_HIN",
+            "X_LM",
+            "X_RM",
+            "X_GCC",
+            "X_CSS",
+        ]
+
         with_dbsnp_bl = args.input_file.endswith("vcf.gz")
         if with_dbsnp_bl:
             if args.list_of_contigs_to_read != []:
-                dfs = [vcftools.get_vcf_df(args.input_file, chromosome=x) for x in args.list_of_contigs_to_read]
+                dfs = [
+                    vcftools.get_vcf_df(args.input_file, chromosome=x, ignore_fields=FIELDS_TO_IGNORE)
+                    for x in args.list_of_contigs_to_read
+                ]
                 df = pd.concat(dfs)
             else:
-                df = vcftools.get_vcf_df(args.input_file)
+                df = vcftools.get_vcf_df(args.input_file, ignore_fields=FIELDS_TO_IGNORE)
         else:
             # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
             df = []

@@ -10,8 +10,15 @@ import pandas as pd
 import pysam
 
 
-def get_vcf_df(variant_calls: str, sample_id: int = 0, sample_name: str = None, chromosome: str = None, scoring_field: str = None) -> pd.DataFrame:
-    """Reads VCF file into dataframe, re
+def get_vcf_df(
+    variant_calls: str,
+    sample_id: int = 0,
+    sample_name: str = None,
+    chromosome: str = None,
+    scoring_field: str = None,
+    ignore_fields: list = None,
+) -> pd.DataFrame:
+    """Reads VCF file into dataframe
 
     Parameters
     ----------
@@ -27,11 +34,16 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, sample_name: str = None, 
         The name of the field that is used to score the variants.
         This value replaces the TREE_SCORE in the output data frame.
         When None TREE_SCORE is not replaced (default: None)
-
+    ignore_fields: list, optional
+        List of VCF tags to ignore (save memory)
     Returns
     -------
     pd.DataFrame
     """
+
+    if ignore_fields is None:
+        ignore_fields = []
+
     header = pysam.VariantFile(variant_calls).header
     if chromosome is None:
         variant_file = pysam.VariantFile(variant_calls)
@@ -115,7 +127,7 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, sample_name: str = None, 
         "AVERAGE_TREE_SCORE",
         "VQSLOD",
         "BLACKLST",
-        "SCORE"
+        "SCORE",
     ]
 
     if scoring_field is not None and scoring_field not in columns:
@@ -130,7 +142,8 @@ def get_vcf_df(variant_calls: str, sample_id: int = 0, sample_name: str = None, 
         "FILTER",
         "ID",
     ]
-
+    ignore_fields = [x.lower() for x in ignore_fields]
+    columns = [x for x in columns if x.lower() not in ignore_fields]
     df = pd.DataFrame([[x[y] for y in columns] for x in vfi], columns=[x.lower() for x in columns])
 
     if scoring_field is not None:
@@ -297,7 +310,7 @@ class FilterWrapper:
         return self
 
     def get_fn_diff(self):
-        row_cond = ((self.df["classify"] == "tp") & (self.df["classify_gt"] == "fn"))
+        row_cond = (self.df["classify"] == "tp") & (self.df["classify_gt"] == "fn")
         self.df = self.df.loc[row_cond, :]
         return self
 
@@ -308,7 +321,7 @@ class FilterWrapper:
     def get_h_mer(self, val_start: int = 1, val_end: int = 999):
         row_cond = (self.df["hmer_indel_length"] >= val_start) & (self.df["indel"])
         self.df = self.df.loc[row_cond, :]
-        row_cond = (self.df["hmer_indel_length"] <= val_end)
+        row_cond = self.df["hmer_indel_length"] <= val_end
         self.df = self.df.loc[row_cond, :]
         return self
 

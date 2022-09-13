@@ -117,13 +117,87 @@ class TestGetVcfDf:
         df = vcftools.get_vcf_df(input_vcf)
         non_nan_columns = list(df.dropna(axis=1, how="all").columns)
         non_nan_columns.sort()
-        assert non_nan_columns == ['ac', 'ad', 'af', 'alleles', 'an', 'baseqranksum', 'chrom', 'db',
-                             'dp', 'excesshet', 'filter', 'fs', 'gnomad_af', 'gq', 'gt', 'id',
-                             'indel', 'mleac', 'mleaf', 'mq', 'mqranksum', 'pl', 'pos', 'qd', 'qual',
-                             'readposranksum', 'ref', 'sor', 'tree_score', 'variant_type',
-                             'x_css', 'x_gcc', 'x_ic', 'x_il', 'x_lm', 'x_rm']
+        assert non_nan_columns == [
+            "ac",
+            "ad",
+            "af",
+            "alleles",
+            "an",
+            "baseqranksum",
+            "chrom",
+            "db",
+            "dp",
+            "excesshet",
+            "filter",
+            "fs",
+            "gnomad_af",
+            "gq",
+            "gt",
+            "id",
+            "indel",
+            "mleac",
+            "mleaf",
+            "mq",
+            "mqranksum",
+            "pl",
+            "pos",
+            "qd",
+            "qual",
+            "readposranksum",
+            "ref",
+            "sor",
+            "tree_score",
+            "variant_type",
+            "x_css",
+            "x_gcc",
+            "x_ic",
+            "x_il",
+            "x_lm",
+            "x_rm",
+        ]
 
     def test_get_vcf_df_use_qual(self):
         input_vcf = pjoin(inputs_dir, "test_get_vcf_df.vcf.gz")
         df = vcftools.get_vcf_df(input_vcf, scoring_field="QUAL")
-        assert all(df["qual"]==df["tree_score"])
+        assert all(df["qual"] == df["tree_score"])
+
+    def test_get_vcf_df_ignore_fields(self):
+        input_vcf = pjoin(inputs_dir, "test_get_vcf_df.vcf.gz")
+        ignore_fields = ["x_css", "x_gcc", "x_ic", "x_il", "x_lm", "x_rm"]
+        df = vcftools.get_vcf_df(input_vcf, ignore_fields=ignore_fields)
+        non_nan_columns = list(df.dropna(axis=1, how="all").columns)
+        non_nan_columns.sort()
+        assert non_nan_columns == [
+            "ac",
+            "ad",
+            "af",
+            "alleles",
+            "an",
+            "baseqranksum",
+            "chrom",
+            "db",
+            "dp",
+            "excesshet",
+            "filter",
+            "fs",
+            "gnomad_af",
+            "gq",
+            "gt",
+            "id",
+            "indel",
+            "mleac",
+            "mleaf",
+            "mq",
+            "mqranksum",
+            "pl",
+            "pos",
+            "qd",
+            "qual",
+            "readposranksum",
+            "ref",
+            "sor",
+            "tree_score",
+            "variant_type",
+        ]
+        for x in ignore_fields:
+            assert x not in df.columns
