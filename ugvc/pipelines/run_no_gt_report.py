@@ -92,19 +92,11 @@ def snp_statistics(df, ref_fasta):
     def get_by_index(x, index):
         return x[index] if ((x is not None) and (len(x) > index)) else np.nan
 
-    for ind in range(1, 7):
-        # pylint: disable=cell-var-from-loop
-        df[f"pl_{ind}"] = df["pl"].apply(lambda x: get_by_index(x, ind))
-
     for ind in range(1, 3):
         # pylint: disable=cell-var-from-loop
         df[f"gt_{ind}"] = df["gt"].apply(lambda x: get_by_index(x, ind))
 
-    for ind in range(1, 4):
-        # pylint: disable=cell-var-from-loop
-        df[f"ad_{ind}"] = df["ad"].apply(lambda x: get_by_index(x, ind))
-
-    df = df.drop(columns=["alleles", "gt", "pl", "ad", "af"])
+    df = df.drop(columns=["alleles", "gt", "af"])
 
     motif_index_bothstrands = pd.MultiIndex.from_tuples(
         [
@@ -252,8 +244,8 @@ def run_eval_tables_only(arg_values):
         arg_values.output_prefix,
         arg_values.annotation_names,
     )
-    for eval_table_name in eval_tables:
-        eval_tables[eval_table_name].to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
+    for eval_table_name, eval_table in eval_tables.items():
+        eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 
 def run_full_analysis(arg_values):
@@ -265,8 +257,22 @@ def run_full_analysis(arg_values):
         [],
     )
 
+    FIELDS_TO_IGNORE = [
+        "GNOMAD_AF",
+        "X_IC",
+        "X_IL",
+        "X_HIL",
+        "X_HIN",
+        "X_LM",
+        "X_RM",
+        "X_GCC",
+        "X_CSS",
+        "PL",
+        "DB",
+        "AD",
+    ]
     logger.info("Converting vcf to df")
-    df = vcftools.get_vcf_df(arg_values.input_file, sample_id=arg_values.sample_id, sample_name=arg_values.sample_name)
+    df = vcftools.get_vcf_df(arg_values.input_file, sample_id=arg_values.sample_id, sample_name=arg_values.sample_name, ignore_fields = FIELDS_TO_IGNORE)
     logger.info("Annotating vcf")
     annotated_df, _ = vcf_pipeline_utils.annotate_concordance(df, arg_values.reference)
 
