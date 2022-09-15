@@ -10,10 +10,11 @@ import pytest
 dn = dirname(__file__)
 trimming_script = pjoin(dn[: dn.index("test")], "ugvc", "bash", "find_adapter_coords.sh")
 
+cutadaptenv = "cutadaptenv"
 test_params = [
     [
-        "cutadapt",
-        "^CTACACGACGCTCTTCCGATCT",
+        cutadaptenv,
+        "CTACACGACGCTCTTCCGATCT",
         "AGATCGGAAGAGCACACGTCTGAA",
         "0",
         "0",
@@ -23,8 +24,8 @@ test_params = [
         "6",
     ],
     [
-        "cutadapt",
-        "^CTACACGACGCTCTTCCGATCT",
+        cutadaptenv,
+        "CTACACGACGCTCTTCCGATCT",
         "AGATCGGAAGAGCACACGTCTGAA",
         "8",
         "0",
@@ -34,8 +35,8 @@ test_params = [
         "6",
     ],
     [
-        "cutadapt",
-        "^CTACACGACGCTCTTCCGATCT",
+        cutadaptenv,
+        "CTACACGACGCTCTTCCGATCT",
         "AGATCGGAAGAGCACACGTCTGAA",
         "8",
         "4",
@@ -44,8 +45,8 @@ test_params = [
         "10",
         "6",
     ],
-    ["cutadapt", "^CTACACGACGCTCTTCCGATCT", "", "0", "0", "0.15", "0.2", "10", "6"],
-    ["cutadapt", "", "AGATCGGAAGAGCACACGTCTGAA", "0", "0", "0.15", "0.2", "10", "6"],
+    [cutadaptenv, "CTACACGACGCTCTTCCGATCT", "", "0", "0", "0.15", "0.2", "10", "6"],
+    [cutadaptenv, "", "AGATCGGAAGAGCACACGTCTGAA", "0", "0", "0.15", "0.2", "10", "6"],
 ]
 
 
