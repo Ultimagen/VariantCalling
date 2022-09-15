@@ -41,7 +41,8 @@ if [[ $bam_infile =~ ([^\/]*).bam$ ]]; then
         # Names of output files
         fastq_file="${BASH_REMATCH[1]}.fastq.gz"
         fastq_cutadapt_file="${BASH_REMATCH[1]}.cutadapt.fastq.gz"
-        cutadapt_report_file="${BASH_REMATCH[1]}.cutadapt_report.txt"
+        cutadapt_report_txt="${BASH_REMATCH[1]}.cutadapt_report.txt"
+        cutadapt_report_json="${BASH_REMATCH[1]}.cutadapt.json"
         bam_outfile="${BASH_REMATCH[1]}.with_adapter_tags.bam"
     else
         echo "error in bam file name"
@@ -82,7 +83,7 @@ fi
 
 
 conda activate $conda_env
-cutadapt -j 0 ${for_cutadapt} --mask-adapter -o ${fastq_cutadapt_file} ${fastq_file}> ${cutadapt_report_file}
+cutadapt -j 0 ${for_cutadapt} --mask-adapter --json ${cutadapt_report_json} -o ${fastq_cutadapt_file} ${fastq_file}> ${cutadapt_report_txt}
 conda deactivate
 conda activate $orig_conda
 echo "extracting coordinates and combining with bam file"
