@@ -1,0 +1,99 @@
+index_orig,Stat_Type,Measure,Value_Type,priority1,priority2
+0,Params,UMI-length,Value,0,0
+1,Params,Library-direction,Value,0,0
+2,Params,cDNA-reversed,Value,0,0
+3,Adapter removal and prefiltering,Total read pairs processed,Value,1,1
+4,Adapter removal and prefiltering,Reads written (passing filters),Percentage,1,1
+5,Adapter removal and prefiltering,Reads written (passing filters),Value,0,0
+6,Adapter removal and prefiltering,Reads with 5p adapter,Value,0,0
+7,Adapter removal and prefiltering,Reads with 5p adapter,Percentage,1,1
+8,Adapter removal and prefiltering,Reads with 3p adapter,Value,0,0
+9,Adapter removal and prefiltering,Reads with 3p adapter,Percentage,0,1
+10,Adapter removal and prefiltering,Reads with middle sequence,Percentage,1,1
+11,Adapter removal and prefiltering,Reads with middle sequence,Value,0,0
+12,Adapter removal and prefiltering,Total base pairs processed,Value,0,0
+13,Adapter removal and prefiltering,Total base pairs output,Value,0,0
+14,Adapter removal and prefiltering,Total base pairs output,Percentage,0,0
+15,Adapter removal and prefiltering,Reads too short after quality trimming,Percentage,0,1
+16,Adapter removal and prefiltering,Reads too short after quality trimming,Value,0,0
+17,Adapter removal and prefiltering,"Discarded base pairs, quality trimming",Value,0,0
+18,Adapter removal and prefiltering,Reads with low umi quality,Value,0,0
+19,Adapter removal and prefiltering,Reads with low umi quality,Percentage,1,1
+20,Adapter removal and prefiltering,Read 2 too short,Value,0,0
+21,Adapter removal and prefiltering,Read 2 too short,Percentage,0,1
+22,Adapter removal and prefiltering,Read 1 too short,Percentage,0,1
+23,Adapter removal and prefiltering,Read 1 too short,Value,0,0
+24,Alignment,Started job on,Date,0,0
+25,Alignment,Started mapping on,Date,0,0
+26,Alignment,Finished on,Date,0,0
+27,Alignment,"Mapping speed, Million of reads per hour",Value,0,0
+28,Alignment,Number of input reads,Value,1,1
+29,Alignment,Average input read length,Value,0,1
+30,Alignment,Uniquely mapped reads number,Value,0,0
+31,Alignment,Uniquely mapped reads %,Percentage,0,0
+32,Alignment,Average mapped length,Value,0,0
+33,Alignment,Number of splices: Total,Value,0,0
+34,Alignment,Number of splices: Annotated (sjdb),Value,0,0
+35,Alignment,Number of splices: GT/AG,Value,0,0
+36,Alignment,Number of splices: GC/AG,Value,0,0
+37,Alignment,Number of splices: AT/AC,Value,0,0
+38,Alignment,Number of splices: Non-canonical,Value,0,0
+39,Alignment,"Mismatch rate per base, %",Percentage,0,1
+40,Alignment,Deletion rate per base,Percentage,0,1
+41,Alignment,Deletion average length,Value,0,0
+42,Alignment,Insertion rate per base,Percentage,0,1
+43,Alignment,Insertion average length,Value,0,0
+44,Alignment,Number of reads mapped to multiple loci,Value,0,0
+45,Alignment,% of reads mapped to multiple loci,Percentage,0,0
+46,Alignment,Number of reads mapped to too many loci,Value,0,0
+47,Alignment,% of reads mapped to too many loci,Percentage,0,0
+48,Alignment,Number of reads unmapped: too many mismatches,Value,0,0
+49,Alignment,% of reads unmapped: too many mismatches,Percentage,0,0
+50,Alignment,Number of reads unmapped: too short,Value,0,0
+51,Alignment,% of reads unmapped: too short,Percentage,0,0
+52,Alignment,Number of reads unmapped: other,Value,0,0
+53,Alignment,% of reads unmapped: other,Percentage,0,0
+54,Alignment,Number of chimeric reads,Value,0,0
+55,Alignment,% of chimeric reads,Percentage,0,0
+56,Feature,nUnmapped,Value,0,0
+57,Feature,nNoFeature,Value,0,0
+58,Feature,nAmbigFeature,Value,0,0
+59,Feature,nAmbigFeatureMultimap,Value,0,0
+60,Feature,nTooMany,Value,0,0
+61,Feature,nNoExactMatch,Value,0,0
+62,Feature,nExactMatch,Value,0,0
+63,Feature,nMatch,Value,0,0
+64,Feature,nCellBarcodes,Value,0,0
+65,Feature,nUMIs,Value,0,0
+66,Barcode,nNoAdapter,Value,0,0
+67,Barcode,nNoUMI,Value,0,0
+68,Barcode,nNoCB,Value,0,0
+69,Barcode,nNinCB,Value,0,0
+70,Barcode,nNinUMI,Value,0,0
+71,Barcode,nUMIhomopolymer,Value,0,0
+72,Barcode,nTooMany,Value,0,0
+73,Barcode,nNoMatch,Value,0,0
+74,Barcode,nMismatchesInMultCB,Value,0,0
+75,Barcode,nExactMatch,Value,0,0
+76,Barcode,nMismatchOneWL,Value,0,0
+77,Barcode,nMismatchToMultWL,Value,0,0
+78,Summary,Number of Reads,Value,0,0
+79,Summary,Reads With Valid Barcodes,Percentage,1,1
+80,Summary,Sequencing Saturation,Percentage,0,0
+81,Summary,Q30 Bases in CB+UMI,Percentage,0,1
+82,Summary,Q30 Bases in RNA read,Percentage,0,1
+83,Summary,Reads Mapped to Genome: Unique+Multiple,Percentage,1,1
+84,Summary,Reads Mapped to Genome: Unique,Percentage,1,1
+85,Summary,Reads Mapped to Transcriptome: Unique+Multiple Genes,Percentage,1,1
+86,Summary,Reads Mapped to Transcriptome: Unique Genes,Percentage,1,1
+87,Summary,Estimated Number of Cells,Value,1,1
+88,Summary,Reads in Cells Mapped to Unique Genes,Value,0,1
+89,Summary,Fraction of Reads in Cells,Percentage,0,1
+90,Summary,Mean Reads per Cell,Value,0,1
+91,Summary,Median Reads per Cell,Value,0,1
+92,Summary,UMIs in Cells,Value,0,1
+93,Summary,Mean UMI per Cell,Value,0,1
+94,Summary,Median UMI per Cell,Value,0,1
+95,Summary,Mean Genes per Cell,Value,0,0
+96,Summary,Median Genes per Cell,Value,0,0
+97,Summary,Total Genes Detected,Value,0,1
