@@ -327,7 +327,7 @@ def annotate_intervals(df: pd.DataFrame, annotfile: str) -> pd.DataFrame:
 
 
 def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame:
-    """Fills filter status column with HPOL_RUN/PASS when there are missing values
+    """Fills filter status column with PASS when there are missing values
     (e.g. when the FILTER column in the vcf has dots, or when false negative variants
     were added to the dataframe)
 
@@ -344,15 +344,7 @@ def fill_filter_column(df: pd.DataFrame) -> pd.DataFrame:
     if "filter" not in df.columns:
         df["filter"] = np.nan
     fill_column_locs = (pd.isnull(df["filter"])) | (df["filter"] == "")
-    # if there were run intervals
-    if "close_to_hmer_run" in df.columns:
-        is_hpol = df.close_to_hmer_run | df.inside_hmer_run
-    else:
-        is_hpol = np.zeros(fill_column_locs.shape[0], dtype=np.bool)
-
-    result = np.array(["HPOL_RUN"] * fill_column_locs.sum(), dtype=f'<U{len("HPOL_RUN")}')
-    result[~is_hpol[fill_column_locs]] = "PASS"
-    df.loc[fill_column_locs, "filter"] = result
+    df.loc[fill_column_locs, "filter"] = "PASS"
     return df
 
 
