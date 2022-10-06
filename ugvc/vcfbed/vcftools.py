@@ -375,7 +375,7 @@ class FilterWrapper:
         # in the new VCF format, the low_score is a separate column rather then a filter
         filter_column = self.df["filter"]
         # remove low score points
-        self.df = self.df[~filter_column.str.contains("LOW_SCORE", regex=False)]
+        self.df = self.df[filter_column.str.contains("PASS", regex=False)]
 
         tree_score_column = self.df["tree_score"]
         if len(tree_score_column) > 0:
