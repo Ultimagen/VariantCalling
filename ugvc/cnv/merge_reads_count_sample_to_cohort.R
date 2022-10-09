@@ -28,4 +28,3 @@ merged_cohort_reads_count <- GRanges(
 # save merged cohort
 saveRDS(merged_cohort_reads_count,file="merged_cohort_reads_count.rds")
 h5write(as.data.frame(merged_cohort_reads_count),"merged_cohort_reads_count.hdf5","merged_cohort_reads_count")
-

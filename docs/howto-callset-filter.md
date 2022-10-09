@@ -55,7 +55,7 @@ UG-specific files (note that the exact location might be different dependent on 
     * `mappability.0.bed` - high mappability locations from the UCSC
 
 
-## Germline callset 
+## Germline callset
 ### Running the filtering pipeline
 
 The filtering pipeline has two main steps:
@@ -126,11 +126,11 @@ Confirm that this created a file called `test.filter.vcf.gz`.
 
 ## Somatic callset
 
-Current post-calling filtering of somatic pipeline is a python script that applies a simple model that uses TLOD and SOR of the variant to assign confidence score TREE_SCORE to each variant. TREE_SCORE is correlated to the probability that the call is true positive. The script also assigns each variant a PASS/LOW_SCORE filter, but we suggest ignoring it as it is tuned to a high false positive rate, instead, increasing thresholds of TREE_SCORE allows for selecting more and more stringent set of variant calls. 
+Current post-calling filtering of somatic pipeline is a python script that applies a simple model that uses TLOD and SOR of the variant to assign confidence score TREE_SCORE to each variant. TREE_SCORE is correlated to the probability that the call is true positive. The script also assigns each variant a PASS/LOW_SCORE filter, but we suggest ignoring it as it is tuned to a high false positive rate, instead, increasing thresholds of TREE_SCORE allows for selecting more and more stringent set of variant calls.
 
 ### Filter VCF
 
-To filter the VCF, one needs access to a filtering model and to [install](#Installation) the VariantCalling package. Assume the filtering model is `ug_v0.6.1.model.pkl`. 
+To filter the VCF, one needs access to a filtering model and to [install](#Installation) the VariantCalling package. Assume the filtering model is `ug_v0.6.1.model.pkl`.
 
 ```
 filter_variants_pipeline.py \

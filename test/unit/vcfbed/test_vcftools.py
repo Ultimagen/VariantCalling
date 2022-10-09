@@ -21,11 +21,7 @@ def test_bed_files_output():
     assert all(
         [
             row["classify"] == "fn"
-            or (
-                row["classify"] == "tp"
-                and (row["filter"] == "LOW_SCORE")
-                and (row["filter"] != "PASS")
-            )
+            or (row["classify"] == "tp" and (row["filter"] == "LOW_SCORE") and (row["filter"] != "PASS"))
             for index, row in snp_fn.iterrows()
         ]
     )
@@ -54,11 +50,7 @@ def test_bed_files_output():
     assert all(
         [
             row["classify"] == "fn"
-            or (
-                row["classify"] == "tp"
-                and (row["filter"] == "LOW_SCORE")
-                and (row["filter"] != "PASS")
-            )
+            or (row["classify"] == "tp" and (row["filter"] == "LOW_SCORE") and (row["filter"] != "PASS"))
             for index, row in hmer_fn.iterrows()
         ]
     )
@@ -76,11 +68,7 @@ def test_bed_files_output():
     assert all(
         [
             row["classify"] == "fn"
-            or (
-                row["classify"] == "tp"
-                and (row["filter"] == "LOW_SCORE")
-                and (row["filter"] != "PASS")
-            )
+            or (row["classify"] == "tp" and (row["filter"] == "LOW_SCORE") and (row["filter"] != "PASS"))
             for index, row in non_hmer_fn.iterrows()
         ]
     )
