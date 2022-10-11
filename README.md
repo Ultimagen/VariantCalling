@@ -16,7 +16,7 @@ In addition, the code provides
 1. Make sure git-lfs is installed on your system if you want to clone test resources along with the code (https://git-lfs.github.com/)
 1. Clone VariantCalling repository to e.g. `software/VariantCalling`
 1. Create the three conda environments:
-   * `conda env create -f setup/environment.yml` 
+   * `conda env create -f setup/environment.yml`
    * `conda env create -f setup/other_envs/ucsc.yml`
    * `conda env create -f setup/other_envs/cutadapt.yml`
 
@@ -77,7 +77,7 @@ python /path/to/ugvc <tool_name> <args>
 ### Recommended way to run tests for external users
 ```
 ./run_tests.sh
-``` 
+```
 This script will validate that test resources were correctly cloned, and only then run tests
 
 ### Run all tests

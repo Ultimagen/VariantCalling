@@ -55,9 +55,11 @@ def get_vcf_df(
         lambda x: defaultdict(
             lambda: None,
             x.info.items()
-             + (x.samples[[s for s in x.samples].index(
-                  sample_name)].items() if sample_name is not None else
-               (x.samples[sample_id].items() if sample_id is not None else []))
+            + (
+                x.samples[list(x.samples).index(sample_name)].items()
+                if sample_name is not None
+                else (x.samples[sample_id].items() if sample_id is not None else [])
+            )
             + [
                 ("QUAL", x.qual),
                 ("CHROM", x.chrom),
@@ -375,7 +377,7 @@ class FilterWrapper:
         # in the new VCF format, the low_score is a separate column rather then a filter
         filter_column = self.df["filter"]
         # remove low score points
-        self.df = self.df[~filter_column.str.contains("LOW_SCORE", regex=False)]
+        self.df = self.df[filter_column.str.contains("PASS", regex=False)]
 
         tree_score_column = self.df["tree_score"]
         if len(tree_score_column) > 0:

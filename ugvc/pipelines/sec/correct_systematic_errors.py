@@ -253,7 +253,7 @@ class SystematicErrorCorrector:
                     call_counts[call.call_type.value] += 1
 
                     if progress_count % 100000 == 0:
-                        logger.info(f'processed {progress_count} records. call_counts: {dict(call_counts)}')
+                        logger.info(f"processed {progress_count} records. call_counts: {dict(call_counts)}")
 
                     if self.output_type == OutputType.PICKLE:
                         self.__process_call_pickle_output(call, chr_pos_tuples, chrom, pos)
@@ -266,7 +266,7 @@ class SystematicErrorCorrector:
                     log_stream.write(f"{chrom}\t{pos}\t{call}\n\n")
 
             self.__finalize(bed_writer, chr_pos_tuples, log_stream, vcf_writer)
-        logger.info('Systematic error correction finished with success')
+        logger.info("Systematic error correction finished with success")
 
     @staticmethod
     def did_call_non_excluded_alleles(fields, observed_variant, sample_info):
