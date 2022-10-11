@@ -5,7 +5,9 @@ from simppl.simple_pipeline import SimplePipeline
 from ugvc import logger
 
 
-def print_and_execute(command: str, output_file: str = None, simple_pipeline: SimplePipeline = None, module_name: str = None):
+def print_and_execute(
+    command: str, output_file: str = None, simple_pipeline: SimplePipeline = None, module_name: str = None
+):
     """
     Print and execute command through simple_pipeline or subprocess
     Parameters
