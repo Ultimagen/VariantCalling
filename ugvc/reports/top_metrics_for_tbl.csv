@@ -1,0 +1,20 @@
+key,metric
+TOTAL_READS,AlignmentSummaryMetrics
+PCT_PF_READS,AlignmentSummaryMetrics
+PCT_PF_READS_ALIGNED,AlignmentSummaryMetrics
+PF_BASES,QualityYieldMetricsFlow
+PF_Q30_BASES,QualityYieldMetricsFlow
+MEAN_READ_LENGTH,AlignmentSummaryMetrics
+MEAN_ALIGNED_READ_LENGTH,AlignmentSummaryMetrics
+GC_NC_0_19,GcBiasSummaryMetrics
+GC_NC_80_100,GcBiasSummaryMetrics
+MEAN_COVERAGE,RawWgsMetrics
+FOLD_90_BASE_PENALTY,RawWgsMetrics
+Genome___percentile_5,stats_coverage
+Exome (WG)___percentile_5,stats_coverage
+Simple repeat___percentile_5,stats_coverage
+PCT_20X,RawWgsMetrics
+PERCENT_DUPLICATION,DuplicationMetrics
+PF_INDEL_RATE,AlignmentSummaryMetrics
+PF_MISMATCH_RATE,AlignmentSummaryMetrics
+contamination,contamination
