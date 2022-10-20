@@ -19,6 +19,7 @@ from ugvc.pipelines import (
     filter_variants_pipeline,
     run_comparison_pipeline,
     train_models_pipeline,
+    convert_haploid_regions
 )
 from ugvc.pipelines.mrd import (
     collect_coverage_per_motif,
@@ -43,6 +44,7 @@ modules = [
     run_comparison_pipeline,
     train_models_pipeline,
     filter_sample_cnvs,
+    convert_haploid_regions
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
