@@ -53,7 +53,7 @@ from ugvc.utils.cloud_sync import cloud_sync
 from ugvc.utils.consts import COVERAGE, GCS_OAUTH_TOKEN, FileExtension
 from ugvc.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
 
-MIN_CONTIG_LENGTH = 100000  # contigs that are shorter than that won't be analyzed
+MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
 MIN_LENGTH_TO_SHOW = 10000000  # contigs that are shorter than that won't be shown on coverage plot
 
 # display defaults
@@ -227,6 +227,7 @@ def run_full_coverage_analysis(
     for win in windows:
         if win % win0 != 0:
             raise ValueError(f"consecutive window sizes must divide by each other, got {windows}")
+        win0 = win
 
     sizes_file = pjoin(out_path, "chrom.sizes")
     utils.contig_lens_from_bam_header(bam_file, sizes_file)
