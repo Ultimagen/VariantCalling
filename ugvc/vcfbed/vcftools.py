@@ -85,6 +85,7 @@ def get_vcf_df(
         "AD_R",
         "AD_F",
         "TLOD",
+        "VAF",
         "STRANDQ",
         "FPR",
         "GROUP",
@@ -129,7 +130,7 @@ def get_vcf_df(
         "AVERAGE_TREE_SCORE",
         "VQSLOD",
         "BLACKLST",
-        "SCORE",
+        "SCORE"
     ]
 
     if scoring_field is not None and scoring_field not in columns:
