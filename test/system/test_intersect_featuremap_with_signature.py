@@ -2,7 +2,7 @@ import filecmp
 from os.path import join as pjoin
 from test import get_resource_dir
 
-from ugvc.pipelines.mrd.intersect_featuremap_with_signature import intersect_featuremap_with_signature
+from ugvc.mrd.mrd_utils import intersect_featuremap_with_signature
 
 
 def test_intersect_featuremap_with_signature(tmpdir):

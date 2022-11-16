@@ -51,33 +51,19 @@ from ugvc.utils import misc_utils as utils
 from ugvc.utils.cloud_auth import get_gcs_token
 from ugvc.utils.cloud_sync import cloud_sync
 from ugvc.utils.consts import COVERAGE, GCS_OAUTH_TOKEN, FileExtension
+from ugvc.utils.misc_utils import set_pyplot_defaults
 from ugvc.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
 
 MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
 MIN_LENGTH_TO_SHOW = 10000000  # contigs that are shorter than that won't be shown on coverage plot
-
-# display defaults
-SMALL_SIZE = 12
-MEDIUM_SIZE = 18
-BIGGER_SIZE = 26
-TITLE_SIZE = 36
-FIGSIZE = (16, 8)
-GRID = True
-plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
-plt.rc("axes", titlesize=TITLE_SIZE)  # fontsize of the axes title
-plt.rc("axes", labelsize=BIGGER_SIZE)  # fontsize of the x and y labels
-plt.rc("axes", grid=GRID)  # is grid on
-plt.rc("xtick", labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
-plt.rc("ytick", labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
-plt.rc("legend", fontsize=MEDIUM_SIZE)  # legend fontsize
-plt.rc("figure", titlesize=TITLE_SIZE)  # fontsize of the figure title
-plt.rc("figure", figsize=FIGSIZE)  # size of the figure
 
 # string constants
 ALL_BUT_X = "all_but_x"
 ALL = "all"
 CHROM_NUM = "chrom_num"
 MERGED_REGIONS = "merged_regions"
+
+set_pyplot_defaults()
 
 
 def parse_args(argv):

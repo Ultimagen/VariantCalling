@@ -11,12 +11,13 @@ def revcomp(seq: str | list | np.ndarray) -> str | list | np.ndarray:
 
     Parameters
     ----------
-    seq: Union[str,list,np.ndarray]
+    :param: seq Union[str,list,np.ndarray]
         DNA string
+    :raises ValueError: is seq is not of the right type
 
-    Returns
-    -------
-    str | list | np.ndarray
+    :return: str | list | np.ndarray
+
+
     """
     complement = {
         "A": "T",
@@ -34,6 +35,8 @@ def revcomp(seq: str | list | np.ndarray) -> str | list | np.ndarray:
         reverse_complement = [complement.get(base, base) for base in reversed(seq)]
     elif isinstance(seq, np.ndarray):
         reverse_complement = np.array([complement.get(base, base) for base in reversed(seq)])
+    else:
+        raise ValueError(f"Got unexpected variable {seq} of type {type(seq)}, expected str, list or numpy array")
 
     return reverse_complement
 

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import argparse
 import os
 import sys
 
@@ -89,7 +92,7 @@ def cloud_sync(
         if raise_error_is_file_exists:
             raise FileExistsError(f"target local file {local_path} exists")
         if print_output:
-            sys.stdout.write(f"Local file {local_path} already exists, skipping...")
+            sys.stdout.write(f"Local file {local_path} already exists, skipping...\n")
     else:
         try:
             if print_output:
@@ -108,3 +111,26 @@ def cloud_sync(
             raise
 
     return local_path
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description=run.__doc__)
+    parser.add_argument("cloud_path", type=str, help="full path to aws s3 / google storage file")
+    parser.add_argument(
+        "--local_dir",
+        type=dir_path,
+        default="/data",
+        help="local directory the files will sync to",
+    )
+    args = parser.parse_args(argv[1:])
+    return args
+
+
+def run(argv: list[str]):
+    """Download aws s3 or google storage file to a respective local path"""
+    args = parse_args(argv)
+    cloud_path = args.cloud_path
+    local_dir = args.local_dir
+    if not os.path.isdir(local_dir):
+        raise ValueError(f"local_dir {local_dir} does not exist")
+    cloud_sync(cloud_path, local_dir, print_output=True)

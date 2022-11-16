@@ -48,11 +48,11 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         " but it must be localized",
     )
     parser.add_argument(
-        "-N",
+        "-dr",
         type=int,
         default=4,
-        help="Process 1 in every N positions - makes the code run faster the larger N is (default 100). "
-        "In the output dataframe df, df['coverage'] = df['count'] * N",
+        help="Process 1 in every N=downsampling_ratio positions - the code runs faster the larger it is (default 100). "
+        "In the output dataframe df, df['coverage'] = df['count'] * downsampling_ratio",
     )
     parser.add_argument(
         "-m",
@@ -87,5 +87,5 @@ def run(argv: list[str]):
         show_stats=args_in.show_stats,
         n_jobs=args_in.jobs,
         size=args_in.motif_length,
-        N=args_in.N,
+        downsampling_ratio=args_in.dr,
     )

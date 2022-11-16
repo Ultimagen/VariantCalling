@@ -98,7 +98,7 @@ def collect_coverage_per_motif(
     show_stats: bool = False,
     n_jobs: int = -1,
     size: int = 5,
-    N: int = 100,
+    downsampling_ratio: int = 100,
 ):
     """
     Collect coverage per motif from given input files, output is a set of dataframes with motif of a given size and
@@ -125,9 +125,9 @@ def collect_coverage_per_motif(
         number of processes to run in parallel, -1 (default) for maximal possible number
     :param: size
         maximal motif size, deault 5 - all motifs below that number until 0 are also calculated
-    :param: N
-        process 1 in every N positions - makes the code run faster the larger N is (default 100). in the output
-        dataframe df, df['coverage'] = df['count'] * N
+    :param: downsampling_ratio
+        process 1 in every N=downsampling_ratio positions - makes the code run faster the larger N is (default 100).
+        In the output dataframe df, df['coverage'] = df['count'] * N
 
     :return:
     -------
@@ -155,7 +155,7 @@ def collect_coverage_per_motif(
                 chrom=pyfaidx.Fasta(reference_fasta)[chr_str][:].seq.upper(),
                 depth_file=depth_file,
                 size=size,
-                n=N,
+                n=downsampling_ratio,
             )
             for chr_str, depth_file in depth_files.items()
         )
@@ -166,7 +166,7 @@ def collect_coverage_per_motif(
         df[f"motif_{j}"] = df[f"motif_{j + 1}"].str.slice(1, -1)
 
     df = df[[f"motif_{j}" for j in range(size + 1)] + ["count"]]
-    df["coverage"] = df["count"] * N
+    df["coverage"] = df["count"] * downsampling_ratio
     if outfile is not None:
         for j in range(size + 1):
             df.groupby(f"motif_{j}").agg({"count": "sum", "coverage": "sum"}).to_hdf(outfile, key=f"motif_{j}")

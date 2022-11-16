@@ -10,7 +10,7 @@ setup(
         "ugvc/pipelines/run_comparison_pipeline.py",
         "ugvc/pipelines/coverage_analysis.py",
         "ugvc/pipelines/collect_existing_metrics.py",
-        "ugvc/pipelines/mrd/snp_error_rate.py",
+        "ugvc/pipelines/mrd/substitution_error_rate.py",
         "ugvc/pipelines/mrd/positional_error_rate_profile.py",
         "ugvc/pipelines/mrd/collect_coverage_per_motif.py",
         "ugvc/pipelines/mrd/concat_dataframes.py",

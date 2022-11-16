@@ -20,8 +20,7 @@ from __future__ import annotations
 
 import argparse
 
-import pandas as pd
-from joblib import Parallel, delayed
+from ugvc.mrd.mrd_utils import concat_dataframes
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:
@@ -61,10 +60,3 @@ def run(argv: list[str]):
         n_jobs=args.jobs,
     )
     print("DONE")
-
-
-def concat_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
-    df = pd.concat(Parallel(n_jobs=n_jobs)(delayed(pd.read_parquet)(f) for f in dataframes))
-    df = df.sort_index()
-    df.to_parquet(outfile)
-    return df

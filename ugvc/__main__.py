@@ -29,11 +29,12 @@ from ugvc.pipelines.mrd import (
     intersect_featuremap_with_signature,
     positional_error_rate_profile,
     prepare_data_from_mrd_pipeline,
-    snp_error_rate,
+    substitution_error_rate,
 )
 
 # import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
+from ugvc.utils import cloud_sync
 
 # create a list of imported pipeline modules
 modules = [
@@ -50,7 +51,7 @@ modules = [
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
 
 mrd_modules = [
-    snp_error_rate,
+    substitution_error_rate,
     positional_error_rate_profile,
     collect_coverage_per_motif,
     concat_dataframes,
@@ -60,9 +61,11 @@ mrd_modules = [
     prepare_data_from_mrd_pipeline,
 ]
 
+misc_modules = [cloud_sync]
+
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
-
+modules.extend(misc_modules)
 
 LOGO = """
       __    __    ___________    ____  ______
