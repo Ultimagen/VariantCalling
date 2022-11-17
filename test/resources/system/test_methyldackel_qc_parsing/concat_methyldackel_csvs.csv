@@ -1,0 +1,894 @@
+metric,value,detail,table,measure,bin
+PercentMethylationPosition_1,0.5309902241138525,OT,Mbias,Percent Methylation Position,1
+PercentMethylationPosition_2,0.5587955100857391,OT,Mbias,Percent Methylation Position,2
+PercentMethylationPosition_3,0.5199713887738584,OT,Mbias,Percent Methylation Position,3
+PercentMethylationPosition_4,0.5558985371091129,OT,Mbias,Percent Methylation Position,4
+PercentMethylationPosition_5,0.5416118032344104,OT,Mbias,Percent Methylation Position,5
+PercentMethylationPosition_6,0.5451492055290014,OT,Mbias,Percent Methylation Position,6
+PercentMethylationPosition_7,0.5468776075564901,OT,Mbias,Percent Methylation Position,7
+PercentMethylationPosition_8,0.5483601286173634,OT,Mbias,Percent Methylation Position,8
+PercentMethylationPosition_9,0.5495112622184445,OT,Mbias,Percent Methylation Position,9
+PercentMethylationPosition_10,0.5450193152177502,OT,Mbias,Percent Methylation Position,10
+PercentMethylationPosition_11,0.5467704901667165,OT,Mbias,Percent Methylation Position,11
+PercentMethylationPosition_12,0.5517734268523751,OT,Mbias,Percent Methylation Position,12
+PercentMethylationPosition_13,0.5459882583170255,OT,Mbias,Percent Methylation Position,13
+PercentMethylationPosition_14,0.5549325161374454,OT,Mbias,Percent Methylation Position,14
+PercentMethylationPosition_15,0.5489594450373533,OT,Mbias,Percent Methylation Position,15
+PercentMethylationPosition_16,0.5522494029561738,OT,Mbias,Percent Methylation Position,16
+PercentMethylationPosition_17,0.5537962362102531,OT,Mbias,Percent Methylation Position,17
+PercentMethylationPosition_18,0.5438991005084083,OT,Mbias,Percent Methylation Position,18
+PercentMethylationPosition_19,0.5471177194558094,OT,Mbias,Percent Methylation Position,19
+PercentMethylationPosition_20,0.5494666319760635,OT,Mbias,Percent Methylation Position,20
+PercentMethylationPosition_21,0.5479552950971915,OT,Mbias,Percent Methylation Position,21
+PercentMethylationPosition_22,0.5481228228615662,OT,Mbias,Percent Methylation Position,22
+PercentMethylationPosition_23,0.5461676159479252,OT,Mbias,Percent Methylation Position,23
+PercentMethylationPosition_24,0.5494865354656153,OT,Mbias,Percent Methylation Position,24
+PercentMethylationPosition_25,0.5513127253006668,OT,Mbias,Percent Methylation Position,25
+PercentMethylationPosition_26,0.5424884970558899,OT,Mbias,Percent Methylation Position,26
+PercentMethylationPosition_27,0.5452846000128924,OT,Mbias,Percent Methylation Position,27
+PercentMethylationPosition_28,0.5497176608035309,OT,Mbias,Percent Methylation Position,28
+PercentMethylationPosition_29,0.5457223319198524,OT,Mbias,Percent Methylation Position,29
+PercentMethylationPosition_30,0.5437359098228663,OT,Mbias,Percent Methylation Position,30
+PercentMethylationPosition_31,0.5474118625631839,OT,Mbias,Percent Methylation Position,31
+PercentMethylationPosition_32,0.55087131155318,OT,Mbias,Percent Methylation Position,32
+PercentMethylationPosition_33,0.5402339368690915,OT,Mbias,Percent Methylation Position,33
+PercentMethylationPosition_34,0.543136,OT,Mbias,Percent Methylation Position,34
+PercentMethylationPosition_35,0.5447183440769654,OT,Mbias,Percent Methylation Position,35
+PercentMethylationPosition_36,0.5440911431513903,OT,Mbias,Percent Methylation Position,36
+PercentMethylationPosition_37,0.5492581035470929,OT,Mbias,Percent Methylation Position,37
+PercentMethylationPosition_38,0.5469149439798011,OT,Mbias,Percent Methylation Position,38
+PercentMethylationPosition_39,0.5469385182617464,OT,Mbias,Percent Methylation Position,39
+PercentMethylationPosition_40,0.5452097683155918,OT,Mbias,Percent Methylation Position,40
+PercentMethylationPosition_41,0.5464071856287425,OT,Mbias,Percent Methylation Position,41
+PercentMethylationPosition_42,0.5422063421170166,OT,Mbias,Percent Methylation Position,42
+PercentMethylationPosition_43,0.5502645502645502,OT,Mbias,Percent Methylation Position,43
+PercentMethylationPosition_44,0.5401761582244269,OT,Mbias,Percent Methylation Position,44
+PercentMethylationPosition_45,0.546232012118152,OT,Mbias,Percent Methylation Position,45
+PercentMethylationPosition_46,0.5426278520849724,OT,Mbias,Percent Methylation Position,46
+PercentMethylationPosition_47,0.5497994124522223,OT,Mbias,Percent Methylation Position,47
+PercentMethylationPosition_48,0.5422028283857816,OT,Mbias,Percent Methylation Position,48
+PercentMethylationPosition_49,0.5468312187135976,OT,Mbias,Percent Methylation Position,49
+PercentMethylationPosition_50,0.5493339282299701,OT,Mbias,Percent Methylation Position,50
+PercentMethylationPosition_51,0.5444596879686054,OT,Mbias,Percent Methylation Position,51
+PercentMethylationPosition_52,0.5425467903854071,OT,Mbias,Percent Methylation Position,52
+PercentMethylationPosition_53,0.5416377734350375,OT,Mbias,Percent Methylation Position,53
+PercentMethylationPosition_54,0.548803812748879,OT,Mbias,Percent Methylation Position,54
+PercentMethylationPosition_55,0.5397809076682316,OT,Mbias,Percent Methylation Position,55
+PercentMethylationPosition_56,0.5509074606560925,OT,Mbias,Percent Methylation Position,56
+PercentMethylationPosition_57,0.5478847487548074,OT,Mbias,Percent Methylation Position,57
+PercentMethylationPosition_58,0.5440474695466533,OT,Mbias,Percent Methylation Position,58
+PercentMethylationPosition_59,0.536739904800933,OT,Mbias,Percent Methylation Position,59
+PercentMethylationPosition_60,0.5430969445492267,OT,Mbias,Percent Methylation Position,60
+PercentMethylationPosition_61,0.5453410981697171,OT,Mbias,Percent Methylation Position,61
+PercentMethylationPosition_62,0.5481015025874431,OT,Mbias,Percent Methylation Position,62
+PercentMethylationPosition_63,0.5528920653995762,OT,Mbias,Percent Methylation Position,63
+PercentMethylationPosition_64,0.5475569520816967,OT,Mbias,Percent Methylation Position,64
+PercentMethylationPosition_65,0.5412438364879911,OT,Mbias,Percent Methylation Position,65
+PercentMethylationPosition_66,0.5458367840988724,OT,Mbias,Percent Methylation Position,66
+PercentMethylationPosition_67,0.543696682464455,OT,Mbias,Percent Methylation Position,67
+PercentMethylationPosition_68,0.5501559988654628,OT,Mbias,Percent Methylation Position,68
+PercentMethylationPosition_69,0.5459704520956186,OT,Mbias,Percent Methylation Position,69
+PercentMethylationPosition_70,0.5482293951739267,OT,Mbias,Percent Methylation Position,70
+PercentMethylationPosition_71,0.5457275629880188,OT,Mbias,Percent Methylation Position,71
+PercentMethylationPosition_72,0.5515003798429983,OT,Mbias,Percent Methylation Position,72
+PercentMethylationPosition_73,0.5468990422358297,OT,Mbias,Percent Methylation Position,73
+PercentMethylationPosition_74,0.546050755631594,OT,Mbias,Percent Methylation Position,74
+PercentMethylationPosition_75,0.5398277717976319,OT,Mbias,Percent Methylation Position,75
+PercentMethylationPosition_76,0.5480020264707745,OT,Mbias,Percent Methylation Position,76
+PercentMethylationPosition_77,0.5422947274693125,OT,Mbias,Percent Methylation Position,77
+PercentMethylationPosition_78,0.5366785612783024,OT,Mbias,Percent Methylation Position,78
+PercentMethylationPosition_79,0.5466209349593496,OT,Mbias,Percent Methylation Position,79
+PercentMethylationPosition_80,0.5423431469490606,OT,Mbias,Percent Methylation Position,80
+PercentMethylationPosition_81,0.5405023900420263,OT,Mbias,Percent Methylation Position,81
+PercentMethylationPosition_82,0.5490962697090117,OT,Mbias,Percent Methylation Position,82
+PercentMethylationPosition_83,0.5454280060981543,OT,Mbias,Percent Methylation Position,83
+PercentMethylationPosition_84,0.5440549122750745,OT,Mbias,Percent Methylation Position,84
+PercentMethylationPosition_85,0.5411414905306703,OT,Mbias,Percent Methylation Position,85
+PercentMethylationPosition_86,0.5432874493927126,OT,Mbias,Percent Methylation Position,86
+PercentMethylationPosition_87,0.5425751515933428,OT,Mbias,Percent Methylation Position,87
+PercentMethylationPosition_88,0.5377793543809861,OT,Mbias,Percent Methylation Position,88
+PercentMethylationPosition_89,0.5412680395654289,OT,Mbias,Percent Methylation Position,89
+PercentMethylationPosition_90,0.5387352417920104,OT,Mbias,Percent Methylation Position,90
+PercentMethylationPosition_91,0.5403422178348141,OT,Mbias,Percent Methylation Position,91
+PercentMethylationPosition_92,0.5446915515495901,OT,Mbias,Percent Methylation Position,92
+PercentMethylationPosition_93,0.5445098039215687,OT,Mbias,Percent Methylation Position,93
+PercentMethylationPosition_94,0.5418457730884461,OT,Mbias,Percent Methylation Position,94
+PercentMethylationPosition_95,0.5378450870077195,OT,Mbias,Percent Methylation Position,95
+PercentMethylationPosition_96,0.5416857236197321,OT,Mbias,Percent Methylation Position,96
+PercentMethylationPosition_97,0.5408001584472173,OT,Mbias,Percent Methylation Position,97
+PercentMethylationPosition_98,0.539056021758599,OT,Mbias,Percent Methylation Position,98
+PercentMethylationPosition_99,0.5387929594869911,OT,Mbias,Percent Methylation Position,99
+PercentMethylationPosition_100,0.53854599900183,OT,Mbias,Percent Methylation Position,100
+PercentMethylationPosition_101,0.5408353285448257,OT,Mbias,Percent Methylation Position,101
+PercentMethylationPosition_102,0.5437595890867855,OT,Mbias,Percent Methylation Position,102
+PercentMethylationPosition_103,0.5417677758202307,OT,Mbias,Percent Methylation Position,103
+PercentMethylationPosition_104,0.5379479264528251,OT,Mbias,Percent Methylation Position,104
+PercentMethylationPosition_105,0.5362090363264348,OT,Mbias,Percent Methylation Position,105
+PercentMethylationPosition_106,0.5370307050536826,OT,Mbias,Percent Methylation Position,106
+PercentMethylationPosition_107,0.5393389278986128,OT,Mbias,Percent Methylation Position,107
+PercentMethylationPosition_108,0.5367239280400379,OT,Mbias,Percent Methylation Position,108
+PercentMethylationPosition_109,0.5377590806484712,OT,Mbias,Percent Methylation Position,109
+PercentMethylationPosition_110,0.5340951731195633,OT,Mbias,Percent Methylation Position,110
+PercentMethylationPosition_111,0.5400589404427387,OT,Mbias,Percent Methylation Position,111
+PercentMethylationPosition_112,0.5376875734734804,OT,Mbias,Percent Methylation Position,112
+PercentMethylationPosition_113,0.5390792661820699,OT,Mbias,Percent Methylation Position,113
+PercentMethylationPosition_114,0.5357494375703037,OT,Mbias,Percent Methylation Position,114
+PercentMethylationPosition_115,0.5353369253376251,OT,Mbias,Percent Methylation Position,115
+PercentMethylationPosition_116,0.5368275959567399,OT,Mbias,Percent Methylation Position,116
+PercentMethylationPosition_117,0.5338841209358641,OT,Mbias,Percent Methylation Position,117
+PercentMethylationPosition_118,0.5392308775883927,OT,Mbias,Percent Methylation Position,118
+PercentMethylationPosition_119,0.5314819418303207,OT,Mbias,Percent Methylation Position,119
+PercentMethylationPosition_120,0.5361662685822253,OT,Mbias,Percent Methylation Position,120
+PercentMethylationPosition_121,0.5362096630415404,OT,Mbias,Percent Methylation Position,121
+PercentMethylationPosition_122,0.5387155831568367,OT,Mbias,Percent Methylation Position,122
+PercentMethylationPosition_123,0.5334245785909811,OT,Mbias,Percent Methylation Position,123
+PercentMethylationPosition_124,0.5359833248007021,OT,Mbias,Percent Methylation Position,124
+PercentMethylationPosition_125,0.5344746631993355,OT,Mbias,Percent Methylation Position,125
+PercentMethylationPosition_126,0.538659793814433,OT,Mbias,Percent Methylation Position,126
+PercentMethylationPosition_127,0.5428697377121446,OT,Mbias,Percent Methylation Position,127
+PercentMethylationPosition_128,0.5338624921912322,OT,Mbias,Percent Methylation Position,128
+PercentMethylationPosition_129,0.532892277790237,OT,Mbias,Percent Methylation Position,129
+PercentMethylationPosition_130,0.5399267946515276,OT,Mbias,Percent Methylation Position,130
+PercentMethylationPosition_131,0.5330270170924463,OT,Mbias,Percent Methylation Position,131
+PercentMethylationPosition_132,0.5305601441657907,OT,Mbias,Percent Methylation Position,132
+PercentMethylationPosition_133,0.5375777339602609,OT,Mbias,Percent Methylation Position,133
+PercentMethylationPosition_134,0.5346697212676594,OT,Mbias,Percent Methylation Position,134
+PercentMethylationPosition_135,0.5313625165813909,OT,Mbias,Percent Methylation Position,135
+PercentMethylationPosition_136,0.5315110683349374,OT,Mbias,Percent Methylation Position,136
+PercentMethylationPosition_137,0.5335896942895597,OT,Mbias,Percent Methylation Position,137
+PercentMethylationPosition_138,0.5351666405883273,OT,Mbias,Percent Methylation Position,138
+PercentMethylationPosition_139,0.5261287298859553,OT,Mbias,Percent Methylation Position,139
+PercentMethylationPosition_140,0.5341208396520073,OT,Mbias,Percent Methylation Position,140
+PercentMethylationPosition_141,0.5311893540338232,OT,Mbias,Percent Methylation Position,141
+PercentMethylationPosition_142,0.5332644052968545,OT,Mbias,Percent Methylation Position,142
+PercentMethylationPosition_143,0.533679808356003,OT,Mbias,Percent Methylation Position,143
+PercentMethylationPosition_144,0.5274648466409012,OT,Mbias,Percent Methylation Position,144
+PercentMethylationPosition_145,0.529939253688169,OT,Mbias,Percent Methylation Position,145
+PercentMethylationPosition_146,0.5271369020595155,OT,Mbias,Percent Methylation Position,146
+PercentMethylationPosition_147,0.527577136654002,OT,Mbias,Percent Methylation Position,147
+PercentMethylationPosition_148,0.5274982252474214,OT,Mbias,Percent Methylation Position,148
+PercentMethylationPosition_149,0.5330630858880162,OT,Mbias,Percent Methylation Position,149
+PercentMethylationPosition_150,0.5290134168535997,OT,Mbias,Percent Methylation Position,150
+PercentMethylationPosition_151,0.5328186974879515,OT,Mbias,Percent Methylation Position,151
+PercentMethylationPosition_152,0.5235430420146023,OT,Mbias,Percent Methylation Position,152
+PercentMethylationPosition_153,0.5262834845894164,OT,Mbias,Percent Methylation Position,153
+PercentMethylationPosition_154,0.5333068818057576,OT,Mbias,Percent Methylation Position,154
+PercentMethylationPosition_155,0.5281342546890424,OT,Mbias,Percent Methylation Position,155
+PercentMethylationPosition_156,0.5249067661161427,OT,Mbias,Percent Methylation Position,156
+PercentMethylationPosition_157,0.5296017222820237,OT,Mbias,Percent Methylation Position,157
+PercentMethylationPosition_158,0.524092558983666,OT,Mbias,Percent Methylation Position,158
+PercentMethylationPosition_159,0.5304283875712447,OT,Mbias,Percent Methylation Position,159
+PercentMethylationPosition_160,0.5283699421965318,OT,Mbias,Percent Methylation Position,160
+PercentMethylationPosition_161,0.5214692667562184,OT,Mbias,Percent Methylation Position,161
+PercentMethylationPosition_162,0.5269486490309804,OT,Mbias,Percent Methylation Position,162
+PercentMethylationPosition_163,0.5232952344052693,OT,Mbias,Percent Methylation Position,163
+PercentMethylationPosition_164,0.5233536966665063,OT,Mbias,Percent Methylation Position,164
+PercentMethylationPosition_165,0.5227403293757181,OT,Mbias,Percent Methylation Position,165
+PercentMethylationPosition_166,0.5260495948931991,OT,Mbias,Percent Methylation Position,166
+PercentMethylationPosition_167,0.5227181342983515,OT,Mbias,Percent Methylation Position,167
+PercentMethylationPosition_168,0.5212055228386203,OT,Mbias,Percent Methylation Position,168
+PercentMethylationPosition_169,0.5198792406488256,OT,Mbias,Percent Methylation Position,169
+PercentMethylationPosition_170,0.5260678070265288,OT,Mbias,Percent Methylation Position,170
+PercentMethylationPosition_171,0.5180859859446052,OT,Mbias,Percent Methylation Position,171
+PercentMethylationPosition_172,0.5249183218378883,OT,Mbias,Percent Methylation Position,172
+PercentMethylationPosition_173,0.5250156347717323,OT,Mbias,Percent Methylation Position,173
+PercentMethylationPosition_174,0.5262407602956706,OT,Mbias,Percent Methylation Position,174
+PercentMethylationPosition_175,0.5237865120274914,OT,Mbias,Percent Methylation Position,175
+PercentMethylationPosition_176,0.5211054733887509,OT,Mbias,Percent Methylation Position,176
+PercentMethylationPosition_177,0.5131017672151127,OT,Mbias,Percent Methylation Position,177
+PercentMethylationPosition_178,0.5243546700423799,OT,Mbias,Percent Methylation Position,178
+PercentMethylationPosition_179,0.519487813096709,OT,Mbias,Percent Methylation Position,179
+PercentMethylationPosition_180,0.5167159426881965,OT,Mbias,Percent Methylation Position,180
+PercentMethylationPosition_181,0.518216044019693,OT,Mbias,Percent Methylation Position,181
+PercentMethylationPosition_182,0.5227702354356418,OT,Mbias,Percent Methylation Position,182
+PercentMethylationPosition_183,0.5253355407083309,OT,Mbias,Percent Methylation Position,183
+PercentMethylationPosition_184,0.5092064239072887,OT,Mbias,Percent Methylation Position,184
+PercentMethylationPosition_185,0.5243662391887861,OT,Mbias,Percent Methylation Position,185
+PercentMethylationPosition_186,0.5176052018157281,OT,Mbias,Percent Methylation Position,186
+PercentMethylationPosition_187,0.5241086273785331,OT,Mbias,Percent Methylation Position,187
+PercentMethylationPosition_188,0.5259655451209653,OT,Mbias,Percent Methylation Position,188
+PercentMethylationPosition_189,0.5227982510930669,OT,Mbias,Percent Methylation Position,189
+PercentMethylationPosition_190,0.5267228370221329,OT,Mbias,Percent Methylation Position,190
+PercentMethylationPosition_191,0.5164092664092664,OT,Mbias,Percent Methylation Position,191
+PercentMethylationPosition_192,0.5235608928338337,OT,Mbias,Percent Methylation Position,192
+PercentMethylationPosition_193,0.5222842139809649,OT,Mbias,Percent Methylation Position,193
+PercentMethylationPosition_194,0.5127084454007531,OT,Mbias,Percent Methylation Position,194
+PercentMethylationPosition_195,0.523300642543118,OT,Mbias,Percent Methylation Position,195
+PercentMethylationPosition_196,0.5149304608671939,OT,Mbias,Percent Methylation Position,196
+PercentMethylationPosition_197,0.5194274028629857,OT,Mbias,Percent Methylation Position,197
+PercentMethylationPosition_198,0.5238789393308344,OT,Mbias,Percent Methylation Position,198
+PercentMethylationPosition_199,0.5199599370439262,OT,Mbias,Percent Methylation Position,199
+PercentMethylationPosition_200,0.5183987350869628,OT,Mbias,Percent Methylation Position,200
+PercentMethylationPosition_201,0.5176599634369287,OT,Mbias,Percent Methylation Position,201
+PercentMethylationPosition_202,0.5211370262390671,OT,Mbias,Percent Methylation Position,202
+PercentMethylationPosition_203,0.524129279811098,OT,Mbias,Percent Methylation Position,203
+PercentMethylationPosition_204,0.5185789512719721,OT,Mbias,Percent Methylation Position,204
+PercentMethylationPosition_205,0.5166666666666667,OT,Mbias,Percent Methylation Position,205
+PercentMethylationPosition_206,0.5184398239490059,OT,Mbias,Percent Methylation Position,206
+PercentMethylationPosition_207,0.5145874071177161,OT,Mbias,Percent Methylation Position,207
+PercentMethylationPosition_208,0.5187987892305241,OT,Mbias,Percent Methylation Position,208
+PercentMethylationPosition_209,0.5186844842762263,OT,Mbias,Percent Methylation Position,209
+PercentMethylationPosition_210,0.5237395986294665,OT,Mbias,Percent Methylation Position,210
+PercentMethylationPosition_211,0.5161582852431987,OT,Mbias,Percent Methylation Position,211
+PercentMethylationPosition_212,0.5131393517367155,OT,Mbias,Percent Methylation Position,212
+PercentMethylationPosition_213,0.5193752638243985,OT,Mbias,Percent Methylation Position,213
+PercentMethylationPosition_214,0.5223286162189645,OT,Mbias,Percent Methylation Position,214
+PercentMethylationPosition_215,0.52734375,OT,Mbias,Percent Methylation Position,215
+PercentMethylationPosition_216,0.5160293208513644,OT,Mbias,Percent Methylation Position,216
+PercentMethylationPosition_217,0.5193533902110462,OT,Mbias,Percent Methylation Position,217
+PercentMethylationPosition_218,0.5147912885662432,OT,Mbias,Percent Methylation Position,218
+PercentMethylationPosition_219,0.5199851618288046,OT,Mbias,Percent Methylation Position,219
+PercentMethylationPosition_220,0.5289348616158792,OT,Mbias,Percent Methylation Position,220
+PercentMethylationPosition_221,0.5190753617741026,OT,Mbias,Percent Methylation Position,221
+PercentMethylationPosition_222,0.517503805175038,OT,Mbias,Percent Methylation Position,222
+PercentMethylationPosition_223,0.5216218819223731,OT,Mbias,Percent Methylation Position,223
+PercentMethylationPosition_224,0.5209936678032148,OT,Mbias,Percent Methylation Position,224
+PercentMethylationPosition_225,0.525790188093853,OT,Mbias,Percent Methylation Position,225
+PercentMethylationPosition_226,0.5181206706154,OT,Mbias,Percent Methylation Position,226
+PercentMethylationPosition_227,0.5119735755573905,OT,Mbias,Percent Methylation Position,227
+PercentMethylationPosition_228,0.5219320879347714,OT,Mbias,Percent Methylation Position,228
+PercentMethylationPosition_229,0.5119557272632348,OT,Mbias,Percent Methylation Position,229
+PercentMethylationPosition_230,0.5088874259381172,OT,Mbias,Percent Methylation Position,230
+PercentMethylationPosition_231,0.5146052774459767,OT,Mbias,Percent Methylation Position,231
+PercentMethylationPosition_232,0.509475539885412,OT,Mbias,Percent Methylation Position,232
+PercentMethylationPosition_233,0.5155361050328228,OT,Mbias,Percent Methylation Position,233
+PercentMethylationPosition_234,0.5121427764599571,OT,Mbias,Percent Methylation Position,234
+PercentMethylationPosition_235,0.5203938115330521,OT,Mbias,Percent Methylation Position,235
+PercentMethylationPosition_236,0.5150041513462222,OT,Mbias,Percent Methylation Position,236
+PercentMethylationPosition_237,0.5179839091339328,OT,Mbias,Percent Methylation Position,237
+PercentMethylationPosition_238,0.5161368599854405,OT,Mbias,Percent Methylation Position,238
+PercentMethylationPosition_239,0.5113986444855206,OT,Mbias,Percent Methylation Position,239
+PercentMethylationPosition_240,0.5114741830880519,OT,Mbias,Percent Methylation Position,240
+PercentMethylationPosition_241,0.5188985582543187,OT,Mbias,Percent Methylation Position,241
+PercentMethylationPosition_242,0.5067902846696265,OT,Mbias,Percent Methylation Position,242
+PercentMethylationPosition_243,0.515498204070773,OT,Mbias,Percent Methylation Position,243
+PercentMethylationPosition_244,0.5069664781349151,OT,Mbias,Percent Methylation Position,244
+PercentMethylationPosition_245,0.5152598295298323,OT,Mbias,Percent Methylation Position,245
+PercentMethylationPosition_246,0.515506061460389,OT,Mbias,Percent Methylation Position,246
+PercentMethylationPosition_247,0.5099971838918614,OT,Mbias,Percent Methylation Position,247
+PercentMethylationPosition_248,0.5231631749778696,OT,Mbias,Percent Methylation Position,248
+PercentMethylationPosition_249,0.5001476232654266,OT,Mbias,Percent Methylation Position,249
+PercentMethylationPosition_250,0.5114503816793893,OT,Mbias,Percent Methylation Position,250
+PercentMethylationPosition_251,0.5009986172991243,OT,Mbias,Percent Methylation Position,251
+PercentMethylationPosition_252,0.5083798882681564,OT,Mbias,Percent Methylation Position,252
+PercentMethylationPosition_253,0.4991452991452991,OT,Mbias,Percent Methylation Position,253
+PercentMethylationPosition_254,0.4956827630316597,OT,Mbias,Percent Methylation Position,254
+PercentMethylationPosition_255,0.512065637065637,OT,Mbias,Percent Methylation Position,255
+PercentMethylationPosition_256,0.5078534031413613,OT,Mbias,Percent Methylation Position,256
+PercentMethylationPosition_257,0.5051975051975052,OT,Mbias,Percent Methylation Position,257
+PercentMethylationPosition_258,0.5014129282938891,OT,Mbias,Percent Methylation Position,258
+PercentMethylationPosition_259,0.4975150869719559,OT,Mbias,Percent Methylation Position,259
+PercentMethylationPosition_260,0.4882436765229783,OT,Mbias,Percent Methylation Position,260
+PercentMethylationPosition_261,0.4948867786705624,OT,Mbias,Percent Methylation Position,261
+PercentMethylationPosition_262,0.5055658627087198,OT,Mbias,Percent Methylation Position,262
+PercentMethylationPosition_263,0.4881919516342339,OT,Mbias,Percent Methylation Position,263
+PercentMethylationPosition_264,0.5026940730393135,OT,Mbias,Percent Methylation Position,264
+PercentMethylationPosition_265,0.4962420886075949,OT,Mbias,Percent Methylation Position,265
+PercentMethylationPosition_266,0.4945848375451263,OT,Mbias,Percent Methylation Position,266
+PercentMethylationPosition_267,0.5026848409748038,OT,Mbias,Percent Methylation Position,267
+PercentMethylationPosition_268,0.4952279957582184,OT,Mbias,Percent Methylation Position,268
+PercentMethylationPosition_269,0.4872899612236105,OT,Mbias,Percent Methylation Position,269
+PercentMethylationPosition_270,0.4977767896843041,OT,Mbias,Percent Methylation Position,270
+PercentMethylationPosition_271,0.4801772388059701,OT,Mbias,Percent Methylation Position,271
+PercentMethylationPosition_272,0.4813836175834735,OT,Mbias,Percent Methylation Position,272
+PercentMethylationPosition_273,0.4755126658624849,OT,Mbias,Percent Methylation Position,273
+PercentMethylationPosition_274,0.4687266384251183,OT,Mbias,Percent Methylation Position,274
+PercentMethylationPosition_275,0.4719895287958115,OT,Mbias,Percent Methylation Position,275
+PercentMethylationPosition_276,0.4825596643063204,OT,Mbias,Percent Methylation Position,276
+PercentMethylationPosition_277,0.4724847137298499,OT,Mbias,Percent Methylation Position,277
+PercentMethylationPosition_278,0.473175965665236,OT,Mbias,Percent Methylation Position,278
+PercentMethylationPosition_279,0.465216146578872,OT,Mbias,Percent Methylation Position,279
+PercentMethylationPosition_280,0.4737788432724004,OT,Mbias,Percent Methylation Position,280
+PercentMethylationPosition_281,0.4694878871511806,OT,Mbias,Percent Methylation Position,281
+PercentMethylationPosition_282,0.4645345155161494,OT,Mbias,Percent Methylation Position,282
+PercentMethylationPosition_283,0.4726205997392438,OT,Mbias,Percent Methylation Position,283
+PercentMethylationPosition_284,0.4677954847277556,OT,Mbias,Percent Methylation Position,284
+PercentMethylationPosition_285,0.4512152166255724,OT,Mbias,Percent Methylation Position,285
+PercentMethylationPosition_286,0.4501317275122318,OT,Mbias,Percent Methylation Position,286
+PercentMethylationPosition_287,0.4345468628969791,OT,Mbias,Percent Methylation Position,287
+PercentMethylationPosition_288,0.4385485758876317,OT,Mbias,Percent Methylation Position,288
+PercentMethylationPosition_289,0.4563650920736589,OT,Mbias,Percent Methylation Position,289
+PercentMethylationPosition_290,0.4424778761061947,OT,Mbias,Percent Methylation Position,290
+PercentMethylationPosition_291,0.4335570469798657,OT,Mbias,Percent Methylation Position,291
+PercentMethylationPosition_292,0.4352022058823529,OT,Mbias,Percent Methylation Position,292
+PercentMethylationPosition_293,0.4389520514087988,OT,Mbias,Percent Methylation Position,293
+PercentMethylationPosition_294,0.4342629482071713,OT,Mbias,Percent Methylation Position,294
+PercentMethylationPosition_295,0.4123819517313746,OT,Mbias,Percent Methylation Position,295
+PercentMethylationPosition_296,0.398068669527897,OT,Mbias,Percent Methylation Position,296
+PercentMethylationPosition_297,0.4322981366459627,OT,Mbias,Percent Methylation Position,297
+PercentMethylationPosition_298,0.4034416826003824,OT,Mbias,Percent Methylation Position,298
+PercentMethylationPosition_299,0.4203739522888459,OT,Mbias,Percent Methylation Position,299
+PercentMethylationPosition_300,0.4276901987662783,OT,Mbias,Percent Methylation Position,300
+PercentMethylationPosition_301,0.4013015184381778,OT,Mbias,Percent Methylation Position,301
+PercentMethylationPosition_302,0.4074906367041198,OT,Mbias,Percent Methylation Position,302
+PercentMethylationPosition_303,0.4083191850594228,OT,Mbias,Percent Methylation Position,303
+PercentMethylationPosition_304,0.3935018050541516,OT,Mbias,Percent Methylation Position,304
+PercentMethylationPosition_305,0.4141132776230269,OT,Mbias,Percent Methylation Position,305
+PercentMethylationPosition_306,0.4044734389561976,OT,Mbias,Percent Methylation Position,306
+PercentMethylationPosition_307,0.3759162303664921,OT,Mbias,Percent Methylation Position,307
+PercentMethylationPosition_308,0.3733624454148471,OT,Mbias,Percent Methylation Position,308
+PercentMethylationPosition_309,0.3718535469107552,OT,Mbias,Percent Methylation Position,309
+PercentMethylationPosition_310,0.3761467889908257,OT,Mbias,Percent Methylation Position,310
+PercentMethylationPosition_311,0.3533424283765348,OT,Mbias,Percent Methylation Position,311
+PercentMethylationPosition_312,0.381294964028777,OT,Mbias,Percent Methylation Position,312
+PercentMethylationPosition_313,0.3602584814216478,OT,Mbias,Percent Methylation Position,313
+PercentMethylationPosition_314,0.3794871794871794,OT,Mbias,Percent Methylation Position,314
+PercentMethylationPosition_315,0.352622061482821,OT,Mbias,Percent Methylation Position,315
+PercentMethylationPosition_316,0.3522504892367906,OT,Mbias,Percent Methylation Position,316
+PercentMethylationPosition_317,0.3416666666666667,OT,Mbias,Percent Methylation Position,317
+PercentMethylationPosition_318,0.3199052132701421,OT,Mbias,Percent Methylation Position,318
+PercentMethylationPosition_319,0.3556085918854415,OT,Mbias,Percent Methylation Position,319
+PercentMethylationPosition_320,0.3260869565217391,OT,Mbias,Percent Methylation Position,320
+PercentMethylationPosition_321,0.3565217391304348,OT,Mbias,Percent Methylation Position,321
+PercentMethylationPosition_322,0.3130990415335463,OT,Mbias,Percent Methylation Position,322
+PercentMethylationPosition_323,0.2974910394265233,OT,Mbias,Percent Methylation Position,323
+PercentMethylationPosition_324,0.3012048192771084,OT,Mbias,Percent Methylation Position,324
+PercentMethylationPosition_325,0.3181818181818182,OT,Mbias,Percent Methylation Position,325
+PercentMethylationPosition_326,0.3193717277486911,OT,Mbias,Percent Methylation Position,326
+PercentMethylationPosition_327,0.3678756476683937,OT,Mbias,Percent Methylation Position,327
+PercentMethylationPosition_328,0.3209876543209876,OT,Mbias,Percent Methylation Position,328
+PercentMethylationPosition_329,0.2831325301204819,OT,Mbias,Percent Methylation Position,329
+PercentMethylationPosition_330,0.2635658914728682,OT,Mbias,Percent Methylation Position,330
+PercentMethylationPosition_331,0.2605633802816901,OT,Mbias,Percent Methylation Position,331
+PercentMethylationPosition_332,0.2913385826771653,OT,Mbias,Percent Methylation Position,332
+PercentMethylationPosition_333,0.2596153846153846,OT,Mbias,Percent Methylation Position,333
+PercentMethylationPosition_334,0.3402061855670103,OT,Mbias,Percent Methylation Position,334
+PercentMethylationPosition_335,0.2446808510638297,OT,Mbias,Percent Methylation Position,335
+PercentMethylationPosition_336,0.3194444444444444,OT,Mbias,Percent Methylation Position,336
+PercentMethylationPosition_337,0.2753623188405797,OT,Mbias,Percent Methylation Position,337
+PercentMethylationPosition_338,0.2285714285714285,OT,Mbias,Percent Methylation Position,338
+PercentMethylationPosition_339,0.2363636363636363,OT,Mbias,Percent Methylation Position,339
+PercentMethylationPosition_340,0.2950819672131147,OT,Mbias,Percent Methylation Position,340
+PercentMethylationPosition_341,0.2325581395348837,OT,Mbias,Percent Methylation Position,341
+PercentMethylationPosition_342,0.3,OT,Mbias,Percent Methylation Position,342
+PercentMethylationPosition_343,0.3225806451612903,OT,Mbias,Percent Methylation Position,343
+PercentMethylationPosition_344,0.3214285714285714,OT,Mbias,Percent Methylation Position,344
+PercentMethylationPosition_345,0.2903225806451613,OT,Mbias,Percent Methylation Position,345
+PercentMethylationPosition_346,0.25,OT,Mbias,Percent Methylation Position,346
+PercentMethylationPosition_347,0.217391304347826,OT,Mbias,Percent Methylation Position,347
+PercentMethylationPosition_348,0.3333333333333333,OT,Mbias,Percent Methylation Position,348
+PercentMethylationPosition_349,0.1666666666666666,OT,Mbias,Percent Methylation Position,349
+PercentMethylationPosition_350,0.3636363636363636,OT,Mbias,Percent Methylation Position,350
+PercentMethylationPosition_351,0.2,OT,Mbias,Percent Methylation Position,351
+PercentMethylationPosition_352,0.0909090909090909,OT,Mbias,Percent Methylation Position,352
+PercentMethylationPosition_353,0.3,OT,Mbias,Percent Methylation Position,353
+PercentMethylationPosition_354,0.2857142857142857,OT,Mbias,Percent Methylation Position,354
+PercentMethylationPosition_355,0.0666666666666666,OT,Mbias,Percent Methylation Position,355
+PercentMethylationPosition_356,0.125,OT,Mbias,Percent Methylation Position,356
+PercentMethylationPosition_357,0.3076923076923077,OT,Mbias,Percent Methylation Position,357
+PercentMethylationPosition_358,0.25,OT,Mbias,Percent Methylation Position,358
+PercentMethylationPosition_359,0.125,OT,Mbias,Percent Methylation Position,359
+PercentMethylationPosition_360,0.1666666666666666,OT,Mbias,Percent Methylation Position,360
+PercentMethylationPosition_361,0.5,OT,Mbias,Percent Methylation Position,361
+PercentMethylationPosition_362,0.3333333333333333,OT,Mbias,Percent Methylation Position,362
+PercentMethylationPosition_363,0.0,OT,Mbias,Percent Methylation Position,363
+PercentMethylationPosition_364,0.5,OT,Mbias,Percent Methylation Position,364
+PercentMethylationPosition_366,0.5,OT,Mbias,Percent Methylation Position,366
+PercentMethylationPosition_368,0.0,OT,Mbias,Percent Methylation Position,368
+PercentMethylationPosition_370,0.0,OT,Mbias,Percent Methylation Position,370
+PercentMethylationPosition_377,1.0,OT,Mbias,Percent Methylation Position,377
+PercentMethylationPosition_379,0.0,OT,Mbias,Percent Methylation Position,379
+PercentMethylationPosition_1,0.1091855164702846,OB,Mbias,Percent Methylation Position,1
+PercentMethylationPosition_2,0.2690840949437832,OB,Mbias,Percent Methylation Position,2
+PercentMethylationPosition_3,0.4774625123462332,OB,Mbias,Percent Methylation Position,3
+PercentMethylationPosition_4,0.4845702730030333,OB,Mbias,Percent Methylation Position,4
+PercentMethylationPosition_5,0.5162422522589799,OB,Mbias,Percent Methylation Position,5
+PercentMethylationPosition_6,0.5184026499815974,OB,Mbias,Percent Methylation Position,6
+PercentMethylationPosition_7,0.5273236639597149,OB,Mbias,Percent Methylation Position,7
+PercentMethylationPosition_8,0.5330243760035032,OB,Mbias,Percent Methylation Position,8
+PercentMethylationPosition_9,0.5327979054627795,OB,Mbias,Percent Methylation Position,9
+PercentMethylationPosition_10,0.531372066016821,OB,Mbias,Percent Methylation Position,10
+PercentMethylationPosition_11,0.5291260376264182,OB,Mbias,Percent Methylation Position,11
+PercentMethylationPosition_12,0.5291483086334341,OB,Mbias,Percent Methylation Position,12
+PercentMethylationPosition_13,0.531288955372725,OB,Mbias,Percent Methylation Position,13
+PercentMethylationPosition_14,0.5262708244340025,OB,Mbias,Percent Methylation Position,14
+PercentMethylationPosition_15,0.5337818696883853,OB,Mbias,Percent Methylation Position,15
+PercentMethylationPosition_16,0.5288379983036472,OB,Mbias,Percent Methylation Position,16
+PercentMethylationPosition_17,0.5374189342209107,OB,Mbias,Percent Methylation Position,17
+PercentMethylationPosition_18,0.5321363338732468,OB,Mbias,Percent Methylation Position,18
+PercentMethylationPosition_19,0.5375542064180399,OB,Mbias,Percent Methylation Position,19
+PercentMethylationPosition_20,0.5331402945019245,OB,Mbias,Percent Methylation Position,20
+PercentMethylationPosition_21,0.5360335389092925,OB,Mbias,Percent Methylation Position,21
+PercentMethylationPosition_22,0.5322033898305085,OB,Mbias,Percent Methylation Position,22
+PercentMethylationPosition_23,0.5369111219038368,OB,Mbias,Percent Methylation Position,23
+PercentMethylationPosition_24,0.5390041777960414,OB,Mbias,Percent Methylation Position,24
+PercentMethylationPosition_25,0.5359405122555769,OB,Mbias,Percent Methylation Position,25
+PercentMethylationPosition_26,0.5370940981275184,OB,Mbias,Percent Methylation Position,26
+PercentMethylationPosition_27,0.5396503760689632,OB,Mbias,Percent Methylation Position,27
+PercentMethylationPosition_28,0.5362834917891097,OB,Mbias,Percent Methylation Position,28
+PercentMethylationPosition_29,0.5340631347034321,OB,Mbias,Percent Methylation Position,29
+PercentMethylationPosition_30,0.5338769305186055,OB,Mbias,Percent Methylation Position,30
+PercentMethylationPosition_31,0.5360255266588897,OB,Mbias,Percent Methylation Position,31
+PercentMethylationPosition_32,0.53965616628802,OB,Mbias,Percent Methylation Position,32
+PercentMethylationPosition_33,0.5377155895577478,OB,Mbias,Percent Methylation Position,33
+PercentMethylationPosition_34,0.5362436823716971,OB,Mbias,Percent Methylation Position,34
+PercentMethylationPosition_35,0.5414953399122807,OB,Mbias,Percent Methylation Position,35
+PercentMethylationPosition_36,0.5411479711997846,OB,Mbias,Percent Methylation Position,36
+PercentMethylationPosition_37,0.5384563395512301,OB,Mbias,Percent Methylation Position,37
+PercentMethylationPosition_38,0.5414779257656683,OB,Mbias,Percent Methylation Position,38
+PercentMethylationPosition_39,0.5420848387528435,OB,Mbias,Percent Methylation Position,39
+PercentMethylationPosition_40,0.5374720171071536,OB,Mbias,Percent Methylation Position,40
+PercentMethylationPosition_41,0.5380842659644502,OB,Mbias,Percent Methylation Position,41
+PercentMethylationPosition_42,0.538960171077252,OB,Mbias,Percent Methylation Position,42
+PercentMethylationPosition_43,0.5329242942399249,OB,Mbias,Percent Methylation Position,43
+PercentMethylationPosition_44,0.5390444258172674,OB,Mbias,Percent Methylation Position,44
+PercentMethylationPosition_45,0.5359702681178656,OB,Mbias,Percent Methylation Position,45
+PercentMethylationPosition_46,0.5388907230108947,OB,Mbias,Percent Methylation Position,46
+PercentMethylationPosition_47,0.5426651661591421,OB,Mbias,Percent Methylation Position,47
+PercentMethylationPosition_48,0.5405602277994834,OB,Mbias,Percent Methylation Position,48
+PercentMethylationPosition_49,0.5358357178926106,OB,Mbias,Percent Methylation Position,49
+PercentMethylationPosition_50,0.5404540355045205,OB,Mbias,Percent Methylation Position,50
+PercentMethylationPosition_51,0.5409180327868852,OB,Mbias,Percent Methylation Position,51
+PercentMethylationPosition_52,0.5342702415362637,OB,Mbias,Percent Methylation Position,52
+PercentMethylationPosition_53,0.5407622121940775,OB,Mbias,Percent Methylation Position,53
+PercentMethylationPosition_54,0.5399432680255953,OB,Mbias,Percent Methylation Position,54
+PercentMethylationPosition_55,0.5420188636141118,OB,Mbias,Percent Methylation Position,55
+PercentMethylationPosition_56,0.5417651694247438,OB,Mbias,Percent Methylation Position,56
+PercentMethylationPosition_57,0.5393800978792822,OB,Mbias,Percent Methylation Position,57
+PercentMethylationPosition_58,0.541943684004693,OB,Mbias,Percent Methylation Position,58
+PercentMethylationPosition_59,0.5314281968932293,OB,Mbias,Percent Methylation Position,59
+PercentMethylationPosition_60,0.5416502560063017,OB,Mbias,Percent Methylation Position,60
+PercentMethylationPosition_61,0.5383323453862873,OB,Mbias,Percent Methylation Position,61
+PercentMethylationPosition_62,0.5388832686094703,OB,Mbias,Percent Methylation Position,62
+PercentMethylationPosition_63,0.5399748443899764,OB,Mbias,Percent Methylation Position,63
+PercentMethylationPosition_64,0.5447300771208227,OB,Mbias,Percent Methylation Position,64
+PercentMethylationPosition_65,0.5433452652131467,OB,Mbias,Percent Methylation Position,65
+PercentMethylationPosition_66,0.5408908480821106,OB,Mbias,Percent Methylation Position,66
+PercentMethylationPosition_67,0.5393422893016296,OB,Mbias,Percent Methylation Position,67
+PercentMethylationPosition_68,0.5402302599393366,OB,Mbias,Percent Methylation Position,68
+PercentMethylationPosition_69,0.5418918481602537,OB,Mbias,Percent Methylation Position,69
+PercentMethylationPosition_70,0.5372172540768017,OB,Mbias,Percent Methylation Position,70
+PercentMethylationPosition_71,0.5403670612521368,OB,Mbias,Percent Methylation Position,71
+PercentMethylationPosition_72,0.5446746519909356,OB,Mbias,Percent Methylation Position,72
+PercentMethylationPosition_73,0.5387360498313003,OB,Mbias,Percent Methylation Position,73
+PercentMethylationPosition_74,0.5427257714600265,OB,Mbias,Percent Methylation Position,74
+PercentMethylationPosition_75,0.5388451443569554,OB,Mbias,Percent Methylation Position,75
+PercentMethylationPosition_76,0.5415910515722441,OB,Mbias,Percent Methylation Position,76
+PercentMethylationPosition_77,0.5424210732727629,OB,Mbias,Percent Methylation Position,77
+PercentMethylationPosition_78,0.5428281306298929,OB,Mbias,Percent Methylation Position,78
+PercentMethylationPosition_79,0.5430949727993708,OB,Mbias,Percent Methylation Position,79
+PercentMethylationPosition_80,0.5458061161483214,OB,Mbias,Percent Methylation Position,80
+PercentMethylationPosition_81,0.5478260869565217,OB,Mbias,Percent Methylation Position,81
+PercentMethylationPosition_82,0.5393247399070863,OB,Mbias,Percent Methylation Position,82
+PercentMethylationPosition_83,0.5395713913496613,OB,Mbias,Percent Methylation Position,83
+PercentMethylationPosition_84,0.5396653897783453,OB,Mbias,Percent Methylation Position,84
+PercentMethylationPosition_85,0.5417307377719613,OB,Mbias,Percent Methylation Position,85
+PercentMethylationPosition_86,0.5480510090054559,OB,Mbias,Percent Methylation Position,86
+PercentMethylationPosition_87,0.5479217761714212,OB,Mbias,Percent Methylation Position,87
+PercentMethylationPosition_88,0.545002778958381,OB,Mbias,Percent Methylation Position,88
+PercentMethylationPosition_89,0.5398259264143479,OB,Mbias,Percent Methylation Position,89
+PercentMethylationPosition_90,0.5431774103415404,OB,Mbias,Percent Methylation Position,90
+PercentMethylationPosition_91,0.540834486849911,OB,Mbias,Percent Methylation Position,91
+PercentMethylationPosition_92,0.5410983547574657,OB,Mbias,Percent Methylation Position,92
+PercentMethylationPosition_93,0.5433697914945643,OB,Mbias,Percent Methylation Position,93
+PercentMethylationPosition_94,0.5416666666666666,OB,Mbias,Percent Methylation Position,94
+PercentMethylationPosition_95,0.5436586329514026,OB,Mbias,Percent Methylation Position,95
+PercentMethylationPosition_96,0.5446136566350632,OB,Mbias,Percent Methylation Position,96
+PercentMethylationPosition_97,0.5451191544520889,OB,Mbias,Percent Methylation Position,97
+PercentMethylationPosition_98,0.5416970500497182,OB,Mbias,Percent Methylation Position,98
+PercentMethylationPosition_99,0.5410070506851138,OB,Mbias,Percent Methylation Position,99
+PercentMethylationPosition_100,0.5442548653692348,OB,Mbias,Percent Methylation Position,100
+PercentMethylationPosition_101,0.5461097516006839,OB,Mbias,Percent Methylation Position,101
+PercentMethylationPosition_102,0.5437623232964609,OB,Mbias,Percent Methylation Position,102
+PercentMethylationPosition_103,0.5385050774096887,OB,Mbias,Percent Methylation Position,103
+PercentMethylationPosition_104,0.5453512465744268,OB,Mbias,Percent Methylation Position,104
+PercentMethylationPosition_105,0.5477008236353329,OB,Mbias,Percent Methylation Position,105
+PercentMethylationPosition_106,0.5399406770993147,OB,Mbias,Percent Methylation Position,106
+PercentMethylationPosition_107,0.5461007174948032,OB,Mbias,Percent Methylation Position,107
+PercentMethylationPosition_108,0.541663843913014,OB,Mbias,Percent Methylation Position,108
+PercentMethylationPosition_109,0.5396083819993129,OB,Mbias,Percent Methylation Position,109
+PercentMethylationPosition_110,0.5424731550509541,OB,Mbias,Percent Methylation Position,110
+PercentMethylationPosition_111,0.5431138759288059,OB,Mbias,Percent Methylation Position,111
+PercentMethylationPosition_112,0.5454203433887407,OB,Mbias,Percent Methylation Position,112
+PercentMethylationPosition_113,0.5427550178718724,OB,Mbias,Percent Methylation Position,113
+PercentMethylationPosition_114,0.5382255534251351,OB,Mbias,Percent Methylation Position,114
+PercentMethylationPosition_115,0.5422899482734517,OB,Mbias,Percent Methylation Position,115
+PercentMethylationPosition_116,0.5399396872150922,OB,Mbias,Percent Methylation Position,116
+PercentMethylationPosition_117,0.547134092900964,OB,Mbias,Percent Methylation Position,117
+PercentMethylationPosition_118,0.5429157239819005,OB,Mbias,Percent Methylation Position,118
+PercentMethylationPosition_119,0.5448275862068965,OB,Mbias,Percent Methylation Position,119
+PercentMethylationPosition_120,0.543656862396415,OB,Mbias,Percent Methylation Position,120
+PercentMethylationPosition_121,0.5466833095577746,OB,Mbias,Percent Methylation Position,121
+PercentMethylationPosition_122,0.5432590519252162,OB,Mbias,Percent Methylation Position,122
+PercentMethylationPosition_123,0.5457511652922195,OB,Mbias,Percent Methylation Position,123
+PercentMethylationPosition_124,0.5408078846084673,OB,Mbias,Percent Methylation Position,124
+PercentMethylationPosition_125,0.5437591240875912,OB,Mbias,Percent Methylation Position,125
+PercentMethylationPosition_126,0.5440020197648416,OB,Mbias,Percent Methylation Position,126
+PercentMethylationPosition_127,0.5447107167533365,OB,Mbias,Percent Methylation Position,127
+PercentMethylationPosition_128,0.5474056260020406,OB,Mbias,Percent Methylation Position,128
+PercentMethylationPosition_129,0.5416344133583988,OB,Mbias,Percent Methylation Position,129
+PercentMethylationPosition_130,0.546242019191278,OB,Mbias,Percent Methylation Position,130
+PercentMethylationPosition_131,0.5447163433274544,OB,Mbias,Percent Methylation Position,131
+PercentMethylationPosition_132,0.5482241101837644,OB,Mbias,Percent Methylation Position,132
+PercentMethylationPosition_133,0.5412998688893051,OB,Mbias,Percent Methylation Position,133
+PercentMethylationPosition_134,0.5444171547326658,OB,Mbias,Percent Methylation Position,134
+PercentMethylationPosition_135,0.5470072551390568,OB,Mbias,Percent Methylation Position,135
+PercentMethylationPosition_136,0.5394475469435178,OB,Mbias,Percent Methylation Position,136
+PercentMethylationPosition_137,0.5423408116770282,OB,Mbias,Percent Methylation Position,137
+PercentMethylationPosition_138,0.5426676435429761,OB,Mbias,Percent Methylation Position,138
+PercentMethylationPosition_139,0.5454475397834547,OB,Mbias,Percent Methylation Position,139
+PercentMethylationPosition_140,0.5432093963907902,OB,Mbias,Percent Methylation Position,140
+PercentMethylationPosition_141,0.5425344847798054,OB,Mbias,Percent Methylation Position,141
+PercentMethylationPosition_142,0.5467991861011113,OB,Mbias,Percent Methylation Position,142
+PercentMethylationPosition_143,0.5442982803708694,OB,Mbias,Percent Methylation Position,143
+PercentMethylationPosition_144,0.546696582395128,OB,Mbias,Percent Methylation Position,144
+PercentMethylationPosition_145,0.5498472423219167,OB,Mbias,Percent Methylation Position,145
+PercentMethylationPosition_146,0.5448477942373433,OB,Mbias,Percent Methylation Position,146
+PercentMethylationPosition_147,0.5470255763835238,OB,Mbias,Percent Methylation Position,147
+PercentMethylationPosition_148,0.5445678455800992,OB,Mbias,Percent Methylation Position,148
+PercentMethylationPosition_149,0.541341847735943,OB,Mbias,Percent Methylation Position,149
+PercentMethylationPosition_150,0.5508362857378265,OB,Mbias,Percent Methylation Position,150
+PercentMethylationPosition_151,0.5455268556118391,OB,Mbias,Percent Methylation Position,151
+PercentMethylationPosition_152,0.5506783719074222,OB,Mbias,Percent Methylation Position,152
+PercentMethylationPosition_153,0.5470813804857264,OB,Mbias,Percent Methylation Position,153
+PercentMethylationPosition_154,0.5446486486486487,OB,Mbias,Percent Methylation Position,154
+PercentMethylationPosition_155,0.5477750948602966,OB,Mbias,Percent Methylation Position,155
+PercentMethylationPosition_156,0.5391925030653354,OB,Mbias,Percent Methylation Position,156
+PercentMethylationPosition_157,0.5425879890095512,OB,Mbias,Percent Methylation Position,157
+PercentMethylationPosition_158,0.5485866904073002,OB,Mbias,Percent Methylation Position,158
+PercentMethylationPosition_159,0.5431152841135568,OB,Mbias,Percent Methylation Position,159
+PercentMethylationPosition_160,0.5465538089480049,OB,Mbias,Percent Methylation Position,160
+PercentMethylationPosition_161,0.5469891546036212,OB,Mbias,Percent Methylation Position,161
+PercentMethylationPosition_162,0.5449461379784551,OB,Mbias,Percent Methylation Position,162
+PercentMethylationPosition_163,0.542247898172937,OB,Mbias,Percent Methylation Position,163
+PercentMethylationPosition_164,0.545530648311785,OB,Mbias,Percent Methylation Position,164
+PercentMethylationPosition_165,0.5478362028850629,OB,Mbias,Percent Methylation Position,165
+PercentMethylationPosition_166,0.5447531594641928,OB,Mbias,Percent Methylation Position,166
+PercentMethylationPosition_167,0.5479154876438408,OB,Mbias,Percent Methylation Position,167
+PercentMethylationPosition_168,0.5473219427913227,OB,Mbias,Percent Methylation Position,168
+PercentMethylationPosition_169,0.5472477741157952,OB,Mbias,Percent Methylation Position,169
+PercentMethylationPosition_170,0.5429286731137402,OB,Mbias,Percent Methylation Position,170
+PercentMethylationPosition_171,0.5470390275754684,OB,Mbias,Percent Methylation Position,171
+PercentMethylationPosition_172,0.5399056319646622,OB,Mbias,Percent Methylation Position,172
+PercentMethylationPosition_173,0.548299593107952,OB,Mbias,Percent Methylation Position,173
+PercentMethylationPosition_174,0.5429116010715022,OB,Mbias,Percent Methylation Position,174
+PercentMethylationPosition_175,0.5413265833247236,OB,Mbias,Percent Methylation Position,175
+PercentMethylationPosition_176,0.5438432350953791,OB,Mbias,Percent Methylation Position,176
+PercentMethylationPosition_177,0.54854597851716,OB,Mbias,Percent Methylation Position,177
+PercentMethylationPosition_178,0.5396672551222382,OB,Mbias,Percent Methylation Position,178
+PercentMethylationPosition_179,0.5405126534158792,OB,Mbias,Percent Methylation Position,179
+PercentMethylationPosition_180,0.5487838058442619,OB,Mbias,Percent Methylation Position,180
+PercentMethylationPosition_181,0.5515875199471744,OB,Mbias,Percent Methylation Position,181
+PercentMethylationPosition_182,0.5390520694259012,OB,Mbias,Percent Methylation Position,182
+PercentMethylationPosition_183,0.5504270603540924,OB,Mbias,Percent Methylation Position,183
+PercentMethylationPosition_184,0.5462999492757707,OB,Mbias,Percent Methylation Position,184
+PercentMethylationPosition_185,0.5376743654241939,OB,Mbias,Percent Methylation Position,185
+PercentMethylationPosition_186,0.5440193592993777,OB,Mbias,Percent Methylation Position,186
+PercentMethylationPosition_187,0.5438915620232367,OB,Mbias,Percent Methylation Position,187
+PercentMethylationPosition_188,0.5445609048380411,OB,Mbias,Percent Methylation Position,188
+PercentMethylationPosition_189,0.5387213510253317,OB,Mbias,Percent Methylation Position,189
+PercentMethylationPosition_190,0.5430528375733855,OB,Mbias,Percent Methylation Position,190
+PercentMethylationPosition_191,0.54544360178163,OB,Mbias,Percent Methylation Position,191
+PercentMethylationPosition_192,0.5420456654909969,OB,Mbias,Percent Methylation Position,192
+PercentMethylationPosition_193,0.5495263785207954,OB,Mbias,Percent Methylation Position,193
+PercentMethylationPosition_194,0.5453795902835035,OB,Mbias,Percent Methylation Position,194
+PercentMethylationPosition_195,0.5456951077836582,OB,Mbias,Percent Methylation Position,195
+PercentMethylationPosition_196,0.5385818561001042,OB,Mbias,Percent Methylation Position,196
+PercentMethylationPosition_197,0.5457419482315747,OB,Mbias,Percent Methylation Position,197
+PercentMethylationPosition_198,0.5556830453563715,OB,Mbias,Percent Methylation Position,198
+PercentMethylationPosition_199,0.5473798533803964,OB,Mbias,Percent Methylation Position,199
+PercentMethylationPosition_200,0.5431947840260799,OB,Mbias,Percent Methylation Position,200
+PercentMethylationPosition_201,0.5406976744186046,OB,Mbias,Percent Methylation Position,201
+PercentMethylationPosition_202,0.5420242570395063,OB,Mbias,Percent Methylation Position,202
+PercentMethylationPosition_203,0.5422002122391227,OB,Mbias,Percent Methylation Position,203
+PercentMethylationPosition_204,0.5451224752900731,OB,Mbias,Percent Methylation Position,204
+PercentMethylationPosition_205,0.5464072930873591,OB,Mbias,Percent Methylation Position,205
+PercentMethylationPosition_206,0.5423629002576371,OB,Mbias,Percent Methylation Position,206
+PercentMethylationPosition_207,0.5494762227748888,OB,Mbias,Percent Methylation Position,207
+PercentMethylationPosition_208,0.5507809580748823,OB,Mbias,Percent Methylation Position,208
+PercentMethylationPosition_209,0.548667837239484,OB,Mbias,Percent Methylation Position,209
+PercentMethylationPosition_210,0.5422986708365911,OB,Mbias,Percent Methylation Position,210
+PercentMethylationPosition_211,0.5450510084884355,OB,Mbias,Percent Methylation Position,211
+PercentMethylationPosition_212,0.5410616705698673,OB,Mbias,Percent Methylation Position,212
+PercentMethylationPosition_213,0.5453451043338684,OB,Mbias,Percent Methylation Position,213
+PercentMethylationPosition_214,0.5446370176586004,OB,Mbias,Percent Methylation Position,214
+PercentMethylationPosition_215,0.5451431367751407,OB,Mbias,Percent Methylation Position,215
+PercentMethylationPosition_216,0.5446435946146857,OB,Mbias,Percent Methylation Position,216
+PercentMethylationPosition_217,0.543395265970985,OB,Mbias,Percent Methylation Position,217
+PercentMethylationPosition_218,0.5482328837288715,OB,Mbias,Percent Methylation Position,218
+PercentMethylationPosition_219,0.5368639667705088,OB,Mbias,Percent Methylation Position,219
+PercentMethylationPosition_220,0.5527891038431508,OB,Mbias,Percent Methylation Position,220
+PercentMethylationPosition_221,0.5508102784492792,OB,Mbias,Percent Methylation Position,221
+PercentMethylationPosition_222,0.5439718868264553,OB,Mbias,Percent Methylation Position,222
+PercentMethylationPosition_223,0.550405245423914,OB,Mbias,Percent Methylation Position,223
+PercentMethylationPosition_224,0.5527847049044057,OB,Mbias,Percent Methylation Position,224
+PercentMethylationPosition_225,0.5415316232984536,OB,Mbias,Percent Methylation Position,225
+PercentMethylationPosition_226,0.5429418515684774,OB,Mbias,Percent Methylation Position,226
+PercentMethylationPosition_227,0.548830160083357,OB,Mbias,Percent Methylation Position,227
+PercentMethylationPosition_228,0.5441559695010134,OB,Mbias,Percent Methylation Position,228
+PercentMethylationPosition_229,0.5406278389017866,OB,Mbias,Percent Methylation Position,229
+PercentMethylationPosition_230,0.5466331658291458,OB,Mbias,Percent Methylation Position,230
+PercentMethylationPosition_231,0.5432844995389816,OB,Mbias,Percent Methylation Position,231
+PercentMethylationPosition_232,0.5438721498371335,OB,Mbias,Percent Methylation Position,232
+PercentMethylationPosition_233,0.5507910074937552,OB,Mbias,Percent Methylation Position,233
+PercentMethylationPosition_234,0.5335981107771576,OB,Mbias,Percent Methylation Position,234
+PercentMethylationPosition_235,0.5489754318206201,OB,Mbias,Percent Methylation Position,235
+PercentMethylationPosition_236,0.5491239742736749,OB,Mbias,Percent Methylation Position,236
+PercentMethylationPosition_237,0.543534434333221,OB,Mbias,Percent Methylation Position,237
+PercentMethylationPosition_238,0.5529771338012226,OB,Mbias,Percent Methylation Position,238
+PercentMethylationPosition_239,0.5448786900920282,OB,Mbias,Percent Methylation Position,239
+PercentMethylationPosition_240,0.5461197073287754,OB,Mbias,Percent Methylation Position,240
+PercentMethylationPosition_241,0.5491657791977281,OB,Mbias,Percent Methylation Position,241
+PercentMethylationPosition_242,0.5440047961630695,OB,Mbias,Percent Methylation Position,242
+PercentMethylationPosition_243,0.5561306223043746,OB,Mbias,Percent Methylation Position,243
+PercentMethylationPosition_244,0.5394671314741036,OB,Mbias,Percent Methylation Position,244
+PercentMethylationPosition_245,0.5365023326188375,OB,Mbias,Percent Methylation Position,245
+PercentMethylationPosition_246,0.5425189759423646,OB,Mbias,Percent Methylation Position,246
+PercentMethylationPosition_247,0.5458867027598046,OB,Mbias,Percent Methylation Position,247
+PercentMethylationPosition_248,0.5390583903208838,OB,Mbias,Percent Methylation Position,248
+PercentMethylationPosition_249,0.5452541672406668,OB,Mbias,Percent Methylation Position,249
+PercentMethylationPosition_250,0.5504407443682664,OB,Mbias,Percent Methylation Position,250
+PercentMethylationPosition_251,0.5460750853242321,OB,Mbias,Percent Methylation Position,251
+PercentMethylationPosition_252,0.5469620958751393,OB,Mbias,Percent Methylation Position,252
+PercentMethylationPosition_253,0.5378299120234604,OB,Mbias,Percent Methylation Position,253
+PercentMethylationPosition_254,0.541077738515901,OB,Mbias,Percent Methylation Position,254
+PercentMethylationPosition_255,0.5418075622502305,OB,Mbias,Percent Methylation Position,255
+PercentMethylationPosition_256,0.5466956251939187,OB,Mbias,Percent Methylation Position,256
+PercentMethylationPosition_257,0.5472106320506877,OB,Mbias,Percent Methylation Position,257
+PercentMethylationPosition_258,0.5306927568249961,OB,Mbias,Percent Methylation Position,258
+PercentMethylationPosition_259,0.5400512656199936,OB,Mbias,Percent Methylation Position,259
+PercentMethylationPosition_260,0.5287662121715996,OB,Mbias,Percent Methylation Position,260
+PercentMethylationPosition_261,0.535726554448643,OB,Mbias,Percent Methylation Position,261
+PercentMethylationPosition_262,0.5357266736038848,OB,Mbias,Percent Methylation Position,262
+PercentMethylationPosition_263,0.522466039707419,OB,Mbias,Percent Methylation Position,263
+PercentMethylationPosition_264,0.5338385618611209,OB,Mbias,Percent Methylation Position,264
+PercentMethylationPosition_265,0.5204880713895466,OB,Mbias,Percent Methylation Position,265
+PercentMethylationPosition_266,0.5308526551982049,OB,Mbias,Percent Methylation Position,266
+PercentMethylationPosition_267,0.531663049911225,OB,Mbias,Percent Methylation Position,267
+PercentMethylationPosition_268,0.5258987243911867,OB,Mbias,Percent Methylation Position,268
+PercentMethylationPosition_269,0.5228652367462566,OB,Mbias,Percent Methylation Position,269
+PercentMethylationPosition_270,0.51977162190738,OB,Mbias,Percent Methylation Position,270
+PercentMethylationPosition_271,0.5166557805355977,OB,Mbias,Percent Methylation Position,271
+PercentMethylationPosition_272,0.5146443514644351,OB,Mbias,Percent Methylation Position,272
+PercentMethylationPosition_273,0.5227016037948949,OB,Mbias,Percent Methylation Position,273
+PercentMethylationPosition_274,0.5126245077600186,OB,Mbias,Percent Methylation Position,274
+PercentMethylationPosition_275,0.5078181380803464,OB,Mbias,Percent Methylation Position,275
+PercentMethylationPosition_276,0.5025728987993139,OB,Mbias,Percent Methylation Position,276
+PercentMethylationPosition_277,0.4851310483870967,OB,Mbias,Percent Methylation Position,277
+PercentMethylationPosition_278,0.4968569931901519,OB,Mbias,Percent Methylation Position,278
+PercentMethylationPosition_279,0.5107856191744341,OB,Mbias,Percent Methylation Position,279
+PercentMethylationPosition_280,0.5272214386459803,OB,Mbias,Percent Methylation Position,280
+PercentMethylationPosition_281,0.5095078299776287,OB,Mbias,Percent Methylation Position,281
+PercentMethylationPosition_282,0.4849194729136164,OB,Mbias,Percent Methylation Position,282
+PercentMethylationPosition_283,0.4828220858895705,OB,Mbias,Percent Methylation Position,283
+PercentMethylationPosition_284,0.4821025475653015,OB,Mbias,Percent Methylation Position,284
+PercentMethylationPosition_285,0.4989939637826961,OB,Mbias,Percent Methylation Position,285
+PercentMethylationPosition_286,0.4765897973445143,OB,Mbias,Percent Methylation Position,286
+PercentMethylationPosition_287,0.4696054034838251,OB,Mbias,Percent Methylation Position,287
+PercentMethylationPosition_288,0.4805293005671077,OB,Mbias,Percent Methylation Position,288
+PercentMethylationPosition_289,0.4640905542544887,OB,Mbias,Percent Methylation Position,289
+PercentMethylationPosition_290,0.4718836020448289,OB,Mbias,Percent Methylation Position,290
+PercentMethylationPosition_291,0.441388066017774,OB,Mbias,Percent Methylation Position,291
+PercentMethylationPosition_292,0.470362473347548,OB,Mbias,Percent Methylation Position,292
+PercentMethylationPosition_293,0.4629024731684554,OB,Mbias,Percent Methylation Position,293
+PercentMethylationPosition_294,0.4319960861056751,OB,Mbias,Percent Methylation Position,294
+PercentMethylationPosition_295,0.4549549549549549,OB,Mbias,Percent Methylation Position,295
+PercentMethylationPosition_296,0.4521276595744681,OB,Mbias,Percent Methylation Position,296
+PercentMethylationPosition_297,0.4293567894447498,OB,Mbias,Percent Methylation Position,297
+PercentMethylationPosition_298,0.4516695957820738,OB,Mbias,Percent Methylation Position,298
+PercentMethylationPosition_299,0.4514687100893997,OB,Mbias,Percent Methylation Position,299
+PercentMethylationPosition_300,0.4316353887399464,OB,Mbias,Percent Methylation Position,300
+PercentMethylationPosition_301,0.4229074889867841,OB,Mbias,Percent Methylation Position,301
+PercentMethylationPosition_302,0.4139250191277735,OB,Mbias,Percent Methylation Position,302
+PercentMethylationPosition_303,0.4150793650793651,OB,Mbias,Percent Methylation Position,303
+PercentMethylationPosition_304,0.4134217067108534,OB,Mbias,Percent Methylation Position,304
+PercentMethylationPosition_305,0.4329805996472663,OB,Mbias,Percent Methylation Position,305
+PercentMethylationPosition_306,0.3967495219885277,OB,Mbias,Percent Methylation Position,306
+PercentMethylationPosition_307,0.3843873517786561,OB,Mbias,Percent Methylation Position,307
+PercentMethylationPosition_308,0.3664459161147902,OB,Mbias,Percent Methylation Position,308
+PercentMethylationPosition_309,0.3864894795127353,OB,Mbias,Percent Methylation Position,309
+PercentMethylationPosition_310,0.375743162901308,OB,Mbias,Percent Methylation Position,310
+PercentMethylationPosition_311,0.3743455497382199,OB,Mbias,Percent Methylation Position,311
+PercentMethylationPosition_312,0.3788732394366197,OB,Mbias,Percent Methylation Position,312
+PercentMethylationPosition_313,0.3588235294117647,OB,Mbias,Percent Methylation Position,313
+PercentMethylationPosition_314,0.3976705490848585,OB,Mbias,Percent Methylation Position,314
+PercentMethylationPosition_315,0.371900826446281,OB,Mbias,Percent Methylation Position,315
+PercentMethylationPosition_316,0.3565891472868217,OB,Mbias,Percent Methylation Position,316
+PercentMethylationPosition_317,0.3346855983772819,OB,Mbias,Percent Methylation Position,317
+PercentMethylationPosition_318,0.3793103448275862,OB,Mbias,Percent Methylation Position,318
+PercentMethylationPosition_319,0.291358024691358,OB,Mbias,Percent Methylation Position,319
+PercentMethylationPosition_320,0.3351206434316354,OB,Mbias,Percent Methylation Position,320
+PercentMethylationPosition_321,0.3170028818443804,OB,Mbias,Percent Methylation Position,321
+PercentMethylationPosition_322,0.3523809523809524,OB,Mbias,Percent Methylation Position,322
+PercentMethylationPosition_323,0.3098591549295774,OB,Mbias,Percent Methylation Position,323
+PercentMethylationPosition_324,0.3466135458167331,OB,Mbias,Percent Methylation Position,324
+PercentMethylationPosition_325,0.324,OB,Mbias,Percent Methylation Position,325
+PercentMethylationPosition_326,0.3211382113821138,OB,Mbias,Percent Methylation Position,326
+PercentMethylationPosition_327,0.3221153846153846,OB,Mbias,Percent Methylation Position,327
+PercentMethylationPosition_328,0.3210526315789473,OB,Mbias,Percent Methylation Position,328
+PercentMethylationPosition_329,0.2345679012345679,OB,Mbias,Percent Methylation Position,329
+PercentMethylationPosition_330,0.3541666666666667,OB,Mbias,Percent Methylation Position,330
+PercentMethylationPosition_331,0.2748091603053435,OB,Mbias,Percent Methylation Position,331
+PercentMethylationPosition_332,0.2587412587412587,OB,Mbias,Percent Methylation Position,332
+PercentMethylationPosition_333,0.2884615384615384,OB,Mbias,Percent Methylation Position,333
+PercentMethylationPosition_334,0.2872340425531915,OB,Mbias,Percent Methylation Position,334
+PercentMethylationPosition_335,0.2393162393162393,OB,Mbias,Percent Methylation Position,335
+PercentMethylationPosition_336,0.25,OB,Mbias,Percent Methylation Position,336
+PercentMethylationPosition_337,0.2142857142857142,OB,Mbias,Percent Methylation Position,337
+PercentMethylationPosition_338,0.2602739726027397,OB,Mbias,Percent Methylation Position,338
+PercentMethylationPosition_339,0.3,OB,Mbias,Percent Methylation Position,339
+PercentMethylationPosition_340,0.1428571428571428,OB,Mbias,Percent Methylation Position,340
+PercentMethylationPosition_341,0.2264150943396226,OB,Mbias,Percent Methylation Position,341
+PercentMethylationPosition_342,0.14,OB,Mbias,Percent Methylation Position,342
+PercentMethylationPosition_343,0.1891891891891892,OB,Mbias,Percent Methylation Position,343
+PercentMethylationPosition_344,0.2619047619047619,OB,Mbias,Percent Methylation Position,344
+PercentMethylationPosition_345,0.2666666666666666,OB,Mbias,Percent Methylation Position,345
+PercentMethylationPosition_346,0.2307692307692307,OB,Mbias,Percent Methylation Position,346
+PercentMethylationPosition_347,0.1714285714285714,OB,Mbias,Percent Methylation Position,347
+PercentMethylationPosition_348,0.2692307692307692,OB,Mbias,Percent Methylation Position,348
+PercentMethylationPosition_349,0.2222222222222222,OB,Mbias,Percent Methylation Position,349
+PercentMethylationPosition_350,0.1666666666666666,OB,Mbias,Percent Methylation Position,350
+PercentMethylationPosition_351,0.2,OB,Mbias,Percent Methylation Position,351
+PercentMethylationPosition_352,0.0588235294117647,OB,Mbias,Percent Methylation Position,352
+PercentMethylationPosition_353,0.3,OB,Mbias,Percent Methylation Position,353
+PercentMethylationPosition_354,0.1111111111111111,OB,Mbias,Percent Methylation Position,354
+PercentMethylationPosition_355,0.1818181818181818,OB,Mbias,Percent Methylation Position,355
+PercentMethylationPosition_356,0.1818181818181818,OB,Mbias,Percent Methylation Position,356
+PercentMethylationPosition_357,0.4285714285714285,OB,Mbias,Percent Methylation Position,357
+PercentMethylationPosition_358,0.0,OB,Mbias,Percent Methylation Position,358
+PercentMethylationPosition_359,0.0,OB,Mbias,Percent Methylation Position,359
+PercentMethylationPosition_360,0.0,OB,Mbias,Percent Methylation Position,360
+PercentMethylationPosition_361,0.5,OB,Mbias,Percent Methylation Position,361
+PercentMethylationPosition_362,0.0,OB,Mbias,Percent Methylation Position,362
+PercentMethylationPosition_364,0.0,OB,Mbias,Percent Methylation Position,364
+PercentMethylationPosition_365,0.0,OB,Mbias,Percent Methylation Position,365
+PercentMethylationPosition_366,0.0,OB,Mbias,Percent Methylation Position,366
+PercentMethylationPosition_367,0.0,OB,Mbias,Percent Methylation Position,367
+PercentMethylationPosition_368,0.0,OB,Mbias,Percent Methylation Position,368
+PercentMethylationPosition_369,0.5,OB,Mbias,Percent Methylation Position,369
+PercentMethylationPosition_370,0.0,OB,Mbias,Percent Methylation Position,370
+PercentMethylationPosition_373,0.0,OB,Mbias,Percent Methylation Position,373
+PercentMethylationPosition_379,0.0,OB,Mbias,Percent Methylation Position,379
+PercentMethylationPosition_383,0.0,OB,Mbias,Percent Methylation Position,383
+PercentMethylationPosition_389,0.0,OB,Mbias,Percent Methylation Position,389
+PercentMethylation_mean,0.4813850151770693,OT,Mbias,Percent Methylation,mean
+PercentMethylation_std,0.1081368385215331,OT,Mbias,Percent Methylation,std
+PercentMethylation_median,0.5227982510930669,OT,Mbias,Percent Methylation,median
+PercentMethylation_mean,0.4765404385473345,OB,Mbias,Percent Methylation,mean
+PercentMethylation_std,0.1353139687874015,OB,Mbias,Percent Methylation,std
+PercentMethylation_median,0.5398259264143479,OB,Mbias,Percent Methylation,median
+PercentMethylation_10,191.0,hg,MergeContext,Percent Methylation,10
+PercentMethylation_20,30.0,hg,MergeContext,Percent Methylation,20
+PercentMethylation_30,47.0,hg,MergeContext,Percent Methylation,30
+PercentMethylation_40,27.0,hg,MergeContext,Percent Methylation,40
+PercentMethylation_50,29.0,hg,MergeContext,Percent Methylation,50
+PercentMethylation_60,65.0,hg,MergeContext,Percent Methylation,60
+PercentMethylation_70,67.0,hg,MergeContext,Percent Methylation,70
+PercentMethylation_80,37.0,hg,MergeContext,Percent Methylation,80
+PercentMethylation_90,46.0,hg,MergeContext,Percent Methylation,90
+PercentMethylation_100,138.0,hg,MergeContext,Percent Methylation,100
+PercentMethylation_mean,46.88330871491876,hg,MergeContext,Percent Methylation,mean
+PercentMethylation_std,37.75242030307933,hg,MergeContext,Percent Methylation,std
+PercentMethylation_median,50.0,hg,MergeContext,Percent Methylation,median
+TotalCpGs,677.0,hg,MergeContext,Total CpGs,NULL
+Coverage_10,520.0,hg,MergeContext,Coverage,10
+Coverage_20,154.0,hg,MergeContext,Coverage,20
+Coverage_30,3.0,hg,MergeContext,Coverage,30
+Coverage_40,0.0,hg,MergeContext,Coverage,40
+Coverage_50,0.0,hg,MergeContext,Coverage,50
+Coverage_60,0.0,hg,MergeContext,Coverage,60
+Coverage_70,0.0,hg,MergeContext,Coverage,70
+Coverage_80,0.0,hg,MergeContext,Coverage,80
+Coverage_90,0.0,hg,MergeContext,Coverage,90
+Coverage_100,0.0,hg,MergeContext,Coverage,100
+Coverage_110,0.0,hg,MergeContext,Coverage,110
+Coverage_120,0.0,hg,MergeContext,Coverage,120
+Coverage_130,0.0,hg,MergeContext,Coverage,130
+Coverage_140,0.0,hg,MergeContext,Coverage,140
+Coverage_150,0.0,hg,MergeContext,Coverage,150
+Coverage_160,0.0,hg,MergeContext,Coverage,160
+Coverage_170,0.0,hg,MergeContext,Coverage,170
+Coverage_180,0.0,hg,MergeContext,Coverage,180
+Coverage_190,0.0,hg,MergeContext,Coverage,190
+Coverage_200,0.0,hg,MergeContext,Coverage,200
+Coverage_mean,6.375184638109306,hg,MergeContext,Coverage,mean
+Coverage_std,4.426036317976592,hg,MergeContext,Coverage,std
+Coverage_median,5.0,hg,MergeContext,Coverage,median
+CumulativeCoverage_10,0.7680945347119645,hg,MergeContext,CumulativeCoverage,10
+CumulativeCoverage_20,0.9955686853766618,hg,MergeContext,CumulativeCoverage,20
+CumulativeCoverage_30,1.0,hg,MergeContext,CumulativeCoverage,30
+CumulativeCoverage_40,1.0,hg,MergeContext,CumulativeCoverage,40
+CumulativeCoverage_50,1.0,hg,MergeContext,CumulativeCoverage,50
+CumulativeCoverage_60,1.0,hg,MergeContext,CumulativeCoverage,60
+CumulativeCoverage_70,1.0,hg,MergeContext,CumulativeCoverage,70
+CumulativeCoverage_80,1.0,hg,MergeContext,CumulativeCoverage,80
+CumulativeCoverage_90,1.0,hg,MergeContext,CumulativeCoverage,90
+CumulativeCoverage_100,1.0,hg,MergeContext,CumulativeCoverage,100
+CumulativeCoverage_110,1.0,hg,MergeContext,CumulativeCoverage,110
+CumulativeCoverage_120,1.0,hg,MergeContext,CumulativeCoverage,120
+CumulativeCoverage_130,1.0,hg,MergeContext,CumulativeCoverage,130
+CumulativeCoverage_140,1.0,hg,MergeContext,CumulativeCoverage,140
+CumulativeCoverage_150,1.0,hg,MergeContext,CumulativeCoverage,150
+CumulativeCoverage_160,1.0,hg,MergeContext,CumulativeCoverage,160
+CumulativeCoverage_170,1.0,hg,MergeContext,CumulativeCoverage,170
+CumulativeCoverage_180,1.0,hg,MergeContext,CumulativeCoverage,180
+CumulativeCoverage_190,1.0,hg,MergeContext,CumulativeCoverage,190
+CumulativeCoverage_200,1.0,hg,MergeContext,CumulativeCoverage,200
+PercentMethylation_10,0.9569190600522192,CHG,MergeContextNoCpG,Percent Methylation,10
+PercentMethylation_20,0.02088772845953,CHG,MergeContextNoCpG,Percent Methylation,20
+PercentMethylation_30,0.0052219321148825,CHG,MergeContextNoCpG,Percent Methylation,30
+PercentMethylation_40,0.0052219321148825,CHG,MergeContextNoCpG,Percent Methylation,40
+PercentMethylation_50,0.0,CHG,MergeContextNoCpG,Percent Methylation,50
+PercentMethylation_60,0.0013054830287206,CHG,MergeContextNoCpG,Percent Methylation,60
+PercentMethylation_70,0.0,CHG,MergeContextNoCpG,Percent Methylation,70
+PercentMethylation_80,0.0,CHG,MergeContextNoCpG,Percent Methylation,80
+PercentMethylation_90,0.0,CHG,MergeContextNoCpG,Percent Methylation,90
+PercentMethylation_100,0.010443864229765,CHG,MergeContextNoCpG,Percent Methylation,100
+PercentMethylation_mean,1.7950391644908616,CHG,MergeContextNoCpG,Percent Methylation,mean
+PercentMethylation_std,10.823770811211183,CHG,MergeContextNoCpG,Percent Methylation,std
+PercentMethylation_median,0.0,CHG,MergeContextNoCpG,Percent Methylation,median
+Coverage_mean,4.7206266318537855,CHG,MergeContextNoCpG,Coverage,mean
+Coverage_std,3.6140998570534633,CHG,MergeContextNoCpG,Coverage,std
+Coverage_median,4.0,CHG,MergeContextNoCpG,Coverage,median
+CumulativeCoverage_10,0.8694516971279374,CHG,MergeContextNoCpG,CumulativeCoverage,10
+CumulativeCoverage_20,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,20
+CumulativeCoverage_30,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,30
+CumulativeCoverage_40,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,40
+CumulativeCoverage_50,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,50
+CumulativeCoverage_60,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,60
+CumulativeCoverage_70,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,70
+CumulativeCoverage_80,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,80
+CumulativeCoverage_90,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,90
+CumulativeCoverage_100,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,100
+CumulativeCoverage_110,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,110
+CumulativeCoverage_120,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,120
+CumulativeCoverage_130,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,130
+CumulativeCoverage_140,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,140
+CumulativeCoverage_150,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,150
+CumulativeCoverage_160,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,160
+CumulativeCoverage_170,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,170
+CumulativeCoverage_180,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,180
+CumulativeCoverage_190,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,190
+CumulativeCoverage_200,1.0,CHG,MergeContextNoCpG,CumulativeCoverage,200
+PercentMethylation_10,0.9443521594684384,CHH,MergeContextNoCpG,Percent Methylation,10
+PercentMethylation_20,0.0220099667774086,CHH,MergeContextNoCpG,Percent Methylation,20
+PercentMethylation_30,0.0066445182724252,CHH,MergeContextNoCpG,Percent Methylation,30
+PercentMethylation_40,0.0045681063122923,CHH,MergeContextNoCpG,Percent Methylation,40
+PercentMethylation_50,0.0,CHH,MergeContextNoCpG,Percent Methylation,50
+PercentMethylation_60,0.0024916943521594,CHH,MergeContextNoCpG,Percent Methylation,60
+PercentMethylation_70,0.0004152823920265,CHH,MergeContextNoCpG,Percent Methylation,70
+PercentMethylation_80,0.0,CHH,MergeContextNoCpG,Percent Methylation,80
+PercentMethylation_90,0.0,CHH,MergeContextNoCpG,Percent Methylation,90
+PercentMethylation_100,0.0195182724252491,CHH,MergeContextNoCpG,Percent Methylation,100
+PercentMethylation_mean,2.682308970099668,CHH,MergeContextNoCpG,Percent Methylation,mean
+PercentMethylation_std,14.421311584587304,CHH,MergeContextNoCpG,Percent Methylation,std
+PercentMethylation_median,0.0,CHH,MergeContextNoCpG,Percent Methylation,median
+Coverage_mean,3.223421926910299,CHH,MergeContextNoCpG,Coverage,mean
+Coverage_std,2.331643115736588,CHH,MergeContextNoCpG,Coverage,std
+Coverage_median,2.0,CHH,MergeContextNoCpG,Coverage,median
+CumulativeCoverage_10,0.9833887043189368,CHH,MergeContextNoCpG,CumulativeCoverage,10
+CumulativeCoverage_20,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,20
+CumulativeCoverage_30,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,30
+CumulativeCoverage_40,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,40
+CumulativeCoverage_50,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,50
+CumulativeCoverage_60,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,60
+CumulativeCoverage_70,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,70
+CumulativeCoverage_80,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,80
+CumulativeCoverage_90,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,90
+CumulativeCoverage_100,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,100
+CumulativeCoverage_110,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,110
+CumulativeCoverage_120,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,120
+CumulativeCoverage_130,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,130
+CumulativeCoverage_140,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,140
+CumulativeCoverage_150,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,150
+CumulativeCoverage_160,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,160
+CumulativeCoverage_170,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,170
+CumulativeCoverage_180,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,180
+CumulativeCoverage_190,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,190
+CumulativeCoverage_200,1.0,CHH,MergeContextNoCpG,CumulativeCoverage,200
+PercentMethylation_10,0.4399330263708664,PercentMethylation,PerRead,Percent Methylation,10
+PercentMethylation_20,0.0205106739221431,PercentMethylation,PerRead,Percent Methylation,20
+PercentMethylation_30,0.0213478442863122,PercentMethylation,PerRead,Percent Methylation,30
+PercentMethylation_40,0.0205106739221431,PercentMethylation,PerRead,Percent Methylation,40
+PercentMethylation_50,0.0075345332775219,PercentMethylation,PerRead,Percent Methylation,50
+PercentMethylation_60,0.0707408957722896,PercentMethylation,PerRead,Percent Methylation,60
+PercentMethylation_70,0.0460443700293009,PercentMethylation,PerRead,Percent Methylation,70
+PercentMethylation_80,0.0284637923817496,PercentMethylation,PerRead,Percent Methylation,80
+PercentMethylation_90,0.0355797404771871,PercentMethylation,PerRead,Percent Methylation,90
+PercentMethylation_100,0.3093344495604855,PercentMethylation,PerRead,Percent Methylation,100
+PercentMethylation_mean,44.44552072582669,PercentMethylation,PerRead,Percent Methylation,mean
+PercentMethylation_std,44.01561750297223,PercentMethylation,PerRead,Percent Methylation,std
+PercentMethylation_median,33.333333,PercentMethylation,PerRead,Percent Methylation,median
+TotalCpGs_mean,5.919213059857681,TotalCpGs,PerRead,Total CpGs,mean
+TotalCpGs_std,9.126814730186958,TotalCpGs,PerRead,Total CpGs,std
+TotalCpGs_median,2.0,TotalCpGs,PerRead,Total CpGs,median

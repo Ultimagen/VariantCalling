@@ -1,0 +1,86 @@
+{
+  "metrics": {
+    "PerRead": {
+      "PercentMethylation": [
+        [
+          {
+            "metric": "PercentMethylation_mean",
+            "value": 44.44552072582669
+          },
+          {
+            "metric": "PercentMethylation_std",
+            "value": 44.015617502972226
+          },
+          {
+            "metric": "PercentMethylation_median",
+            "value": 33.333333
+          }
+        ],
+        {
+          "keys": [
+            "metric",
+            "value"
+          ],
+          "values": [
+            [
+              "PercentMethylation_10",
+              0.43993302637086645
+            ],
+            [
+              "PercentMethylation_20",
+              0.020510673922143157
+            ],
+            [
+              "PercentMethylation_30",
+              0.021347844286312263
+            ],
+            [
+              "PercentMethylation_40",
+              0.020510673922143157
+            ],
+            [
+              "PercentMethylation_50",
+              0.007534533277521975
+            ],
+            [
+              "PercentMethylation_60",
+              0.07074089577228966
+            ],
+            [
+              "PercentMethylation_70",
+              0.046044370029300966
+            ],
+            [
+              "PercentMethylation_80",
+              0.028463792381749686
+            ],
+            [
+              "PercentMethylation_90",
+              0.03557974047718711
+            ],
+            [
+              "PercentMethylation_100",
+              0.30933444956048556
+            ]
+          ]
+        }
+      ],
+      "TotalCpGs": [
+        [
+          {
+            "metric": "TotalCpGs_mean",
+            "value": 5.919213059857681
+          },
+          {
+            "metric": "TotalCpGs_std",
+            "value": 9.126814730186958
+          },
+          {
+            "metric": "TotalCpGs_median",
+            "value": 2.0
+          }
+        ]
+      ]
+    }
+  }
+}

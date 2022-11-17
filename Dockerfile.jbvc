@@ -16,6 +16,9 @@ RUN conda update -n base -c defaults conda && \
     conda env create -f /VariantCalling/setup/other_envs/cnmops.yml && \
     conda init --all
 
+RUN conda install -n genomics.py3 -c bioconda methyldackel && \
+    conda init --all
+
 RUN source ~/.bashrc && \
     conda activate genomics.py3 && \
     pip install mpld3==0.5.1

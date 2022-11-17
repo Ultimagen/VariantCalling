@@ -1,0 +1,262 @@
+{
+  "metrics": {
+    "MergeContext": {
+      "hg": [
+        [
+          {
+            "metric": "PercentMethylation_mean",
+            "value": 46.88330871491876
+          },
+          {
+            "metric": "PercentMethylation_std",
+            "value": 37.75242030307933
+          },
+          {
+            "metric": "PercentMethylation_median",
+            "value": 50.0
+          },
+          {
+            "metric": "TotalCpGs",
+            "value": 677.0
+          },
+          {
+            "metric": "Coverage_mean",
+            "value": 6.375184638109306
+          },
+          {
+            "metric": "Coverage_std",
+            "value": 4.426036317976592
+          },
+          {
+            "metric": "Coverage_median",
+            "value": 5.0
+          }
+        ],
+        {
+          "keys": [
+            "metric",
+            "value"
+          ],
+          "values": [
+            [
+              "PercentMethylation_10",
+              191.0
+            ],
+            [
+              "PercentMethylation_20",
+              30.0
+            ],
+            [
+              "PercentMethylation_30",
+              47.0
+            ],
+            [
+              "PercentMethylation_40",
+              27.0
+            ],
+            [
+              "PercentMethylation_50",
+              29.0
+            ],
+            [
+              "PercentMethylation_60",
+              65.0
+            ],
+            [
+              "PercentMethylation_70",
+              67.0
+            ],
+            [
+              "PercentMethylation_80",
+              37.0
+            ],
+            [
+              "PercentMethylation_90",
+              46.0
+            ],
+            [
+              "PercentMethylation_100",
+              138.0
+            ]
+          ]
+        },
+        {
+          "keys": [
+            "metric",
+            "value"
+          ],
+          "values": [
+            [
+              "Coverage_10",
+              520.0
+            ],
+            [
+              "Coverage_20",
+              154.0
+            ],
+            [
+              "Coverage_30",
+              3.0
+            ],
+            [
+              "Coverage_40",
+              0.0
+            ],
+            [
+              "Coverage_50",
+              0.0
+            ],
+            [
+              "Coverage_60",
+              0.0
+            ],
+            [
+              "Coverage_70",
+              0.0
+            ],
+            [
+              "Coverage_80",
+              0.0
+            ],
+            [
+              "Coverage_90",
+              0.0
+            ],
+            [
+              "Coverage_100",
+              0.0
+            ],
+            [
+              "Coverage_110",
+              0.0
+            ],
+            [
+              "Coverage_120",
+              0.0
+            ],
+            [
+              "Coverage_130",
+              0.0
+            ],
+            [
+              "Coverage_140",
+              0.0
+            ],
+            [
+              "Coverage_150",
+              0.0
+            ],
+            [
+              "Coverage_160",
+              0.0
+            ],
+            [
+              "Coverage_170",
+              0.0
+            ],
+            [
+              "Coverage_180",
+              0.0
+            ],
+            [
+              "Coverage_190",
+              0.0
+            ],
+            [
+              "Coverage_200",
+              0.0
+            ]
+          ]
+        },
+        {
+          "keys": [
+            "metric",
+            "value"
+          ],
+          "values": [
+            [
+              "CumulativeCoverage_10",
+              0.7680945347119645
+            ],
+            [
+              "CumulativeCoverage_20",
+              0.9955686853766618
+            ],
+            [
+              "CumulativeCoverage_30",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_40",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_50",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_60",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_70",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_80",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_90",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_100",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_110",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_120",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_130",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_140",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_150",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_160",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_170",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_180",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_190",
+              1.0
+            ],
+            [
+              "CumulativeCoverage_200",
+              1.0
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}

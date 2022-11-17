@@ -13,6 +13,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 from ugvc.cnv import filter_sample_cnvs
+
 from ugvc.pipelines import (
     coverage_analysis,
     evaluate_concordance,
@@ -35,6 +36,15 @@ from ugvc.pipelines.mrd import (
 # import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.utils import cloud_sync
+
+from ugvc.methylation import (
+    concat_methyldackel_csvs,
+    process_Mbias,
+    process_mergeContext,
+    process_mergeContextNoCpG,
+    process_perRead,
+)
+
 
 # create a list of imported pipeline modules
 modules = [
@@ -61,11 +71,21 @@ mrd_modules = [
     prepare_data_from_mrd_pipeline,
 ]
 
+methylation_modules = [
+    concat_methyldackel_csvs,
+    process_Mbias,
+    process_mergeContext,
+    process_mergeContextNoCpG,
+    process_perRead,
+]
+
+
 misc_modules = [cloud_sync]
 
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
+
 
 LOGO = """
       __    __    ___________    ____  ______
