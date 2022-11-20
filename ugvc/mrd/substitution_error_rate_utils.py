@@ -61,9 +61,10 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
         bounds_error=False,
+        fill_value=0,
     )
     min_coverage = min(20, np.round(f(0.5)).astype(int))  # the lower between 20 or the median value
-    max_coverage = np.round(f(0.95)).astype(int)
+    max_coverage = max(np.round(f(0.95)).astype(int), min_coverage + 1)
 
     x = df_coverage_stats[
         (df_coverage_stats.index.values >= min_coverage) & (df_coverage_stats.index.values <= max_coverage)
@@ -303,6 +304,7 @@ def plot_substitution_error_rate_by_motif(
     left_bbox_text: str = None,
     error_rate_column: str = "error_rate",
     snp_count_column: str = "snp_count",
+    backend: str = None,
 ):
     # init
     assert snp_count_column in df_motifs
@@ -311,7 +313,9 @@ def plot_substitution_error_rate_by_motif(
         assert "ref_motif" in df_motifs
         df_motifs = df_motifs.set_index(["ref_motif", "alt_motif"])
 
-    if out_filename is None:
+    if backend:
+        matplotlib.use(backend)
+    elif out_filename is None:
         matplotlib.use("Qt5Agg")
     else:
         matplotlib.use("Agg")  # non interactive

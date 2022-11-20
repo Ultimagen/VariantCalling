@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pyfaidx
 
@@ -79,3 +81,10 @@ def get_chr_sizes(sizes_file: str) -> dict:
     """
 
     return dict([x.strip().split() for x in open(sizes_file, encoding="ascii")])
+
+
+def get_max_softclip_len(cigar):
+    group = re.match("(?P<start>[0-9]+S)?[0-9]+[0-9MID]+[MID](?P<end>[0-9]+S)?", cigar).groups()
+    start = int(group[0][:-1]) if group[0] else 0
+    end = int(group[1][:-1]) if group[1] else 0
+    return max(start, end)

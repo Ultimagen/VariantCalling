@@ -53,6 +53,8 @@ from ugvc.utils.cloud_sync import cloud_sync
 from ugvc.utils.consts import COVERAGE, GCS_OAUTH_TOKEN, FileExtension
 from ugvc.utils.misc_utils import set_pyplot_defaults
 from ugvc.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
+from ugvc.utils.plotting_utils import set_default_plt_rc_params
+
 
 MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
 MIN_LENGTH_TO_SHOW = 10000000  # contigs that are shorter than that won't be shown on coverage plot
@@ -167,6 +169,7 @@ def run(argv: list[str]):
     """
     Run full coverage analysis of an aligned bam/cram file
     """
+    set_default_plt_rc_params()
     args = parse_args(argv)
     run_full_coverage_analysis(
         bam_file=args.input,
