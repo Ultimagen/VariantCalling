@@ -85,6 +85,7 @@ misc_modules = [cloud_sync]
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
+modules.extend(methylation_modules)
 
 
 LOGO = """

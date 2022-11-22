@@ -115,7 +115,7 @@ def get_ctrl_genomes_data(
     """
     if len(list_genomes) > 1:
         col = ["PercentMethylation"]
-        prefix = "PercentMethylation_"
+        prefix = "PercentMethylationPosition_"
         col_names = ["value", "metric", "detail"]
         df_output = pd.DataFrame(columns=col_names)
         df_control = pd.DataFrame(columns=col_names)
