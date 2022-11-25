@@ -1,8 +1,8 @@
 name: genomics.py3
 channels:
   - bioconda
-  - anaconda
   - conda-forge
+  - anaconda
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
@@ -56,14 +56,13 @@ dependencies:
   - bwa=0.7.17=hed695b0_7
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.18.1=h7f8727e_0
-  - ca-certificates=2022.3.29=h06a4308_1
+  - ca-certificates=2022.9.24=ha878542_0
   - cached-property=1.5.2=py_0
   - cachetools=4.2.2=pyhd3eb1b0_0
-  - certifi=2021.10.8=py37h06a4308_2
+  - certifi=2022.9.24=pyhd8ed1ab_0
   - cffi=1.15.0=py37h7f8727e_0
   - cfgv=3.3.1=pyhd8ed1ab_0
   - cftime=1.5.1.1=py37hce1f21e_0
-  - cgatcore=0.5.15=py_0
   - chardet=4.0.0=py37h06a4308_1003
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
   - click=8.0.4=py37h06a4308_0
@@ -120,11 +119,11 @@ dependencies:
   - google-auth=1.33.0=pyhd3eb1b0_0
   - google-auth-httplib2=0.0.4=pyh9f0ad1d_0
   - google-cloud-core=1.7.1=pyhd3eb1b0_0
-  - google-cloud-sdk=319.0.0=py37h89c1867_1
   - google-cloud-storage=1.41.0=pyhd3eb1b0_0
   - google-crc32c=1.1.2=py37h27cfd23_0
   - google-resumable-media=1.3.1=pyhd3eb1b0_1
   - googleapis-common-protos=1.53.0=py37h06a4308_0
+  - gputil=1.4.0=pyh9f0ad1d_0
   - greenlet=1.1.1=py37h295c915_0
   - grpc-cpp=1.33.2=h1870a98_1
   - grpcio=1.42.0=py37hce63b2e_0
@@ -262,7 +261,7 @@ dependencies:
   - openblas=0.3.12=pthreads_h43bd3aa_1
   - openjdk=8.0.152=h7b6447c_3
   - openpyxl=3.0.9=pyhd3eb1b0_0
-  - openssl=1.1.1n=h7f8727e_0
+  - openssl=1.1.1s=h7f8727e_0
   - orc=1.6.5=hd3605a7_0
   - packaging=21.3=pyhd3eb1b0_0
   - pandas=1.3.4=py37h8c16a72_0
@@ -273,6 +272,7 @@ dependencies:
   - parquet-cpp=1.5.1=h34088ae_4
   - parso=0.8.3=pyhd3eb1b0_0
   - partd=1.2.0=pyhd3eb1b0_1
+  - pathspec=0.10.2=pyhd8ed1ab_0
   - patsy=0.5.2=py37h06a4308_1
   - pcre=8.45=h295c915_0
   - perl=5.26.2=h14c3975_0
@@ -412,7 +412,6 @@ dependencies:
     - jinja2-time==0.2.0
     - libcst==0.3.23
     - memory-profiler==0.55.0
-    - pathspec==0.9.0
     - poyo==0.5.0
     - pycln==1.2.5
     - python-slugify==5.0.2
@@ -422,4 +421,4 @@ dependencies:
     - text-unidecode==1.3
     - typer==0.4.0
     - typing-inspect==0.7.1
-prefix: /home/ilyas/anaconda3/envs/genomics.py3
+prefix: /home/ec2-user/miniconda3/envs/genomics.py3
