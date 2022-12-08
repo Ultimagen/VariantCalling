@@ -1,8 +1,8 @@
 name: genomics.py3
 channels:
-  - bioconda
-  - conda-forge
   - anaconda
+  - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
@@ -233,6 +233,7 @@ dependencies:
   - matplotlib-base=3.5.1=py37ha18d171_1
   - matplotlib-inline=0.1.2=pyhd3eb1b0_2
   - mccabe=0.7.0=pyhd3eb1b0_0
+  - methyldackel=0.5.3=h047f149_0
   - minimap2=2.17=hed695b0_3
   - mistune=0.8.4=py37h14c3975_1001
   - mkl=2022.0.1=h06a4308_117
@@ -274,7 +275,6 @@ dependencies:
   - parquet-cpp=1.5.1=h34088ae_4
   - parso=0.8.3=pyhd3eb1b0_0
   - partd=1.2.0=pyhd3eb1b0_1
-  - pathspec=0.10.2=pyhd8ed1ab_0
   - patsy=0.5.2=py37h06a4308_1
   - pcre=8.45=h295c915_0
   - perl=5.26.2=h14c3975_0
@@ -414,6 +414,7 @@ dependencies:
     - jinja2-time==0.2.0
     - libcst==0.3.23
     - memory-profiler==0.55.0
+    - pathspec==0.9.0
     - poyo==0.5.0
     - pycln==1.2.5
     - python-slugify==5.0.2
@@ -423,4 +424,4 @@ dependencies:
     - text-unidecode==1.3
     - typer==0.4.0
     - typing-inspect==0.7.1
-prefix: /home/ec2-user/miniconda3/envs/genomics.py3
+prefix: /home/ubuntu/miniconda3/envs/genomics.py3
