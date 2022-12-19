@@ -131,9 +131,7 @@ def read_signature(  # pylint: disable=too-many-branches
 
     if signature_vcf_files is None or len(signature_vcf_files) == 0:
         logger.debug("Empty input to read_signature - exiting without doing anything")
-        if df_existing:
-            return df_existing
-        return None
+        return df_existing
     if verbose:
         logger.setLevel(logging.DEBUG)
         for handler in logger.handlers:
@@ -168,6 +166,10 @@ def read_signature(  # pylint: disable=too-many-branches
         }
         columns_to_drop = ["X_IC", "X_HIL", "X_HIN", "X_IC", "X_IL"]
 
+        try:
+            pysam.tabix_index(signature_vcf_files, preset="vcf", force=True)  # make sure vcf is indexed
+        except Exception as e:
+            logger.warning(f"Could not index signature file {signature_vcf_files}\n{str(e)}")
         with pysam.VariantFile(signature_vcf_files) as variant_file:
             info_keys = list(variant_file.header.info.keys())
             # get tumor sample name
@@ -301,6 +303,7 @@ def read_signature(  # pylint: disable=too-many-branches
                     axis=1,
                 )
             )
+            .astype(float)
             .max(axis=1)
         )
     except KeyError:
@@ -320,9 +323,9 @@ def read_signature(  # pylint: disable=too-many-branches
         df_sig = df_sig.assign(is_matched=is_matched)
 
     if output_parquet:
-        if df_existing:
+        if df_existing is not None:
             logger.debug(f"Concatenating to previous existing data in {output_parquet}")
-            df_sig = pd.concat((df_existing, df_sig))
+            df_sig = pd.concat((df_existing.set_index(df_sig.index.names), df_sig))
         logger.debug(f"Saving output signature/s to {output_parquet}")
         df_sig.reset_index().to_parquet(output_parquet)
     return df_sig

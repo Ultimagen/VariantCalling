@@ -75,17 +75,17 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         help="show progress bar (tqdm)",
     )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--matched", action="store_true", description="Set columns is_matched to True")
-    group.add_argument("--control", action="store_true", description="Set columns is_matched to False")
+    group.add_argument("--matched", action="store_true")
+    group.add_argument("--control", action="store_true")
     return parser.parse_args(argv[1:])
 
 
 def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
-    if group.matched is None and group.control is None:
+    if args_in.matched is None and args_in.control is None:
         is_matched = None
-    elif group.matched:
+    elif args_in.matched:
         is_matched = True
     else:
         is_matched = False
