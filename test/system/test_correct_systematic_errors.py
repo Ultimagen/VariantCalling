@@ -156,3 +156,30 @@ class TestCorrectSystematicErrors:
                 unobserved_noise_sites.add(record.pos)
 
         assert {"reference": 936, "unobserved": 2} == sec_types
+
+    def test_correct_systematic_errors_read_dv_style_input(self, tmpdir):
+        output_file = f"{tmpdir}/HG00239.dv_style.vcf.gz"
+
+        correct_systematic_errors.run(
+            [
+                "correct_systematic_errors",
+                "--relevant_coords",
+                f"{self.inputs_dir}/blacklist_hg001_10s.chr3.bed",
+                "--model",
+                f"{self.inputs_dir}/conditional_allele_distribution.chr3.pkl",
+                "--gvcf",
+                f"{self.inputs_dir}/HG00239.dv_style.vcf",
+                "--output_file",
+                output_file,
+            ]
+        )
+        vcf = pysam.VariantFile(output_file)
+        sec_types = {}
+        for record in vcf:
+            sec_type = record.samples[0]["ST"]
+            if sec_type in sec_types:
+                sec_types[sec_type] += 1
+            else:
+                sec_types[sec_type] = 1
+
+        assert sec_types == {"reference": 2, "unobserved": 1}
