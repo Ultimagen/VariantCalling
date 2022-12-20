@@ -39,8 +39,8 @@ from ugvc.vcfbed import vcftools
 def parse_args(argv: list[str]) -> argparse.Namespace:
     ap_var = argparse.ArgumentParser(prog="filter_variants_pipeline.py", description="Filter VCF")
     ap_var.add_argument("--input_file", help="Name of the input VCF file", type=str, required=True)
-    ap_var.add_argument("--model_file", help="Pickle model file", type=str, required=True)
-    ap_var.add_argument("--model_name", help="Model file", type=str, required=True)
+    ap_var.add_argument("--model_file", help="Pickle model file", type=str, required=False)
+    ap_var.add_argument("--model_name", help="Model file", type=str, required=False)
     ap_var.add_argument(
         "--hpol_filter_length_dist",
         nargs=2,
@@ -104,18 +104,19 @@ def run(argv: list[str]):
             if "xc" not in df.columns:
                 df["xc"] = 1
 
-        df.loc[df["gt"] == (1, 1), "sor"] = 0.5
-        with open(args.model_file, "rb") as model_file:
-            models_dict = pickle.load(model_file)
-        model_name = args.model_name
-        models = models_dict[model_name]
+        if args.model_file is not None:
+            df.loc[df["gt"] == (1, 1), "sor"] = 0.5
+            with open(args.model_file, "rb") as model_file:
+                models_dict = pickle.load(model_file)
+            model_name = args.model_name
+            models = models_dict[model_name]
 
-        model_clsf = models
+            model_clsf = models
 
-        logger.info("Applying classifier")
-        df = variant_filtering_utils.add_grouping_column(
-            df, variant_filtering_utils.get_training_selection_functions(), "group"
-        )
+            logger.info("Applying classifier")
+            df = variant_filtering_utils.add_grouping_column(
+                df, variant_filtering_utils.get_training_selection_functions(), "group"
+            )
 
         if args.blacklist is not None:
             with open(args.blacklist, "rb") as blf:
@@ -128,21 +129,22 @@ def run(argv: list[str]):
         if args.blacklist_cg_insertions:
             cg_blacklist = blacklist_cg_insertions(df)
             blacklist = merge_blacklists([cg_blacklist, blacklist])
-        predictions = model_clsf.predict(df)
 
-        predictions = np.array(predictions)
+        if args.model_file is not None:
+            predictions = model_clsf.predict(df)
+            predictions = np.array(predictions)
 
-        logger.info("Applying classifier proba")
-        predictions_score = model_clsf.predict(df, get_numbers=True)
-        prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
-        # Do not output FPR if it could not be calculated from the calls
-        output_fpr = True
-        if len(set(prediction_fpr)) == 1:
-            logger.info("FPR not calculated, skipping")
-            output_fpr = False
+            logger.info("Applying classifier proba")
+            predictions_score = model_clsf.predict(df, get_numbers=True)
+            prediction_fpr = variant_filtering_utils.tree_score_to_fpr(df, predictions_score, model_clsf.tree_score_fpr)
+            # Do not output FPR if it could not be calculated from the calls
+            output_fpr = True
+            if len(set(prediction_fpr)) == 1:
+                logger.info("FPR not calculated, skipping")
+                output_fpr = False
 
-        predictions_score = np.array(predictions_score)
-        group = df["group"]
+            predictions_score = np.array(predictions_score)
+            group = df["group"]
 
         hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
 
@@ -153,9 +155,10 @@ def run(argv: list[str]):
             hdr = infile.header
 
             protected_add(hdr.info, "HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
-            protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
-            protected_add(hdr.info, "BLACKLST", ".", "String", "blacklist")
-
+            if args.model_file is not None:
+                protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
+            if args.blacklist is not None:
+                protected_add(hdr.info, "BLACKLST", ".", "String", "blacklist")
             if args.blacklist_cg_insertions:
                 protected_add(
                     hdr.filters,
@@ -165,8 +168,8 @@ def run(argv: list[str]):
                     "Insertion/deletion of CG",
                 )
 
-            protected_add(hdr.info, "TREE_SCORE", 1, "Float", "Filtering score")
-            if output_fpr:
+            if args.model_file is not None:
+                protected_add(hdr.info, "TREE_SCORE", 1, "Float", "Filtering score")
                 protected_add(hdr.info, "FPR", 1, "Float", "False Positive rate(1/MB)")
             protected_add(
                 hdr.info,
@@ -177,25 +180,30 @@ def run(argv: list[str]):
             )
             with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
                 for i, rec in tqdm.tqdm(enumerate(infile)):
-                    pass_flag = True
+                    pass_flag = False
                     if hmer_run[i]:
                         rec.info["HPOL_RUN"] = True
-                    if predictions[i] == "fp":
-                        rec.filter.add("LOW_SCORE")
-                        pass_flag = False
-                    if blacklist[i] != "PASS":
-                        blacklists_info = []
-                        for value in blacklist[i].split(";"):
-                            if value != "PASS":
-                                blacklists_info.append(value)
-                        if len(blacklists_info) != 0:
-                            rec.info["BLACKLST"] = blacklists_info
+                    if args.model_file is not None:
+                        if predictions[i] == "fp":
+                            rec.filter.add("LOW_SCORE")
+                            pass_flag = False
+                        else:
+                            pass_flag = True
+                        rec.info["TREE_SCORE"] = predictions_score[i]
+                        if output_fpr:
+                            rec.info["FPR"] = prediction_fpr[i]
+                        rec.info["VARIANT_TYPE"] = group[i]
+                    if args.blacklist is not None:
+                        if blacklist[i] != "PASS":
+                            blacklists_info = []
+                            for value in blacklist[i].split(";"):
+                                if value != "PASS":
+                                    blacklists_info.append(value)
+                            if len(blacklists_info) != 0:
+                                rec.info["BLACKLST"] = blacklists_info
                     if pass_flag:
                         rec.filter.add("PASS")
-                    rec.info["TREE_SCORE"] = predictions_score[i]
-                    if output_fpr:
-                        rec.info["FPR"] = prediction_fpr[i]
-                    rec.info["VARIANT_TYPE"] = group[i]
+
 
                     # fix the alleles of form <1> that our GATK adds
                     rec.ref = rec.ref if re.match(r"<[0-9]+>", rec.ref) is None else "*"
