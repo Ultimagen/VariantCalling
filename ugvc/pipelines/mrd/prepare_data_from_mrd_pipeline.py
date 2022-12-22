@@ -69,9 +69,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--tumor-sample",
         type=str,
         required=False,
-        default="tumor",
+        default=None,
         help=""" sample name in the vcf to take allele fraction (AF) from. Checked with "a in b" so it doesn't have to
-    be the full sample name, but does have to return a unique result. Default: "tumor" """,
+    be the full sample name, but does have to return a unique result. Default: None (auto-discovered) """,
     )
     parser.add_argument(
         "-o",
