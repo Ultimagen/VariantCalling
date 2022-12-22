@@ -35,20 +35,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Input signature and featuemaps vcf files",
     )
     parser.add_argument(
-        "-s",
-        "--signature-vcf",
+        "--matched-signatures-vcf",
         nargs="+",
         type=str,
-        required=True,
-        help="Input signature vcf files",
+        default=None,
+        help="Input signature vcf file/s (matched)",
+    )
+    parser.add_argument(
+        "--control-signatures-vcf",
+        nargs="+",
+        type=str,
+        default=None,
+        help="Input signature vcf file/s (control)",
     )
     parser.add_argument(
         "-e",
-        "--snp-error-rate",
+        "--substitution-error-rate",
         type=str,
         default=None,
         required=False,
-        help="SNP error rate hdf produced by mrd.snp_error_rate",
+        help="Substitution error rate hdf produced by mrd.snp_error_rate",
     )
     parser.add_argument(
         "-c",
@@ -60,12 +66,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Coverage bigwig files generated with 'coverage_analysis full_analysis'",
     )
     parser.add_argument(
-        "--sample-name",
+        "--tumor-sample",
         type=str,
         required=False,
-        default="tumor",
+        default=None,
         help=""" sample name in the vcf to take allele fraction (AF) from. Checked with "a in b" so it doesn't have to
-    be the full sample name, but does have to return a unique result. Default: "tumor" """,
+    be the full sample name, but does have to return a unique result. Default: None (auto-discovered) """,
     )
     parser.add_argument(
         "-o",
@@ -89,10 +95,11 @@ def run(argv: list[str]):
     args_in = parse_args(argv)
     prepare_data_from_mrd_pipeline(
         intersected_featuremaps_parquet=args_in.intersected_featuremaps,
-        signature_vcf_files=args_in.signature_vcf,
-        snp_error_rate_hdf=args_in.snp_error_rate,
+        matched_signatures_vcf_files=args_in.matched_signatures_vcf,
+        control_signatures_vcf_files=args_in.control_signatures_vcf,
+        substitution_error_rate_hdf=args_in.substitution_error_rate,
         coverage_bw_files=args_in.coverage_bw,
-        sample_name=args_in.sample_name,
+        tumor_sample=args_in.tumor_sample,
         output_dir=args_in.output_dir,
         output_basename=args_in.output_basename,
     )

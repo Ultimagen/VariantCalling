@@ -1,6 +1,5 @@
 # noqa: W605  flake8: invalid escape sequence '\ ' - used by logo
-# pylint: disable=anomalous-backslash-in-string
-# pylint: disable=wrong-import-position
+# pylint: disable=anomalous-backslash-in-string, wrong-import-position
 
 import sys
 from os.path import dirname

@@ -74,12 +74,22 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         action="store_true",
         help="show progress bar (tqdm)",
     )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--matched", action="store_true")
+    group.add_argument("--control", action="store_true")
     return parser.parse_args(argv[1:])
 
 
 def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
+    if args_in.matched is None and args_in.control is None:
+        is_matched = None
+    elif args_in.matched:
+        is_matched = True
+    else:
+        is_matched = False
+
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,
@@ -88,5 +98,6 @@ def run(argv: list[str]):
         report_read_strand=not args_in.report_sense_strand_bases,
         show_progress_bar=args_in.show_progress_bar,
         flow_order=args_in.flow_order,
+        is_matched=is_matched
     )
     print("DONE")

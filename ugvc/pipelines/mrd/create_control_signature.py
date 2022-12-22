@@ -33,12 +33,6 @@ from tqdm import tqdm
 def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="create_control_signature", description=run.__doc__)
     parser.add_argument(
-        "input",
-        nargs="+",
-        type=str,
-        help="input featuremap files",
-    )
-    parser.add_argument(
         "-i",
         "--input",
         type=str,
@@ -100,7 +94,7 @@ def create_control_signature(
     """
     Creates a control signature that matches each SNP in the input signature vcf file with an adjacent position with
     the same trinucleotide motif, maintaining the same ref and alt composition. Non-SNP entries are ignored.
-    Adds an ORIG_SEQ info in the output vcf indicating the position of the original variant this controls for.
+    Adds an ORIG_POS info in the output vcf indicating the position of the original variant this controls for.
 
     Parameters
     ----------
@@ -121,7 +115,6 @@ def create_control_signature(
         Force rewrite tbi index of output (if false and output file exists an error will be raised). Default True.
     progress_bar: ool
         Show progress bar (default False)
-
 
     Raises
     ------
