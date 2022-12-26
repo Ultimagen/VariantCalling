@@ -455,18 +455,15 @@ def intersect_featuremap_with_signature(
         If input output_intersection_file does not end with .vcf or .vcf.gz
 
     """
+    # parse the file name
     if output_intersection_file is None:
         featuremap_name = _get_sample_name_from_file_name(featuremap_file, split_position=0)
         signature_name = _get_sample_name_from_file_name(signature_file, split_position=0)
-        output_intersection_file = f"{featuremap_name}.{signature_name}.vcf.gz"
+        type_name = "" if is_matched is None else ".matched" if is_matched else ".control"
+        output_intersection_file = f"{featuremap_name}.{signature_name}{type_name}.intersection.vcf.gz"
         logger.debug(f"Output file name will be: {output_intersection_file}")
     if not (output_intersection_file.endswith(".vcf.gz") or output_intersection_file.endswith(".vcf")):
         raise ValueError(f"Output file must end with .vcf or .vcf.gz, got {output_intersection_file}")
-    if is_matched is not None:
-        output_intersection_file = output_intersection_file.replace(
-            ".vcf",
-            ".matched.vcf" if is_matched else ".control.vcf"
-        )
     output_intersection_file_vcf = (
         output_intersection_file[:-3] if output_intersection_file.endswith(".gz") else output_intersection_file
     )
@@ -485,17 +482,15 @@ def intersect_featuremap_with_signature(
             header = f_feat.header
             if add_info_to_header is not None:
                 header.add_line(
-                    "##Description: This file is an intersection of a featuremap with a somatic mutation signature"
+                    "##File:Description=This file is an intersection of a featuremap with a somatic mutation signature"
                 )
                 header.add_line(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}")
                 if is_matched is not None:
                     if is_matched:
-                        header.add_line(
-                            "##Intersection_type: matched (signature and featuremap from the same patient)"
-                        )
+                        header.add_line("##Intersection:type=matched (signature and featuremap from the same patient)")
                     else:
                         header.add_line(
-                            "##Intersection_type: control (signature and featuremap not from the same patient)"
+                            "##Intersection:type=control (signature and featuremap not from the same patient)"
                         )
             with pysam.VariantFile(output_intersection_file_vcf + ".tmp", "w", header=header) as f_int:
                 for rec in f_feat:

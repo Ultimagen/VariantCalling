@@ -55,15 +55,10 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
 def run(argv: list[str]):
     """Intersect featuremap and signature vcf files on position and matching ref and alts"""
     args_in = __parse_args(argv)
-    if args_in.matched is None and args_in.control is None:
-        is_matched = None
-    elif args_in.matched:
-        is_matched = True
-    else:
-        is_matched = False
+    is_matched = None if args_in.matched is None else bool(args_in.matched)
     intersect_featuremap_with_signature(
         featuremap_file=args_in.featuremap,
         signature_file=args_in.signature,
         output_intersection_file=args_in.output,
-        is_matched=is_matched
+        is_matched=is_matched,
     )
