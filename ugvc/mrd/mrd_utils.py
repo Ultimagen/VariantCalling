@@ -80,6 +80,17 @@ def _get_hmer_length(ref: str, left_motif: str, right_motif: str):
     return x[np.argmax(x[:, 1].cumsum() >= left_motif_len + 1), 1]
 
 
+def _safe_tabix_index(vcf_file: str):
+    try:
+        pysam.tabix_index(vcf_file, preset="vcf", force=True)  # make sure vcf is indexed
+        if (not os.path.isfile(vcf_file)) and os.path.isfile(vcf_file + ".gz"):  # was compressed by tabix
+            vcf_file = vcf_file + ".gz"
+    except Exception as e:  # pylint: disable=broad-except
+        # Catching a broad exception because this is optional and we never want to have a run fail because of the index
+        logger.warning(f"Could not index signature file {vcf_file}\n{str(e)}")
+    return vcf_file
+
+
 def read_signature(  # pylint: disable=too-many-branches
     signature_vcf_files: list[str],
     output_parquet: str = None,
@@ -166,10 +177,7 @@ def read_signature(  # pylint: disable=too-many-branches
         }
         columns_to_drop = ["X_IC", "X_HIL", "X_HIN", "X_IC", "X_IL"]
 
-        try:
-            pysam.tabix_index(signature_vcf_files, preset="vcf", force=True)  # make sure vcf is indexed
-        except Exception as e:  # # pylint: disable=broad-except  (optional, never want this to fail)
-            logger.warning(f"Could not index signature file {signature_vcf_files}\n{str(e)}")
+        signature_vcf_files = _safe_tabix_index(signature_vcf_files)  # make sure it's indexed
         with pysam.VariantFile(signature_vcf_files) as variant_file:
             info_keys = list(variant_file.header.info.keys())
             # get tumor sample name
@@ -411,7 +419,8 @@ def intersect_featuremap_with_signature(
     featuremap_file,
     signature_file,
     output_intersection_file=None,
-    append_python_call_to_header=True,
+    is_matched=None,
+    add_info_to_header=True,
     overwrite=True,
     complement=False,
 ):
@@ -427,7 +436,9 @@ def intersect_featuremap_with_signature(
         VCF file, tumor variant calling results
     output_intersection_file: str, optional
         Output vcf file, .vcf.gz or .vcf extension, if None (default) determined automatically from file names
-    append_python_call_to_header: bool, optional
+    is_matched: bool, optional
+        If defined and tag the file name accordingly as "*.matched.vcf.gz" or "*.control.vcf.gz"
+    add_info_to_header: bool, optional
         Add line to header to indicate this function ran (default True)
     overwrite: bool, optional
         Force rewrite of output (if false and output file exists an OSError will be raised). Default True.
@@ -440,6 +451,8 @@ def intersect_featuremap_with_signature(
     ------
     OSError
         in case the file already exists and function executed with no overwrite=True
+    ValueError
+        If input output_intersection_file does not end with .vcf or .vcf.gz
 
     """
     if output_intersection_file is None:
@@ -447,11 +460,20 @@ def intersect_featuremap_with_signature(
         signature_name = _get_sample_name_from_file_name(signature_file, split_position=0)
         output_intersection_file = f"{featuremap_name}.{signature_name}.vcf.gz"
         logger.debug(f"Output file name will be: {output_intersection_file}")
+    if not (output_intersection_file.endswith(".vcf.gz") or output_intersection_file.endswith(".vcf")):
+        raise ValueError(f"Output file must end with .vcf or .vcf.gz, got {output_intersection_file}")
+    if is_matched is not None:
+        output_intersection_file = output_intersection_file.replace(
+            ".vcf",
+            ".matched.vcf" if is_matched else ".control.vcf"
+        )
     output_intersection_file_vcf = (
         output_intersection_file[:-3] if output_intersection_file.endswith(".gz") else output_intersection_file
     )
     if (not overwrite) and (os.path.isfile(output_intersection_file) or os.path.isfile(output_intersection_file_vcf)):
         raise OSError(f"Output file {output_intersection_file} already exists and overwrite flag set to False")
+    # make sure vcf is indexed
+    signature_file = _safe_tabix_index(signature_file)
     # build a set of all signature entries, including alts and ref
     signature_entries = set()
     with pysam.VariantFile(signature_file) as f_sig:
@@ -461,8 +483,20 @@ def intersect_featuremap_with_signature(
     try:
         with pysam.VariantFile(featuremap_file) as f_feat:
             header = f_feat.header
-            if append_python_call_to_header is not None:
+            if add_info_to_header is not None:
+                header.add_line(
+                    "##Description: This file is an intersection of a featuremap with a somatic mutation signature"
+                )
                 header.add_line(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}")
+                if is_matched is not None:
+                    if is_matched:
+                        header.add_line(
+                            "##Intersection_type: matched (signature and featuremap from the same patient)"
+                        )
+                    else:
+                        header.add_line(
+                            "##Intersection_type: control (signature and featuremap not from the same patient)"
+                        )
             with pysam.VariantFile(output_intersection_file_vcf + ".tmp", "w", header=header) as f_int:
                 for rec in f_feat:
                     if ((not complement) and ((rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries)) or (

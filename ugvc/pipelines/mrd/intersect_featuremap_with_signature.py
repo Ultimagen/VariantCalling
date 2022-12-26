@@ -46,10 +46,24 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         required=False,
         help="""Output intersection vcf file (lines from featuremap propagated)""",
     )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--matched", action="store_true")
+    group.add_argument("--control", action="store_true")
     return parser.parse_args(argv[1:])
 
 
 def run(argv: list[str]):
     """Intersect featuremap and signature vcf files on position and matching ref and alts"""
     args_in = __parse_args(argv)
-    intersect_featuremap_with_signature(args_in.featuremap, args_in.signature, args_in.output)
+    if args_in.matched is None and args_in.control is None:
+        is_matched = None
+    elif args_in.matched:
+        is_matched = True
+    else:
+        is_matched = False
+    intersect_featuremap_with_signature(
+        featuremap_file=args_in.featuremap,
+        signature_file=args_in.signature,
+        output_intersection_file=args_in.output,
+        is_matched=is_matched
+    )
