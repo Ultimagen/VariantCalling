@@ -42,7 +42,8 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         "-o",
         "--output",
         type=str,
-        required=True,
+        default=None,
+        required=False,
         help="""Output intersection vcf file (lines from featuremap propagated)""",
     )
     return parser.parse_args(argv[1:])

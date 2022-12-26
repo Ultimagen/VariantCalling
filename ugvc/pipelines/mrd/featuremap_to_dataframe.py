@@ -98,6 +98,6 @@ def run(argv: list[str]):
         report_read_strand=not args_in.report_sense_strand_bases,
         show_progress_bar=args_in.show_progress_bar,
         flow_order=args_in.flow_order,
-        is_matched=is_matched
+        is_matched=is_matched,
     )
     print("DONE")

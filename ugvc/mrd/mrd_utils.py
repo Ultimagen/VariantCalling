@@ -168,7 +168,7 @@ def read_signature(  # pylint: disable=too-many-branches
 
         try:
             pysam.tabix_index(signature_vcf_files, preset="vcf", force=True)  # make sure vcf is indexed
-        except Exception as e:
+        except Exception as e:  # # pylint: disable=broad-except  (optional, never want this to fail)
             logger.warning(f"Could not index signature file {signature_vcf_files}\n{str(e)}")
         with pysam.VariantFile(signature_vcf_files) as variant_file:
             info_keys = list(variant_file.header.info.keys())
@@ -367,7 +367,10 @@ def read_intersection_dataframes(
     df_int = pd.concat(
         (
             pd.read_parquet(f)
-            .assign(signature=_get_sample_name_from_file_name(f, split_position=1))
+            .assign(
+                cfdna=_get_sample_name_from_file_name(f, split_position=0),
+                signature=_get_sample_name_from_file_name(f, split_position=1),
+            )
             .reset_index()
             .astype({"chrom": str, "pos": int, "ref": str, "alt": str, "left_motif": str, "right_motif": str})
             .set_index(["signature", "chrom", "pos"])
@@ -407,7 +410,7 @@ def read_intersection_dataframes(
 def intersect_featuremap_with_signature(
     featuremap_file,
     signature_file,
-    output_intersection_file,
+    output_intersection_file=None,
     append_python_call_to_header=True,
     overwrite=True,
     complement=False,
@@ -422,13 +425,13 @@ def intersect_featuremap_with_signature(
         Of cfDNA
     signature_file: str
         VCF file, tumor variant calling results
-    output_intersection_file: str
-        Output vcf file, .vcf.gz or .vcf extension
-    append_python_call_to_header: bool
+    output_intersection_file: str, optional
+        Output vcf file, .vcf.gz or .vcf extension, if None (default) determined automatically from file names
+    append_python_call_to_header: bool, optional
         Add line to header to indicate this function ran (default True)
-    overwrite: bool
+    overwrite: bool, optional
         Force rewrite of output (if false and output file exists an OSError will be raised). Default True.
-    complement: bool
+    complement: bool, optional
         If True, only retain features that do not intersect with signature file - meant for removing germline variants
         from featuremap (default False)
 
@@ -439,6 +442,11 @@ def intersect_featuremap_with_signature(
         in case the file already exists and function executed with no overwrite=True
 
     """
+    if output_intersection_file is None:
+        featuremap_name = _get_sample_name_from_file_name(featuremap_file, split_position=0)
+        signature_name = _get_sample_name_from_file_name(signature_file, split_position=0)
+        output_intersection_file = f"{featuremap_name}.{signature_name}.vcf.gz"
+        logger.debug(f"Output file name will be: {output_intersection_file}")
     output_intersection_file_vcf = (
         output_intersection_file[:-3] if output_intersection_file.endswith(".gz") else output_intersection_file
     )
