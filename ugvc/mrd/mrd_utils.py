@@ -459,7 +459,12 @@ def intersect_featuremap_with_signature(
     if output_intersection_file is None:
         featuremap_name = _get_sample_name_from_file_name(featuremap_file, split_position=0)
         signature_name = _get_sample_name_from_file_name(signature_file, split_position=0)
-        type_name = "" if is_matched is None else ".matched" if is_matched else ".control"
+        if is_matched is None:
+            type_name = ""
+        elif is_matched:
+            type_name = ".matched"
+        else:
+            type_name = ".control"
         output_intersection_file = f"{featuremap_name}.{signature_name}{type_name}.intersection.vcf.gz"
         logger.debug(f"Output file name will be: {output_intersection_file}")
     if not (output_intersection_file.endswith(".vcf.gz") or output_intersection_file.endswith(".vcf")):
