@@ -1,8 +1,8 @@
 name: genomics.py3
 channels:
   - anaconda
-  - conda-forge
   - bioconda
+  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
@@ -38,6 +38,7 @@ dependencies:
   - bamtools=2.5.1=he513fc3_6
   - bcftools=1.11=h7c999a4_0
   - bcrypt=3.2.0=py37h7b6447c_0
+  - beagle=5.2_21Apr21.304=hdfd78af_0
   - bedops=2.4.39=hc9558a2_0
   - bedtools=2.30.0=hc088bd4_0
   - biopython=1.78=py37h7f8727e_0
@@ -56,10 +57,10 @@ dependencies:
   - bwa=0.7.17=hed695b0_7
   - bzip2=1.0.8=h7b6447c_0
   - c-ares=1.18.1=h7f8727e_0
-  - ca-certificates=2022.9.24=ha878542_0
+  - ca-certificates=2022.12.7=ha878542_0
   - cached-property=1.5.2=py_0
   - cachetools=4.2.2=pyhd3eb1b0_0
-  - certifi=2022.9.24=pyhd8ed1ab_0
+  - certifi=2022.12.7=pyhd8ed1ab_0
   - cffi=1.15.0=py37h7f8727e_0
   - cfgv=3.3.1=pyhd8ed1ab_0
   - cftime=1.5.1.1=py37hce1f21e_0
@@ -275,6 +276,7 @@ dependencies:
   - parquet-cpp=1.5.1=h34088ae_4
   - parso=0.8.3=pyhd3eb1b0_0
   - partd=1.2.0=pyhd3eb1b0_1
+  - pathspec=0.9.0=py37h06a4308_0
   - patsy=0.5.2=py37h06a4308_1
   - pcre=8.45=h295c915_0
   - perl=5.26.2=h14c3975_0
@@ -414,7 +416,6 @@ dependencies:
     - jinja2-time==0.2.0
     - libcst==0.3.23
     - memory-profiler==0.55.0
-    - pathspec==0.9.0
     - poyo==0.5.0
     - pycln==1.2.5
     - python-slugify==5.0.2
