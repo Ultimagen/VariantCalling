@@ -419,7 +419,7 @@ dependencies:
     - pycln==1.2.5
     - python-slugify==5.0.2
     - setuptools==50.3.2
-    - simppl==1.0.6
+    - simppl==1.0.7
     - sklearn-pandas==1.8.0
     - text-unidecode==1.3
     - typer==0.4.0
