@@ -2,4 +2,3 @@ bcftools view -O z ../1kGP_high_coverage_Illumina.chr1.filtered.SNV_INDEL_SV_pha
 bcftools view -O z ../1kGP_high_coverage_Illumina.chr2.filtered.SNV_INDEL_SV_phased_panel.vcf.gz chr2:50100000-50200000 -o 1kGP_phased_panel.chr2.vcf.gz
 bcftools index -t 1kGP_phased_panel.chr1.vcf.gz
 bcftools index -t 1kGP_phased_panel.chr2.vcf.gz
-
