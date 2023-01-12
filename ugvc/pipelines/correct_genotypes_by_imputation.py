@@ -100,14 +100,14 @@ def get_parser() -> argparse.ArgumentParser:
     return ap_var
 
 
-def _command_to_subset_vcf(chrom: str, vcf: str, outfile: str):
+def _command_to_subset_vcf(chrom: str, vcf: str, outfile: str) -> str:
     cmd = f"""bcftools view -O z -o {outfile} {vcf} {chrom} && \
     bcftools index -t {outfile}
     """
     return cmd
 
 
-def _command_to_filter_gq_vcf(vcf: str, outfile: str):
+def _command_to_filter_gq_vcf(vcf: str, outfile: str) -> str:
     cmd = f"""bcftools view -f PASS {vcf} | \
     bcftools filter -i 'QUAL>20 && FORMAT/GQ[0]>20' | \
     bcftools view -O z -o {outfile} && \
@@ -116,7 +116,7 @@ def _command_to_filter_gq_vcf(vcf: str, outfile: str):
     return cmd
 
 
-def _command_to_run_beagle(vcf: str, ref: str, gmap: str, outfile: str, nthreads: int = 1):
+def _command_to_run_beagle(vcf: str, ref: str, gmap: str, outfile: str, nthreads: int = 1) -> str:
     outprefix = outfile.replace(".vcf.gz", "")
     cmd = f"""beagle -Xmx7g \
     gt={vcf} \
@@ -129,7 +129,7 @@ def _command_to_run_beagle(vcf: str, ref: str, gmap: str, outfile: str, nthreads
     return cmd
 
 
-def _command_to_filter_and_collpase_beagle(vcf: str, outfile: str):
+def _command_to_filter_and_collpase_beagle(vcf: str, outfile: str) -> str:
     cmd = f"""bcftools view -i 'GT="alt"' {vcf} | \
     grep -v END | \
     bcftools norm --multiallelics + -o {outfile} -O z && \
@@ -138,7 +138,7 @@ def _command_to_filter_and_collpase_beagle(vcf: str, outfile: str):
     return cmd
 
 
-def _command_to_annotate_with_beagle(vcf, beagle_collapsed_vcf, outfile):
+def _command_to_annotate_with_beagle(vcf: str, beagle_collapsed_vcf: str, outfile: str) -> str:
     cmd = f"""bcftools annotate --annotations {beagle_collapsed_vcf} \
     --columns INFO/IMP,INFO/DR2,FORMAT/DS -o {outfile} -O z  {vcf} && \
     bcftools index -t {outfile}
@@ -164,17 +164,18 @@ def genotype_ordering(num_alt: int) -> np.ndarray:
     return gr_ar
 
 
-def phred(p) -> np.ndarray:
+def phred(p: tuple[int] | np.ndarray) -> np.ndarray:
     q = -10 * np.log10(np.array(p, dtype=np.float))
     return q
 
 
-def unphred(q) -> np.ndarray:
+def unphred(q: tuple[int] | np.ndarray) -> np.ndarray:
     p = np.power(10, -np.array(q, dtype=np.float) / 10)
     return p
 
 
-def sort_gt(gt) -> list[int]:
+def sort_gt(gt: tuple[int] | str) -> tuple[int]:
+    gt_list = []
     if isinstance(gt, tuple):
         gt_list = list(gt)
     else:
@@ -185,52 +186,68 @@ def sort_gt(gt) -> list[int]:
     return tuple(gt_list)
 
 
-def different_gt(gt1, gt2) -> bool:
+def different_gt(gt1: tuple[int] | str, gt2: tuple[int] | str) -> bool:
     out = sort_gt(gt1) != sort_gt(gt2)
     return out
 
 
-def _f_along_allele(allele_i, gt_ar, f_hom, f_het):
+def _f_along_allele(allele_i: int,
+                    gt_ar: np.ndarray,
+                    f_hom: np.ndarray,
+                    f_het: np.ndarray) -> np.ndarray:
     ar = (np.any(gt_ar == allele_i, axis=1) & (gt_ar[:, 0] == gt_ar[:, 1])) * f_hom[allele_i - 1] + (
         np.any(gt_ar == allele_i, axis=1) & (gt_ar[:, 0] != gt_ar[:, 1])
     ) * f_het[allele_i - 1]
     return ar
 
 
+def _convert_ds_to_genotype_imputation_priors(ds_ar: np.ndarray,
+                                              gt_ar: np.ndarray,
+                                              num_alt: int,
+                                              epsilon: float) -> np.ndarray:
+    # f_het and f_hom are the probabilities for het or hom, for each allele, capped by the epsilon
+    # refer to https://ultimagen.atlassian.net/l/cp/K4RfDeJg for more details
+    f_het = np.maximum(epsilon, np.minimum(2 - ds_ar, 1 - epsilon))
+    f_hom = np.minimum(np.maximum(ds_ar, 1) - 1, 1 - epsilon)
+    f_hom = np.maximum(epsilon, f_hom)
+    # Arrange the probabilities f_het and f_hom into an array where the columns are the alleles, and
+    # the rows are genotypes (the same as gt_ar)
+    f_allele_ar = np.stack([_f_along_allele(i + 1, gt_ar, f_hom, f_het) for i in range(num_alt)],
+                           axis=1)
+    # The probablity for each genotype is the max across all alleles of that genotype. When there are
+    # missing values (i.e. where there is no imputation data on an allele), use the lowest cap.
+    f_gt_ar = np.amax(np.nan_to_num(f_allele_ar, nan=epsilon), axis=1)
+    # I don't change the PL for the hom-ref genotype, so the f is set to 1
+    f_gt_ar[0] = 1
+
+    return f_gt_ar
+
 def modify_stats_with_imp(
-    pl_tup, num_alt: int, ds_ar: np.ndarray, current_gt, epsilon: float
+    pl_tup: tuple[int], num_alt: int, ds_ar: np.ndarray, current_gt: tuple[int], epsilon: float
 ) -> tuple[tuple[int], int, tuple[int]]:
     """
     Modifies the PL values bases on the results from the imputation (the ALT dose, DS)
+    Details of the calculation are explained in https://ultimagen.atlassian.net/l/cp/K4RfDeJg
     Input:
     pl_tup - A tuple with PLs (as in the vcf)
     num_alt - number of ALT alleles
-    ds_ar - DS values in numpy array
+    ds_ar - DS (allele dosage) values for each allele, stored in a numpy array.
+            DS is an output of beagle and is defined as DS=P(RA) + 2P(AA).
+            For bialleleic variants ds_ is typically 1.0 or 2.0 for het or hom variants, respectively.
+            For tri-allelic variants it can be [1,1], [0,2] or [2,0], etc.
     current_gt - The genotype (GT) as in the vcf
     epsilon - The weight of the imputation in determining the new PL. A number between 0 and 1.
     Output:
     The new PLs, The new GQ and the new genotype (GT)
     """
     gt_ar = genotype_ordering(num_alt)
-
+    f_gt_ar = _convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
     # Modify the PLs with the imputation data
-    # f_het ane f_hom are the probabilities for het or hom, for each allele, capped by the epsilon
-    f_het = np.maximum(epsilon, np.minimum(2 - ds_ar, 1 - epsilon))
-    f_hom = np.minimum(np.maximum(ds_ar, 1) - 1, 1 - epsilon)
-    f_hom = np.maximum(epsilon, f_hom)
-    # "Reshape" the f-values in the form of the gt_ar: For each allele, place the relevant
-    # value (het/hom) in the relevant position.
-    f_allele_ar = np.stack([_f_along_allele(i + 1, gt_ar, f_hom, f_het) for i in range(num_alt)],
-                           axis=1)
-    # The probablity for each genotype is the max across all alleles of that genotype. When there are
-    # missing values (i.e. where there is no imputation data on an allele, use the lowest cap).
-    f_gt_ar = np.amax(np.nan_to_num(f_allele_ar, nan=epsilon), axis=1)
-    # I don't change the PL for the hom-ref genotype, so the f is set to 1
-    f_gt_ar[0] = 1
-
     pl_unphred = unphred(pl_tup)
-    pl_u_sum = np.sum(pl_unphred[1:])
     pl_f = pl_unphred * f_gt_ar
+    # We don't want to change the balance between the ref and alt likelihoods, therefore
+    # we normalize by the sum of all alt likelihoods
+    pl_u_sum = np.sum(pl_unphred[1:])
     pl_f_sum = np.sum(pl_f[1:])
     pl_f_n = np.insert(pl_u_sum / pl_f_sum * pl_f[1:], 0, pl_unphred[0])
     phred_pl_f_n = phred(pl_f_n)
@@ -254,7 +271,7 @@ def add_imputation_to_vcf(
     beagle_anno_vcf: str,
     out_vcf: str,
     epsilon: float,
-    region: tuple[str, int, int] = None,
+    region: tuple[str, int, int] | None = None,
     add_counting_category: bool = False,
 ) -> dict:
     """
@@ -264,7 +281,11 @@ def add_imputation_to_vcf(
     out_vcf - Name of output vcf
     epsilon - The weight of the imputation in determining the new PL. A number between 0 and 1.
     region - Process the vcf only in the specified region. A tuple (chrom,start,end) (optional)
-    add_counting_category - Add the category of the variant, as used in the counting. For debugging purposes
+    add_counting_category - Add to the vcf the category of the effect of imputation on the variant.
+                            These are the same categories used in the output counting stats.
+                            For debugging purposes.
+    Output:
+    A dictionary with counts of variants that had imputation data, changed the genotype, etc.
     """
 
     counters = defaultdict(lambda: {"pass": 0, "has_non_ref_imp": 0, "imp_has_different_gt": 0, "changed_gt": 0})
@@ -296,7 +317,8 @@ def add_imputation_to_vcf(
             description=pl_format.description + " (DeepVariant output)",
         )
         if add_counting_category:
-            in_vcf_obj.header.info.add(id="CAT", type="String", number=1, description="Category, as counted")
+            in_vcf_obj.header.info.add(id="IMP_EFFECT", type="String", number=1,
+                                       description="Categories for the effect of imputation on the variant")
 
         with VariantFile(out_vcf, "w", header=in_vcf_obj.header) as out_vcf_obj:
             if region is None:
@@ -338,7 +360,7 @@ def add_imputation_to_vcf(
                             cat_str += ",changed_gt"
                         if add_counting_category:
                             print(cat_str)
-                            rec.info["CAT"] = cat_str
+                            rec.info["IMP_EFFECT"] = cat_str
                             print(rec)
 
                 out_vcf_obj.write(rec)
