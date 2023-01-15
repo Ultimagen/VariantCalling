@@ -27,11 +27,6 @@ jobs:
       - name: Setup environment variables
         run: |
           export PAPYRUS_ACCESS_STRING=mongodb+srv://inigo-montoya:1aBc5678910@testcluster.jm2x3.mongodb.net/test
-
-      - name: Add conda to system path
-        run: |
-          # $CONDA is an environment variable pointing to the root of the miniconda directory
-          echo $CONDA/bin >> $GITHUB_PATH
       - name: Install dependencies
         run: |
           pip install flake8
