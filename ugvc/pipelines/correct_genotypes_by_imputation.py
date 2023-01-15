@@ -95,7 +95,7 @@ def get_parser() -> argparse.ArgumentParser:
         required=False,
         default="INFO",
     )
-    ap_var.add_argument("--add_counting_category", help="Is the input a result of mutect", action="store_true")
+    ap_var.add_argument("--add_imp_effect", help="Is the input a result of mutect", action="store_true")
 
     return ap_var
 
@@ -269,19 +269,19 @@ def modify_stats_with_imp(
 
 def add_imputation_to_vcf(
     beagle_anno_vcf: str,
-    out_vcf: str,
+    output_vcf: str,
     epsilon: float,
     region: tuple[str, int, int] | None = None,
-    add_counting_category: bool = False,
+    add_imp_effect: bool = False,
 ) -> dict:
     """
     Takes a vcf that is annotated with the Beagle results and outputs a new vcf with changes to the genotype, PLs, etc.
     Input:
     beagle_anno_vcf - Input vcf with Beagle annotations
-    out_vcf - Name of output vcf
+    output_vcf - Name of output vcf
     epsilon - The weight of the imputation in determining the new PL. A number between 0 and 1.
-    region - Process the vcf only in the specified region. A tuple (chrom,start,end) (optional)
-    add_counting_category - Add to the vcf the category of the effect of imputation on the variant.
+    region - Process the vcf only in the specified region. A tuple (chrom,start,end). Experimental, for debugging purposes.
+    add_imp_effect - Add to the vcf the category of the effect of imputation on the variant.
                             These are the same categories used in the output counting stats.
                             For debugging purposes.
     Output:
@@ -290,7 +290,7 @@ def add_imputation_to_vcf(
 
     counters = defaultdict(lambda: {"pass": 0, "has_non_ref_imp": 0, "imp_has_different_gt": 0, "changed_gt": 0})
 
-    logger.info("Modifying PLs and writing to %s", out_vcf)
+    logger.info("Modifying PLs and writing to %s", output_vcf)
     with VariantFile(beagle_anno_vcf) as in_vcf_obj:
         # Modify header in order to save previous GT and PL
         gt_format = in_vcf_obj.header.formats["GT"]
@@ -316,11 +316,11 @@ def add_imputation_to_vcf(
             type=pl_format.type,
             description=pl_format.description + " (DeepVariant output)",
         )
-        if add_counting_category:
+        if add_imp_effect:
             in_vcf_obj.header.info.add(id="IMP_EFFECT", type="String", number=1,
                                        description="Categories for the effect of imputation on the variant")
 
-        with VariantFile(out_vcf, "w", header=in_vcf_obj.header) as out_vcf_obj:
+        with VariantFile(output_vcf, "w", header=in_vcf_obj.header) as out_vcf_obj:
             if region is None:
                 chrom = start = end = None
             else:
@@ -358,14 +358,14 @@ def add_imputation_to_vcf(
                         if different_gt(new_gt, rec.samples[0]["GT0"]):
                             counters[vtype]["changed_gt"] += 1
                             cat_str += ",changed_gt"
-                        if add_counting_category:
+                        if add_imp_effect:
                             print(cat_str)
                             rec.info["IMP_EFFECT"] = cat_str
                             print(rec)
 
                 out_vcf_obj.write(rec)
 
-        subprocess.check_output(f"bcftools index -t {out_vcf}", shell=True)
+        subprocess.check_output(f"bcftools index -t {output_vcf}", shell=True)
 
         return dict(counters)
 
@@ -430,9 +430,9 @@ def run(argv: list[str]):
     def run_add_imputation_to_vcf(chrom):
         out = add_imputation_to_vcf(
             beagle_anno_vcf=beagle_anno_files[chrom],
-            out_vcf=os.path.join(args.temp_dir, f"add_imp.{chrom}.vcf.gz"),
+            output_vcf=os.path.join(args.temp_dir, f"add_imp.{chrom}.vcf.gz"),
             epsilon=args.epsilon,
-            add_counting_category=args.add_counting_category,
+            add_imp_effect=args.add_imp_effect,
         )
         return out
 
