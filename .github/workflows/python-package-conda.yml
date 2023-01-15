@@ -28,7 +28,7 @@ jobs:
           conda env update --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
           conda env create --file setup/other_envs/cnmops.yml
-          conda env update --file setup/environment.yml --name base --prune
+          conda env create --file setup/environment.yml --name base --prune
           pip install flake8
       - name: Install as a package
         run: |
