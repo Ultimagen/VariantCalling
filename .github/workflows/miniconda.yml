@@ -7,5 +7,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
+    defaults:
+      run:
+        shell: bash -el {0}
     steps:
       - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: genomics.py3
+          environment-file: setup/environment.yml
+          python-version: 3.7
+          auto-activate-base: false
+      - run: |
+          conda info
+          conda list
