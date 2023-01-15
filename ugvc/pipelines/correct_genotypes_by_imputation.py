@@ -15,7 +15,6 @@
 # DESCRIPTION
 #    Correct the genotypes of variants using imputation
 # CHANGELOG in reverse chronological order
-#
 
 from __future__ import annotations
 
@@ -178,9 +177,8 @@ def sort_gt(gt: tuple[int] | str) -> tuple[int]:
     gt_list = []
     if isinstance(gt, tuple):
         gt_list = list(gt)
-    else:
-        if isinstance(gt, str):
-            gt_list = [int(a) for a in gt.replace("/", "|").split("|")]
+    elif isinstance(gt, str):
+        gt_list = [int(a) for a in gt.replace("/", "|").split("|")]
 
     gt_list.sort(key=lambda e: (e is None, e))
     return tuple(gt_list)
@@ -191,20 +189,16 @@ def different_gt(gt1: tuple[int] | str, gt2: tuple[int] | str) -> bool:
     return out
 
 
-def _f_along_allele(allele_i: int,
-                    gt_ar: np.ndarray,
-                    f_hom: np.ndarray,
-                    f_het: np.ndarray) -> np.ndarray:
+def _f_along_allele(allele_i: int, gt_ar: np.ndarray, f_hom: np.ndarray, f_het: np.ndarray) -> np.ndarray:
     ar = (np.any(gt_ar == allele_i, axis=1) & (gt_ar[:, 0] == gt_ar[:, 1])) * f_hom[allele_i - 1] + (
         np.any(gt_ar == allele_i, axis=1) & (gt_ar[:, 0] != gt_ar[:, 1])
     ) * f_het[allele_i - 1]
     return ar
 
 
-def _convert_ds_to_genotype_imputation_priors(ds_ar: np.ndarray,
-                                              gt_ar: np.ndarray,
-                                              num_alt: int,
-                                              epsilon: float) -> np.ndarray:
+def _convert_ds_to_genotype_imputation_priors(
+    ds_ar: np.ndarray, gt_ar: np.ndarray, num_alt: int, epsilon: float
+) -> np.ndarray:
     # f_het and f_hom are the probabilities for het or hom, for each allele, capped by the epsilon
     # refer to https://ultimagen.atlassian.net/l/cp/K4RfDeJg for more details
     f_het = np.maximum(epsilon, np.minimum(2 - ds_ar, 1 - epsilon))
@@ -212,8 +206,7 @@ def _convert_ds_to_genotype_imputation_priors(ds_ar: np.ndarray,
     f_hom = np.maximum(epsilon, f_hom)
     # Arrange the probabilities f_het and f_hom into an array where the columns are the alleles, and
     # the rows are genotypes (the same as gt_ar)
-    f_allele_ar = np.stack([_f_along_allele(i + 1, gt_ar, f_hom, f_het) for i in range(num_alt)],
-                           axis=1)
+    f_allele_ar = np.stack([_f_along_allele(i + 1, gt_ar, f_hom, f_het) for i in range(num_alt)], axis=1)
     # The probablity for each genotype is the max across all alleles of that genotype. When there are
     # missing values (i.e. where there is no imputation data on an allele), use the lowest cap.
     f_gt_ar = np.amax(np.nan_to_num(f_allele_ar, nan=epsilon), axis=1)
@@ -221,6 +214,7 @@ def _convert_ds_to_genotype_imputation_priors(ds_ar: np.ndarray,
     f_gt_ar[0] = 1
 
     return f_gt_ar
+
 
 def modify_stats_with_imp(
     pl_tup: tuple[int], num_alt: int, ds_ar: np.ndarray, current_gt: tuple[int], epsilon: float
@@ -280,7 +274,7 @@ def add_imputation_to_vcf(
     beagle_anno_vcf - Input vcf with Beagle annotations
     output_vcf - Name of output vcf
     epsilon - The weight of the imputation in determining the new PL. A number between 0 and 1.
-    region - Process the vcf only in the specified region. A tuple (chrom,start,end). Experimental, for debugging purposes.
+    region - Process the vcf only in the specified region. A tuple (chrom,start,end). Experimental, for debugging.
     add_imp_effect - Add to the vcf the category of the effect of imputation on the variant.
                             These are the same categories used in the output counting stats.
                             For debugging purposes.
@@ -317,8 +311,12 @@ def add_imputation_to_vcf(
             description=pl_format.description + " (DeepVariant output)",
         )
         if add_imp_effect:
-            in_vcf_obj.header.info.add(id="IMP_EFFECT", type="String", number=1,
-                                       description="Categories for the effect of imputation on the variant")
+            in_vcf_obj.header.info.add(
+                id="IMP_EFFECT",
+                type="String",
+                number=1,
+                description="Categories for the effect of imputation on the variant",
+            )
 
         with VariantFile(output_vcf, "w", header=in_vcf_obj.header) as out_vcf_obj:
             if region is None:
@@ -346,7 +344,7 @@ def add_imputation_to_vcf(
                             # Note that in multi-allelics this check may be wrong, because
                             # it could be heterozygous in two different allels.
                         # Save the old GT, GQ and PL
-                        rec.samples[0]["GT0"] = "|".join(map(str, rec.samples[0]["GT"]))
+                        rec.samples[0]["GT0"] = "|".join([str(a) for a in rec.samples[0]["GT"]])
                         rec.samples[0]["GQ0"] = rec.samples[0]["GQ"]
                         rec.samples[0]["PL0"] = rec.samples[0]["PL"]
                         # Modify the pl, gq and gt
@@ -489,9 +487,7 @@ def run(argv: list[str]):
         add_imp_files[chrom] for chrom in sorted(chrom_to_cohort.keys(), key=lambda k: contigs_info[k]["id"])
     ]
     vcfs_to_concat = sorted_add_imp_files + [untouched_contigs_rehead_vcf]
-    sp.print_and_run(
-        f"bcftools concat --naive -O z -o {args.output_vcf} {' '.join(vcfs_to_concat)}"
-    )
+    sp.print_and_run(f"bcftools concat --naive -O z -o {args.output_vcf} {' '.join(vcfs_to_concat)}")
     sp.print_and_run(f"bcftools index -t {args.output_vcf}")
 
 
