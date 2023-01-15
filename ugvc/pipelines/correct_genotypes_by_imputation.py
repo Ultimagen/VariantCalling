@@ -33,6 +33,7 @@ from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
+from ugvc.vcfbed.vcftools import genotype_ordering, phred, unphred, different_gt
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -143,51 +144,6 @@ def _command_to_annotate_with_beagle(vcf: str, beagle_collapsed_vcf: str, outfil
     bcftools index -t {outfile}
     """
     return cmd
-
-
-def genotype_ordering(num_alt: int) -> np.ndarray:
-    # Returns a numpy array with the order of the genotypes (based on the section Genotype Ordering in the VCF spec).
-    # Each row is a genotype, and the columns are the alleles.
-    gr_ar = np.full([int((num_alt + 2) * (num_alt + 1) / 2), 2], fill_value=-1, dtype=int)
-    if num_alt == 1:
-        gr_ar = np.array([[0, 0], [0, 1], [1, 1]])
-    elif num_alt == 2:
-        gr_ar = np.array([[0, 0], [0, 1], [1, 1], [0, 2], [1, 2], [2, 2]])
-    else:
-        i = 0
-        for a2 in range(num_alt + 1):
-            for a1 in range(a2 + 1):
-                gr_ar[i, 0] = a1
-                gr_ar[i, 1] = a2
-                i += 1
-    return gr_ar
-
-
-def phred(p: tuple[int] | np.ndarray) -> np.ndarray:
-    q = -10 * np.log10(np.array(p, dtype=np.float))
-    return q
-
-
-def unphred(q: tuple[int] | np.ndarray) -> np.ndarray:
-    p = np.power(10, -np.array(q, dtype=np.float) / 10)
-    return p
-
-
-def sort_gt(gt: tuple[int] | str) -> tuple[int]:
-    gt_list = []
-    if isinstance(gt, tuple):
-        gt_list = list(gt)
-    elif isinstance(gt, str):
-        gt_list = [int(a) for a in gt.replace("/", "|").split("|")]
-
-    gt_list.sort(key=lambda e: (e is None, e))
-    return tuple(gt_list)
-
-
-def different_gt(gt1: tuple[int] | str, gt2: tuple[int] | str) -> bool:
-    out = sort_gt(gt1) != sort_gt(gt2)
-    return out
-
 
 def _f_along_allele(allele_i: int, gt_ar: np.ndarray, f_hom: np.ndarray, f_het: np.ndarray) -> np.ndarray:
     ar = (np.any(gt_ar == allele_i, axis=1) & (gt_ar[:, 0] == gt_ar[:, 1])) * f_hom[allele_i - 1] + (
