@@ -7,6 +7,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -28,8 +31,7 @@ jobs:
           conda env update --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
           conda env create --file setup/other_envs/cnmops.yml
-          conda env create --file setup/environment.yml --name base --force
-          pip install flake8
+          conda env create --file setup/environment.yml
       - name: Install as a package
         run: |
           pip install .
@@ -41,6 +43,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Import integrity tests
         run: |
+          conda activate genomics.py3
           python ugvc
           run_comparison_pipeline.py -h
           filter_variants_pipeline.py -h
@@ -53,5 +56,6 @@ jobs:
           convert_h5_to_json.py -h
       - name: Test with pytest
         run: |
+          conda activate genomics.py3
           python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system
