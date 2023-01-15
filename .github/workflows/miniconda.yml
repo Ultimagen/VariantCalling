@@ -1,5 +1,7 @@
 name: Setup Miniconda
 
+on: [ push ]
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
