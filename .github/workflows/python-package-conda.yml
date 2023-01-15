@@ -25,7 +25,7 @@ jobs:
           echo $CONDA/bin >> $GITHUB_PATH
       - name: Install dependencies
         run: |
-          conda env create --file setup/environment.yml
+          conda env create --file setup/environment.yml --name base --prune
       - name: Install as a package
         run: |
           pip install .
