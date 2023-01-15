@@ -124,8 +124,27 @@ pre-commit hooks are configured within `.pre-commit-config.yaml`
 
 install: https://pre-commit.com/#installation
 
-After pre-commit package is installed, you need to set git hooks scripts: `pre-commit install`
+After pre-commit package is installed, you need to set git hooks scripts: 
+```
+pre-commit install
+pre-commit install -t pre-commit
+```
 After the installation it will run the pre-commit hooks for all files changed as part of the commit.
+This should look like this, notice mostly the red "Failed" issues that you must fix, the pre-commit verifies the fix before enables the commit:
+```
+trim trailing whitespace.................................................Passed
+fix end of files.........................................................Passed
+check yaml...........................................(no files to check)Skipped
+check json...........................................(no files to check)Skipped
+check for added large files..............................................Passed
+pycln....................................................................Passed
+isort....................................................................Passed
+black....................................................................Passed
+flake8...................................................................Passed
+pylint...................................................................Passed
+[master 9a1a910e] Test pre-commit
+ 1 file changed, 1 deletion(-)
+ ```
 For running all pre-commit hooks on all files (used for initial pre-commit run) use: `pre-commit run --all-files`
 
 # The hooks we use are:
