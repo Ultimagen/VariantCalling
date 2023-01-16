@@ -203,14 +203,3 @@ def test_different_gt():
     assert not vcftools.different_gt('1|0', (0, 1))
     assert vcftools.different_gt('1|1', (0, 1))
     assert vcftools.different_gt('1/2', (0, 1))
-
-# @pytest.mark.parametrize("extra_params,expected", zip([], expected_outputs))
-# def test_phred( extra_params, expected):
-#
-#     input_file = pjoin(get_resource_dir(__file__), "120461-BC23.for_test_input.bam")
-#     shutil.copyfile(input_file, pjoin(tmpdir, basename(input_file)))
-#     cmd = [trimming_script, pjoin(tmpdir, basename(input_file))] + extra_params
-#     subprocess.check_call(cmd, cwd=tmpdir)
-#     output_file = pjoin(tmpdir, basename(input_file).replace("bam", "with_adapter_tags.bam"))
-#     assert exists(output_file)
-#     assert _compare_bam_records(output_file, expected), f"{output_file} and {expected} are not identical"
