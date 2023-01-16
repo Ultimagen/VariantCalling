@@ -7,10 +7,19 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
         with:
           lfs: True
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+          use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
+          auto-update-conda: true
+          auto-activate-base: true
       - name: Setup file system
         run: |
           sudo mkdir -p /data
@@ -18,19 +27,16 @@ jobs:
       - name: Setup environment variables
         run: |
           export PAPYRUS_ACCESS_STRING=mongodb+srv://inigo-montoya:1aBc5678910@testcluster.jm2x3.mongodb.net/test
-
-      - name: Add conda to system path
-        run: |
-          # $CONDA is an environment variable pointing to the root of the miniconda directory
-          echo $CONDA/bin >> $GITHUB_PATH
       - name: Install dependencies
         run: |
+          pip install flake8
           conda env update --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
           conda env create --file setup/other_envs/cnmops.yml
-          conda env update --file setup/environment.yml --name base
+          conda env create --file setup/environment.yml
       - name: Install as a package
         run: |
+          conda activate genomics.py3
           pip install .
       - name: Lint with flake8
         run: |
@@ -40,6 +46,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Import integrity tests
         run: |
+          conda activate genomics.py3
           python ugvc
           run_comparison_pipeline.py -h
           filter_variants_pipeline.py -h
@@ -52,5 +59,6 @@ jobs:
           convert_h5_to_json.py -h
       - name: Test with pytest
         run: |
+          conda activate genomics.py3
           python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system
