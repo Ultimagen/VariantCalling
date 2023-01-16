@@ -102,14 +102,16 @@ def get_parser() -> argparse.ArgumentParser:
 
 
 def _command_to_subset_vcf(chrom: str, vcf: str, outfile: str) -> str:
-    cmd = f"""bcftools view -O z -o {outfile} {vcf} {chrom} && \
+    cmd = f"""set -eo pipefail
+    bcftools view -O z -o {outfile} {vcf} {chrom} && \
     bcftools index -t {outfile}
     """
     return cmd
 
 
 def _command_to_filter_gq_vcf(vcf: str, outfile: str) -> str:
-    cmd = f"""bcftools view -f PASS {vcf} | \
+    cmd = f"""set -eo pipefail
+    bcftools view -f PASS {vcf} | \
     bcftools filter -i 'QUAL>20 && FORMAT/GQ[0]>20' | \
     bcftools view -O z -o {outfile} && \
     bcftools index -t {outfile}
@@ -131,7 +133,8 @@ def _command_to_run_beagle(vcf: str, ref: str, gmap: str, outfile: str, nthreads
 
 
 def _command_to_filter_and_collpase_beagle(vcf: str, outfile: str) -> str:
-    cmd = f"""bcftools view -i 'GT="alt"' {vcf} | \
+    cmd = f"""set -eo pipefail
+    bcftools view -i 'GT="alt"' {vcf} | \
     grep -v END | \
     bcftools norm --multiallelics + -o {outfile} -O z && \
     bcftools index -t {outfile}
