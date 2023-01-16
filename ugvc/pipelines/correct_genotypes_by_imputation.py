@@ -24,6 +24,7 @@ import logging
 import os
 import subprocess
 import sys
+from tempfile import gettempdir
 from collections import defaultdict
 
 import numpy as np
@@ -81,7 +82,7 @@ def get_parser() -> argparse.ArgumentParser:
         help="Path to temporary dir",
         required=False,
         type=str,
-        default="/tmp",
+        default=gettempdir(),
     )
     ap_var.add_argument(
         "--threads_for_contig", help="Number of threads to use when looping across contigs", type=int, default=4
