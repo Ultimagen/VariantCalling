@@ -103,6 +103,47 @@ def get_parser() -> argparse.ArgumentParser:
 
     return ap_var
 
+def _del_overlaps_snp(del_rec, snp_rec):
+    does_overlap = False
+    del_ref = del_rec.ref
+    del_alt = del_rec.alleles[1]
+    del_pos = del_rec.pos
+    snp_pos = snp_rec.pos
+    snp_alt = snp_rec.alleles[1]
+    if len(del_alt) < len(del_ref):
+        del_end_pos = del_pos + len(del_ref) - len(del_alt)
+        if del_end_pos>=snp_pos:
+            does_overlap = True
+            print(f"del_ref: {del_ref}, del_alt: {del_alt}, {del_pos}, {snp_pos} snp: {snp_rec.ref} -> {snp_rec.alleles[1]}")
+            print((del_end_pos-snp_pos+1))
+            print(f"{del_ref[0:(del_end_pos-snp_pos+1)]}{snp_alt}")
+            # del_ref[]
+    return does_overlap
+
+
+def expand_snp_after_deletion(input_vcf: str, output_vcf: str):
+    """
+    If a deletion is followed by an overlapping SNP, Change the SNP record such
+    that it would have the same POS as the SNP
+    Input:
+    input_vcf: Name of input vcf
+    output_vcf: Name of output vcf
+    """
+    last_rec = None
+    with VariantFile(input_vcf) as in_vcf_obj:
+        with VariantFile(output_vcf, "w", header=in_vcf_obj.header) as out_vcf_obj:
+            for rec in tqdm(in_vcf_obj.fetch()):
+                if last_rec is None:
+                    last_rec = rec
+                else:
+                    print(last_rec.pos)
+                    print(rec.pos)
+                    print(_del_overlaps_snp(last_rec, rec))
+                    # if _del_overlaps_snp(last_rec, rec):
+                        # rec = _extend_snp(rec, last_rec)
+                    out_vcf_obj.write(rec)
+                    last_rec = rec
+
 
 def _command_to_subset_vcf(chrom: str, vcf: str, outfile: str) -> str:
     cmd = f"""set -eo pipefail
