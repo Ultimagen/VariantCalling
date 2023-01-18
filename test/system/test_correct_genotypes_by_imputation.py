@@ -16,14 +16,13 @@ BioinfoResearch/analysis/22-11-24_modifying_vcf_with_imputation/23-01-18_generat
 
 
 class TestCorrectGenotypesByImputation:
-    inputs_dir = get_resource_dir(__file__)
     resources_dir = get_resource_dir(__file__)
 
     def test_convert_ds_to_genotype_imputation_priors(self):
         # Homozygous biallelic variant
         ds_ar = np.array([2])
-        gt_ar = genotype_ordering(1)
         num_alt = 1
+        gt_ar = genotype_ordering(num_alt)
         epsilon = 0.01
         assert np.all(
             corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
@@ -31,8 +30,8 @@ class TestCorrectGenotypesByImputation:
         )
         # Heterozygous biallelic variant
         ds_ar = np.array([1])
-        gt_ar = genotype_ordering(1)
         num_alt = 1
+        gt_ar = genotype_ordering(num_alt)
         epsilon = 0.01
         assert np.all(
             corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
@@ -40,8 +39,8 @@ class TestCorrectGenotypesByImputation:
         )
         # Heterozygous tri-allelic variant
         ds_ar = np.array([1, 1])
-        gt_ar = genotype_ordering(2)
         num_alt = 2
+        gt_ar = genotype_ordering(num_alt)
         epsilon = 0.01
         assert np.all(
             corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
@@ -49,15 +48,15 @@ class TestCorrectGenotypesByImputation:
         )
         # Heterozygous tri-allelic variant with missing imputation data
         ds_ar = np.array([2, None], dtype=float)
-        gt_ar = genotype_ordering(2)
         num_alt = 2
+        gt_ar = genotype_ordering(num_alt)
         epsilon = 0.01
         assert np.all(
             corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
             == np.array([1, 0.01, 0.99, 0.01, 0.01, 0.01])
         )
 
-    def test_corgen(self, tmpdir):
+    def test_correct_genotypes_by_imputation(self, tmpdir):
         os.makedirs(tmpdir, exist_ok=True)
         with open(os.path.join(tmpdir, "chrom_to_cohort_vcf.json"), "w") as f:
             json.dump(
