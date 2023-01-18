@@ -34,7 +34,10 @@ from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
-from ugvc.vcfbed.vcftools import genotype_ordering, phred, unphred, different_gt
+from ugvc.vcfbed.vcftools import genotype_ordering
+from ugvc.utils.math_utils import phred, unphred
+from ugvc.vcfbed.genotype import different_gt
+
 
 
 def get_parser() -> argparse.ArgumentParser:
