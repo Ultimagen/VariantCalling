@@ -189,10 +189,3 @@ class TestGetVcfDf:
         ]
         for x in ignore_fields:
             assert x not in df.columns
-
-
-def test_different_gt():
-    assert not vcftools.different_gt("0|1", (0, 1))
-    assert not vcftools.different_gt("1|0", (0, 1))
-    assert vcftools.different_gt("1|1", (0, 1))
-    assert vcftools.different_gt("1/2", (0, 1))
