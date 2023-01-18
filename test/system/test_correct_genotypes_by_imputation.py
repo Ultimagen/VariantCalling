@@ -9,6 +9,11 @@ import numpy as np
 from ugvc.pipelines import correct_genotypes_by_imputation as corgen
 from ugvc.vcfbed.vcftools import genotype_ordering
 
+"""
+The respurces for the test were generated using the notebook in
+BioinfoResearch/analysis/22-11-24_modifying_vcf_with_imputation/23-01-18_generate_test_data.ipynb
+"""
+
 class TestCorrectGenotypesByImputation:
     inputs_dir = get_resource_dir(__file__)
     resources_dir = get_resource_dir(__file__)
