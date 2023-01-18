@@ -1,18 +1,19 @@
 import json
 import os
 import subprocess
-from test import get_resource_dir, test_dir
+from test import get_resource_dir
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from ugvc.pipelines import correct_genotypes_by_imputation as corgen
 from ugvc.vcfbed.vcftools import genotype_ordering
 
 """
-The respurces for the test were generated using the notebook in
+The resources for the test were generated using the notebook in
 BioinfoResearch/analysis/22-11-24_modifying_vcf_with_imputation/23-01-18_generate_test_data.ipynb
 """
+
 
 class TestCorrectGenotypesByImputation:
     inputs_dir = get_resource_dir(__file__)
@@ -24,26 +25,37 @@ class TestCorrectGenotypesByImputation:
         gt_ar = genotype_ordering(1)
         num_alt = 1
         epsilon = 0.01
-        assert np.all(corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon) == np.array([1,0.01,0.99]))
+        assert np.all(
+            corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
+            == np.array([1, 0.01, 0.99])
+        )
         # Heterozygous biallelic variant
         ds_ar = np.array([1])
         gt_ar = genotype_ordering(1)
         num_alt = 1
         epsilon = 0.01
-        assert np.all(corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon) == np.array([1,0.99,0.01]))
+        assert np.all(
+            corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
+            == np.array([1, 0.99, 0.01])
+        )
         # Heterozygous tri-allelic variant
-        ds_ar = np.array([1,1])
+        ds_ar = np.array([1, 1])
         gt_ar = genotype_ordering(2)
         num_alt = 2
         epsilon = 0.01
-        assert np.all(corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon) == np.array([1,0.99,0.01,0.99,0.99,0.01]))
+        assert np.all(
+            corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
+            == np.array([1, 0.99, 0.01, 0.99, 0.99, 0.01])
+        )
         # Heterozygous tri-allelic variant with missing imputation data
-        ds_ar = np.array([2,None],dtype=float)
+        ds_ar = np.array([2, None], dtype=float)
         gt_ar = genotype_ordering(2)
         num_alt = 2
         epsilon = 0.01
-        assert np.all(corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon) == np.array([1,0.01,0.99,0.01,0.01,0.01]))
-
+        assert np.all(
+            corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
+            == np.array([1, 0.01, 0.99, 0.01, 0.01, 0.01])
+        )
 
     def test_corgen(self, tmpdir):
         os.makedirs(tmpdir, exist_ok=True)

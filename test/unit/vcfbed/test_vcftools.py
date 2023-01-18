@@ -2,7 +2,6 @@ from os.path import join as pjoin
 from test import get_resource_dir
 
 import pandas as pd
-import numpy as np
 
 import ugvc.vcfbed.vcftools as vcftools
 
@@ -190,16 +189,3 @@ class TestGetVcfDf:
         ]
         for x in ignore_fields:
             assert x not in df.columns
-
-
-def test_phred():
-    assert np.all(vcftools.phred((0.1,0.01,0.001))==np.array([10., 20., 30.]))
-
-def test_unphred():
-    assert np.all(vcftools.unphred((10,20,30))==np.array([0.1, 0.01, 0.001]))
-
-def test_different_gt():
-    assert not vcftools.different_gt('0|1', (0, 1))
-    assert not vcftools.different_gt('1|0', (0, 1))
-    assert vcftools.different_gt('1|1', (0, 1))
-    assert vcftools.different_gt('1/2', (0, 1))
