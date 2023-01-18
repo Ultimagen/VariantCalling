@@ -561,29 +561,3 @@ def genotype_ordering(num_alt: int) -> np.ndarray:
                 i += 1
     return gr_ar
 
-
-def phred(p: tuple[int] | np.ndarray) -> np.ndarray:
-    q = -10 * np.log10(np.array(p, dtype=np.float))
-    return q
-
-
-def unphred(q: tuple[int] | np.ndarray) -> np.ndarray:
-    p = np.power(10, -np.array(q, dtype=np.float) / 10)
-    return p
-
-
-def sort_gt(gt: tuple[int] | str) -> tuple[int]:
-    gt_list = []
-    if isinstance(gt, tuple):
-        gt_list = list(gt)
-    elif isinstance(gt, str):
-        gt_list = [int(a) for a in gt.replace("/", "|").split("|")]
-
-    gt_list.sort(key=lambda e: (e is None, e))
-    return tuple(gt_list)
-
-
-def different_gt(gt1: tuple[int] | str, gt2: tuple[int] | str) -> bool:
-    out = sort_gt(gt1) != sort_gt(gt2)
-    return out
-
