@@ -48,15 +48,19 @@ def get_parser(argv: list[str]):
                              "-p 1: penalize wrong-allele/genotype only once (remove 0.5 of such fps and fns)\n" \
                              "-p 0: don't penalize wrong-allele/genotype (remove completely such fps and fns)\n" \
                              "-p -1: don't penalize, and also reward a tp for calling wrong-allele/genotype\n")
+    ap.add_argument('--var_type',
+                    type=str,
+                    choices=['snps', 'indels', 'both'],
+                    default='both',
+                    help='choose to analyze specific variant type (indels is much faster than snps)')
+
+
+
     return ap
     return args
 
 def count_vcf_lines(vcf_file):
-    v_iter = pysam.VariantFile(vcf_file)
-    count = 0
-    for variant in v_iter:
-        count += 1
-    return count
+    return int(subprocess.check_output(f'bcftools index -n {vcf_file}'.split()))
 
 def run(argv: list[str]):
     """Evaluate VCF against baseline, giving alternative penalty to wrong-alleles and genotype errors"""
@@ -70,27 +74,38 @@ def run(argv: list[str]):
     sdf = args.template
     out_dir = args.output
     penalty = args.allele_and_genotype_error_penalty
+    variant_types = ['indels', 'snps'] if args.var_type == 'both' else [args.var_type]
     result = []
     sp.print_and_run(f'rm -rf {out_dir}')
-    sp.print_and_run(f'rtg vcfeval -b {baseline} -c {calls} -e {eval_reg} -t {sdf} -o {out_dir}')
-    sp.print_and_run(f'bedtools intersect -a {calls} -b {eval_reg} -header > {out_dir}/input_in_hcr.vcf')
-    sp.print_and_run(f'bcftools view -f PASS {out_dir}/input_in_hcr.vcf > {out_dir}/input_in_hcr.pass.vcf')
-    sp.print_and_run(f'bedtools intersect -a {baseline} -b {eval_reg} -header > {out_dir}/gtr_in_hcr.vcf')
+    sp.print_and_run(f'mkdir -p {out_dir}')
+    sp.print_and_run(f'bcftools view {calls} -R {eval_reg} -Oz > {out_dir}/input_in_hcr.vcf.gz')
+    sp.print_and_run(f'bcftools view -f PASS {out_dir}/input_in_hcr.vcf.gz -Oz > {out_dir}/input_in_hcr.pass.vcf.gz')
+    sp.print_and_run(f'bcftools index -t {out_dir}/input_in_hcr.pass.vcf.gz')
+    sp.print_and_run(f'bcftools view {baseline} -R {eval_reg} -Oz > {out_dir}/gtr_in_hcr.vcf.gz')
+    sp.print_and_run(f'bcftools index -t {out_dir}/gtr_in_hcr.vcf.gz')
+    sp.print_and_run(f'rtg vcfeval -b {out_dir}/gtr_in_hcr.vcf.gz -c {out_dir}/input_in_hcr.pass.vcf.gz -e {eval_reg} -t {sdf} -o {out_dir}/vcfeval')
     result.append('type tp fp fn precision recall f1')
-    for vt in ['indels', 'snps']:
+    for vt in variant_types:
         for pref in ['input_in_hcr', 'gtr_in_hcr', 'input_in_hcr.pass']:
-            sp.print_and_run(f'bcftools view {out_dir}/{pref}.vcf --type {vt} > {out_dir}/{pref}.{vt}.vcf')
-        sp.print_and_run(f'bcftools view {baseline} --type {vt} > {out_dir}/gt.{vt}.vcf')
-        for pref in ['fp', 'tp', 'fn']:
-            sp.print_and_run(f'bcftools view {out_dir}/{pref}.vcf.gz --type {vt} > {out_dir}/{pref}.{vt}.vcf')
-        sp.print_and_run(f'bedtools subtract -A -a {out_dir}/fp.{vt}.vcf -b {out_dir}/gt.{vt}.vcf -header >  {out_dir}/fp.{vt}.clean.vcf;')
-        sp.print_and_run(f'bedtools subtract -A -a {out_dir}/fn.{vt}.vcf -b {out_dir}/input_in_hcr.pass.{vt}.vcf -header > {out_dir}/fn.{vt}.clean.vcf')
+            sp.print_and_run(f'bcftools view {out_dir}/{pref}.vcf.gz --type {vt} -Oz > {out_dir}/{pref}.{vt}.vcf.gz')
+            sp.print_and_run(f'bcftools index -t {out_dir}/{pref}.{vt}.vcf.gz')
 
-        tp = count_vcf_lines(f'{out_dir}/tp.{vt}.vcf')
-        fp_clean = count_vcf_lines(f'{out_dir}/fp.{vt}.clean.vcf')
-        fn_clean = count_vcf_lines(f'{out_dir}/fn.{vt}.clean.vcf');
-        fp = count_vcf_lines(f'{out_dir}/fp.{vt}.vcf');
-        fn = count_vcf_lines(f'{out_dir}/fn.{vt}.vcf');
+        sp.print_and_run(f'bcftools view {baseline} --type {vt} -Oz > {out_dir}/gt.{vt}.vcf.gz')
+        sp.print_and_run(f'bcftools index -t {out_dir}/gt.{vt}.vcf.gz')
+
+        for pref in ['fp', 'tp', 'fn']:
+            sp.print_and_run(f'bcftools view {out_dir}/vcfeval/{pref}.vcf.gz --type {vt} -Oz > {out_dir}/{pref}.{vt}.vcf.gz')
+            sp.print_and_run(f'bcftools index -t {out_dir}/{pref}.{vt}.vcf.gz')
+        sp.print_and_run(f'bcftools isec -C {out_dir}/fp.{vt}.vcf.gz {out_dir}/gt.{vt}.vcf.gz -Oz -w 1 -o {out_dir}/fp.{vt}.clean.vcf.gz')
+        sp.print_and_run(f'bcftools index -t {out_dir}/fp.{vt}.clean.vcf.gz')
+        sp.print_and_run(f'bcftools isec -C {out_dir}/fn.{vt}.vcf.gz {out_dir}/input_in_hcr.pass.{vt}.vcf.gz -Oz -w 1 -o {out_dir}/fn.{vt}.clean.vcf.gz')
+        sp.print_and_run(f'bcftools index -t {out_dir}/fn.{vt}.clean.vcf.gz')
+
+        tp = count_vcf_lines(f'{out_dir}/tp.{vt}.vcf.gz')
+        fp_clean = count_vcf_lines(f'{out_dir}/fp.{vt}.clean.vcf.gz')
+        fn_clean = count_vcf_lines(f'{out_dir}/fn.{vt}.clean.vcf.gz')
+        fp = count_vcf_lines(f'{out_dir}/fp.{vt}.vcf.gz')
+        fn = count_vcf_lines(f'{out_dir}/fn.{vt}.vcf.gz')
         allele_and_genotype_fp_errors = fp - fp_clean
         allele_and_genotype_fn_errors = fn - fn_clean
 
