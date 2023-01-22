@@ -51,22 +51,40 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
     )
     ap_var.add_argument(
-        "--chrom_to_cohort_vcf",
-        help="json file that maps the chromosome names to vcf files with the reference cohort ",
-        required=True,
+        "--chrom_to_cohort_vcfs_json",
+        help="json file that maps the chromosome names to vcf files with the reference cohort (used if the single_* arguments are not defined)",
+        required=False,
+        type=str,
+    )
+    ap_var.add_argument(
+        "--chrom_to_plink_json",
+        help="json file that maps the chromosome names to plink files with genomic maps (used if the single_* arguments are not defined)",
+        required=False,
+        type=str,
+    )
+    ap_var.add_argument(
+        "--single_chrom",
+        help="The chromosome to work on (suits a cromwell run. chrom_to_cohort_vcfs and chrom_to_plink jsons should not be defined)",
+        required=False,
+        type=str,
+    )
+    ap_var.add_argument(
+        "--single_cohort_vcf",
+        help="The vcf with the reference cohort. Must be include the chromosome in single_chrom (suits a cromwell run. chrom_to_cohort_vcfs and chrom_to_plink jsons should not be defined)",
+        required=False,
+        type=str,
+    )
+    ap_var.add_argument(
+        "--single_genomic_map_plink",
+        help="The genomic map in plink format of the chromosome in single_chrom (suits a cromwell run. chrom_to_cohort_vcfs and chrom_to_plink jsons should not be defined)",
+        required=False,
         type=str,
     )
     ap_var.add_argument(
         "--epsilon",
-        help="The weight given to the imputation when correcting the PL's. A number in the range (0,1).",
+        help="The weight given to the imputation when correcting the PL's. A number in the range (0,1)",
         required=True,
         type=float,
-    )
-    ap_var.add_argument(
-        "--chrom_to_plink",
-        help="json file that maps the chromosome names to plink files with genomic maps",
-        required=True,
-        type=str,
     )
     ap_var.add_argument(
         "--output_vcf",
@@ -94,12 +112,15 @@ def get_parser() -> argparse.ArgumentParser:
         "--threads_beagle", help="Number of threads when running Beagle per contig", type=int, default=1
     )
     ap_var.add_argument(
+        "--add_imp_effect",
+        help="Add to the vcf the category of the effect of imputation on the variant (for debugging purposes)",
+        action="store_true")
+    ap_var.add_argument(
         "--verbosity",
         help="Verbosity: ERROR, WARNING, INFO, DEBUG",
         required=False,
         default="INFO",
     )
-    ap_var.add_argument("--add_imp_effect", help="Is the input a result of mutect", action="store_true")
 
     return ap_var
 
@@ -239,8 +260,8 @@ def add_imputation_to_vcf(
     epsilon - The weight of the imputation in determining the new PL. A number between 0 and 1.
     region - Process the vcf only in the specified region. A tuple (chrom,start,end). Experimental, for debugging.
     add_imp_effect - Add to the vcf the category of the effect of imputation on the variant.
-                            These are the same categories used in the output counting stats.
-                            For debugging purposes.
+                     These are the same categories used in the output counting stats.
+                     For debugging purposes.
     Output:
     A dictionary with counts of variants that had imputation data, changed the genotype, etc.
     """
@@ -336,18 +357,31 @@ def run(argv: list[str]):
     parser = get_parser()
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
+    logger.setLevel(getattr(logging, args.verbosity))
+
+    jsons_are_defined = (args.chrom_to_cohort_vcfs_json is not None) and (args.chrom_to_plink_json is not None)
+    singles_are_defined = (args.single_chrom is not None) and (args.single_cohort_vcf is not None) and (args.single_genomic_map_plink is not None)
+    if jsons_are_defined and singles_are_defined:
+        AssertionError('You can define arguments for a single chromosome, or jsons for multiple chromosome, but not both')
+    elif jsons_are_defined and not singles_are_defined:
+        logger.info("Running on multiple chromosomes. Will output concatenation of all chromosomes.")
+        # Load the mapping between the chromosome names and the reference cohort files
+        with open(args.chrom_to_cohort_vcfs_json, "r", encoding="utf-8") as json_file:
+            chrom_to_cohort = json.load(json_file)
+        # Load the mapping between the chromosome names and the reference cohort files
+        with open(args.chrom_to_plink_json, "r", encoding="utf-8") as json_file:
+            chrom_to_plink = json.load(json_file)
+    elif singles_are_defined and not jsons_are_defined:
+        logger.info("Running on single chromosome (suits a cromwell run). Will output results just for %s", args.single_chrom)
+        chrom_to_cohort = {args.single_chrom: args.single_cohort_vcf}
+        chrom_to_plink = {args.single_chrom: args.single_genomic_map_plink}
+    else:
+        AssertionError('You need to define three arguments for a single chromosome (single_chrom, single_cohort_vcf and chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_vcfs_json and chrom_to_plink_json)')
+
     if args.stats_file is None:
         args.stats_file = args.output_vcf.replace(".vcf.gz", "") + "_counts.csv"
-    logger.setLevel(getattr(logging, args.verbosity))
+
     sp = SimplePipeline(args.fc, args.lc, debug=args.d)
-
-    # Load the mapping between the chromosome names and the reference cohort files
-    with open(args.chrom_to_cohort_vcf, "r", encoding="utf-8") as json_file:
-        chrom_to_cohort = json.load(json_file)
-
-    # Load the mapping between the chromosome names and the reference cohort files
-    with open(args.chrom_to_plink, "r", encoding="utf-8") as json_file:
-        chrom_to_plink = json.load(json_file)
 
     subset_files = {chrom: os.path.join(args.temp_dir, f"subset.{chrom}.vcf.gz") for chrom in chrom_to_cohort.keys()}
     subset_vcf_cmds = [
@@ -421,37 +455,41 @@ def run(argv: list[str]):
         for cat in categories:
             stats_file.write(cat + lines[cat] + "\n")
 
-    # Concat files
-    logger.info("Concatenating files")
-    # with open(args.temp_dir) as regions_file:
-    untouched_contigs_bed = os.path.join(args.temp_dir, "untouched_contigs.bed")
-    untouched_contigs_vcf = os.path.join(args.temp_dir, "untouched_contigs.vcf.gz")
-    contigs_info = {}
-    with VariantFile(args.input_vcf) as in_vcf_obj:
-        for k in in_vcf_obj.header.contigs.keys():
-            contig = in_vcf_obj.header.contigs[k]
-            contigs_info[contig.name] = {"id": contig.id, "length": contig.length}
-    with open(untouched_contigs_bed, "w", encoding="utf-8") as regions_file:
-        sorted_contigs = sorted(contigs_info.keys(), key=lambda k: contigs_info[k]["id"])
-        for contig in sorted_contigs:
-            if contig not in chrom_to_cohort.keys():
-                regions_file.write(contig + "\t1\t" + str(contigs_info[contig]["length"]) + "\n")
-    # Extract chromosome without imputation data, and reheader to fit the header of vcfs after imputation
-    sp.print_and_run(f"bcftools view -O z -o {untouched_contigs_vcf} -R {untouched_contigs_bed} {args.input_vcf}")
-    untouched_contigs_rehead_vcf = os.path.join(args.temp_dir, "untouched_contigs_rehead.vcf.gz")
-    header = os.path.join(args.temp_dir, "header.txt")
-    add_imp_list = list(add_imp_files.values())
-    cmd = f"""bcftools view -h {add_imp_list[0]} > {header} && \
-    bcftools reheader -h {header} -o {untouched_contigs_rehead_vcf} {untouched_contigs_vcf}
-    """
-    sp.print_and_run(cmd)
-    # Construct the command to concat the vcfs. Maintain the order as in the original vcf
-    sorted_add_imp_files = [
-        add_imp_files[chrom] for chrom in sorted(chrom_to_cohort.keys(), key=lambda k: contigs_info[k]["id"])
-    ]
-    vcfs_to_concat = sorted_add_imp_files + [untouched_contigs_rehead_vcf]
-    sp.print_and_run(f"bcftools concat --naive -O z -o {args.output_vcf} {' '.join(vcfs_to_concat)}")
-    sp.print_and_run(f"bcftools index -t {args.output_vcf}")
+    if singles_are_defined:
+        # Only a single chromosome is outputted (suits a cromwell run)
+        sp.print_and_run(f"mv {add_imp_files[args.single_chrom]} {args.output_vcf}")
+    else:
+        # Concat files
+        logger.info("Concatenating files")
+        # with open(args.temp_dir) as regions_file:
+        untouched_contigs_bed = os.path.join(args.temp_dir, "untouched_contigs.bed")
+        untouched_contigs_vcf = os.path.join(args.temp_dir, "untouched_contigs.vcf.gz")
+        contigs_info = {}
+        with VariantFile(args.input_vcf) as in_vcf_obj:
+            for k in in_vcf_obj.header.contigs.keys():
+                contig = in_vcf_obj.header.contigs[k]
+                contigs_info[contig.name] = {"id": contig.id, "length": contig.length}
+        with open(untouched_contigs_bed, "w", encoding="utf-8") as regions_file:
+            sorted_contigs = sorted(contigs_info.keys(), key=lambda k: contigs_info[k]["id"])
+            for contig in sorted_contigs:
+                if contig not in chrom_to_cohort.keys():
+                    regions_file.write(contig + "\t1\t" + str(contigs_info[contig]["length"]) + "\n")
+        # Extract chromosome without imputation data, and reheader to fit the header of vcfs after imputation
+        sp.print_and_run(f"bcftools view -O z -o {untouched_contigs_vcf} -R {untouched_contigs_bed} {args.input_vcf}")
+        untouched_contigs_rehead_vcf = os.path.join(args.temp_dir, "untouched_contigs_rehead.vcf.gz")
+        header = os.path.join(args.temp_dir, "header.txt")
+        add_imp_list = list(add_imp_files.values())
+        cmd = f"""bcftools view -h {add_imp_list[0]} > {header} && \
+        bcftools reheader -h {header} -o {untouched_contigs_rehead_vcf} {untouched_contigs_vcf}
+        """
+        sp.print_and_run(cmd)
+        # Construct the command to concat the vcfs. Maintain the order as in the original vcf
+        sorted_add_imp_files = [
+            add_imp_files[chrom] for chrom in sorted(chrom_to_cohort.keys(), key=lambda k: contigs_info[k]["id"])
+        ]
+        vcfs_to_concat = sorted_add_imp_files + [untouched_contigs_rehead_vcf]
+        sp.print_and_run(f"bcftools concat --naive -O z -o {args.output_vcf} {' '.join(vcfs_to_concat)}")
+        sp.print_and_run(f"bcftools index -t {args.output_vcf}")
 
 
 if __name__ == "__main__":
