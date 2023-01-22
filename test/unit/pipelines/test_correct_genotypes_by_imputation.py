@@ -1,15 +1,10 @@
-import json
-import os
-import subprocess
-from test import get_resource_dir
-
 import numpy as np
 
 from ugvc.pipelines import correct_genotypes_by_imputation as corgen
 from ugvc.vcfbed.vcftools import genotype_ordering
 
-class TestCorrectGenotypesByImputation:
 
+class TestCorrectGenotypesByImputation:
     def test_convert_ds_to_genotype_imputation_priors(self):
         # Homozygous biallelic variant
         ds_ar = np.array([2])
@@ -47,4 +42,3 @@ class TestCorrectGenotypesByImputation:
             corgen._convert_ds_to_genotype_imputation_priors(ds_ar, gt_ar, num_alt, epsilon)
             == np.array([1, 0.01, 0.99, 0.01, 0.01, 0.01])
         )
-

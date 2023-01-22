@@ -24,8 +24,8 @@ import logging
 import os
 import subprocess
 import sys
-from tempfile import gettempdir
 from collections import defaultdict
+from tempfile import gettempdir
 
 import numpy as np
 from joblib import Parallel, delayed
@@ -34,10 +34,9 @@ from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
-from ugvc.vcfbed.vcftools import genotype_ordering
 from ugvc.utils.math_utils import phred, unphred
 from ugvc.vcfbed.genotype import different_gt
-
+from ugvc.vcfbed.vcftools import genotype_ordering
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -52,31 +51,36 @@ def get_parser() -> argparse.ArgumentParser:
     )
     ap_var.add_argument(
         "--chrom_to_cohort_vcfs_json",
-        help="json file that maps the chromosome names to vcf files with the reference cohort (used if the single_* arguments are not defined)",
+        help="""json file that maps the chromosome names to vcf files with the reference cohort
+(used only if the single_* arguments are not defined)""",
         required=False,
         type=str,
     )
     ap_var.add_argument(
         "--chrom_to_plink_json",
-        help="json file that maps the chromosome names to plink files with genomic maps (used if the single_* arguments are not defined)",
+        help="""json file that maps the chromosome names to plink files with genomic maps
+(used only if the single_* arguments are not defined)""",
         required=False,
         type=str,
     )
     ap_var.add_argument(
         "--single_chrom",
-        help="The chromosome to work on (suits a cromwell run. chrom_to_cohort_vcfs and chrom_to_plink jsons should not be defined)",
+        help="""The chromosome to work on (suits a cromwell run. When used, chrom_to_cohort_vcfs_json
+and chrom_to_plink_json should not be defined)""",
         required=False,
         type=str,
     )
     ap_var.add_argument(
         "--single_cohort_vcf",
-        help="The vcf with the reference cohort. Must be include the chromosome in single_chrom (suits a cromwell run. chrom_to_cohort_vcfs and chrom_to_plink jsons should not be defined)",
+        help="""The vcf with the reference cohort. Must be include the chromosome in single_chrom
+(suits a cromwell run. When used chrom_to_cohort_vcfs_json and chrom_to_plink_json should not be defined)""",
         required=False,
         type=str,
     )
     ap_var.add_argument(
         "--single_genomic_map_plink",
-        help="The genomic map in plink format of the chromosome in single_chrom (suits a cromwell run. chrom_to_cohort_vcfs and chrom_to_plink jsons should not be defined)",
+        help="""The genomic map in plink format of the chromosome in single_chrom (suits a cromwell run.
+When used chrom_to_cohort_vcfs_json and chrom_to_plink_json should not be defined)""",
         required=False,
         type=str,
     )
@@ -114,7 +118,8 @@ def get_parser() -> argparse.ArgumentParser:
     ap_var.add_argument(
         "--add_imp_effect",
         help="Add to the vcf the category of the effect of imputation on the variant (for debugging purposes)",
-        action="store_true")
+        action="store_true",
+    )
     ap_var.add_argument(
         "--verbosity",
         help="Verbosity: ERROR, WARNING, INFO, DEBUG",
@@ -172,6 +177,7 @@ def _command_to_annotate_with_beagle(vcf: str, beagle_collapsed_vcf: str, outfil
     bcftools index -t {outfile}
     """
     return cmd
+
 
 def _f_along_allele(allele_i: int, gt_ar: np.ndarray, f_hom: np.ndarray, f_het: np.ndarray) -> np.ndarray:
     ar = (np.any(gt_ar == allele_i, axis=1) & (gt_ar[:, 0] == gt_ar[:, 1])) * f_hom[allele_i - 1] + (
@@ -360,9 +366,15 @@ def run(argv: list[str]):
     logger.setLevel(getattr(logging, args.verbosity))
 
     jsons_are_defined = (args.chrom_to_cohort_vcfs_json is not None) and (args.chrom_to_plink_json is not None)
-    singles_are_defined = (args.single_chrom is not None) and (args.single_cohort_vcf is not None) and (args.single_genomic_map_plink is not None)
+    singles_are_defined = (
+        (args.single_chrom is not None)
+        and (args.single_cohort_vcf is not None)
+        and (args.single_genomic_map_plink is not None)
+    )
     if jsons_are_defined and singles_are_defined:
-        AssertionError('You can define arguments for a single chromosome, or jsons for multiple chromosome, but not both')
+        AssertionError(
+            "You can define arguments for a single chromosome, or jsons for multiple chromosome, but not both"
+        )
     elif jsons_are_defined and not singles_are_defined:
         logger.info("Running on multiple chromosomes. Will output concatenation of all chromosomes.")
         # Load the mapping between the chromosome names and the reference cohort files
@@ -372,11 +384,16 @@ def run(argv: list[str]):
         with open(args.chrom_to_plink_json, "r", encoding="utf-8") as json_file:
             chrom_to_plink = json.load(json_file)
     elif singles_are_defined and not jsons_are_defined:
-        logger.info("Running on single chromosome (suits a cromwell run). Will output results just for %s", args.single_chrom)
+        logger.info(
+            "Running on single chromosome (suits a cromwell run). Will output results just for %s", args.single_chrom
+        )
         chrom_to_cohort = {args.single_chrom: args.single_cohort_vcf}
         chrom_to_plink = {args.single_chrom: args.single_genomic_map_plink}
     else:
-        AssertionError('You need to define three arguments for a single chromosome (single_chrom, single_cohort_vcf and chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_vcfs_json and chrom_to_plink_json)')
+        AssertionError(
+            """You need to define three arguments for a single chromosome (single_chrom, single_cohort_vcf and
+chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_vcfs_json and chrom_to_plink_json)"""
+        )
 
     if args.stats_file is None:
         args.stats_file = args.output_vcf.replace(".vcf.gz", "") + "_counts.csv"
