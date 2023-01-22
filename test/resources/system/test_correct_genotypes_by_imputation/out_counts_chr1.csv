@@ -1,0 +1,5 @@
+,snp,h-indel,non-h-indel,multi
+pass,243,11,15,3
+has_non_ref_imp,205,9,8,2
+imp_has_different_gt,2,0,0,1
+changed_gt,2,0,0,2

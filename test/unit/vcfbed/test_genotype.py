@@ -1,19 +1,12 @@
-import unittest
+# from test import get_resource_dir
 
-from ugvc.vcfbed.genotype import Genotype
+import ugvc.vcfbed.genotype as genotype
+
+# inputs_dir = get_resource_dir(__file__)
 
 
-class TestGenotype(unittest.TestCase):
-    def test_convert_to_reference(self):
-        self.assertEqual("0/0", Genotype("0/1").convert_to_reference())
-        self.assertEqual("0/0", Genotype("0/0").convert_to_reference())
-        self.assertEqual("0/0", Genotype("1/1").convert_to_reference())
-        self.assertEqual("0", Genotype("1").convert_to_reference())
-        self.assertEqual("0", Genotype("0").convert_to_reference())
-
-    def test_is_reference(self):
-        self.assertFalse(Genotype("0/1").is_reference())
-        self.assertTrue(Genotype("0/0").is_reference())
-        self.assertFalse(Genotype("1/1").is_reference())
-        self.assertFalse(Genotype("1").is_reference())
-        self.assertTrue(Genotype("0").is_reference())
+def test_different_gt():
+    assert not genotype.different_gt("0|1", (0, 1))
+    assert not genotype.different_gt("1|0", (0, 1))
+    assert genotype.different_gt("1|1", (0, 1))
+    assert genotype.different_gt("1/2", (0, 1))

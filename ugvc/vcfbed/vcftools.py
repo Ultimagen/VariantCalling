@@ -542,3 +542,22 @@ def isin(pos, interval):
     out_pos = out_pos > interval[0]
     out_pos = out_pos < interval[1]
     return out_pos
+
+
+def genotype_ordering(num_alt: int) -> np.ndarray:
+    # Returns a numpy array with the order of the genotypes (based on the section Genotype Ordering in the VCF spec).
+    # Each row is a genotype, and the columns are the alleles.
+    if num_alt == 1:
+        gr_ar = np.array([[0, 0], [0, 1], [1, 1]])
+    elif num_alt == 2:
+        gr_ar = np.array([[0, 0], [0, 1], [1, 1], [0, 2], [1, 2], [2, 2]])
+    else:
+        gr_ar = np.full([int((num_alt + 2) * (num_alt + 1) / 2), 2], fill_value=-1, dtype=int)
+        i = 0
+        for a2 in range(num_alt + 1):
+            for a1 in range(a2 + 1):
+                gr_ar[i, 0] = a1
+                gr_ar[i, 1] = a2
+                i += 1
+    return gr_ar
+
