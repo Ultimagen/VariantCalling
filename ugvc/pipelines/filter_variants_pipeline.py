@@ -180,15 +180,13 @@ def run(argv: list[str]):
             )
             with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
                 for i, rec in tqdm.tqdm(enumerate(infile)):
-                    pass_flag = False
                     if hmer_run[i]:
                         rec.info["HPOL_RUN"] = True
                     if args.model_file is not None:
                         if predictions[i] == "fp":
+                            if "PASS" in rec.filter.keys():
+                                del rec.filter["PASS"]
                             rec.filter.add("LOW_SCORE")
-                            pass_flag = False
-                        else:
-                            pass_flag = True
                         rec.info["TREE_SCORE"] = predictions_score[i]
                         if output_fpr:
                             rec.info["FPR"] = prediction_fpr[i]
@@ -201,9 +199,8 @@ def run(argv: list[str]):
                                     blacklists_info.append(value)
                             if len(blacklists_info) != 0:
                                 rec.info["BLACKLST"] = blacklists_info
-                    if pass_flag:
+                    if len(rec.filter) == 0:
                         rec.filter.add("PASS")
-
 
                     # fix the alleles of form <1> that our GATK adds
                     rec.ref = rec.ref if re.match(r"<[0-9]+>", rec.ref) is None else "*"

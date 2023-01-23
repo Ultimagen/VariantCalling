@@ -63,5 +63,41 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
-        assert 4 == df[df['blacklst'].notna()]['blacklst'].count()
+        assert 4 == df[df["blacklst"].notna()]["blacklst"].count()
 
+    def test_filter_variants_pipeline_on_filtered_vcf(self, tmpdir):
+        output_file = f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.dummy.vcf.gz"
+        filter_variants_pipeline.run(
+            [
+                "--input_file",
+                f"{self.inputs_dir}/004777-X0024.annotated.AF_chr1_1_1000000.dummy.vcf.gz",
+                "--model_file",
+                f"{self.inputs_dir}/004777-X0024.model_rf_model_ignore_gt_incl_hpol_runs.pkl",
+                "--model_name",
+                "rf_model_ignore_gt_incl_hpol_runs",
+                "--runs_file",
+                f"{self.general_inputs_dir}/hg38_runs.conservative.bed",
+                "--hpol_filter_length_dist",
+                "12",
+                "10",
+                "--reference_file",
+                f"{self.general_inputs_dir}/Homo_sapiens_assembly38.fasta",
+                "--blacklist_cg_insertions",
+                "--annotate_intervals",
+                f"{self.general_inputs_dir}/LCR-hs38.bed",
+                "--annotate_intervals",
+                f"{self.general_inputs_dir}/exome.twist.bed",
+                "--annotate_intervals",
+                f"{self.general_inputs_dir}/mappability.0.bed",
+                "--annotate_intervals",
+                f"{self.general_inputs_dir}/hmers_7_and_higher.bed",
+                "--output_file",
+                output_file,
+                "--blacklist",
+                f"{self.inputs_dir}/blacklist_example.chr1_1_1000000.pkl",
+            ]
+        )
+
+        df = vcftools.get_vcf_df(output_file)
+        print(df["filter"].value_counts())
+        assert {"LOW_SCORE": 96, "PASS": 728, "TEST": 76, "TEST;LOW_SCORE": 8} == dict(df["filter"].value_counts())
