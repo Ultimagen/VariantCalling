@@ -57,6 +57,7 @@ jobs:
           sec_training.py -h
           collect_existing_metrics.py -h
           convert_h5_to_json.py -h
+          correct_genotypes_by_imputation.py -h
       - name: Test with pytest
         run: |
           conda activate genomics.py3
