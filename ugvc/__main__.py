@@ -20,7 +20,8 @@ from ugvc.pipelines import (
     run_comparison_pipeline,
     train_models_pipeline,
     convert_haploid_regions,
-    correct_genotypes_by_imputation
+    correct_genotypes_by_imputation,
+    vcfeval_flavors
 )
 from ugvc.pipelines.mrd import (
     collect_coverage_per_motif,
@@ -56,7 +57,8 @@ modules = [
     train_models_pipeline,
     filter_sample_cnvs,
     convert_haploid_regions,
-    correct_genotypes_by_imputation
+    correct_genotypes_by_imputation,
+    vcfeval_flavors
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
