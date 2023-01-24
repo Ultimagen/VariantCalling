@@ -4,11 +4,13 @@ from __future__ import annotations
 import os
 from collections import defaultdict
 from enum import Enum
+import json
 
 import numpy as np
 import pandas as pd
 import pysam
-
+import subprocess
+from tempfile import gettempdir
 
 def get_vcf_df(
     variant_calls: str,
@@ -561,3 +563,58 @@ def genotype_ordering(num_alt: int) -> np.ndarray:
                 i += 1
     return gr_ar
 
+def replace_data_in_specific_chromosomes(input_vcf: str, new_data_json: str, header_file: str, output_vcf:str, tempdir: str|None = None):
+    """
+    Takes a main vcf file, and a list of modified vcf files, broken down by chromosome (listed in the json).
+    Replaces the data in the main vcf file by the data in the modified vcfs, and returns a concatenated vcf.
+    
+    Parameters
+    ----------
+    input_vcf: The main vcf which is being modified
+    new_data_json: A json file in the form {chromosome: vcf}, with the data that will be replaced in input_json
+    header_file: A file with a valid vcf header that will replace the current header. Make sure the new header fits
+                 the new data.
+    output_vcf: Name of the output vcf
+    tempdir: Name of temp dir
+    """
+    if tempdir is None:
+        tempdir = gettempdir()
+
+    # Get the ordered contig list
+    contigs_info = {}
+    with pysam.VariantFile(input_vcf) as in_vcf_obj:
+        for k in in_vcf_obj.header.contigs.keys():
+            contig = in_vcf_obj.header.contigs[k]
+            contigs_info[contig.name] = {"id": contig.id, "length": contig.length}
+    sorted_contigs = sorted(contigs_info.keys(), key=lambda k: contigs_info[k]["id"])
+
+    # Get the modified vcfs
+    with open(new_data_json) as jfile:
+        chrom2vcf = json.load(jfile)
+
+    # Find the contigs that actually have variants (to save generating empty vcfs)
+    contigs_with_variants = []
+    index_stats = subprocess.check_output(f"bcftools index -s {input_vcf}", shell=True)
+    index_stats_lines = index_stats.decode().strip().split("\n")
+    for line in index_stats_lines:
+        columns = line.split("\t")
+        contigs_with_variants.append(columns[0])
+
+    # Extract data from chromosomes that are supposed to remain with no change
+    for contig in sorted_contigs:
+        if (contig not in chrom2vcf.keys()) and (contig in contigs_with_variants):
+            chrom2vcf[contig] = os.path.join(tempdir, f"{contig}.vcf.gz")
+            cmd = f"""bcftools view {input_vcf} {contig} | \
+            bcftools reheader -h {header_file} | \
+            bcftools view -O z -o '{chrom2vcf[contig]}'
+            """
+            subprocess.check_call(cmd, shell=True)
+
+    sorted_contigs_used = [contig for contig in sorted_contigs if (contig in chrom2vcf.keys()) or (contig in contigs_with_variants)]
+
+    print(sorted_contigs_used)
+
+    # Construct the command to concat the vcfs. Maintain the order as in the original vcf
+    sorted_vcf_files = [chrom2vcf[chrom] for chrom in sorted_contigs_used]
+    subprocess.check_call(f"bcftools concat --naive -O z -o {output_vcf} {' '.join(sorted_vcf_files)}", shell=True)
+    subprocess.check_call(f"bcftools index -t {output_vcf}", shell=True)

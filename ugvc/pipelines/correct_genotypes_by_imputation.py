@@ -36,7 +36,7 @@ from tqdm import tqdm
 from ugvc import logger
 from ugvc.utils.math_utils import phred, unphred
 from ugvc.vcfbed.genotype import different_gt
-from ugvc.vcfbed.vcftools import genotype_ordering
+from ugvc.vcfbed.vcftools import genotype_ordering, replace_data_in_specific_chromosomes
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -476,37 +476,20 @@ chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_
         # Only a single chromosome is outputted (suits a cromwell run)
         sp.print_and_run(f"mv {add_imp_files[args.single_chrom]} {args.output_vcf}")
     else:
-        # Concat files
         logger.info("Concatenating files")
-        # with open(args.temp_dir) as regions_file:
-        untouched_contigs_bed = os.path.join(args.temp_dir, "untouched_contigs.bed")
-        untouched_contigs_vcf = os.path.join(args.temp_dir, "untouched_contigs.vcf.gz")
-        contigs_info = {}
-        with VariantFile(args.input_vcf) as in_vcf_obj:
-            for k in in_vcf_obj.header.contigs.keys():
-                contig = in_vcf_obj.header.contigs[k]
-                contigs_info[contig.name] = {"id": contig.id, "length": contig.length}
-        with open(untouched_contigs_bed, "w", encoding="utf-8") as regions_file:
-            sorted_contigs = sorted(contigs_info.keys(), key=lambda k: contigs_info[k]["id"])
-            for contig in sorted_contigs:
-                if contig not in chrom_to_cohort.keys():
-                    regions_file.write(contig + "\t1\t" + str(contigs_info[contig]["length"]) + "\n")
-        # Extract chromosome without imputation data, and reheader to fit the header of vcfs after imputation
-        sp.print_and_run(f"bcftools view -O z -o {untouched_contigs_vcf} -R {untouched_contigs_bed} {args.input_vcf}")
-        untouched_contigs_rehead_vcf = os.path.join(args.temp_dir, "untouched_contigs_rehead.vcf.gz")
-        header = os.path.join(args.temp_dir, "header.txt")
+        # Create files that are require for the concatenation:
+        # Header file
         add_imp_list = list(add_imp_files.values())
-        cmd = f"""bcftools view -h {add_imp_list[0]} > {header} && \
-        bcftools reheader -h {header} -o {untouched_contigs_rehead_vcf} {untouched_contigs_vcf}
-        """
+        header = os.path.join(args.temp_dir, "header.txt")
+        cmd = f"bcftools view -h {add_imp_list[0]} > {header}"
         sp.print_and_run(cmd)
-        # Construct the command to concat the vcfs. Maintain the order as in the original vcf
-        sorted_add_imp_files = [
-            add_imp_files[chrom] for chrom in sorted(chrom_to_cohort.keys(), key=lambda k: contigs_info[k]["id"])
-        ]
-        vcfs_to_concat = sorted_add_imp_files + [untouched_contigs_rehead_vcf]
-        sp.print_and_run(f"bcftools concat --naive -O z -o {args.output_vcf} {' '.join(vcfs_to_concat)}")
-        sp.print_and_run(f"bcftools index -t {args.output_vcf}")
+        # And json with the modified files (per chromosome)
+        add_imp_files_json = os.path.join(args.temp_dir, "add_imp_files.json")
+        with open(add_imp_files_json, "w", encoding="utf-8") as jfile:
+            json.dump(add_imp_files, jfile)
+        # And now, concatenate:
+        replace_data_in_specific_chromosomes(args.input_vcf, add_imp_files_json, header, args.output_vcf, args.temp_dir)
+        # Remark - this part can be replaced by picard MergeVcfs
 
 
 if __name__ == "__main__":
