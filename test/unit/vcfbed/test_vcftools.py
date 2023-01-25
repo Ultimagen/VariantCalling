@@ -1,3 +1,6 @@
+import os
+import json
+import subprocess
 from os.path import join as pjoin
 from test import get_resource_dir
 
@@ -189,3 +192,61 @@ class TestGetVcfDf:
         ]
         for x in ignore_fields:
             assert x not in df.columns
+
+class TestReplaceDataInSpecificChromosomes:
+    resources_dir = get_resource_dir(__file__)
+    def test_chr1_chr10(self, tmpdir):
+        os.makedirs(tmpdir, exist_ok=True)
+        input_json = os.path.join(tmpdir, "input.json")
+        with open(input_json, "w") as f:
+            json.dump(
+                {
+                    "chr1": os.path.join(self.resources_dir, "chr1.vcf.gz"),
+                    "chr10": os.path.join(self.resources_dir, "chr10.vcf.gz"),
+                },
+                f,
+            )
+        input_vcf = os.path.join(self.resources_dir, "few_contigs.vcf.gz")
+        header = os.path.join(self.resources_dir, "header.txt")
+        output_vcf = os.path.join(tmpdir, "replaced.vcf.gz")
+        vcftools.replace_data_in_specific_chromosomes(input_vcf,
+                                                      input_json,
+                                                      header,
+                                                      output_vcf,
+                                                      tmpdir)
+        vcounts = []                                              
+        bcftools_out = subprocess.check_output(f"bcftools index -s {output_vcf}", shell=True)
+        bcftools_lines = bcftools_out.decode().strip().split("\n")
+        for line in bcftools_lines:
+            columns = line.split("\t")
+            vcounts.append(int(columns[2]))
+        print(vcounts)
+        assert vcounts == [116, 227, 523]
+
+    def test_chr10_chr11(self, tmpdir):
+        os.makedirs(tmpdir, exist_ok=True)
+        input_json = os.path.join(tmpdir, "input.json")
+        with open(input_json, "w") as f:
+            json.dump(
+                {
+                    "chr11": os.path.join(self.resources_dir, "chr11.vcf.gz"),
+                    "chr10": os.path.join(self.resources_dir, "chr10.vcf.gz"),
+                },
+                f,
+            )
+        input_vcf = os.path.join(self.resources_dir, "few_contigs.vcf.gz")
+        header = os.path.join(self.resources_dir, "header.txt")
+        output_vcf = os.path.join(tmpdir, "replaced.vcf.gz")
+        vcftools.replace_data_in_specific_chromosomes(input_vcf,
+                                                      input_json,
+                                                      header,
+                                                      output_vcf,
+                                                      tmpdir)
+        vcounts = []                                              
+        bcftools_out = subprocess.check_output(f"bcftools index -s {output_vcf}", shell=True)
+        bcftools_lines = bcftools_out.decode().strip().split("\n")
+        for line in bcftools_lines:
+            columns = line.split("\t")
+            vcounts.append(int(columns[2]))
+        print(vcounts)
+        assert vcounts == [653, 227, 523, 1147]
