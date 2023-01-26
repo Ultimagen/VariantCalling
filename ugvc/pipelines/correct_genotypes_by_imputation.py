@@ -478,7 +478,7 @@ chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_
         sp.print_and_run(f"mv {add_imp_files[args.single_chrom]}.tbi {args.output_vcf}.tbi")
     else:
         logger.info("Concatenating files")
-        # Create files that are require for the concatenation:
+        # Create files that are required for the concatenation:
         # Header file
         add_imp_list = list(add_imp_files.values())
         header = os.path.join(args.temp_dir, "header.txt")
@@ -490,7 +490,6 @@ chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_
             json.dump(add_imp_files, jfile)
         # And now, concatenate:
         replace_data_in_specific_chromosomes(args.input_vcf, add_imp_files_json, header, args.output_vcf, args.temp_dir)
-        # Remark - this part can be replaced by picard MergeVcfs
 
 
 if __name__ == "__main__":
