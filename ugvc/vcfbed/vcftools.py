@@ -579,42 +579,31 @@ def replace_data_in_specific_chromosomes(input_vcf: str, new_data_json: str, hea
     """
     if tempdir is None:
         tempdir = gettempdir()
-
-    # Get the ordered contig list
+    # Get the modified vcfs
+    with open(new_data_json) as jfile:
+        chrom2vcf = json.load(jfile)
+    # Get info about the contigs
     contigs_info = {}
     with pysam.VariantFile(input_vcf) as in_vcf_obj:
         for k in in_vcf_obj.header.contigs.keys():
             contig = in_vcf_obj.header.contigs[k]
             contigs_info[contig.name] = {"id": contig.id, "length": contig.length}
     sorted_contigs = sorted(contigs_info.keys(), key=lambda k: contigs_info[k]["id"])
-
-    # Get the modified vcfs
-    with open(new_data_json) as jfile:
-        chrom2vcf = json.load(jfile)
-
-    # Find the contigs that actually have variants (to save generating empty vcfs)
-    contigs_with_variants = []
-    index_stats = subprocess.check_output(f"bcftools index -s {input_vcf}", shell=True)
-    index_stats_lines = index_stats.decode().strip().split("\n")
-    for line in index_stats_lines:
-        columns = line.split("\t")
-        contigs_with_variants.append(columns[0])
-
-    # Extract data from chromosomes that are supposed to remain with no change
-    for contig in sorted_contigs:
-        if (contig not in chrom2vcf.keys()) and (contig in contigs_with_variants):
-            chrom2vcf[contig] = os.path.join(tempdir, f"{contig}.vcf.gz")
-            cmd = f"""bcftools view {input_vcf} {contig} | \
-            bcftools reheader -h {header_file} | \
-            bcftools view -O z -o '{chrom2vcf[contig]}'
-            """
-            subprocess.check_call(cmd, shell=True)
-
-    sorted_contigs_used = [contig for contig in sorted_contigs if (contig in chrom2vcf.keys()) or (contig in contigs_with_variants)]
-
-    print(sorted_contigs_used)
-
-    # Construct the command to concat the vcfs. Maintain the order as in the original vcf
-    sorted_vcf_files = [chrom2vcf[chrom] for chrom in sorted_contigs_used]
-    subprocess.check_call(f"bcftools concat --naive -O z -o {output_vcf} {' '.join(sorted_vcf_files)}", shell=True)
-    subprocess.check_call(f"bcftools index -t {output_vcf}", shell=True)
+    # bed file with the chromosomes that were not modified by imputation
+    untouched_contigs_bed = os.path.join(tempdir, "untouched_contigs.bed")
+    with open(untouched_contigs_bed, "w", encoding="utf-8") as regions_file:
+        sorted_contigs = sorted(contigs_info.keys(), key=lambda k: contigs_info[k]["id"])
+        for contig in sorted_contigs:
+            if contig not in chrom2vcf.keys():
+                regions_file.write(contig + "\t1\t" + str(contigs_info[contig]["length"]) + "\n")
+    # Extract chromosome without imputation data, and reheader to fit the header of vcfs after imputation
+    untouched_contigs_vcf = os.path.join(tempdir, "untouched_contigs.vcf.gz")
+    subprocess.check_call(f"bcftools view -O z -o {untouched_contigs_vcf} -R {untouched_contigs_bed} {input_vcf}", shell=True)
+    untouched_contigs_rehead_vcf = os.path.join(tempdir, "untouched_contigs_rehead.vcf.gz")
+    subprocess.check_call(f"bcftools reheader -h {header_file} -o {untouched_contigs_rehead_vcf} {untouched_contigs_vcf}", shell=True)
+    # Merge
+    vcfs_to_merge = list(chrom2vcf.values())
+    vcfs_to_merge.append(untouched_contigs_rehead_vcf)
+    subprocess.check_call(f"picard MergeVcfs INPUT={' INPUT='.join(vcfs_to_merge)} OUTPUT={output_vcf}", shell=True)
+    subprocess.check_call(f"bcftools index -tf {output_vcf}", shell=True)
+    
