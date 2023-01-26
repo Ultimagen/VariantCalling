@@ -475,6 +475,7 @@ chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_
     if singles_are_defined:
         # Only a single chromosome is outputted (suits a cromwell run)
         sp.print_and_run(f"mv {add_imp_files[args.single_chrom]} {args.output_vcf}")
+        sp.print_and_run(f"mv {add_imp_files[args.single_chrom]}.tbi {args.output_vcf}.tbi")
     else:
         logger.info("Concatenating files")
         # Create files that are require for the concatenation:
