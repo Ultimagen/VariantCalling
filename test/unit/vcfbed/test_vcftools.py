@@ -220,7 +220,6 @@ class TestReplaceDataInSpecificChromosomes:
         for line in bcftools_lines:
             columns = line.split("\t")
             vcounts.append(int(columns[2]))
-        print(vcounts)
         assert vcounts == [116, 227, 523]
 
     def test_chr10_chr11(self, tmpdir):
@@ -248,5 +247,4 @@ class TestReplaceDataInSpecificChromosomes:
         for line in bcftools_lines:
             columns = line.split("\t")
             vcounts.append(int(columns[2]))
-        print(vcounts)
         assert vcounts == [653, 227, 523, 1147]

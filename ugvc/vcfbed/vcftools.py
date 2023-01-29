@@ -576,6 +576,10 @@ def replace_data_in_specific_chromosomes(input_vcf: str, new_data_json: str, hea
                  the new data.
     output_vcf: Name of the output vcf
     tempdir: Name of temp dir
+
+    Returns
+    -------
+    A new vcf file that contains the chromosomes referenced in new_data_json, plus all the remaining chromosomes from the input vcf.
     """
     if tempdir is None:
         tempdir = gettempdir()
