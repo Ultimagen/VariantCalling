@@ -488,7 +488,7 @@ chrom_to_plink_json), or two arguments for multiple chromosome (chrom_to_cohort_
         add_imp_files_json = os.path.join(args.temp_dir, "add_imp_files.json")
         with open(add_imp_files_json, "w", encoding="utf-8") as jfile:
             json.dump(add_imp_files, jfile)
-        # And now, concatenate:
+        # And now, merge the all modified files with the unmodified files:
         replace_data_in_specific_chromosomes(args.input_vcf, add_imp_files_json, header, args.output_vcf, args.temp_dir)
 
 
