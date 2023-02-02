@@ -9,9 +9,9 @@ import ugvc.vcfbed.pysam_utils as pu
 def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(int, int):
     """Filters non-called variants that overlap other variants from DeepVariant gVCFs.
     In the context of GLNexus joint calling, non-called deletion variants (./.) that
-    overlap called homozygous variants can generate missed variant calls in joint calling.
+    overlap called variants can generate missed variant calls in joint calling.
     For now we introduced a hack that removed missed-genotype variants
-    that overlap called homozygous variants.
+    that overlap called variants.
 
     Parameters
     ----------
@@ -35,7 +35,7 @@ def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(in
         buffer_span = 0
 
         # special logic is applied to the buffer only if it contains a homozyous alt variant
-        hom_var_in_buffer = False
+        called_var_in_buffer = False
         count_skipped = 0
         count_written = 0
         for rec in tqdm.tqdm(vcf_in):
@@ -43,7 +43,7 @@ def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(in
             if rec.chrom != buffer_chrom or rec.pos > buffer_span:  # if we are out of the buffer
                 while buffer:
                     tmp = buffer.pop(0)
-                    if not hom_var_in_buffer or tmp.samples[0]["GT"] != (None, None):
+                    if not called_var_in_buffer or tmp.samples[0]["GT"] != (None, None):
                         vcf_out.write(tmp)
                         count_written += 1
                     # skip all variants that overlap hom alt and have GT not called
@@ -52,7 +52,7 @@ def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(in
                         continue
                     buffer_chrom = ""
                     buffer_span = 0
-                hom_var_in_buffer = False
+                called_var_in_buffer = False
             # now for the new deletion
             dels_in_rec = pu.is_deletion(rec)
             lens_in_rec = pu.indel_length(rec)
@@ -68,13 +68,13 @@ def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(in
             else:
                 vcf_out.write(rec)
                 count_written += 1
-            if buffer and (rec.samples[0]["GT"][0] is not None) and (0 not in rec.samples[0]["GT"]):
-                hom_var_in_buffer = True
+            if buffer and (rec.samples[0]["GT"][0] is not None) and (rec.samples[0]["GT"] != (0, 0)):
+                called_var_in_buffer = True
 
         # dump buffer at the end
         while buffer:
             tmp = buffer.pop(0)
-            if not hom_var_in_buffer or tmp.samples[0]["GT"] != (None, None):
+            if not called_var_in_buffer or tmp.samples[0]["GT"] != (None, None):
                 vcf_out.write(tmp)
                 count_written += 1
             # skip all variants that overlap hom alt and have GT not called
