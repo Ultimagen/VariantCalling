@@ -225,3 +225,41 @@ def set_pyplot_defaults(
     plt.rc("legend", fontsize=medium_size)  # legend fontsize
     plt.rc("figure", titlesize=title_size)  # fontsize of the figure title
     plt.rc("figure", figsize=figsize)  # size of the figure
+
+
+def idx_last_nz(inp: np.ndarray | list) -> np.ndarray:
+    """Index of the closest previous nonzero element for each element in the array.
+    If the array starts with 0 - the index is -1
+
+    Parameters
+    ----------
+    inp : np.ndarray
+        Input array
+
+    Returns
+    -------
+    np.ndarray
+    """
+    if isinstance(inp, np.ndarray):
+        inp = np.array(inp)
+    nzs = np.concatenate(([-1], np.nonzero(inp)[0]))
+    nzcounts = np.cumsum(inp > 0)
+    return nzs[nzcounts]
+
+
+def idx_next_nz(inp: np.ndarray | list) -> np.ndarray:
+    """Index of the closest next nonzero element for each element in the array.
+    If the array starts with 0 - the index is len(input)
+
+    Parameters
+    ----------
+    inp : np.ndarray
+        Input array
+
+    Returns
+    -------
+    np.ndarray
+    """
+    result = idx_last_nz(inp[::-1])
+    result = len(inp) - result - 1
+    return result[::-1]
