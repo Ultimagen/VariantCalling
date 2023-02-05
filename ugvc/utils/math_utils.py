@@ -65,7 +65,7 @@ def phred_str(p: list[float] | tuple[float] | np.ndarray) -> str:
 
 
 def unphred(q: list[int | float] | tuple[int | float] | np.ndarray) -> np.ndarray:
-    """Transform Phred quality scores to probablitied
+    """Transform Phred quality scores to probablities
     See https://en.wikipedia.org/wiki/Phred_quality_score
 
     Parameters
