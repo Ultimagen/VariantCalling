@@ -99,5 +99,4 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
-        print(df["filter"].value_counts())
         assert {"LOW_SCORE": 96, "PASS": 728, "TEST": 76, "TEST;LOW_SCORE": 8} == dict(df["filter"].value_counts())

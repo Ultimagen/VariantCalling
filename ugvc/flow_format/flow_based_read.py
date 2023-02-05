@@ -13,6 +13,7 @@ import pysam
 from ugvc.dna import utils as dnautils
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.flow_format import error_model, simulator
+from ugvc.utils import math_utils as phred
 from ugvc.utils import misc_utils as utils
 
 DEFAULT_ERROR_MODEL_FN = "error_model.r2d.hd5"
@@ -221,7 +222,7 @@ class FlowBasedRead:
         this_error_model: error_model.ErrorModel | None = None,
         flow_order: str = DEFAULT_FLOW_ORDER,
         motif_size: int = 5,
-        max_hmer_size: int = 9,
+        max_hmer_size: int = 12,
         filler=DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
         _fmt: str = "ilya",
@@ -308,10 +309,15 @@ class FlowBasedRead:
             flow_matrix = cls._matrix_from_sparse(row, col, vals, shape, filler)
             dct["_flow_matrix"] = flow_matrix
         elif fmt == SupportedFormats.CRAM:
+            if sam_record.has_tag("t0"):
+                t0 = sam_record.get_tag("t0")
+            else:
+                t0 = None
             flow_matrix = cls._matrix_from_qual_tp(
                 dct["key"],
                 np.array(sam_record.query_qualities, dtype=np.int),
                 tp_tag=np.array(sam_record.get_tag("tp"), dtype=np.int),
+                t0_tag=t0,
                 filler=filler,
                 min_call_prob=min_call_prob,
                 max_hmer_size=max_hmer_size,
@@ -333,6 +339,7 @@ class FlowBasedRead:
         key: np.ndarray,
         qual: np.ndarray,
         tp_tag: np.ndarray,
+        t0_tag: np.ndarray | None = None,
         filler: float = DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
         max_hmer_size: int = 12,
@@ -353,13 +360,16 @@ class FlowBasedRead:
         To calculate:
         P(4) = 2*PhredToProb('B') = 0.001,
         P(6) = 2*PhredToProb('C') = 0.0008,
-        The values that are not mentioned are filled with `filler` value
-
-        For the flows where the call is zero all the probabilities are initialized with filler
-
         P(5) = max(1-sum(P(i)) for i != 5
 
-        See https://ultimagen.atlassian.net/wiki/spaces/GEN/pages/1668121121/UG+CRAM+format for more details.
+        The values that are not mentioned are filled with `filler` value
+
+        For the flows where the call is zero all the non-zero probabilities are initialized with filler
+        If optional t0 tag is given, for the zero calls the P(1) = min(P_{left}, P_{right} ) where
+        P_{left} and P_{right} are the qualities in t0 tag of the two non-zero neighboring flows
+
+        See https://ultimagen.atlassian.net/wiki/spaces/AG/pages/1797324911/SAM+Format for more details.
+
 
         Parameters
         ----------
@@ -369,6 +379,8 @@ class FlowBasedRead:
             Quality array of the read
         tp_tag : np.ndarray
             tp tag of the read
+        t0_tag : np.ndarray
+            T0 tag of the read, optional
         filler : float
             Value to place as zero probability
         min_call_prob: float
@@ -384,8 +396,22 @@ class FlowBasedRead:
 
         flow_matrix = np.ones((max_hmer_size + 1, len(key))) * filler
 
-        probs = 10 ** (-qual / 10)
+        probs = phred.unphred(qual)
+        if t0_tag is not None:
+            t0_probs = phred.unphred_str(t0_tag)
+
         flow_to_place = np.repeat(np.arange(len(key)), key.astype(np.int))
+        if t0_tag is not None:
+            t0_on_flows = np.zeros(len(key))
+            t0_on_flows[flow_to_place] = t0_probs
+            left_neighbor = utils.idx_last_nz(key)
+            right_neighbor = utils.idx_next_nz(key)
+            left_prob = t0_on_flows[np.clip(left_neighbor, 0, None)]
+            left_prob[left_neighbor < 0] = 0
+            right_prob = t0_on_flows[np.clip(right_neighbor, None, len(key) - 1)]
+            right_prob[right_neighbor >= len(key)] = 0
+            flow_matrix[1, key == 0] = np.min(np.vstack((left_prob, right_prob)), axis=0)[key == 0]
+
         place_to_locate = tp_tag + np.repeat(key, key.astype(np.int))
         place_to_locate = np.clip(place_to_locate, None, max_hmer_size)
         assert np.all(place_to_locate >= 0), "Wrong position to place"
@@ -714,6 +740,22 @@ class FlowBasedRead:
             res.set_tag("kr", [int(x) for x in self.key])
         self.record = res
         return res
+
+    def flow_matrix_to_list(self) -> list:
+        """Returns flow matrix as a list of tuples
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        list
+            List of tuples ordered by flow index then hmer
+        """
+        idcs = np.unravel_index(np.arange(self._flow_matrix.size), self._flow_matrix.T.shape)
+        tups = [tuple(x) for x in np.vstack((idcs, np.ravel(self._flow_matrix.T))).T]
+        return list(tups)
 
     def _left_clipped_flows(self, cigar: list | None = None) -> tuple:
         """Returns number of flows clipped from the left
