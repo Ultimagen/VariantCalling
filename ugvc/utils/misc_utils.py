@@ -240,7 +240,7 @@ def idx_last_nz(inp: np.ndarray | list) -> np.ndarray:
     -------
     np.ndarray
     """
-    if isinstance(inp, np.ndarray):
+    if not isinstance(inp, np.ndarray):
         inp = np.array(inp)
     nzs = np.concatenate(([-1], np.nonzero(inp)[0]))
     nzcounts = np.cumsum(inp > 0)
