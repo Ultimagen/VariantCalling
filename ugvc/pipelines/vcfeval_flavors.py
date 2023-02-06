@@ -24,17 +24,28 @@ import subprocess
 
 from simppl.simple_pipeline import SimplePipeline
 from ugvc.utils.stats_utils import get_precision, get_recall, get_f1
+from ugvc.vcfbed.interval_file import IntervalFile
 
 
 def get_parser():
     ap = argparse.ArgumentParser(prog='vcfeval_flavors.py', description=run.__doc__)
     ap.add_argument('-b', '--baseline',
-                    help="VCF file containing baseline variants", type=str, required=True)
+                    help="VCF file containing baseline variants",
+                    type=str, required=True)
     ap.add_argument('-c', '--calls',
-                    help="VCF file containing called variants--output_prefix", type=str, required=True)
+                    help="VCF file containing called variants--output_prefix",
+                    type=str, required=True)
     ap.add_argument('-e', '--evaluation_regions',
-                    help='if set, evaluate within regions contained in the supplied BED file, '
-                         'allowing transborder matches. To be used for truth-set', type=str)
+                    help='if set, evaluate within regions contained in the intersection of the supplied bed files,'
+                         ' allowing transborder matches. To be used for truth-set',
+                    action="append",
+                    type=str,
+                    default=[])
+    ap.add_argument('--evaluation_intervals',
+                    help='if set, intersect evaluation_regions with interval_list comma-separated files list',
+                    action="append",
+                    type=str,
+                    default=[])
     ap.add_argument('-o', '--output',
                     help='directory for output', type=str, required=True)
     ap.add_argument('-t', '--template',
@@ -42,7 +53,7 @@ def get_parser():
     ap.add_argument('-p', '--allele_and_genotype_error_penalty',
                     type=int,
                     choices=[2, 1, 0, -1],
-                    default=0,
+                    default=1,
                     help="-p 2: usual vcfeval, penalizes twice each wrong-allele/genotype errror\n"
                          "-p 1: penalize wrong-allele/genotype only once (remove 0.5 of such fps and fns)\n"
                          "-p 0: don't penalize wrong-allele/genotype (remove completely such fps and fns)\n"
@@ -68,7 +79,8 @@ def run(argv: list[str]):
     sp = SimplePipeline(args.fc, args.lc, args.d)
     calls = args.calls
     baseline = args.baseline
-    eval_reg = args.evaluation_regions
+    eval_regions_files: list[str] = args.evaluation_regions
+    eval_intervals_files: list[str] = args.evaluation_intervals
     sdf = args.template
     out_dir = args.output
     penalty = args.allele_and_genotype_error_penalty
@@ -76,6 +88,22 @@ def run(argv: list[str]):
     result = []
     sp.print_and_run(f'rm -rf {out_dir}')
     sp.print_and_run(f'mkdir -p {out_dir}')
+
+    # convert interval_list files to bed files
+    for eval_intervals_file in eval_intervals_files:
+        eval_regions_files.append(IntervalFile(sp, eval_intervals_file).as_bed_file())
+
+    first_eval_regions_file = eval_regions_files[0]
+    intersected_eval_regions = first_eval_regions_file
+    for i, eval_regions_file in enumerate(eval_regions_files[1:]):
+        intersected_eval_regions = f'{out_dir}/eval_regions.{i}.bed'
+        sp.print_and_run(f'bedtools intersect '
+                         f'-a {first_eval_regions_file} '
+                         f'-b {eval_regions_file} '
+                         f'> {intersected_eval_regions}')
+        first_eval_regions_file = intersected_eval_regions
+    eval_reg = intersected_eval_regions
+
     sp.print_and_run(f'bcftools view {calls} -R {eval_reg} -Oz > {out_dir}/input_in_hcr.vcf.gz')
     sp.print_and_run(f'bcftools view -f PASS,. {out_dir}/input_in_hcr.vcf.gz -Oz > {out_dir}/input_in_hcr.pass.vcf.gz')
     sp.print_and_run(f'bcftools index -t {out_dir}/input_in_hcr.pass.vcf.gz')
