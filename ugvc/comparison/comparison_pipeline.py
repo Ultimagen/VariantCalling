@@ -48,8 +48,8 @@ def pipeline(  # pylint: disable=too-many-arguments
         Truth calls file
     cmp_intervals : vcf_pipeline_utils.IntervalFile, optional
         interval_list file over which to do comparison (e.g. chr9)
-    highconf_intervals : str, optional
-        high confidence intervals for the ground truth (BED)
+    highconf_intervals : IntervalFile
+        high confidence intervals for the ground truth
     ref_genome : str, optional
         Reference genome FASTA
     call_sample : str, optional
@@ -135,7 +135,8 @@ def pipeline(  # pylint: disable=too-many-arguments
             truth_file,
             output_prefix,
             ref_genome,
-            cmp_intervals.as_interval_list_file(),
+            highconf_intervals.as_bed_file(),
+            cmp_intervals.as_bed_file(),
             call_sample,
             truth_sample,
             ignore_filter,

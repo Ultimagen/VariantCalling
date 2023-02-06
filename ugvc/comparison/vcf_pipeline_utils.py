@@ -152,6 +152,7 @@ class VcfPipelineUtils:
         truth_file: str,
         output_prefix: str,
         ref_genome: str,
+        evaluation_regions: str,
         comparison_intervals: str | None = None,
         input_sample: str = "NA12878",
         truth_sample="HG001",
@@ -169,6 +170,8 @@ class VcfPipelineUtils:
             Output prefix
         ref_genome: str
             Fasta reference file
+        evaluation_regions: str
+            Bed file of regions to evaluate (HCR)
         comparison_intervals: Optional[str]
             Picard intervals file to make the comparisons on. Default: None = all genome
         input_sample: str
@@ -196,8 +199,15 @@ class VcfPipelineUtils:
 
         # vcfeval calculation
         vcfeval_command = (
-            f"rtg vcfeval -b {filtered_truth_file} --calls {input_file} -o {vcfeval_output_dir} "
-            f"-t {SDF_path} -m combine --sample {truth_sample},{input_sample} --decompose"
+            f"rtg vcfeval "
+            f"-b {filtered_truth_file} "
+            f"--calls {input_file} "
+            f"-e {evaluation_regions} "
+            f"-t {SDF_path} "
+            f"-o {vcfeval_output_dir} "
+            f"-m combine "
+            f"--sample {truth_sample},{input_sample} "
+            f"--decompose"
         )
         if ignore_filter:
             vcfeval_command += " --all-records"
