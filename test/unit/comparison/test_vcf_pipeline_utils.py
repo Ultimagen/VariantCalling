@@ -11,6 +11,7 @@ from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, bed_file_length, vcf2concordance
 from ugvc.vcfbed import vcftools
+from ugvc.vcfbed.interval_file import IntervalFile
 
 inputs_dir = get_resource_dir(__file__)
 common_dir = pjoin(test_dir, "resources", "general")
@@ -87,8 +88,8 @@ class TestVCF2Concordance:
         input_vcf = pjoin(inputs_dir, "hg002.excluded.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.excluded.conc.vcf.gz")
         result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
-        assert ((result["call"] == "OUT")).sum() == 0
-        assert ((result["base"] == "OUT")).sum() == 0
+        assert (result["call"] == "OUT").sum() == 0
+        assert (result["base"] == "OUT").sum() == 0
 
     def test_all_ref_never_false_negative(self):
         input_vcf = pjoin(inputs_dir, "hg002.allref.vcf.gz")
@@ -98,11 +99,11 @@ class TestVCF2Concordance:
         assert "fn" not in calls.index
 
 
-class TestVCFevalRun:
+class TestVCFEvalRun:
     ref_genome = pjoin(common_dir, "sample.fasta")
     sample_calls = pjoin(inputs_dir, "sample.sd.vcf.gz")
     truth_calls = pjoin(inputs_dir, "gtr.sample.sd.vcf.gz")
-    high_conf = pjoin(inputs_dir, "highconf.interval_list")
+    high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list")).as_bed_file()
 
     def test_vcfeval_run_ignore_filter(self, tmp_path):
         sp = SimplePipeline(0, 100, False)
@@ -111,6 +112,7 @@ class TestVCFevalRun:
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.ignore_filter"),
             ref_genome=self.ref_genome,
+            evaluation_regions=self.high_conf,
             comparison_intervals=self.high_conf,
             input_sample="sm1",
             truth_sample="HG001",
@@ -130,6 +132,7 @@ class TestVCFevalRun:
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.use_filter"),
             ref_genome=self.ref_genome,
+            evaluation_regions=self.high_conf,
             comparison_intervals=self.high_conf,
             input_sample="sm1",
             truth_sample="HG001",
