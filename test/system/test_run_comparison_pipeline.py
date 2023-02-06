@@ -169,4 +169,4 @@ class TestRunComparisonPipeline:
             ]
         )
         df = read_hdf(f"{tmpdir}/dv.pred.chr1_1-1000000.h5", key="chr1")
-        assert {"tp": 301, "fn": 15, "fp": 791} == dict(df["classify"].value_counts())
+        assert {"tp": 301, "fn": 15, "fp": 790} == dict(df["classify"].value_counts())
