@@ -21,7 +21,6 @@ def pipeline(  # pylint: disable=too-many-arguments
     ref_genome: str,
     call_sample: str,
     truth_sample: str,
-    output_dir: str | None = None,
     output_file_name: str | None = None,
     header: str | None = None,
     runs_intervals: IntervalFile | None = None,
@@ -57,8 +56,6 @@ def pipeline(  # pylint: disable=too-many-arguments
         Name of the calls sample
     truth_sample : str, optional
         Name of the truth sample
-    output_dir : str
-        Location for the output
     output_file_name: str, optional
         Name of the output file - will determine the name of the vcfeval output directory.
         The output_file_name should include the output_dir and output_dir and output_file_name are mutually exclusive
@@ -82,13 +79,7 @@ def pipeline(  # pylint: disable=too-many-arguments
     Tuple[str, str]
     """
 
-    assert output_dir is None or output_file_name is None, ""
-    if output_dir is None:
-        if output_file_name is not None:
-            output_dir = dirname(output_file_name)
-        else:
-            output_dir = dirname(input_prefix)
-
+    output_dir = dirname(output_file_name)  if output_file_name is not None else dirname(input_prefix)
     input_prefix_basename = basename(input_prefix)
 
     if not output_suffix:
