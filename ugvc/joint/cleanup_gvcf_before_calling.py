@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import tqdm
+import sys
+
 from pysam import VariantFile
 
 import ugvc.vcfbed.pysam_utils as pu
 
 
-def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(int, int):
+def filterOverlappingNoneGVCFs(input_gvcf: str, output_gvcf: str) -> tuple(int, int):
     """Filters non-called variants that overlap other variants from DeepVariant gVCFs.
     In the context of GLNexus joint calling, non-called deletion variants (./.) that
     overlap called variants can generate missed variant calls in joint calling.
@@ -46,7 +48,7 @@ def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(in
                     if not called_var_in_buffer or tmp.samples[0]["GT"] != (None, None):
                         vcf_out.write(tmp)
                         count_written += 1
-                    # skip all variants that overlap hom alt and have GT not called
+                    # skip all variants that overlap called alt and have GT not called
                     else:  # (tmp.samples[0]['GT']==(None,None)):
                         count_skipped += 1
                         continue
@@ -77,8 +79,17 @@ def filterOverlappingNoneGVCFs_v2(input_gvcf: str, output_gvcf: str) -> tuple(in
             if not called_var_in_buffer or tmp.samples[0]["GT"] != (None, None):
                 vcf_out.write(tmp)
                 count_written += 1
-            # skip all variants that overlap hom alt and have GT not called
+            # skip all variants that overlap called alt and have GT not called
             else:  # (tmp.samples[0]['GT']==(None,None)):
                 count_skipped += 1
                 continue
     return count_written, count_skipped
+
+
+if __name__ == "__main__": 
+    if len(sys.argv) != 3:
+        sys.stderr.write("Usage: cleanup_gvcf_before_calling.py input_gvcf output_gvcf")
+        exit(1)
+    else: 
+        result = filterOverlappingNoneGVCFs(sys.argv[1], sys.argv[2])
+        sys.stderr.write(f"Written {result[0]} records, removed {result[1]} records")
