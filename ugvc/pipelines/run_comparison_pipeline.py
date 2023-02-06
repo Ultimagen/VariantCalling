@@ -41,26 +41,27 @@ MIN_CONTIG_LENGTH = 100000
 
 
 def _contig_concordance_annotate_reinterpretation(
-    # pylint: disable=too-many-arguments
-    results,
-    contig,
-    reference,
-    bw_high_quality,
-    bw_all_quality,
-    annotate_intervals,
-    runs_intervals,
-    hpol_filter_length_dist,
-    flow_order,
-    base_name_outputfile,
-    concordance_tool,
-    disable_reinterpretation,
-    ignore_low_quality_fps,
-    scoring_field,
+        # pylint: disable=too-many-arguments
+        raw_calls_vcf,
+        concordance_vcf,
+        contig,
+        reference,
+        bw_high_quality,
+        bw_all_quality,
+        annotate_intervals,
+        runs_intervals,
+        hpol_filter_length_dist,
+        flow_order,
+        base_name_outputfile,
+        concordance_tool,
+        disable_reinterpretation,
+        ignore_low_quality_fps,
+        scoring_field,
 ):
     logger.info("Reading %s", contig)
     concordance = vcf_pipeline_utils.vcf2concordance(
-        results[0],
-        results[1],
+        raw_calls_vcf,
+        concordance_vcf,
         concordance_tool,
         contig,
         scoring_field=scoring_field,
@@ -248,57 +249,38 @@ def run(argv: list[str]):
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     pd.DataFrame(args_dict, index=[0]).to_hdf(args.output_file, key="input_args")
 
-    if args.filter_runs:
-        results = comparison_pipeline.pipeline(
-            vpu,
-            args.n_parts,
-            args.input_prefix,
-            args.gtr_vcf,
-            cmp_intervals,
-            highconf_intervals,
-            args.reference,
-            args.call_sample_name,
-            args.truth_sample_name,
-            None,
-            args.output_file,
-            args.header_file,
-            runs_intervals,
-            args.output_suffix,
-            args.ignore_filter_status,
-            args.concordance_tool,
-        )
-    else:
-        results = comparison_pipeline.pipeline(
-            vpu,
-            args.n_parts,
-            args.input_prefix,
-            args.gtr_vcf,
-            cmp_intervals,
-            highconf_intervals,
-            args.reference,
-            args.call_sample_name,
-            args.truth_sample_name,
-            None,
-            args.output_file,
-            args.header_file,
-            IntervalFile(sp),
-            args.output_suffix,
-            args.ignore_filter_status,
-            args.revert_hom_ref,
-            args.concordance_tool,
-        )
+    runs_intervals_for_pipeline = runs_intervals if args.filter_runs else IntervalFile(sp)
+
+    raw_calls_vcf, concordance_vcf = comparison_pipeline.pipeline(
+        vpu=vpu,
+        n_parts=args.n_parts,
+        input_prefix=args.input_prefix,
+        truth_file=args.gtr_vcf,
+        cmp_intervals=cmp_intervals,
+        highconf_intervals=highconf_intervals,
+        ref_genome=args.reference,
+        call_sample=args.call_sample_name,
+        truth_sample=args.truth_sample_name,
+        output_file_name=args.output_file,
+        header=args.header_file,
+        runs_intervals=runs_intervals_for_pipeline,
+        output_suffix=args.output_suffix,
+        ignore_filter=args.ignore_filter_status,
+        revert_hom_ref=args.revert_hom_ref,
+        concordance_tool=args.concordance_tool,
+    )
 
     # single interval-file concordance - will be saved in a single dataframe
 
     if not cmp_intervals.is_none():
-        concordance = vcf_pipeline_utils.vcf2concordance(
-            results[0],
-            results[1],
+        concordance_df = vcf_pipeline_utils.vcf2concordance(
+            raw_calls_vcf,
+            concordance_vcf,
             args.concordance_tool,
             scoring_field=args.scoring_field,
         )
-        annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
-            concordance,
+        annotated_concordance_df, _ = vcf_pipeline_utils.annotate_concordance(
+            concordance_df,
             args.reference,
             args.coverage_bw_high_quality,
             args.coverage_bw_all_quality,
@@ -309,16 +291,16 @@ def run(argv: list[str]):
         )
 
         if not args.disable_reinterpretation:
-            annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-                annotated_concordance,
+            annotated_concordance_df = vcf_pipeline_utils.reinterpret_variants(
+                annotated_concordance_df,
                 args.reference,
                 ignore_low_quality_fps=args.is_mutect,
             )
-        annotated_concordance.to_hdf(args.output_file, key="concordance", mode="a")
+        annotated_concordance_df.to_hdf(args.output_file, key="concordance", mode="a")
         # hack until we totally remove chr9
-        annotated_concordance.to_hdf(args.output_file, key="comparison_result", mode="a")
+        annotated_concordance_df.to_hdf(args.output_file, key="comparison_result", mode="a")
         vcftools.bed_files_output(
-            annotated_concordance,
+            annotated_concordance_df,
             args.output_file,
             mode="w",
             create_gt_diff=(not args.is_mutect),
@@ -326,7 +308,7 @@ def run(argv: list[str]):
 
     # whole-genome concordance - will be saved in dataframe per chromosome
     else:
-        with pysam.VariantFile(results[0]) as variant_file:
+        with pysam.VariantFile(raw_calls_vcf) as variant_file:
             # we filter out short contigs to prevent huge files
             contigs = [
                 x for x in variant_file.header.contigs if variant_file.header.contigs[x].length > MIN_CONTIG_LENGTH
@@ -335,7 +317,8 @@ def run(argv: list[str]):
         base_name_outputfile = os.path.splitext(args.output_file)[0]
         Parallel(n_jobs=args.n_jobs, max_nbytes=None)(
             delayed(_contig_concordance_annotate_reinterpretation)(
-                results,
+                raw_calls_vcf,
+                concordance_vcf,
                 contig,
                 args.reference,
                 args.coverage_bw_high_quality,
@@ -374,9 +357,9 @@ def run(argv: list[str]):
 
         write_mode = "w"
         for contig in contigs:
-            annotated_concordance = read_hdf(args.output_file, key=contig)
+            annotated_concordance_df = read_hdf(args.output_file, key=contig)
             vcftools.bed_files_output(
-                annotated_concordance,
+                annotated_concordance_df,
                 args.output_file,
                 mode=write_mode,
                 create_gt_diff=(not args.is_mutect),
