@@ -31,7 +31,8 @@ from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
-from ugvc.comparison import comparison_pipeline, vcf_pipeline_utils
+from ugvc.comparison import vcf_pipeline_utils
+from ugvc.comparison.comparison_pipeline import ComparisonPipeline
 from ugvc.comparison.concordance_utils import read_hdf
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.vcfbed import vcftools
@@ -53,7 +54,6 @@ def _contig_concordance_annotate_reinterpretation(
         hpol_filter_length_dist,
         flow_order,
         base_name_outputfile,
-        concordance_tool,
         disable_reinterpretation,
         ignore_low_quality_fps,
         scoring_field,
@@ -62,7 +62,6 @@ def _contig_concordance_annotate_reinterpretation(
     concordance = vcf_pipeline_utils.vcf2concordance(
         raw_calls_vcf,
         concordance_vcf,
-        concordance_tool,
         contig,
         scoring_field=scoring_field,
     )
@@ -198,13 +197,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=str,
     )
     ap_var.add_argument(
-        "--concordance_tool",
-        help="The concordance method to use (GC or VCFEVAL)",
-        required=False,
-        default="VCFEVAL",
-        type=str,
-    )
-    ap_var.add_argument(
         "--disable_reinterpretation",
         help="Should re-interpretation be run",
         action="store_true",
@@ -251,7 +243,7 @@ def run(argv: list[str]):
 
     runs_intervals_for_pipeline = runs_intervals if args.filter_runs else IntervalFile(sp)
 
-    raw_calls_vcf, concordance_vcf = comparison_pipeline.pipeline(
+    comparison_pipeline = ComparisonPipeline(
         vpu=vpu,
         n_parts=args.n_parts,
         input_prefix=args.input_prefix,
@@ -266,9 +258,9 @@ def run(argv: list[str]):
         runs_intervals=runs_intervals_for_pipeline,
         output_suffix=args.output_suffix,
         ignore_filter=args.ignore_filter_status,
-        revert_hom_ref=args.revert_hom_ref,
-        concordance_tool=args.concordance_tool,
+        revert_hom_ref=args.revert_hom_ref
     )
+    raw_calls_vcf, concordance_vcf = comparison_pipeline.run()
 
     # single interval-file concordance - will be saved in a single dataframe
 
@@ -296,6 +288,7 @@ def run(argv: list[str]):
                 args.reference,
                 ignore_low_quality_fps=args.is_mutect,
             )
+
         annotated_concordance_df.to_hdf(args.output_file, key="concordance", mode="a")
         # hack until we totally remove chr9
         annotated_concordance_df.to_hdf(args.output_file, key="comparison_result", mode="a")
@@ -328,7 +321,6 @@ def run(argv: list[str]):
                 args.hpol_filter_length_dist,
                 args.flow_order,
                 base_name_outputfile,
-                args.concordance_tool,
                 args.disable_reinterpretation,
                 args.is_mutect,
                 args.scoring_field,
@@ -339,6 +331,7 @@ def run(argv: list[str]):
         # merge temp h5 files
 
         # find columns and set the same header for empty dataframes
+        df_columns = None
         for contig in contigs:
             h5_temp = read_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
             if h5_temp.shape == (0, 0):  # empty dataframes are dropped to save space
