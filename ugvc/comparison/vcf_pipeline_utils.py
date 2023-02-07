@@ -103,49 +103,6 @@ class VcfPipelineUtils:
         """
         self.__execute(f"gatk SelectVariants -V {input_fn} -L {intervals_fn} -O {output_fn}")
 
-    def run_genotype_concordance(
-        self,
-        input_file: str,
-        truth_file: str,
-        output_prefix: str,
-        comparison_intervals: str | None = None,
-        input_sample: str = "NA12878",
-        truth_sample="HG001",
-        ignore_filter: bool = False,
-    ):
-        """Run GenotypeConcordance, correct the bug and reindex
-
-        Parameters
-        ----------
-        input_file: str
-            Our variant calls
-        truth_file: str
-            GIAB (or other source truth file)
-        output_prefix: str
-            Output prefix
-        comparison_intervals: Optional[str]
-            Picard intervals file to make the comparisons on. Default (None - all genome)
-        input_sample: str
-            Name of the sample in our input_file
-        truth_sample: str
-            Name of the sample in the truth file
-        ignore_filter: bool
-            Ignore status of the variant filter
-        """
-        genotype_concordance_command = (
-            f"picard GenotypeConcordance "
-            f"CALL_VCF={input_file} "
-            f"CALL_SAMPLE={input_sample} "
-            f"O={output_prefix} "
-            f"TRUTH_VCF={truth_file} "
-            f"TRUTH_SAMPLE={truth_sample} "
-            f"OUTPUT_VCF=true "
-            f"IGNORE_FILTER_STATUS={ignore_filter}"
-        )
-        if comparison_intervals is not None:
-            genotype_concordance_command += "INTERVALS={comparison_intervals}"
-        self.fix_vcf_format(f"{output_prefix}.genotype_concordance")
-
     def run_vcfeval_concordance(
         self,
         input_file: str,
@@ -157,7 +114,7 @@ class VcfPipelineUtils:
         input_sample: str = "NA12878",
         truth_sample="HG001",
         ignore_filter: bool = False,
-    ):
+    ) -> str:
         """Run vcfevalConcordance
 
         Parameters
@@ -180,6 +137,9 @@ class VcfPipelineUtils:
             Name of the sample in the truth file
         ignore_filter: bool
             Ignore status of the variant filter
+        Returns
+        -------
+        final concordance vcf file
         """
 
         output_dir = os.path.dirname(output_prefix)
@@ -222,15 +182,14 @@ class VcfPipelineUtils:
             f' -O z {os.path.join(vcfeval_output_dir, "output.vcf.gz")}'
         )
 
+        vcf_concordance_file = f'{output_prefix + ".vcfeval_concordance.vcf.gz"}'
         # move the file to be compatible with the output file of the genotype
         # concordance
-        self.__execute(
-            f'mv {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")} '
-            f'{output_prefix + ".vcfeval_concordance.vcf.gz"}'
-        )
+        self.__execute(f'mv {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")} {vcf_concordance_file}')
 
         # generate index file for the vcf.gz file
-        self.index_vcf(output_prefix + ".vcfeval_concordance.vcf.gz")
+        self.index_vcf(vcf_concordance_file)
+        return vcf_concordance_file
 
     def fix_vcf_format(self, output_prefix):
         self.__execute(f"gunzip -f {output_prefix}.vcf.gz")
@@ -245,7 +204,7 @@ class VcfPipelineUtils:
         self.__execute(f"bgzip {input_file_handle.name}")
         self.index_vcf(f"{input_file_handle.name}.gz")
 
-    def annotate_tandem_repeats(self, input_file: str, reference_fasta: str) -> None:
+    def annotate_tandem_repeats(self, input_file: str, reference_fasta: str) -> str:
         """Runs VariantAnnotator on the input file to add tandem repeat annotations (maybe others)
 
         Parameters
@@ -256,10 +215,14 @@ class VcfPipelineUtils:
             Reference file (should have .dict file nearby)
 
         Creates a copy of the input_file with .annotated.vcf.gz and the index
+        Returns
+        -------
+        path to output file: str
         """
 
         output_file = input_file.replace("vcf.gz", "annotated.vcf.gz")
         self.__execute(f"gatk VariantAnnotator -V {input_file} -O {output_file} -R {reference_fasta} -A TandemRepeat")
+        return output_file
 
     def filter_bad_areas(self, input_file_calls: str, highconf_regions: str, runs_regions: str | None):
         """Looks at concordance only around high confidence areas and not around runs
@@ -272,6 +235,9 @@ class VcfPipelineUtils:
             High confidence regions bed
         runs_regions: str or None
             Runs
+        Returns
+        -------
+        highconf_file_name: str
         """
 
         highconf_file_name = input_file_calls.replace("vcf.gz", "highconf.vcf")
@@ -295,6 +261,9 @@ class VcfPipelineUtils:
             self.__execute(f"bgzip -f {runs_file_name}")
             runs_file_name += ".gz"
             self.index_vcf(runs_file_name)
+            return runs_file_name
+        else:
+            return highconf_file_name
 
     def transform_hom_calls_to_het_calls(self, input_file_calls: str, output_file_calls: str) -> None:
         """Reverse homozygous reference calls in deepVariant to filtered heterozygous so that max recall can be
@@ -373,7 +342,6 @@ def __map_variant_to_dict(variant: pysam.VariantRecord, concordance_format: str)
 def vcf2concordance(
     raw_calls_file: str,
     concordance_file: str,
-    concordance_format: str = "GC",
     chromosome: str = None,
     scoring_field: str = None,
 ) -> pd.DataFrame:
@@ -385,8 +353,6 @@ def vcf2concordance(
         File with GATK calls (.vcf.gz)
     concordance_file: str
         GenotypeConcordance/VCFEVAL output file (.vcf.gz)
-    concordance_format: str
-        Either 'GC' or 'VCFEVAL' - format for the concordance_file
     chromosome: str
         Fetch a specific chromosome (Default - all)
     scoring_field: str
@@ -403,69 +369,46 @@ def vcf2concordance(
     else:
         concord_vcf = pysam.VariantFile(concordance_file).fetch(chromosome)
 
-    # adding the values that the VCFEval outputs and also the annotations used downstream:
-    # tandem repeat annotations from VariantAnnotator (str, ru, rpa),
-    # and in the future hmer indel etc.
-    if concordance_format == "GC":
-        concord_vcf_extend = [__map_variant_to_dict(variant, "GC") for variant in concord_vcf]
-
-        columns = [
-            "CHROM",
-            "POS",
-            "QUAL",
-            "REF",
-            "ALLELES",
-            "GT_ULTIMA",
-            "GT_GROUND_TRUTH",
-            "STR",
-            "RU",
-            "RPA",
-        ]
-        column_names = [x.lower() for x in columns]
-        concordance = pd.DataFrame([[x[y] for y in columns] for x in concord_vcf_extend], columns=column_names)
-    elif concordance_format == "VCFEVAL":
-
-        def call_filter(x):
-            # Remove variants that were ignored (either outside of comparison intervals or
-            # filtered out).
-            return not (
-                (x["CALL"] in {"IGN", "OUT"} and x["BASE"] is None)
-                or (x["CALL"] in {"IGN", "OUT"} and x["BASE"] in {"IGN", "OUT"})
-                or (x["CALL"] is None and x["BASE"] in {"IGN", "OUT"})
-            )
-
-        concord_vcf_extend = filter(call_filter, (__map_variant_to_dict(variant, "VCFEVAL") for variant in concord_vcf))
-
-        columns = [
-            "CHROM",
-            "POS",
-            "QUAL",
-            "REF",
-            "ALLELES",
-            "GT_ULTIMA",
-            "GT_GROUND_TRUTH",
-            "SYNC",
-            "CALL",
-            "BASE",
-            "STR",
-            "RU",
-            "RPA",
-        ]
-        column_names = [x.lower() for x in columns]
-
-        concordance = pd.DataFrame([[x[y] for y in columns] for x in concord_vcf_extend], columns=column_names)
-
-    concordance_df = pd.DataFrame(concordance, columns=column_names)
-    if concordance_format == "VCFEVAL":
-        # make the gt_ground_truth compatible with GC
-        concordance_df["gt_ground_truth"] = concordance_df["gt_ground_truth"].map(
-            lambda x: (None, None) if x == (None,) else x
+    def call_filter(x):
+        # Remove variants that were ignored (either outside of comparison intervals or
+        # filtered out).
+        return not (
+            (x["CALL"] in {"IGN", "OUT"} and x["BASE"] is None)
+            or (x["CALL"] in {"IGN", "OUT"} and x["BASE"] in {"IGN", "OUT"})
+            or (x["CALL"] is None and x["BASE"] in {"IGN", "OUT"})
         )
+    concord_vcf_extend = filter(call_filter, (__map_variant_to_dict(variant, "VCFEVAL") for variant in concord_vcf))
+
+    columns = [
+        "CHROM",
+        "POS",
+        "QUAL",
+        "REF",
+        "ALLELES",
+        "GT_ULTIMA",
+        "GT_GROUND_TRUTH",
+        "SYNC",
+        "CALL",
+        "BASE",
+        "STR",
+        "RU",
+        "RPA",
+    ]
+    column_names = [x.lower() for x in columns]
+    concordance_df = pd.DataFrame([[x[y] for y in columns] for x in concord_vcf_extend], columns=column_names)
+
+    # make the gt_ground_truth compatible with GC
+    concordance_df["gt_ground_truth"] = concordance_df["gt_ground_truth"].map(
+        lambda x: (None, None) if x == (None,) else x)
 
     concordance_df["indel"] = concordance_df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
 
-    if concordance_format == "VCFEVAL":
-        concordance_df = _fix_errors(concordance_df)
+    pd.set_option('display.max_columns', None)
+    print('vcf2concordance: after initial construction')
+    print(concordance_df[concordance_df['indel']]['call'].value_counts())
+    print(concordance_df[concordance_df['indel']]['base'].value_counts())
+
+    concordance_df = _fix_errors(concordance_df)
 
     def classify(x):
         if x["gt_ultima"] == (None, None) or x["gt_ultima"] == (None,):
@@ -513,21 +456,15 @@ def vcf2concordance(
     ] = "fp"
 
     # cases where we called wrong allele and then filtered out - are false negatives, not false positives
-    if concordance_format == "VCFEVAL":
-        called_fn = (concordance_df["base"] == "FN") | (concordance_df["base"] == "FN_CA")
-        marked_fp = concordance_df["classify"] == "fp"
-        concordance_df.loc[called_fn & marked_fp, "classify"] = "fn"
-        marked_fp = concordance_df["classify_gt"] == "fp"
-        concordance_df.loc[called_fn & marked_fp, "classify_gt"] = "fn"
-
+    called_fn = (concordance_df["base"] == "FN") | (concordance_df["base"] == "FN_CA")
+    marked_fp = concordance_df["classify"] == "fp"
+    concordance_df.loc[called_fn & marked_fp, "classify"] = "fn"
+    marked_fp = concordance_df["classify_gt"] == "fp"
+    concordance_df.loc[called_fn & marked_fp, "classify_gt"] = "fn"
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
-
     original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome, scoring_field=scoring_field)
 
-    if concordance_format != "VCFEVAL":
-        original.drop("qual", axis=1, inplace=True)
-    else:
-        concordance_df.drop("qual", axis=1, inplace=True)
+    original.drop("qual", axis=1, inplace=True)
 
     drop_candidates = ["chrom", "pos", "alleles", "indel", "ref", "str", "ru", "rpa"]
     concordance = concordance_df.join(
@@ -550,6 +487,7 @@ def vcf2concordance(
     )
     concordance.loc[missing_variants_non_fn, "classify"] = "fn"
     concordance.loc[missing_variants_non_fn, "classify_gt"] = "fn"
+
 
     return concordance
 
@@ -583,7 +521,7 @@ def annotate_concordance(
     runfile: str | None = None,
     flow_order: str | None = DEFAULT_FLOW_ORDER,
     hmer_run_length_dist: tuple = (10, 10),
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, list]:
     """Annotates concordance data with information about SNP/INDELs and motifs
 
     Parameters
