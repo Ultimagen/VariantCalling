@@ -84,7 +84,7 @@ class TestVCF2Concordance:
         concordance_vcf = pjoin(inputs_dir, "hg002.conc.vcf.gz")
         result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
         take = result[(result["call"] == "IGN") & (result["base"] == "FN")]
-        assert take.sum() > 0
+        assert take.shape[0] > 0
         assert (take["classify"] == "fn").all()
 
     def test_excluded_regions_are_ignored(self):
