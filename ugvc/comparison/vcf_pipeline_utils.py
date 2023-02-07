@@ -339,10 +339,10 @@ def _fix_errors(df):
     ]["gt_ultima"]
 
     # (None, TP) (None,FN_CA) - remove these rows
-    df.drop(
-        df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].index,
-        inplace=True,
-    )
+    #df.drop(
+    #    df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].index,
+    #    inplace=True,
+    #)
 
     # (FP_CA,FN_CA), (FP_CA,None) - Fake a genotype from ultima such that one of the alleles is the same (and only one)
     df.loc[(df["call"] == "FP_CA") & ((df["base"] == "FN_CA") | (df["base"].isna())), "gt_ground_truth"] = df[
