@@ -11,16 +11,12 @@ def parse_config(config_file):
     param_names = ['run_id',
                    'pipeline_version',
                    'h5_concordance_file',
-                   'model_name_with_gt',
-                   'model_name_without_gt',
-                   'model_pkl_with_gt',
-                   'model_pkl_without_gt',
-                   'model_name'
                    ]
     parameters = {p: parser.get('VarReport', p) for p in param_names}
-    parameters['reference_version'] = parser.get('VarReport', 'reference_version', fallback='hg38')
+
 
     # Optional parameters
+    parameters['reference_version'] = parser.get('VarReport', 'reference_version', fallback='hg38')
     parameters['truth_sample_name'] = parser.get('VarReport', 'truth_sample_name', fallback='NA')
     parameters['sources'] = {'Trained wo gt': (parameters['h5_concordance_file'], "concordance")}
     parameters['image_prefix'] = parser.get('VarReport', 'image_output_prefix',
@@ -28,6 +24,15 @@ def parse_config(config_file):
     parameters['h5outfile'] = parser.get('VarReport', 'h5_output', fallback='var_report.h5')
     parameters['trained_w_gt'] = parser.get('VarReport', 'h5_model_file', fallback=None)
 
+    for opt_param_name in ['model_name_with_gt',
+                      'model_name_without_gt',
+                      'model_pkl_with_gt',
+                      'model_pkl_without_gt',
+                      'model_name']:
+        opt_param = parser.get('VarReport', opt_param_name, fallback=None)
+    if opt_param:
+        parameters[opt_param_name] = opt_param
+        param_names.append(opt_param_name)
     return parameters, param_names
 
 

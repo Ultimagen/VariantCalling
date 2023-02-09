@@ -42,21 +42,21 @@ MIN_CONTIG_LENGTH = 100000
 
 
 def _contig_concordance_annotate_reinterpretation(
-        # pylint: disable=too-many-arguments
-        raw_calls_vcf,
-        concordance_vcf,
-        contig,
-        reference,
-        bw_high_quality,
-        bw_all_quality,
-        annotate_intervals,
-        runs_intervals,
-        hpol_filter_length_dist,
-        flow_order,
-        base_name_outputfile,
-        disable_reinterpretation,
-        ignore_low_quality_fps,
-        scoring_field,
+    # pylint: disable=too-many-arguments
+    raw_calls_vcf,
+    concordance_vcf,
+    contig,
+    reference,
+    bw_high_quality,
+    bw_all_quality,
+    annotate_intervals,
+    runs_intervals,
+    hpol_filter_length_dist,
+    flow_order,
+    base_name_outputfile,
+    disable_reinterpretation,
+    ignore_low_quality_fps,
+    scoring_field,
 ):
     logger.info("Reading %s", contig)
     concordance = vcf_pipeline_utils.vcf2concordance(
@@ -258,7 +258,7 @@ def run(argv: list[str]):
         runs_intervals=runs_intervals_for_pipeline,
         output_suffix=args.output_suffix,
         ignore_filter=args.ignore_filter_status,
-        revert_hom_ref=args.revert_hom_ref
+        revert_hom_ref=args.revert_hom_ref,
     )
     raw_calls_vcf, concordance_vcf = comparison_pipeline.run()
 
