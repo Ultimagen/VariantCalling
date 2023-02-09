@@ -27,7 +27,7 @@ def test_fix_errors():
     )
 
     # (None, TP) (None,FN_CA)
-    pd.set_option('display.max_columns', None)
+    pd.set_option("display.max_columns", None)
     take = df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))]
     print(take)
     assert df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].size == 20
@@ -69,20 +69,20 @@ class TestVCF2Concordance:
     def test_qual_not_nan(self):
         input_vcf = pjoin(inputs_dir, "chr2.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "chr2.conc.vcf.gz")
-        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf)
         assert pd.isnull(result.query("classify!='fn'").qual).sum() == 0
         assert pd.isnull(result.query("classify!='fn'").sor).sum() == 0
 
     def test_filtered_out_missing(self):
         input_vcf = pjoin(inputs_dir, "hg002.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.conc.vcf.gz")
-        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf)
         assert ((result["call"] == "IGN") & (pd.isnull(result["base"]))).sum() == 0
 
     def test_filtered_out_tp_became_fn(self):
         input_vcf = pjoin(inputs_dir, "hg002.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.conc.vcf.gz")
-        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf)
         take = result[(result["call"] == "IGN") & (result["base"] == "FN")]
         assert take.shape[0] > 0
         assert (take["classify"] == "fn").all()
@@ -90,14 +90,14 @@ class TestVCF2Concordance:
     def test_excluded_regions_are_ignored(self):
         input_vcf = pjoin(inputs_dir, "hg002.excluded.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.excluded.conc.vcf.gz")
-        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf)
         assert (result["call"] == "OUT").sum() == 0
         assert (result["base"] == "OUT").sum() == 0
 
     def test_all_ref_never_false_negative(self):
         input_vcf = pjoin(inputs_dir, "hg002.allref.vcf.gz")
         concordance_vcf = pjoin(inputs_dir, "hg002.allref.conc.vcf.gz")
-        result = vcf2concordance(input_vcf, concordance_vcf, "VCFEVAL")
+        result = vcf2concordance(input_vcf, concordance_vcf)
         calls = result[result["gt_ground_truth"] == (0, 0)].classify_gt.value_counts()
         assert "fn" not in calls.index
 
