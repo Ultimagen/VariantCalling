@@ -61,5 +61,6 @@ jobs:
       - name: Test with pytest
         run: |
           conda activate genomics.py3
+          export PYTHONPATH=$(pwd)
           python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system
