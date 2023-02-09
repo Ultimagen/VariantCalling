@@ -268,7 +268,6 @@ def run(argv: list[str]):
         concordance_df = vcf_pipeline_utils.vcf2concordance(
             raw_calls_vcf,
             concordance_vcf,
-            args.concordance_tool,
             scoring_field=args.scoring_field,
         )
         annotated_concordance_df, _ = vcf_pipeline_utils.annotate_concordance(

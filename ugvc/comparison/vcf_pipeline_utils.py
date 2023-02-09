@@ -243,7 +243,8 @@ class VcfPipelineUtils:
             Creates output_vcf
         """
 
-        tempdir = tempfile.mkdtemp(prefix=os.path.dirname(output_vcf) + "/tmp")
+        tempdir = f'{output_vcf}_tmp'
+        os.mkdir(tempdir)
 
         # Step1 - bcftools norm
 
