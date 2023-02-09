@@ -124,7 +124,7 @@ pre-commit hooks are configured within `.pre-commit-config.yaml`
 
 install: https://pre-commit.com/#installation
 
-After pre-commit package is installed, you need to set git hooks scripts: 
+After pre-commit package is installed, you need to set git hooks scripts:
 ```
 pre-commit install
 pre-commit install -t pre-commit

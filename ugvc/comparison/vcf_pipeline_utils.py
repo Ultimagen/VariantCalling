@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os.path
 import shutil
-import tempfile
 from collections import defaultdict
 
 import numpy as np
@@ -243,7 +242,7 @@ class VcfPipelineUtils:
             Creates output_vcf
         """
 
-        tempdir = f'{output_vcf}_tmp'
+        tempdir = f"{output_vcf}_tmp"
         os.mkdir(tempdir)
 
         # Step1 - bcftools norm
@@ -377,8 +376,7 @@ class VcfPipelineUtils:
             runs_file_name += ".gz"
             self.index_vcf(runs_file_name)
             return runs_file_name
-        else:
-            return highconf_file_name
+        return highconf_file_name
 
     def transform_hom_calls_to_het_calls(self, input_file_calls: str, output_file_calls: str) -> None:
         """Reverse homozygous reference calls in deepVariant to filtered heterozygous so that max recall can be
@@ -434,10 +432,10 @@ def _fix_errors(df):
     ]["gt_ultima"]
 
     # (None, TP) (None,FN_CA) - remove these rows
-    #df.drop(
+    # df.drop(
     #    df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].index,
     #    inplace=True,
-    #)
+    # )
 
     # (FP_CA,FN_CA), (FP_CA,None) - Fake a genotype from ultima such that one of the alleles is the same (and only one)
     df.loc[(df["call"] == "FP_CA") & ((df["base"] == "FN_CA") | (df["base"].isna())), "gt_ground_truth"] = df[
@@ -518,6 +516,7 @@ def vcf2concordance(
             or (x["CALL"] in {"IGN", "OUT"} and x["BASE"] in {"IGN", "OUT"})
             or (x["CALL"] is None and x["BASE"] in {"IGN", "OUT"})
         )
+
     concord_vcf_extend = filter(call_filter, (__map_variant_to_dict(variant, "VCFEVAL") for variant in concord_vcf))
 
     columns = [
@@ -540,14 +539,15 @@ def vcf2concordance(
 
     # make the gt_ground_truth compatible with GC
     concordance_df["gt_ground_truth"] = concordance_df["gt_ground_truth"].map(
-        lambda x: (None, None) if x == (None,) else x)
+        lambda x: (None, None) if x == (None,) else x
+    )
 
     concordance_df["indel"] = concordance_df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
 
-    pd.set_option('display.max_columns', None)
-    print('vcf2concordance: after initial construction')
-    print(concordance_df[concordance_df['indel']]['call'].value_counts())
-    print(concordance_df[concordance_df['indel']]['base'].value_counts())
+    pd.set_option("display.max_columns", None)
+    print("vcf2concordance: after initial construction")
+    print(concordance_df[concordance_df["indel"]]["call"].value_counts())
+    print(concordance_df[concordance_df["indel"]]["base"].value_counts())
 
     concordance_df = _fix_errors(concordance_df)
 
@@ -629,7 +629,7 @@ def vcf2concordance(
     concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
     original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome, scoring_field=scoring_field)
 
-    original.drop("qual", axis=1, inplace=True)
+    concordance_df.drop("qual", axis=1, inplace=True)
 
     drop_candidates = ["chrom", "pos", "alleles", "indel", "ref", "str", "ru", "rpa"]
     concordance = concordance_df.join(
@@ -652,7 +652,6 @@ def vcf2concordance(
     )
     concordance.loc[missing_variants_non_fn, "classify"] = "fn"
     concordance.loc[missing_variants_non_fn, "classify_gt"] = "fn"
-
 
     return concordance
 

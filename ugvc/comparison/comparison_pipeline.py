@@ -9,28 +9,31 @@ from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils
 from ugvc.vcfbed.interval_file import IntervalFile
 
 
-class ComparisonPipeline:
+class ComparisonPipeline:  # pylint: disable=R0902
     """
     Run comparison between the two sets of calls: input_prefix and truth_file. Creates
     a combined call file and a concordance VCF by either of the concordance tools
     """
+
     # pylint: disable=too-many-arguments
-    def __init__(self,
-                 vpu: VcfPipelineUtils,
-                 n_parts: int,
-                 input_prefix: str,
-                 truth_file: str,
-                 cmp_intervals: IntervalFile,
-                 highconf_intervals: IntervalFile,
-                 ref_genome: str,
-                 call_sample: str,
-                 truth_sample: str,
-                 output_file_name: str,
-                 header: str | None = None,
-                 runs_intervals: IntervalFile | None = None,
-                 output_suffix: str | None = None,
-                 ignore_filter: bool = False,
-                 revert_hom_ref: bool = False):
+    def __init__(
+        self,
+        vpu: VcfPipelineUtils,
+        n_parts: int,
+        input_prefix: str,
+        truth_file: str,
+        cmp_intervals: IntervalFile,
+        highconf_intervals: IntervalFile,
+        ref_genome: str,
+        call_sample: str,
+        truth_sample: str,
+        output_file_name: str,
+        header: str | None = None,
+        runs_intervals: IntervalFile | None = None,
+        output_suffix: str | None = None,
+        ignore_filter: bool = False,
+        revert_hom_ref: bool = False,
+    ):
         """
         Parameters
         ----------
@@ -57,7 +60,8 @@ class ComparisonPipeline:
             Name of the truth sample
         output_file_name: str
             Name of the output file - will determine the name of the vcfeval output directory.
-            The output_file_name should include the output_dir and output_dir and output_file_name are mutually exclusive
+            The output_file_name should include the output_dir and output_dir and output_file_name
+            are mutually exclusive
         header : str, optional
             for backward compatibility - to be able to change the header of the VCF. Default None
         runs_intervals : str, optional
@@ -90,7 +94,7 @@ class ComparisonPipeline:
         self.output_dir = dirname(output_file_name)
         self.output_prefix = splitext(output_file_name)[0]
         self.input_prefix_basename = basename(input_prefix)
-        self.output_suffix = "" if not self.output_suffix else '.' + self.output_suffix
+        self.output_suffix = "" if not self.output_suffix else "." + self.output_suffix
 
     def run(self) -> tuple[str, str]:
         """
@@ -158,8 +162,9 @@ class ComparisonPipeline:
     def __select_comparison_intervals(self, revert_fn):
         select_intervals_fn = pjoin(self.output_dir, self.input_prefix_basename + f"{self.output_suffix}.intsct.vcf.gz")
         if not self.cmp_intervals.is_none():
-            self.vpu.intersect_with_intervals(revert_fn, self.cmp_intervals.as_interval_list_file(),
-                                              select_intervals_fn)
+            self.vpu.intersect_with_intervals(
+                revert_fn, self.cmp_intervals.as_interval_list_file(), select_intervals_fn
+            )
         else:
             shutil.copy(revert_fn, select_intervals_fn)
             self.vpu.index_vcf(select_intervals_fn)
