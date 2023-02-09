@@ -134,6 +134,8 @@ def get_vcf_df(
         "VQSLOD",
         "BLACKLST",
         "SCORE",
+        "CALL",
+        "BASE"
     ]
 
     if scoring_field is not None and scoring_field not in columns:
