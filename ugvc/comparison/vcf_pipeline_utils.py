@@ -1,7 +1,10 @@
+"""Summary
+"""
 from __future__ import annotations
 
 import os.path
 import shutil
+import tempfile
 from collections import defaultdict
 
 import numpy as np
@@ -19,27 +22,47 @@ from ugvc.vcfbed import vcftools
 
 
 class VcfPipelineUtils:
+
+    """Summary
+
+    Attributes
+    ----------
+    sp : TYPE
+        Description
+    """
+
     def __init__(self, simple_pipeline: SimplePipeline = None):
         """Combines VCF in parts from GATK and indices the result
+
         Parameters
         ----------
-        simple_pipeline: SimplePipeline
+        simple_pipeline : SimplePipeline, optional
             Optional SimplePipeline object for executing shell commands
         """
         self.sp = simple_pipeline
 
     def __execute(self, command: str, output_file: str = None):
+        """Summary
+
+        Parameters
+        ----------
+        command : str
+            Description
+        output_file : str, optional
+            Description
+        """
         print_and_execute(command, output_file=output_file, simple_pipeline=self.sp, module_name=__name__)
 
     def combine_vcf(self, n_parts: int, input_prefix: str, output_fname: str):
         """Combines VCF in parts from GATK and indices the result
+
         Parameters
         ----------
-        n_parts: int
+        n_parts : int
             Number of VCF parts (names will be 1-based)
-        input_prefix: str
+        input_prefix : str
             Prefix of the VCF files (including directory) 1.vcf.gz ... will be added
-        output_fname: str
+        output_fname : str
             Name of the output VCF
         """
         input_files = [f"{input_prefix}.{x}.vcf" for x in range(1, n_parts + 1)] + [
@@ -50,7 +73,13 @@ class VcfPipelineUtils:
         self.index_vcf(output_fname)
 
     def index_vcf(self, vcf: str):
-        """Tabix index on VCF"""
+        """Tabix index on VCF
+
+        Parameters
+        ----------
+        vcf : str
+            Description
+        """
         self.__execute(f"bcftools index -tf {vcf}")
 
     def reheader_vcf(self, input_file: str, new_header: str, output_file: str):
@@ -58,15 +87,15 @@ class VcfPipelineUtils:
 
         Parameters
         ----------
-        input_file: str
+        input_file : str
             Input file name
-        new_header: str
+        new_header : str
             Name of the new header
-        output_file: str
+        output_file : str
             Name of the output file
 
-        Returns
-        -------
+        No Longer Returned
+        ------------------
         None, generates `output_file`
         """
         self.__execute(f"bcftools reheader -h {new_header} {input_file}")
@@ -74,13 +103,14 @@ class VcfPipelineUtils:
 
     def intersect_bed_files(self, input_bed1: str, input_bed2: str, bed_output: str) -> None:
         """Intersects bed files
+
         Parameters
         ----------
-        input_bed1: str
+        input_bed1 : str
             Input Bed file
-        input_bed2: str
+        input_bed2 : str
             Input Bed file
-        bed_output: str
+        bed_output : str
             Output bed intersected file
 
         Writes output_fn file
@@ -92,11 +122,11 @@ class VcfPipelineUtils:
 
         Parameters
         ----------
-        input_fn: str
+        input_fn : str
             Input file
-        intervals_fn: str
+        intervals_fn : str
             Interval_list file
-        output_fn: str
+        output_fn : str
             Output file
 
 
@@ -119,23 +149,23 @@ class VcfPipelineUtils:
 
         Parameters
         ----------
-        input_file: str
+        input_file : str
             Our variant calls
-        truth_file: str
+        truth_file : str
             GIAB (or other source truth file)
-        output_prefix: str
+        output_prefix : str
             Output prefix
-        ref_genome: str
+        ref_genome : str
             Fasta reference file
         evaluation_regions: str
             Bed file of regions to evaluate (HCR)
         comparison_intervals: Optional[str]
             Picard intervals file to make the comparisons on. Default: None = all genome
-        input_sample: str
+        input_sample : str, optional
             Name of the sample in our input_file
-        truth_sample: str
+        truth_sample : str
             Name of the sample in the truth file
-        ignore_filter: bool
+        ignore_filter : bool, optional
             Ignore status of the variant filter
         Returns
         -------
@@ -177,9 +207,10 @@ class VcfPipelineUtils:
         self.fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
 
         # make the vcfeval output file without weird variants
-        self.__execute(
-            f'bcftools norm -f {ref_genome} -m+any -o {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")}'
-            f' -O z {os.path.join(vcfeval_output_dir, "output.vcf.gz")}'
+        self.normalize_vcfeval_vcf(
+            os.path.join(vcfeval_output_dir, "output.vcf.gz"),
+            os.path.join(vcfeval_output_dir, "output.norm.vcf.gz"),
+            ref_genome,
         )
 
         vcf_concordance_file = f'{output_prefix + ".vcfeval_concordance.vcf.gz"}'
@@ -191,7 +222,90 @@ class VcfPipelineUtils:
         self.index_vcf(vcf_concordance_file)
         return vcf_concordance_file
 
+    def normalize_vcfeval_vcf(self, input_vcf: str, output_vcf: str, ref: str) -> None:
+        """Combines monoallelic rows from VCFEVAL into multiallelic
+        and combines the BASE/CALL annotations together. Mostly uses `bcftools norm`,
+        but since it does not aggregate the INFO tags, they are aggregated using
+        `bcftools annotate`.
+
+        Parameters
+        ----------
+        input_vcf: str
+            Input (output.vcf.gz from VCFEVAL)
+        output_vcf: str
+            Input (output.vcf.gz from VCFEVAL)
+        ref: str
+            Reference FASTA
+
+        Returns
+        -------
+        None:
+            Creates output_vcf
+        """
+
+        tempdir = tempfile.mkdtemp(prefix=os.path.dirname(output_vcf) + "/tmp")
+
+        # Step1 - bcftools norm
+
+        self.__execute(f"bcftools norm -f {ref} -m+any -o {tempdir}/step1.vcf.gz -O z {input_vcf}")
+        self.index_vcf(f"{tempdir}/step1.vcf.gz")
+        self.__execute(
+            f"bcftools annotate -a {input_vcf} -c CHROM,POS,CALL,BASE -Oz \
+            -o {tempdir}/step2.vcf.gz {tempdir}/step1.vcf.gz"
+        )
+        self.index_vcf(f"{tempdir}/step2.vcf.gz")
+
+        # Step2 - write out the annotation table. We use VariantsToTable from gatk, but remove
+        # the mandatory header and replace NA by "."
+        self.__execute(
+            f"gatk VariantsToTable -V {input_vcf} -O {tempdir}/source.tsv \
+            -F CHROM -F POS -F REF -F CALL -F BASE"
+        )
+        self.__execute(
+            f"gatk VariantsToTable -V {tempdir}/step2.vcf.gz -O {tempdir}/dest.tsv \
+            -F CHROM -F POS -F REF -F CALL -F BASE"
+        )
+
+        # Step3 - identify lines that still need to be filled (where the CALL/BASE after the nomrmalization
+        # are different from those that are expected from collapsing). This happens because plain bcftools annotate
+        # requires match of reference allele that can change with normalization
+        df1 = pd.read_csv(os.path.join(tempdir, "source.tsv"), sep="\t").set_index(["CHROM", "POS", "CALL"])
+        df2 = pd.read_csv(os.path.join(tempdir, "dest.tsv"), sep="\t").set_index(["CHROM", "POS", "CALL"])
+
+        difflines = df1.loc[df1.index.difference(df2.index)].reset_index().fillna(".")[["CHROM", "POS", "CALL"]]
+        difflines.to_csv(os.path.join(tempdir, "step3.call.tsv"), sep="\t", header=None, index=None)
+
+        df1 = pd.read_csv(os.path.join(tempdir, "source.tsv"), sep="\t").set_index(["CHROM", "POS", "BASE"])
+        df2 = pd.read_csv(os.path.join(tempdir, "dest.tsv"), sep="\t").set_index(["CHROM", "POS", "BASE"])
+
+        difflines = df1.loc[df1.index.difference(df2.index)].reset_index().fillna(".")[["CHROM", "POS", "BASE"]]
+        difflines.to_csv(os.path.join(tempdir, "step3.base.tsv"), sep="\t", header=None, index=None)
+
+        # Step 4 - annoate with the additional tsvs
+        self.__execute(f"bgzip {tempdir}/step3.call.tsv")
+        self.__execute(f"bgzip {tempdir}/step3.base.tsv")
+        self.__execute(f"tabix -s1 -e2 -b2 {tempdir}/step3.call.tsv.gz")
+        self.__execute(f"tabix -s1 -e2 -b2 {tempdir}/step3.base.tsv.gz")
+        self.__execute(
+            f"bcftools annotate -c CHROM,POS,CALL -a {tempdir}/step3.call.tsv.gz \
+            -Oz -o {tempdir}/step4.vcf.gz {tempdir}/step2.vcf.gz"
+        )
+        self.index_vcf(f"{tempdir}/step4.vcf.gz")
+        self.__execute(
+            f"bcftools annotate -c CHROM,POS,CALL -a {tempdir}/step3.base.tsv.gz \
+            -Oz -o {output_vcf} {tempdir}/step4.vcf.gz"
+        )
+        self.index_vcf(output_vcf)
+        shutil.rmtree(tempdir)
+
     def fix_vcf_format(self, output_prefix):
+        """Summary
+
+        Parameters
+        ----------
+        output_prefix : TYPE
+            Description
+        """
         self.__execute(f"gunzip -f {output_prefix}.vcf.gz")
         with open(f"{output_prefix}.vcf", encoding="utf-8") as input_file_handle:
             with open(f"{output_prefix}.tmp", "w", encoding="utf-8") as output_file_handle:
@@ -209,9 +323,9 @@ class VcfPipelineUtils:
 
         Parameters
         ----------
-        input_file: str
+        input_file : str
             vcf.gz file
-        reference_fasta: str
+        reference_fasta : str
             Reference file (should have .dict file nearby)
 
         Creates a copy of the input_file with .annotated.vcf.gz and the index
@@ -229,11 +343,11 @@ class VcfPipelineUtils:
 
         Parameters
         ----------
-        input_file_calls: str
+        input_file_calls : str
             Calls file
-        highconf_regions: str
+        highconf_regions : str
             High confidence regions bed
-        runs_regions: str or None
+        runs_regions : str, optional
             Runs
         Returns
         -------
@@ -291,7 +405,18 @@ class VcfPipelineUtils:
 
 
 def _fix_errors(df):
-    """Fixes errors that complicated VCFEVAL VCF format introduces"""
+    """Fixes errors that complicated VCFEVAL VCF format introduces
+
+    Parameters
+    ----------
+    df : TYPE
+        Description
+
+    Returns
+    -------
+    TYPE
+        Description
+    """
 
     # remove genotypes of variants that were filtered out and thus are false negatives
     # (VCFEVAL outputs UG genotype for ignored genotypes too and they are classified downstream
@@ -321,6 +446,20 @@ def _fix_errors(df):
 
 
 def __map_variant_to_dict(variant: pysam.VariantRecord, concordance_format: str) -> defaultdict:
+    """Summary
+
+    Parameters
+    ----------
+    variant : pysam.VariantRecord
+        Description
+    concordance_format : str
+        Description
+
+    Returns
+    -------
+    defaultdict
+        Description
+    """
     call_sample_ind = 1 if concordance_format == "VCFEVAL" else 0
     gtr_sample_ind = 0 if concordance_format == "VCFEVAL" else 1
 
@@ -349,18 +488,19 @@ def vcf2concordance(
 
     Parameters
     ----------
-    raw_calls_file: str
+    raw_calls_file : str
         File with GATK calls (.vcf.gz)
-    concordance_file: str
+    concordance_file : str
         GenotypeConcordance/VCFEVAL output file (.vcf.gz)
     chromosome: str
         Fetch a specific chromosome (Default - all)
-    scoring_field: str
+    scoring_field : str, optional
         The name of the INFO field that is used to score the variants.
         This value replaces the TREE_SCORE in the output data frame.
         When None TREE_SCORE is not replaced (default: None)
-    Returns
-    -------
+
+    No Longer Returned
+    ------------------
     pd.DataFrame
     """
 
@@ -411,6 +551,18 @@ def vcf2concordance(
     concordance_df = _fix_errors(concordance_df)
 
     def classify(x):
+        """Summary
+
+        Parameters
+        ----------
+        x : TYPE
+            Description
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
         if x["gt_ultima"] == (None, None) or x["gt_ultima"] == (None,):
             return "fn"
 
@@ -433,6 +585,18 @@ def vcf2concordance(
     concordance_df["classify"] = concordance_df.apply(classify, axis=1, result_type="reduce")
 
     def classify_gt(x):
+        """Summary
+
+        Parameters
+        ----------
+        x : TYPE
+            Description
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
         n_ref_gtr = len([y for y in x["gt_ground_truth"] if y == 0])
         n_ref_ultima = len([y for y in x["gt_ultima"] if y == 0])
 
@@ -497,7 +661,7 @@ def bed_file_length(input_bed: str) -> int:
 
     Parameters
     ----------
-    input_bed: str
+    input_bed : str
         Input Bed file
 
     Return
@@ -530,20 +694,21 @@ def annotate_concordance(
         Concordance dataframe
     fasta : str
         Indexed FASTA of the reference genome
-    bw_high_quality : Optional[List[str]], optional
+    bw_high_quality : list[str], optional
         Coverage bigWig file from high mapq reads  (Optional)
-    bw_all_quality : Optional[List[str]], optional
+    bw_all_quality : list[str], optional
         Coverage bigWig file from all mapq reads  (Optional)
-    annotate_intervals : List[str], optional
+    annotate_intervals : list[str], optional
         Interval files for annotation
-    flow_order : Optional[str], optional
-        Flow order
-    runfile : Optional[str], optional
+    runfile : str, optional
         bed file with positions of hmer runs (in order to mark homopolymer runs)
-    hmer_run_length_dist: tuple
+    flow_order : str, optional
+        Flow order
+    hmer_run_length_dist : tuple, optional
         tuple (min_hmer_run_length, max_distance) for marking variants near homopolymer runs
-    Returns
-    -------
+
+    No Longer Returned
+    ------------------
     pd.DataFrame
         Annotated dataframe
     list
@@ -592,21 +757,21 @@ def reinterpret_variants(
 
     Parameters
     ----------
-    concordance_df: pd.DataFrame
+    concordance_df : pd.DataFrame
         Input dataframe
-    reference_fasta: str
+    reference_fasta : str
         Indexed FASTA
-    ignore_low_quality_fps: bool
+    ignore_low_quality_fps : bool, optional
         Shoud the low quality false positives be ignored in reinterpretation (True for mutect, default False)
-
-    Returns
-    -------
-    pd.DataFrame
-        Reinterpreted dataframe
 
     See Also
     --------
     `flow_based_concordance.py`
+
+    No Longer Returned
+    ------------------
+    pd.DataFrame
+        Reinterpreted dataframe
     """
     logger.info("Variants reinterpret")
     concordance_df_result = pd.DataFrame()
@@ -624,10 +789,15 @@ def _get_locations_to_work_on(input_df: pd.DataFrame, ignore_low_quality_fps: bo
 
     Parameters
     ----------
-    input_df: pd.DataFrame
+    input_df : pd.DataFrame
         Input
-    ignore_low_quality_fps: bool
+    ignore_low_quality_fps : bool, optional
         Should we ignore the low quality false positives
+
+    Returns
+    -------
+    dict
+        Description
 
     """
     df = vcftools.FilterWrapper(input_df)
