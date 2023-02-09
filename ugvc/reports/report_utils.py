@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import nexusplt as nxp
-from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
 from configparser import ConfigParser
 
 
@@ -15,7 +14,8 @@ def parse_config(config_file):
                    'model_name_with_gt',
                    'model_name_without_gt',
                    'model_pkl_with_gt',
-                   'model_pkl_without_gt'
+                   'model_pkl_without_gt',
+                   'model_name'
                    ]
     parameters = {p: parser.get('VarReport', p) for p in param_names}
     parameters['reference_version'] = parser.get('VarReport', 'reference_version', fallback='hg38')
@@ -49,9 +49,6 @@ class ShortReportUtils:
                          opt_res_sec=None):
         n = len(categories)
         fig, ax = plt.subplots(1, n, figsize=(4 * n, 4))
-        # fig, ax = plt.subplots(1,ncol) #figsize=(4*nrow,4*ncol)
-        # ax=ax.flatten()
-
         col = ['r', 'b', 'g', 'm', 'k']
 
         for i, cat in enumerate(categories):
@@ -68,8 +65,8 @@ class ShortReportUtils:
                 title = cat if ext is None else '{0} ({1})'.format(cat, ext)
                 ax[i].set_title(title)
                 ax[i].set_xlabel("Recall")
-                ax[i].set_xlim([0.4, 1])
-                ax[i].set_ylim([0.4, 1])
+                ax[i].set_xlim([0.6, 1])
+                ax[i].set_ylim([0.6, 1])
                 ax[i].grid(True)
 
         ax[0].set_ylabel("Precision")
@@ -114,7 +111,7 @@ class ShortReportUtils:
         return res
 
     @staticmethod
-    def __calc_performance(data):
+    def __calc_performance(data: pd.DataFrame):
         classify_col = 'classify_gt'
         d = data.copy()
 
@@ -143,9 +140,9 @@ class ShortReportUtils:
         d['tp'] = num_pos - (d['fn'])
         d['fp'] = num_neg - np.cumsum(1 - d['label'])
 
-        d['recall'] = get_recall(d['fn'], d['tp'])
-        d['precision'] = get_precision(d['fp'], d['tp'])
-        d['f1'] = get_f1(d['precision'], d['recall'])
+        d['recall'] = d['tp'] / (d['fn'] + d['tp'])
+        d['precision'] = d['tp'] / (d['fp'] + d['tp'])
+        d['f1'] = d['tp'] / (d['tp'] + 0.5 * d['fn'] + 0.5 * d['fp'])
 
         d['mask'] = ((d['tp'] + d['fn']) >= 20) & ((d['tp'] + d['fp']) >= 20) & (d['tree_score'] >= 0)
         if len(d[d['mask']]) == 0:
