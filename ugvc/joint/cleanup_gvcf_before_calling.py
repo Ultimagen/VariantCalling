@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import tqdm
 import sys
 
+import tqdm
 from pysam import VariantFile
 
 import ugvc.vcfbed.pysam_utils as pu
@@ -58,15 +58,15 @@ def filterOverlappingNoneGVCFs(input_gvcf: str, output_gvcf: str) -> tuple(int, 
             # now for the new deletion
             dels_in_rec = pu.is_deletion(rec)
             lens_in_rec = pu.indel_length(rec)
-            del_lens = [lens_in_rec[i] for i, x in enumerate(dels_in_rec) if x] + [0]
+            max_del_lens = max([lens_in_rec[i] for i, x in enumerate(dels_in_rec) if x] + [0])
             if buffer:  # either it is covered by the buffer
                 buffer.append(rec)
-                if max(del_lens) > 0:
-                    buffer_span = max(buffer_span, rec.pos + max(del_lens))
-            elif max(del_lens) > 0:  # or if it is a deletion - we will append it to the buffer
+                if max_del_lens > 0:
+                    buffer_span = max(buffer_span, rec.pos + max_del_lens)
+            elif max_del_lens > 0:  # or if it is a deletion - we will append it to the buffer
                 buffer.append(rec)
                 buffer_chrom = rec.chrom
-                buffer_span = rec.pos + max(del_lens)
+                buffer_span = rec.pos + max_del_lens
             else:
                 vcf_out.write(rec)
                 count_written += 1
@@ -86,10 +86,10 @@ def filterOverlappingNoneGVCFs(input_gvcf: str, output_gvcf: str) -> tuple(int, 
     return count_written, count_skipped
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.stderr.write("Usage: cleanup_gvcf_before_calling.py input_gvcf output_gvcf")
-        exit(1)
-    else: 
+        sys.exit(1)
+    else:
         result = filterOverlappingNoneGVCFs(sys.argv[1], sys.argv[2])
         sys.stderr.write(f"Written {result[0]} records, removed {result[1]} records")

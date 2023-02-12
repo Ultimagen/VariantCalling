@@ -36,3 +36,5 @@ srcvm/
 *.pytest_cache*
 test/test_outputs
 .python-version
+.vscode/
+*.code-workspace
