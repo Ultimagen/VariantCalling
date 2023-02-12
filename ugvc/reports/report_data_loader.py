@@ -44,6 +44,8 @@ class ReportDataLoader:
         columns_to_select, rename_dict = None, None
         if self.reference_version == "hg38":
             columns_to_select = [
+                "call",
+                "base",
                 "indel",
                 "hmer_indel_length",
                 "tree_score",
@@ -63,6 +65,8 @@ class ReportDataLoader:
             rename_dict = {"LCR-hs38": "LCR"}
         elif self.reference_version == "hg19":
             columns_to_select = [
+                "call",
+                "base",
                 "indel",
                 "hmer_indel_length",
                 "tree_score",

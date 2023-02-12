@@ -91,18 +91,20 @@ class ShortReportUtils:
 
             for cat in categories:
                 d = self.__filter_by_category(data[s], cat)
-                perf, opt, pos, neg = self.__calc_performance(d)
-                perf_curve[s][cat] = perf
-                opt_res[s][cat] = opt
-
+                performance_dict = self.__calc_performance(d)
+                pr_curve = performance_dict["pr_curve"]
+                perf_curve[s][cat] = pr_curve
+                opt_res[s][cat] = performance_dict
+                # Report table columns
                 row = pd.DataFrame(
                     {
-                        "# pos": pos,
-                        "# neg": neg,
-                        "max recall": np.nan if perf.empty else max(perf.recall),
-                        "recall": np.nan if perf.empty else opt.get("recall"),
-                        "precision": np.nan if perf.empty else opt.get("precision"),
-                        "F1": np.nan if perf.empty else opt.get("f1"),
+                        "# pos": performance_dict["initial_tp"] + performance_dict["initial_fn"],
+                        "# neg": performance_dict["initial_fp"],
+                        "# init fn": performance_dict["initial_fn"],
+                        "max recall": performance_dict["max_recall"],
+                        "recall": performance_dict["recall"],
+                        "precision": performance_dict["precision"],
+                        "F1": performance_dict["f1"],
                     },
                     index=[cat],
                 )
@@ -113,70 +115,84 @@ class ShortReportUtils:
     @staticmethod
     def has_sec(x):
         res = False
-        if x is not None:
+        if x is not None and not pd.isna(x):
             if "SEC" in x:
                 res = True
         return res
 
     @staticmethod
-    def __calc_performance(data: pd.DataFrame):
-        classify_col = "classify_gt"
+    def __calc_performance(data: pd.DataFrame) -> dict:
+        score_name = "tree_score"
         d = data.copy()
-
+        d = d[["call", "base", score_name, "filter"]]
+        d.loc[d["call"].isna(), "call"] = "NA"
+        d.loc[d["base"].isna(), "base"] = "NA"
         # Change tree_score such that PASS will get high score values. FNs will be the lowest
+        # score_pass = d[(d['filter']=="PASS") & (d[score_name].isna())].head(20)[score_name].mean()
+        # score_not_pass =  d[(d['filter']!="PASS") & (d[score_name].isna())].head(20)[score_name].mean()
         score_pass = d.query('filter=="PASS" & tree_score==tree_score').head(20)["tree_score"].mean()
         score_not_pass = d.query('filter!="PASS" & tree_score==tree_score').head(20)["tree_score"].mean()
         dir_switch = 1 if score_pass > score_not_pass else -1
-        score = d["tree_score"] * dir_switch
+        score = d[score_name] * dir_switch
         score = score - score.min()
-        d["tree_score"] = np.where(d[classify_col] == "fn", -1, score)
 
-        # Calculate precision and recall continuously along the tree_score values
-        d = d[[classify_col, "tree_score", "filter"]].sort_values(by=["tree_score"])
+        d["fp"] = (d["call"] == "FP") | (d["call"] == "FP_CA")
+        d["fn"] = (d["base"] == "FN") | (d["base"] == "FN_CA")
+        d["tp"] = (d["base"] == "TP") & (d["call"] == "TP")
 
-        d["label"] = np.where(d[classify_col] == "fp", 0, 1)
-
-        d.loc[d[classify_col] == "fn", "filter"] = "MISS"
-
-        num = len(d)
-        num_pos = sum(d["label"])
-        num_neg = num - num_pos
-        if num < 10:
-            return pd.DataFrame(), None, num_pos, num_neg
-
-        d["fn"] = np.cumsum(d["label"])
-        d["tp"] = num_pos - (d["fn"])
-        d["fp"] = num_neg - np.cumsum(1 - d["label"])
-
-        d["recall"] = d["tp"] / (d["fn"] + d["tp"])
-        d["precision"] = d["tp"] / (d["fp"] + d["tp"])
-        d["f1"] = d["tp"] / (d["tp"] + 0.5 * d["fn"] + 0.5 * d["fp"])
-
-        d["mask"] = ((d["tp"] + d["fn"]) >= 20) & ((d["tp"] + d["fp"]) >= 20) & (d["tree_score"] >= 0)
-        if len(d[d["mask"]]) == 0:
-            return pd.DataFrame(), None, num_pos, num_neg
+        # define variants which didn't have any candidate
+        missing_candiddates_index = (d["base"] == "FN") & (d["call"] == "NA")
+        missing_candidates = missing_candiddates_index.sum()
+        # Give missing candidates score of -1 (order them at the top for pr_curve)
+        d[score_name] = np.where(missing_candiddates_index, -1, score)
 
         # Calculate the precision and recall as ouputted by the model (based on the FILTER column)
-        d["class"] = np.where(d["label"] == 0, "FP", "FN")
-        d.loc[(d["label"] == 1) & (d["filter"] == "PASS"), "class"] = "TP"
-        d.loc[(d["label"] == 0) & (d["filter"] != "PASS"), "class"] = "TN"
-
-        fn = len(d[d["class"] == "FN"])
-        tp = len(d[d["class"] == "TP"])
-        fp = len(d[d["class"] == "FP"])
+        filtered_tp = len(d[d["tp"] & (d["filter"] != "PASS")])
+        filtered_fp = len(d[d["fp"] & (d["filter"] != "PASS")])
+        initial_fp = d["fp"].sum()
+        initial_tp = d["tp"].sum()
+        initial_fn = d["fn"].sum()
+        fp = initial_fp - filtered_fp
+        fn = initial_fn + filtered_tp
+        tp = initial_tp - filtered_tp
 
         recall = tp / (tp + fn) if (tp + fn > 0) else np.nan
         precision = tp / (tp + fp) if (tp + fp > 0) else np.nan
-        # max_recall = 1 - len(d[d["filter"] == "MISS"]) / num_pos
-
         f1 = tp / (tp + 0.5 * fn + 0.5 * fp)
+        max_recall = (tp + fn - missing_candidates) / (tp + fn)
+        result_dict = {
+            "pr_curve": pd.DataFrame(),
+            "recall": recall,
+            "precision": precision,
+            "f1": f1,
+            "max_recall": max_recall,
+            "initial_tp": initial_tp,
+            "initial_fp": initial_fp,
+            "initial_fn": initial_fn,
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
+        }
+        if len(d) < 10:
+            return result_dict
 
-        return (
-            d[["recall", "precision"]][d["mask"]],
-            dict({"recall": recall, "precision": precision, "f1": f1}),
-            num_pos,
-            num_neg,
-        )
+        # Sort by score to get precision/recall curve
+        d = d.sort_values(by=[score_name])
+
+        # Calculate precision and recall continuously
+
+        # how many true variants are either initial FNs (missing/filtered) or below score threshold
+        d["fn"] = initial_fn + np.cumsum(d["tp"])
+        d["tp"] = tp - np.cumsum(d["tp"])  # how many tps pass score threshold
+        d["fp"] = fp - np.cumsum(d["fp"])  # how many fps pass score threshold
+        d["recall"] = d["tp"] / (d["fn"] + d["tp"])
+        d["precision"] = d["tp"] / (d["fp"] + d["tp"])
+
+        # Select for pr_curve variants which are not missed candidates / first 20 pos/neg variants
+        d["mask"] = ((d["tp"] + d["fn"]) >= 20) & ((d["tp"] + d["fp"]) >= 20) & (d[score_name] >= 0)
+        if len(d[d["mask"]]) > 0:
+            result_dict["pr_curve"] = d[["fp", "fn", "tp", "recall", "precision"]][d["mask"]]
+        return result_dict
 
     @staticmethod
     def __filter_by_category(data, cat) -> pd.DataFrame:
