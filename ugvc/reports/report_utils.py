@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import math
 from configparser import ConfigParser
 
 import matplotlib.pyplot as plt
@@ -44,39 +47,59 @@ def parse_config(config_file):
 
 
 class ShortReportUtils:
-    def __init__(self, image_dir, image_prefix):
+    def __init__(self, image_dir, image_prefix, num_plots_in_row=6, min_value=0.2):
 
         self.image_dir = image_dir
         self.image_prefix = image_prefix
+        self.min_value = min_value
+        self.num_plots_in_row = num_plots_in_row
 
     def plot_performance(
-        self, perf_curve, opt_res, categories, sources: dict, ext=None, img=None, legend=None, opt_res_sec=None
+        self,
+        perf_curve: dict,
+        opt_res: dict,
+        categories: list[str],
+        sources: dict,
+        img=None,
+        legend=None,
+        opt_res_sec=None,
     ):
-        n = len(categories)
-        fig, ax = plt.subplots(1, n, figsize=(4 * n, 4))
+        m = self.num_plots_in_row
+        n = math.ceil(len(categories) / m)
+        num_empty_subplots = n * m - len(categories)
+
+        fig, ax = plt.subplots(n, m, figsize=(4 * m, 4.5 * n))
         col = ["r", "b", "g", "m", "k"]
-
-        for i, cat in enumerate(categories):
-            for j, s in enumerate(sources):
-                perf = perf_curve[s][cat]
-                opt = opt_res[s][cat]
+        opt_sec = None
+        for cat_index, cat in enumerate(categories):
+            i = math.floor(cat_index / m)
+            j = cat_index % m
+            if len(ax.shape) == 2:
+                ax_row = ax[i]
+            else:
+                ax_row = ax
+            ax_row[0].set_ylabel("Precision")
+            if legend:
+                ax_row[0].legend(loc="lower left")
+            for source_index, source in enumerate(sources):
+                perf = perf_curve[source][cat]
+                opt = opt_res[source][cat]
                 if opt_res_sec is not None:
-                    opt_sec = opt_res_sec[s][cat]
+                    opt_sec = opt_res_sec[source][cat]
                 if not perf.empty:
-                    ax[i].plot(perf.recall, perf.precision, "-", label=s, color=col[j])
-                    ax[i].plot(opt.get("recall"), opt.get("precision"), "o", color=col[j])
+                    ax_row[j].plot(perf.recall, perf.precision, "-", label=source, color=col[source_index])
+                    ax_row[j].plot(opt.get("recall"), opt.get("precision"), "o", color=col[source_index])
                     if opt_res_sec is not None:
-                        ax[i].plot(opt_sec.get("recall"), opt_sec.get("precision"), "o", color="black")
-                title = cat if ext is None else "{0} ({1})".format(cat, ext)
-                ax[i].set_title(title)
-                ax[i].set_xlabel("Recall")
-                ax[i].set_xlim([0.6, 1])
-                ax[i].set_ylim([0.6, 1])
-                ax[i].grid(True)
-
-        ax[0].set_ylabel("Precision")
-        if legend:
-            ax[0].legend(loc="lower left")
+                        ax_row[j].plot(opt_sec.get("recall"), opt_sec.get("precision"), "o", color="black")
+                title = cat
+                ax_row[j].set_title(title)
+                ax_row[j].set_xlabel("Recall")
+                ax_row[j].set_xlim([self.min_value, 1])
+                ax_row[j].set_ylim([self.min_value, 1])
+                ax_row[j].grid(True)
+        for i in range(num_empty_subplots):
+            fig.delaxes(ax_row[m - i - 1])
+        plt.tight_layout()
         if img:
             nxp.save(fig, self.image_prefix + img, "png", outdir=self.image_dir)
 
@@ -138,7 +161,7 @@ class ShortReportUtils:
 
         d["fp"] = (d["call"] == "FP") | (d["call"] == "FP_CA")
         d["fn"] = (d["base"] == "FN") | (d["base"] == "FN_CA")
-        d["tp"] = (d["base"] == "TP") & (d["call"] == "TP")
+        d["tp"] = d["call"] == "TP"
 
         # define variants which didn't have any candidate
         missing_candiddates_index = (d["base"] == "FN") & (d["call"] == "NA")
