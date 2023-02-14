@@ -21,13 +21,12 @@ from ugvc.vcfbed import vcftools
 
 
 class VcfPipelineUtils:
-
-    """Summary
+    """Utilities of vcf pipeline, mostly wrappers around shell scripts
 
     Attributes
     ----------
-    sp : TYPE
-        Description
+    sp : SimplePipeline
+        Simple pipeline object
     """
 
     def __init__(self, simple_pipeline: SimplePipeline = None):
@@ -77,7 +76,7 @@ class VcfPipelineUtils:
         Parameters
         ----------
         vcf : str
-            Description
+            Input vcf.gz file
         """
         self.__execute(f"bcftools index -tf {vcf}")
 
@@ -128,7 +127,7 @@ class VcfPipelineUtils:
         output_fn : str
             Output file
 
-
+        Writes output_fn file
         """
         self.__execute(f"gatk SelectVariants -V {input_fn} -L {intervals_fn} -O {output_fn}")
 
@@ -144,7 +143,7 @@ class VcfPipelineUtils:
         truth_sample="HG001",
         ignore_filter: bool = False,
     ) -> str:
-        """Run vcfevalConcordance
+        """Run vcfeval to evaluate concordance
 
         Parameters
         ----------
@@ -298,13 +297,13 @@ class VcfPipelineUtils:
         self.index_vcf(output_vcf)
         shutil.rmtree(tempdir)
 
-    def fix_vcf_format(self, output_prefix):
-        """Summary
+    def fix_vcf_format(self, output_prefix: str):
+        """Legacy function to fix the PS field format in the old GIAB truth sets. The function overwrites the input file
 
         Parameters
         ----------
-        output_prefix : TYPE
-            Description
+        output_prefix : str
+            Prefix of the input and the output file (without the .vcf.gz)
         """
         self.__execute(f"gunzip -f {output_prefix}.vcf.gz")
         with open(f"{output_prefix}.vcf", encoding="utf-8") as input_file_handle:
@@ -338,46 +337,6 @@ class VcfPipelineUtils:
         self.__execute(f"gatk VariantAnnotator -V {input_file} -O {output_file} -R {reference_fasta} -A TandemRepeat")
         return output_file
 
-    def filter_bad_areas(self, input_file_calls: str, highconf_regions: str, runs_regions: str | None):
-        """Looks at concordance only around high confidence areas and not around runs
-
-        Parameters
-        ----------
-        input_file_calls : str
-            Calls file
-        highconf_regions : str
-            High confidence regions bed
-        runs_regions : str, optional
-            Runs
-        Returns
-        -------
-        highconf_file_name: str
-        """
-
-        highconf_file_name = input_file_calls.replace("vcf.gz", "highconf.vcf")
-        runs_file_name = input_file_calls.replace("vcf.gz", "runs.vcf")
-
-        self.__execute(
-            f"bedtools intersect -a {input_file_calls} -b {highconf_regions} " f"-nonamecheck -header -u",
-            output_file=highconf_file_name,
-        )
-
-        self.__execute(f"bgzip -f {highconf_file_name}")
-        highconf_file_name += ".gz"
-        self.index_vcf(highconf_file_name)
-
-        if runs_regions is not None:
-            self.__execute(
-                f"bedtools subtract -a {highconf_file_name} " f"-b {runs_regions} -nonamecheck -A -header",
-                output_file=runs_file_name,
-            )
-
-            self.__execute(f"bgzip -f {runs_file_name}")
-            runs_file_name += ".gz"
-            self.index_vcf(runs_file_name)
-            return runs_file_name
-        return highconf_file_name
-
     def transform_hom_calls_to_het_calls(self, input_file_calls: str, output_file_calls: str) -> None:
         """Reverse homozygous reference calls in deepVariant to filtered heterozygous so that max recall can be
         calculated
@@ -403,18 +362,20 @@ class VcfPipelineUtils:
         self.index_vcf(output_file_calls)
 
 
-def _fix_errors(df):
-    """Fixes errors that complicated VCFEVAL VCF format introduces
+def _fix_errors(df: pd.DataFrame) -> pd.DataFrame:
+    """Parses dataframe generated from the VCFEVAL concordance VCF and prepares it for
+     classify/classify_gt functions that only consider the genotypes of the call and the base
+    only rather than at the classification that VCFEVAL produced
 
     Parameters
     ----------
-    df : TYPE
-        Description
+    df : pd.DataFrame
+        Input dataframe
 
     Returns
     -------
-    TYPE
-        Description
+    pd.DataFrame
+        Output dataframe,
     """
 
     # remove genotypes of variants that were filtered out and thus are false negatives
@@ -431,12 +392,6 @@ def _fix_errors(df):
         (df["call"] == "TP") & ((df["base"] == "TP") | (df["base"].isna()))
     ]["gt_ultima"]
 
-    # (None, TP) (None,FN_CA) - remove these rows
-    # df.drop(
-    #    df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].index,
-    #    inplace=True,
-    # )
-
     # (FP_CA,FN_CA), (FP_CA,None) - Fake a genotype from ultima such that one of the alleles is the same (and only one)
     df.loc[(df["call"] == "FP_CA") & ((df["base"] == "FN_CA") | (df["base"].isna())), "gt_ground_truth"] = df[
         (df["call"] == "FP_CA") & ((df["base"] == "FN_CA") | (df["base"].isna()))
@@ -444,23 +399,22 @@ def _fix_errors(df):
     return df
 
 
-def __map_variant_to_dict(variant: pysam.VariantRecord, concordance_format: str) -> defaultdict:
-    """Summary
+def __map_variant_to_dict(variant: pysam.VariantRecord) -> defaultdict:
+    """Converts a line from vcfeval concordance VCF to a dictionary. The following fields are extracted
+    call genotype, base genotype, qual, chromosome, position, ref, alt and all values from the INFO column
 
     Parameters
     ----------
     variant : pysam.VariantRecord
-        Description
-    concordance_format : str
-        Description
+        VCF record
 
     Returns
     -------
     defaultdict
-        Description
+        Output dictionary
     """
-    call_sample_ind = 1 if concordance_format == "VCFEVAL" else 0
-    gtr_sample_ind = 0 if concordance_format == "VCFEVAL" else 1
+    call_sample_ind = 1
+    gtr_sample_ind = 0
 
     return defaultdict(
         lambda: None,
@@ -517,7 +471,7 @@ def vcf2concordance(
             or (x["CALL"] is None and x["BASE"] in {"IGN", "OUT"})
         )
 
-    concord_vcf_extend = filter(call_filter, (__map_variant_to_dict(variant, "VCFEVAL") for variant in concord_vcf))
+    concord_vcf_extend = filter(call_filter, (__map_variant_to_dict(variant) for variant in concord_vcf))
 
     columns = [
         "CHROM",
@@ -543,26 +497,21 @@ def vcf2concordance(
     )
 
     concordance_df["indel"] = concordance_df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
-
-    pd.set_option("display.max_columns", None)
-    print("vcf2concordance: after initial construction")
-    print(concordance_df[concordance_df["indel"]]["call"].value_counts())
-    print(concordance_df[concordance_df["indel"]]["base"].value_counts())
-
     concordance_df = _fix_errors(concordance_df)
 
-    def classify(x):
-        """Summary
+    def classify(x: defaultdict | pd.Series | dict) -> str:
+        """Classify a record as true positive / false positive / false negative by matching the alleles.
+        TP will be called if some of the alleles match
 
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : defaultdict, pd.Series or dict
+            Input record
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            classification
         """
         if x["gt_ultima"] == (None, None) or x["gt_ultima"] == (None,):
             return "fn"
@@ -585,18 +534,19 @@ def vcf2concordance(
 
     concordance_df["classify"] = concordance_df.apply(classify, axis=1, result_type="reduce")
 
-    def classify_gt(x):
-        """Summary
+    def classify_gt(x: defaultdict | pd.Series | dict) -> str:
+        """Classify a record as true positive / false negative / false positive. True positive requires
+        match in the alleles and genotypes
 
         Parameters
         ----------
-        x : TYPE
-            Description
+        x : defaultdict, pd.Series or dict
+            Input record
 
         Returns
         -------
-        TYPE
-            Description
+        str
+            Classification
         """
         n_ref_gtr = len([y for y in x["gt_ground_truth"] if y == 0])
         n_ref_ultima = len([y for y in x["gt_ultima"] if y == 0])
@@ -785,7 +735,7 @@ def reinterpret_variants(
 
 
 def _get_locations_to_work_on(input_df: pd.DataFrame, ignore_low_quality_fps: bool = False) -> dict:
-    """Dictionary of service locatoins
+    """Dictionary of  in the dataframe that we care about
 
     Parameters
     ----------
@@ -797,7 +747,7 @@ def _get_locations_to_work_on(input_df: pd.DataFrame, ignore_low_quality_fps: bo
     Returns
     -------
     dict
-        Description
+        locations dictionary split between fps/fns/tps etc.
 
     """
     df = vcftools.FilterWrapper(input_df)

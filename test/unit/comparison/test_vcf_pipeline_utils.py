@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 from collections import Counter
@@ -9,6 +10,7 @@ import pandas as pd
 import pysam
 from simppl.simple_pipeline import SimplePipeline
 
+from ugvc.comparison.concordance_utils import read_hdf
 from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, bed_file_length, vcf2concordance
 from ugvc.vcfbed import vcftools
 from ugvc.vcfbed.interval_file import IntervalFile
@@ -18,7 +20,7 @@ common_dir = pjoin(test_dir, "resources", "general")
 
 
 def test_fix_errors():
-    data = pd.read_hdf(pjoin(inputs_dir, "h5_file_unitest.h5"), key="concordance")
+    data = read_hdf(pjoin(inputs_dir, "h5_file_unitest.h5"), key="concordance")
     df = _fix_errors(data)
     assert all(
         df[((df["call"] == "TP") & ((df["base"] == "TP") | (df["base"].isna())))]["gt_ground_truth"].eq(
@@ -28,8 +30,6 @@ def test_fix_errors():
 
     # (None, TP) (None,FN_CA)
     pd.set_option("display.max_columns", None)
-    take = df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))]
-    print(take)
     assert df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].size == 20
     # (FP_CA,FN_CA), (FP_CA,None)
     temp_df = df.loc[
@@ -48,6 +48,7 @@ def test_fix_errors():
 
 
 def test_transform_hom_calls_to_het_calls(tmpdir):
+
     input_vcf = pjoin(inputs_dir, "dv.input.vcf.gz")
     vpu = VcfPipelineUtils()
     shutil.copyfile(input_vcf, pjoin(tmpdir, basename(input_vcf)))
@@ -106,21 +107,22 @@ class TestVCFEvalRun:
     ref_genome = pjoin(common_dir, "sample.fasta")
     sample_calls = pjoin(inputs_dir, "sample.sd.vcf.gz")
     truth_calls = pjoin(inputs_dir, "gtr.sample.sd.vcf.gz")
-    high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list")).as_bed_file()
 
     def test_vcfeval_run_ignore_filter(self, tmp_path):
         sp = SimplePipeline(0, 100, False)
+        high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list")).as_bed_file()
         VcfPipelineUtils(sp).run_vcfeval_concordance(
             input_file=self.sample_calls,
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.ignore_filter"),
             ref_genome=self.ref_genome,
-            evaluation_regions=self.high_conf,
-            comparison_intervals=self.high_conf,
+            evaluation_regions=high_conf,
+            comparison_intervals=high_conf,
             input_sample="sm1",
             truth_sample="HG001",
             ignore_filter=True,
         )
+        os.remove(high_conf)
         assert exists(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz")
         assert exists(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz.tbi")
 
@@ -130,17 +132,19 @@ class TestVCFEvalRun:
 
     def test_vcfeval_run_use_filter(self, tmp_path):
         sp = SimplePipeline(0, 100, False)
+        high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list")).as_bed_file()
         VcfPipelineUtils(sp).run_vcfeval_concordance(
             input_file=self.sample_calls,
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.use_filter"),
             ref_genome=self.ref_genome,
-            evaluation_regions=self.high_conf,
-            comparison_intervals=self.high_conf,
+            evaluation_regions=high_conf,
+            comparison_intervals=high_conf,
             input_sample="sm1",
             truth_sample="HG001",
             ignore_filter=False,
         )
+        os.remove(high_conf)
         assert exists(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz")
         assert exists(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz.tbi")
 
