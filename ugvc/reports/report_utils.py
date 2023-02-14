@@ -7,17 +7,18 @@ import matplotlib.pyplot as plt
 import nexusplt as nxp
 import numpy as np
 import pandas as pd
+from IPython.display import display
+
+from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
 
 
 def parse_config(config_file):
     parser = ConfigParser()
     parser.read(config_file)
-    param_names = [
-        "run_id",
-        "pipeline_version",
-        "h5_concordance_file",
-    ]
+    param_names = ["run_id", "pipeline_version", "h5_concordance_file"]
     parameters = {p: parser.get("VarReport", p) for p in param_names}
+    parameters["verbosity"] = int(parser.get("VarReport", "verbosity", fallback=1))
+    param_names.append("verbosity")
 
     # Optional parameters
     parameters["reference_version"] = parser.get("VarReport", "reference_version", fallback="hg38")
@@ -47,19 +48,88 @@ def parse_config(config_file):
 
 
 class ShortReportUtils:
-    def __init__(self, image_dir, image_prefix, num_plots_in_row=6, min_value=0.2):
-
+    def __init__(self, image_dir, image_prefix, verbosity, h5outfile: str, num_plots_in_row=5, min_value=0.2):
         self.image_dir = image_dir
         self.image_prefix = image_prefix
+        self.verbosity = verbosity
+        self.h5outfile = h5outfile
         self.min_value = min_value
         self.num_plots_in_row = num_plots_in_row
+        self.score_name = "tree_score"
+
+    def basic_analysis(self, data: dict, categories, out_key, out_key_sec=None) -> None:
+        data_sec = None
+        source_keys = ["whole genome"]
+        if out_key_sec is not None:
+            sec_df = data["whole genome"].copy()
+            if "blacklst" in sec_df.columns:
+                is_sec = sec_df["blacklst"].apply(self.has_sec)
+                sec_df.loc[is_sec, "filter"] = "SEC"
+                sec_df.loc[is_sec & (sec_df["classify_gt"] == "tp"), "classify_gt"] = "fn"
+                sec_df_new = sec_df[~(is_sec & (sec_df["classify_gt"] == "fp"))]
+                data_sec = {"whole genome": sec_df_new}
+
+        opt_tab, opt_res, perf_curve = self.get_performance(data, categories, source_keys)
+        df = pd.concat([opt_tab[s] for s in source_keys], axis=1, keys=source_keys)
+        df = df["whole genome"]
+        df.to_hdf(self.h5outfile, key=out_key)
+
+        if data_sec:
+            sec_opt_tab, sec_opt_res, _ = self.get_performance(data_sec, categories, source_keys)
+            if self.verbosity > 1:
+                self.plot_performance(
+                    perf_curve,
+                    opt_res,
+                    categories,
+                    img=out_key,
+                    source_keys=source_keys,
+                    opt_res_sec=sec_opt_res,
+                )
+            df_with_sec = sec_opt_tab["whole genome"]
+            df_with_sec.to_hdf(self.h5outfile, key=out_key_sec)
+            display(df_with_sec)
+        else:
+            self.plot_performance(perf_curve, opt_res, categories, img=out_key_sec, source_keys=source_keys)
+            display(df)
+
+    def homozygous_genotyping_analysis(self, data: dict, categories: list[str], out_key: str) -> None:
+        hmz_data = {}
+        s = "whole genome"
+        d = data[s]
+        hmz_data[s] = d[(d["gt_ground_truth"] == (1, 1)) & (d["classify"] != "fn")]
+        opt_tab, _, _ = self.get_performance(hmz_data, categories, [s])
+        df = opt_tab[s]
+        df.to_hdf(self.h5outfile, out_key)
+        display(df)
+
+    def base_stratification_analysis(self, data: dict, categories: list[str], bases: tuple) -> pd.DataFrame:
+        s = "whole genome"
+        d = data[s]
+        base_data = {
+            s: d[
+                (~d["indel"] & ((d["ref"] == bases[0]) | (d["ref"] == bases[1])))
+                | (
+                    (d["hmer_indel_length"] > 0)
+                    & ((d["hmer_indel_nuc"] == bases[0]) | (d["hmer_indel_nuc"] == bases[1]))
+                )
+            ]
+        }
+        opt_tab, opt_res, perf_curve = self.get_performance(base_data, categories, [s])
+        opt_tab[s].rename(
+            index={a: "{0} ({1}/{2})".format(a, bases[0], bases[1]) for a in opt_tab[s].index}, inplace=True
+        )
+        if self.verbosity > 1:
+            self.plot_performance(perf_curve, opt_res, categories, source_keys=[s])
+        df = opt_tab[s]
+        display(df)
+        return df
 
     def plot_performance(
         self,
         perf_curve: dict,
         opt_res: dict,
         categories: list[str],
-        sources: dict,
+        source_keys: list[str],
         img=None,
         legend=None,
         opt_res_sec=None,
@@ -68,9 +138,10 @@ class ShortReportUtils:
         n = math.ceil(len(categories) / m)
         num_empty_subplots = n * m - len(categories)
 
-        fig, ax = plt.subplots(n, m, figsize=(4 * m, 4.5 * n))
+        fig, ax = plt.subplots(n, m, figsize=(3 * m, 3 * n + 0.5 * (n - 1)))
         col = ["r", "b", "g", "m", "k"]
         opt_sec = None
+        ax_row = None
         for cat_index, cat in enumerate(categories):
             i = math.floor(cat_index / m)
             j = cat_index % m
@@ -79,9 +150,7 @@ class ShortReportUtils:
             else:
                 ax_row = ax
             ax_row[0].set_ylabel("Precision")
-            if legend:
-                ax_row[0].legend(loc="lower left")
-            for source_index, source in enumerate(sources):
+            for source_index, source in enumerate(source_keys):
                 perf = perf_curve[source][cat]
                 opt = opt_res[source][cat]
                 if opt_res_sec is not None:
@@ -91,31 +160,36 @@ class ShortReportUtils:
                     ax_row[j].plot(opt.get("recall"), opt.get("precision"), "o", color=col[source_index])
                     if opt_res_sec is not None:
                         ax_row[j].plot(opt_sec.get("recall"), opt_sec.get("precision"), "o", color="black")
+
                 title = cat
                 ax_row[j].set_title(title)
                 ax_row[j].set_xlabel("Recall")
                 ax_row[j].set_xlim([self.min_value, 1])
                 ax_row[j].set_ylim([self.min_value, 1])
                 ax_row[j].grid(True)
+            if legend:
+                ax_row[0].legend(loc="lower left")
         for i in range(num_empty_subplots):
-            fig.delaxes(ax_row[m - i - 1])
+            if ax_row is not None:
+                fig.delaxes(ax_row[m - i - 1])
+
         plt.tight_layout()
         if img:
             nxp.save(fig, self.image_prefix + img, "png", outdir=self.image_dir)
+        plt.show()
 
-    def get_performance(self, data, categories, sources):
+    def get_performance(self, data: dict, categories: list[str], source_keys: list[str]):
         opt_tab = {}
         opt_res = {}
         perf_curve = {}
-        for s in sources:
+        for s in source_keys:
             opt_tab[s] = pd.DataFrame()
             opt_res[s] = {}
             perf_curve[s] = {}
 
             for cat in categories:
                 d = self.__filter_by_category(data[s], cat)
-                performance_dict = self.__calc_performance(d)
-                pr_curve = performance_dict["pr_curve"]
+                performance_dict, pr_curve = self.__calc_performance(d)
                 perf_curve[s][cat] = pr_curve
                 opt_res[s][cat] = performance_dict
                 # Report table columns
@@ -143,18 +217,15 @@ class ShortReportUtils:
                 res = True
         return res
 
-    @staticmethod
-    def __calc_performance(data: pd.DataFrame) -> dict:
+    def __calc_performance(self, data: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
         score_name = "tree_score"
         d = data.copy()
         d = d[["call", "base", score_name, "filter"]]
         d.loc[d["call"].isna(), "call"] = "NA"
         d.loc[d["base"].isna(), "base"] = "NA"
         # Change tree_score such that PASS will get high score values. FNs will be the lowest
-        # score_pass = d[(d['filter']=="PASS") & (d[score_name].isna())].head(20)[score_name].mean()
-        # score_not_pass =  d[(d['filter']!="PASS") & (d[score_name].isna())].head(20)[score_name].mean()
-        score_pass = d.query('filter=="PASS" & tree_score==tree_score').head(20)["tree_score"].mean()
-        score_not_pass = d.query('filter!="PASS" & tree_score==tree_score').head(20)["tree_score"].mean()
+        score_pass = d.query(f'filter == "PASS" & {score_name} == {score_name}').head(20)[score_name].mean()
+        score_not_pass = d.query(f'filter != "PASS" & {score_name} == {score_name}').head(20)[score_name].mean()
         dir_switch = 1 if score_pass > score_not_pass else -1
         score = d[score_name] * dir_switch
         score = score - score.min()
@@ -164,12 +235,12 @@ class ShortReportUtils:
         d["tp"] = d["call"] == "TP"
 
         # define variants which didn't have any candidate
-        missing_candiddates_index = (d["base"] == "FN") & (d["call"] == "NA")
-        missing_candidates = missing_candiddates_index.sum()
+        missing_candidates_index = (d["base"] == "FN") & (d["call"] == "NA")
+        missing_candidates = missing_candidates_index.sum()
         # Give missing candidates score of -1 (order them at the top for pr_curve)
-        d[score_name] = np.where(missing_candiddates_index, -1, score)
+        d[self.score_name] = np.where(missing_candidates_index, -1, score)
 
-        # Calculate the precision and recall as ouputted by the model (based on the FILTER column)
+        # Calculate the precision and recall post filtering
         filtered_tp = len(d[d["tp"] & (d["filter"] != "PASS")])
         filtered_fp = len(d[d["fp"] & (d["filter"] != "PASS")])
         initial_fp = d["fp"].sum()
@@ -179,12 +250,12 @@ class ShortReportUtils:
         fn = initial_fn + filtered_tp
         tp = initial_tp - filtered_tp
 
-        recall = tp / (tp + fn) if (tp + fn > 0) else np.nan
-        precision = tp / (tp + fp) if (tp + fp > 0) else np.nan
-        f1 = tp / (tp + 0.5 * fn + 0.5 * fp)
-        max_recall = (tp + fn - missing_candidates) / (tp + fn)
+        recall = get_recall(fn, tp, np.nan)
+        max_recall = get_recall(missing_candidates, (tp + fn - missing_candidates), np.nan)
+        precision = get_precision(fp, tp, np.nan)
+        f1 = get_f1(recall, precision, np.nan)
+        pr_curve = pd.DataFrame()
         result_dict = {
-            "pr_curve": pd.DataFrame(),
             "recall": recall,
             "precision": precision,
             "f1": f1,
@@ -197,13 +268,12 @@ class ShortReportUtils:
             "fn": fn,
         }
         if len(d) < 10:
-            return result_dict
+            return result_dict, pr_curve
 
         # Sort by score to get precision/recall curve
-        d = d.sort_values(by=[score_name])
+        d = d.sort_values(by=[self.score_name])
 
         # Calculate precision and recall continuously
-
         # how many true variants are either initial FNs (missing/filtered) or below score threshold
         d["fn"] = initial_fn + np.cumsum(d["tp"])
         d["tp"] = tp - np.cumsum(d["tp"])  # how many tps pass score threshold
@@ -212,10 +282,10 @@ class ShortReportUtils:
         d["precision"] = d["tp"] / (d["fp"] + d["tp"])
 
         # Select for pr_curve variants which are not missed candidates / first 20 pos/neg variants
-        d["mask"] = ((d["tp"] + d["fn"]) >= 20) & ((d["tp"] + d["fp"]) >= 20) & (d[score_name] >= 0)
+        d["mask"] = ((d["tp"] + d["fn"]) >= 20) & ((d["tp"] + d["fp"]) >= 20) & (d[self.score_name] >= 0)
         if len(d[d["mask"]]) > 0:
-            result_dict["pr_curve"] = d[["fp", "fn", "tp", "recall", "precision"]][d["mask"]]
-        return result_dict
+            pr_curve = d[["fp", "fn", "tp", "recall", "precision"]][d["mask"]]
+        return result_dict, pr_curve
 
     @staticmethod
     def __filter_by_category(data, cat) -> pd.DataFrame:
@@ -245,4 +315,7 @@ class ShortReportUtils:
         for i in range(1, 10):
             if cat == "hmer Indel {0:d}".format(i):
                 result = data[(data["indel"]) & (data["hmer_indel_length"] == i)]
+                return result
+        if result is None:
+            raise RuntimeError(f"No such category: {cat}")
         return result
