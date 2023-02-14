@@ -73,7 +73,7 @@ def multinomial_likelihood_ratio(actual: list[int], expected: list[int]) -> tupl
 # Metrics functions
 
 
-def get_precision(false_positives: int, true_positives: int) -> float:
+def get_precision(false_positives: int, true_positives: int, return_if_denominator_is_0=1) -> float:
     """
     Get the precision, as defined from tp and false_positives
 
@@ -83,15 +83,18 @@ def get_precision(false_positives: int, true_positives: int) -> float:
         number of false positive observation (detected but false)
     true_positives : int
         number of true positive observations (detected true)
-
+    return_if_denominator_is_0: any
+        return value if tp + fp == 0
     Returns
     -------
     The precision score
     """
-    return 1 - safe_divide(false_positives, false_positives + true_positives)
+    if false_positives + true_positives == 0:
+        return return_if_denominator_is_0
+    return 1 - false_positives / (false_positives + true_positives)
 
 
-def get_recall(false_negatives: int, true_positives: int) -> float:
+def get_recall(false_negatives: int, true_positives: int, return_if_denominator_is_0=1) -> float:
     """
     Get the recall, as defined from true_positives and false_negatives
 
@@ -101,16 +104,19 @@ def get_recall(false_negatives: int, true_positives: int) -> float:
         number of false negative observations (missed true)
     true_positives : int
         number of true positive observation (detected true)
+    return_if_denominator_is_0: any
+        return value if tp + fn == 0
 
     Returns
     -------
     The recall score
     """
+    if false_negatives + true_positives == 0:
+        return return_if_denominator_is_0
+    return 1 - false_negatives / (false_negatives + true_positives)
 
-    return 1 - safe_divide(false_negatives, false_negatives + true_positives)
 
-
-def get_f1(precision: float, recall: float) -> float:
+def get_f1(precision: float, recall: float, null_value=np.nan) -> float:
     """
     Get the F1 score (harmonic mean of precision and recall)
 
@@ -120,11 +126,15 @@ def get_f1(precision: float, recall: float) -> float:
         precision of the experiment
     recall : int
         recall of the experiment
+    null_value: Any
+        return this null_value if recall or precision are equal to this null_value
 
     Returns
     -------
     The F1 score of the experiment
     """
+    if null_value in {precision, recall}:
+        return null_value
     return safe_divide(2 * precision * recall, precision + recall)
 
 

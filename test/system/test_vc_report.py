@@ -16,6 +16,7 @@ def test_vc_report(tmpdir):
     with open(pjoin(tmpdir, "var_report.config"), "w") as config_file:
         strg = """
             [VarReport]
+            verbosity = 5
             run_id = 140479-BC21
             pipeline_version = 2.4.1
             reference_version = hg38
@@ -69,6 +70,7 @@ def test_vc_report_wo_ref(tmpdir):
     with open(pjoin(tmpdir, "var_report.config"), "w") as config_file:
         strg = """
             [VarReport]
+            verbosity = 5
             run_id = 140479-BC21
             pipeline_version = 2.4.1
             h5_concordance_file = ./test.untrained.h5
@@ -120,6 +122,7 @@ def test_vc_report_with_sec(tmpdir):
     with open(pjoin(tmpdir, "var_report.config"), "w") as config_file:
         strg = """
             [VarReport]
+            verbosity = 5
             run_id = 140479-BC21
             pipeline_version = 2.4.1
             reference_version = hg38

@@ -241,8 +241,6 @@ def run(argv: list[str]):
     args_dict = {k: str(vars(args)[k]) for k in vars(args)}
     pd.DataFrame(args_dict, index=[0]).to_hdf(args.output_file, key="input_args")
 
-    runs_intervals_for_pipeline = runs_intervals if args.filter_runs else IntervalFile(sp)
-
     comparison_pipeline = ComparisonPipeline(
         vpu=vpu,
         n_parts=args.n_parts,
@@ -255,7 +253,6 @@ def run(argv: list[str]):
         truth_sample=args.truth_sample_name,
         output_file_name=args.output_file,
         header=args.header_file,
-        runs_intervals=runs_intervals_for_pipeline,
         output_suffix=args.output_suffix,
         ignore_filter=args.ignore_filter_status,
         revert_hom_ref=args.revert_hom_ref,

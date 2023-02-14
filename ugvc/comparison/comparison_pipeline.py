@@ -9,7 +9,7 @@ from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils
 from ugvc.vcfbed.interval_file import IntervalFile
 
 
-class ComparisonPipeline:  # pylint: disable=R0902
+class ComparisonPipeline:  # pylint: disable=too-many-instance-attributes
     """
     Run comparison between the two sets of calls: input_prefix and truth_file. Creates
     a combined call file and a concordance VCF by either of the concordance tools
@@ -29,7 +29,6 @@ class ComparisonPipeline:  # pylint: disable=R0902
         truth_sample: str,
         output_file_name: str,
         header: str | None = None,
-        runs_intervals: IntervalFile | None = None,
         output_suffix: str | None = None,
         ignore_filter: bool = False,
         revert_hom_ref: bool = False,
@@ -64,8 +63,6 @@ class ComparisonPipeline:  # pylint: disable=R0902
             are mutually exclusive
         header : str, optional
             for backward compatibility - to be able to change the header of the VCF. Default None
-        runs_intervals : str, optional
-            Hompolymer runs annotation (BED)
         output_suffix : str, optional
             Suffix for the output file name (e.g. chr9) -
             otherwise the output file nams are starting with the input prefix
@@ -85,7 +82,6 @@ class ComparisonPipeline:  # pylint: disable=R0902
         self.call_sample = call_sample
         self.truth_sample = truth_sample
         self.output_file_name = output_file_name
-        self.runs_intervals = runs_intervals
         self.ignore_filter = ignore_filter
         self.revert_hom_ref = revert_hom_ref
         self.header = header
@@ -121,15 +117,15 @@ class ComparisonPipeline:  # pylint: disable=R0902
         )
         annotated_concordance_vcf = self.vpu.annotate_tandem_repeats(concordance_vcf, self.ref_genome)
 
-        high_conf_calls_vcf = self.vpu.filter_bad_areas(
-            select_intervals_fn,
-            self.highconf_intervals.as_bed_file(),
-            self.runs_intervals.as_bed_file(),
+        high_conf_calls_vcf = select_intervals_fn.replace("vcf.gz", "highconf.vcf.gz")
+        self.vpu.intersect_with_intervals(
+            select_intervals_fn, self.highconf_intervals.as_interval_list_file(), high_conf_calls_vcf
         )
-        high_conf_concordance_vcf = self.vpu.filter_bad_areas(
-            annotated_concordance_vcf,
-            self.highconf_intervals.as_bed_file(),
-            self.runs_intervals.as_bed_file(),
+
+        high_conf_concordance_vcf = annotated_concordance_vcf.replace("vcf.gz", "highconf.vcf.gz")
+
+        self.vpu.intersect_with_intervals(
+            annotated_concordance_vcf, self.highconf_intervals.as_interval_list_file(), high_conf_concordance_vcf
         )
         return high_conf_calls_vcf, high_conf_concordance_vcf
 
