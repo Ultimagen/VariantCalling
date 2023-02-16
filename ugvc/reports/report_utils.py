@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import math
 from configparser import ConfigParser
+from enum import Enum
 
 import matplotlib.pyplot as plt
-import nexusplt as nxp
 import numpy as np
 import pandas as pd
 from IPython.display import display
@@ -17,15 +17,12 @@ def parse_config(config_file):
     parser.read(config_file)
     param_names = ["run_id", "pipeline_version", "h5_concordance_file"]
     parameters = {p: parser.get("VarReport", p) for p in param_names}
-    parameters["verbosity"] = int(parser.get("VarReport", "verbosity", fallback=1))
+    parameters["verbosity"] = parser.get("VarReport", "verbosity", fallback="1")
     param_names.append("verbosity")
 
     # Optional parameters
     parameters["reference_version"] = parser.get("VarReport", "reference_version", fallback="hg38")
     parameters["truth_sample_name"] = parser.get("VarReport", "truth_sample_name", fallback="NA")
-    parameters["image_prefix"] = (
-        parser.get("VarReport", "image_output_prefix", fallback=parameters["run_id"] + ".vars") + "."
-    )
     parameters["h5outfile"] = parser.get("VarReport", "h5_output", fallback="var_report.h5")
     parameters["trained_w_gt"] = parser.get("VarReport", "h5_model_file", fallback=None)
 
@@ -47,91 +44,80 @@ def parse_config(config_file):
     return parameters, param_names
 
 
+class ErrorType(Enum):
+    NOISE = 1
+    MISS = 2
+    HOM_TO_HET = 3
+    HET_TO_HOM = 4
+    WRONG_ALLELE = 5
+    NO_ERROR = 6
+
+
 class ShortReportUtils:
-    def __init__(self, image_dir, image_prefix, verbosity, h5outfile: str, num_plots_in_row=5, min_value=0.2):
-        self.image_dir = image_dir
-        self.image_prefix = image_prefix
+    def __init__(self, verbosity, h5outfile: str, num_plots_in_row=5, min_value=0.2):
         self.verbosity = verbosity
         self.h5outfile = h5outfile
         self.min_value = min_value
         self.num_plots_in_row = num_plots_in_row
         self.score_name = "tree_score"
 
-    def basic_analysis(self, data: dict, categories, out_key, out_key_sec=None) -> None:
+    def basic_analysis(self, data: pd.DataFrame, categories, out_key, out_key_sec=None) -> None:
         data_sec = None
-        source_keys = ["whole genome"]
         if out_key_sec is not None:
-            sec_df = data["whole genome"].copy()
+            sec_df = data.copy()
             if "blacklst" in sec_df.columns:
                 is_sec = sec_df["blacklst"].apply(self.has_sec)
                 sec_df.loc[is_sec, "filter"] = "SEC"
                 sec_df.loc[is_sec & (sec_df["classify_gt"] == "tp"), "classify_gt"] = "fn"
-                sec_df_new = sec_df[~(is_sec & (sec_df["classify_gt"] == "fp"))]
-                data_sec = {"whole genome": sec_df_new}
+                data_sec = sec_df[~(is_sec & (sec_df["classify_gt"] == "fp"))]
 
-        opt_tab, opt_res, perf_curve = self.get_performance(data, categories, source_keys)
-        df = pd.concat([opt_tab[s] for s in source_keys], axis=1, keys=source_keys)
-        df = df["whole genome"]
-        df.to_hdf(self.h5outfile, key=out_key)
+        opt_tab, opt_res, perf_curve, detailed_fp_tab = self.get_performance(data, categories)
+        opt_tab.to_hdf(self.h5outfile, key=out_key)
+        detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key}_fp_details")
 
-        if data_sec:
-            sec_opt_tab, sec_opt_res, _ = self.get_performance(data_sec, categories, source_keys)
+        if data_sec is not None:
+            sec_opt_tab, sec_opt_res, _, detailed_fp_tab = self.get_performance(data_sec, categories)
             if self.verbosity > 1:
                 self.plot_performance(
                     perf_curve,
                     opt_res,
                     categories,
-                    img=out_key,
-                    source_keys=source_keys,
                     opt_res_sec=sec_opt_res,
                 )
-            df_with_sec = sec_opt_tab["whole genome"]
-            df_with_sec.to_hdf(self.h5outfile, key=out_key_sec)
-            display(df_with_sec)
+            sec_opt_tab.to_hdf(self.h5outfile, key=out_key_sec)
+            detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key_sec}_fp_details")
+            display(sec_opt_tab)
+            display(detailed_fp_tab)
         else:
-            self.plot_performance(perf_curve, opt_res, categories, img=out_key_sec, source_keys=source_keys)
-            display(df)
+            self.plot_performance(perf_curve, opt_res, categories)
+            display(opt_tab)
+            display(detailed_fp_tab)
 
-    def homozygous_genotyping_analysis(self, data: dict, categories: list[str], out_key: str) -> None:
-        hmz_data = {}
-        s = "whole genome"
-        d = data[s]
-        hmz_data[s] = d[(d["gt_ground_truth"] == (1, 1)) & (d["classify"] != "fn")]
-        opt_tab, _, _ = self.get_performance(hmz_data, categories, [s])
-        df = opt_tab[s]
-        df.to_hdf(self.h5outfile, out_key)
-        display(df)
+    def homozygous_genotyping_analysis(self, d: pd.DataFrame, categories: list[str], out_key: str) -> None:
+        hmz_data = d[(d["gt_ground_truth"] == (1, 1)) & (d["classify"] != "fn")]
+        opt_tab, _, _, _ = self.get_performance(hmz_data, categories)
+        opt_tab.to_hdf(self.h5outfile, out_key)
+        display(opt_tab)
 
-    def base_stratification_analysis(self, data: dict, categories: list[str], bases: tuple) -> pd.DataFrame:
-        s = "whole genome"
-        d = data[s]
-        base_data = {
-            s: d[
-                (~d["indel"] & ((d["ref"] == bases[0]) | (d["ref"] == bases[1])))
-                | (
-                    (d["hmer_indel_length"] > 0)
-                    & ((d["hmer_indel_nuc"] == bases[0]) | (d["hmer_indel_nuc"] == bases[1]))
-                )
-            ]
-        }
-        opt_tab, opt_res, perf_curve = self.get_performance(base_data, categories, [s])
-        opt_tab[s].rename(
-            index={a: "{0} ({1}/{2})".format(a, bases[0], bases[1]) for a in opt_tab[s].index}, inplace=True
-        )
+    def base_stratification_analysis(self, d: pd.DataFrame, categories: list[str], bases: tuple) -> pd.DataFrame:
+        base_data = d[
+            (~d["indel"] & ((d["ref"] == bases[0]) | (d["ref"] == bases[1])))
+            | ((d["hmer_indel_length"] > 0) & ((d["hmer_indel_nuc"] == bases[0]) | (d["hmer_indel_nuc"] == bases[1])))
+        ]
+
+        opt_tab, opt_res, perf_curve, _ = self.get_performance(base_data, categories)
+        opt_tab.rename(index={a: "{0} ({1}/{2})".format(a, bases[0], bases[1]) for a in opt_tab.index}, inplace=True)
         if self.verbosity > 1:
-            self.plot_performance(perf_curve, opt_res, categories, source_keys=[s])
-        df = opt_tab[s]
-        display(df)
-        return df
+            self.plot_performance(perf_curve, opt_res, categories)
+
+        display(opt_tab)
+        return opt_tab
 
     def plot_performance(
         self,
         perf_curve: dict,
         opt_res: dict,
         categories: list[str],
-        source_keys: list[str],
-        img=None,
-        legend=None,
         opt_res_sec=None,
     ):
         m = self.num_plots_in_row
@@ -139,7 +125,6 @@ class ShortReportUtils:
         num_empty_subplots = n * m - len(categories)
 
         fig, ax = plt.subplots(n, m, figsize=(3 * m, 3 * n + 0.5 * (n - 1)))
-        col = ["r", "b", "g", "m", "k"]
         opt_sec = None
         ax_row = None
         for cat_index, cat in enumerate(categories):
@@ -150,64 +135,85 @@ class ShortReportUtils:
             else:
                 ax_row = ax
             ax_row[0].set_ylabel("Precision")
-            for source_index, source in enumerate(source_keys):
-                perf = perf_curve[source][cat]
-                opt = opt_res[source][cat]
+            perf = perf_curve[cat]
+            opt = opt_res[cat]
+            if opt_res_sec is not None:
+                opt_sec = opt_res_sec[cat]
+            if not perf.empty:
+                ax_row[j].plot(perf.recall, perf.precision, "-", color="r")
+                ax_row[j].plot(opt.get("recall"), opt.get("precision"), "o", color="red")
                 if opt_res_sec is not None:
-                    opt_sec = opt_res_sec[source][cat]
-                if not perf.empty:
-                    ax_row[j].plot(perf.recall, perf.precision, "-", label=source, color=col[source_index])
-                    ax_row[j].plot(opt.get("recall"), opt.get("precision"), "o", color=col[source_index])
-                    if opt_res_sec is not None:
-                        ax_row[j].plot(opt_sec.get("recall"), opt_sec.get("precision"), "o", color="black")
+                    ax_row[j].plot(opt_sec.get("recall"), opt_sec.get("precision"), "o", color="black")
 
-                title = cat
-                ax_row[j].set_title(title)
-                ax_row[j].set_xlabel("Recall")
-                ax_row[j].set_xlim([self.min_value, 1])
-                ax_row[j].set_ylim([self.min_value, 1])
-                ax_row[j].grid(True)
-            if legend:
-                ax_row[0].legend(loc="lower left")
+            title = cat
+            ax_row[j].set_title(title)
+            ax_row[j].set_xlabel("Recall")
+            ax_row[j].set_xlim([self.min_value, 1])
+            ax_row[j].set_ylim([self.min_value, 1])
+            ax_row[j].grid(True)
         for i in range(num_empty_subplots):
             if ax_row is not None:
                 fig.delaxes(ax_row[m - i - 1])
 
         plt.tight_layout()
-        if img:
-            nxp.save(fig, self.image_prefix + img, "png", outdir=self.image_dir)
         plt.show()
 
-    def get_performance(self, data: dict, categories: list[str], source_keys: list[str]):
-        opt_tab = {}
-        opt_res = {}
+    def get_performance(self, data: pd.DataFrame, categories: list[str]):
         perf_curve = {}
-        for s in source_keys:
-            opt_tab[s] = pd.DataFrame()
-            opt_res[s] = {}
-            perf_curve[s] = {}
+        opt_res = {}
+        opt_tab = pd.DataFrame()
+        detailed_fp_table = pd.DataFrame()
+        for cat in categories:
+            d = self.__filter_by_category(data, cat)
+            performance_dict, pr_curve = self.__calc_performance(d)
+            perf_curve[cat] = pr_curve
+            opt_res[cat] = performance_dict
+            row = self.__get_general_performance_df(cat, performance_dict)
+            opt_tab = pd.concat([opt_tab, row])
+            if self.verbosity > 1:
+                detailed_fp_row = self.__get_detailed_fp_df(cat, performance_dict)
+                detailed_fp_table = pd.concat([detailed_fp_table, detailed_fp_row])
 
-            for cat in categories:
-                d = self.__filter_by_category(data[s], cat)
-                performance_dict, pr_curve = self.__calc_performance(d)
-                perf_curve[s][cat] = pr_curve
-                opt_res[s][cat] = performance_dict
-                # Report table columns
-                row = pd.DataFrame(
-                    {
-                        "# pos": performance_dict["initial_tp"] + performance_dict["initial_fn"],
-                        "# neg": performance_dict["initial_fp"],
-                        "# init fn": performance_dict["initial_fn"],
-                        "max recall": performance_dict["max_recall"],
-                        "recall": performance_dict["recall"],
-                        "precision": performance_dict["precision"],
-                        "F1": performance_dict["f1"],
-                    },
-                    index=[cat],
-                )
-                opt_tab[s] = pd.concat([opt_tab[s], row])
+        return opt_tab, opt_res, perf_curve, detailed_fp_table
 
-        return opt_tab, opt_res, perf_curve
+    def __get_general_performance_df(self, cat, performance_dict):
+        if self.verbosity > 1:
+            return pd.DataFrame(
+                {
+                    "# pos": performance_dict["# pos"],
+                    "# neg": performance_dict["initial_fp"],
+                    "fn": performance_dict["initial_fn"],
+                    "max recall": performance_dict["max_recall"],
+                    "recall": performance_dict["recall"],
+                    "precision": performance_dict["precision"],
+                    "F1": performance_dict["f1"],
+                },
+                index=[cat],
+            )
+        return pd.DataFrame(
+            {
+                "true-vars": performance_dict["# pos"],
+                "fn": performance_dict["initial_fn"],
+                "fp": performance_dict["initial_fp"],
+                "recall": performance_dict["recall"],
+                "precision": performance_dict["precision"],
+                "F1": performance_dict["f1"],
+            },
+            index=[cat],
+        )
+
+    def __get_detailed_fp_df(self, cat, performance_dict):
+        return pd.DataFrame(
+            {
+                "fp": performance_dict["initial_fp"],
+                "o->e": performance_dict["hom->het"],
+                "e->o": performance_dict["het->hom"],
+                "ale_err": performance_dict["wrong_allele"],
+                "fp(filter)": performance_dict["fp"],
+                "precision": performance_dict["precision"],
+            },
+            index=[cat],
+        )
 
     @staticmethod
     def has_sec(x):
@@ -220,7 +226,7 @@ class ShortReportUtils:
     def __calc_performance(self, data: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
         score_name = "tree_score"
         d = data.copy()
-        d = d[["call", "base", score_name, "filter"]]
+        d = d[["call", "base", score_name, "filter", "alleles", "gt_ultima", "gt_ground_truth"]]
         d.loc[d["call"].isna(), "call"] = "NA"
         d.loc[d["base"].isna(), "base"] = "NA"
         # Change tree_score such that PASS will get high score values. FNs will be the lowest
@@ -246,16 +252,25 @@ class ShortReportUtils:
         initial_fp = d["fp"].sum()
         initial_tp = d["tp"].sum()
         initial_fn = d["fn"].sum()
+        total_variants = initial_tp + initial_fn
         fp = initial_fp - filtered_fp
         fn = initial_fn + filtered_tp
         tp = initial_tp - filtered_tp
+
+        genotypes = d["gt_ground_truth"] + d["gt_ultima"]
+        error_type = genotypes.apply(self.get_error_type)
+        hom_to_het = (error_type == ErrorType.HOM_TO_HET).sum()
+        het_to_hom = (error_type == ErrorType.HET_TO_HOM).sum()
+        wrong_allele = (error_type == ErrorType.WRONG_ALLELE).sum()
 
         recall = get_recall(fn, tp, np.nan)
         max_recall = get_recall(missing_candidates, (tp + fn - missing_candidates), np.nan)
         precision = get_precision(fp, tp, np.nan)
         f1 = get_f1(recall, precision, np.nan)
+
         pr_curve = pd.DataFrame()
         result_dict = {
+            "# pos": total_variants,
             "recall": recall,
             "precision": precision,
             "f1": f1,
@@ -266,6 +281,9 @@ class ShortReportUtils:
             "tp": tp,
             "fp": fp,
             "fn": fn,
+            "hom->het": hom_to_het,
+            "het->hom": het_to_hom,
+            "wrong_allele": wrong_allele,
         }
         if len(d) < 10:
             return result_dict, pr_curve
@@ -319,3 +337,25 @@ class ShortReportUtils:
         if result is None:
             raise RuntimeError(f"No such category: {cat}")
         return result
+
+    @staticmethod
+    def get_error_type(genotype_pair: tuple) -> ErrorType:
+        gtr_gt = set(genotype_pair[0:2])
+        call_gt = set(genotype_pair[2:4])
+
+        if gtr_gt == call_gt:
+            return ErrorType.NO_ERROR
+
+        if gtr_gt in ({0}, {None}):
+            return ErrorType.NOISE
+
+        if call_gt in ({0}, {None}):
+            return ErrorType.MISS
+
+        if gtr_gt.intersection(call_gt) == gtr_gt:
+            return ErrorType.HOM_TO_HET
+
+        if gtr_gt.intersection(call_gt) == call_gt:
+            return ErrorType.HET_TO_HOM
+
+        return ErrorType.WRONG_ALLELE

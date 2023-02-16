@@ -28,8 +28,6 @@ def test_fix_errors():
 
     # (None, TP) (None,FN_CA)
     pd.set_option("display.max_columns", None)
-    take = df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))]
-    print(take)
     assert df[(df["call"].isna()) & ((df["base"] == "TP") | (df["base"] == "FN_CA"))].size == 20
     # (FP_CA,FN_CA), (FP_CA,None)
     temp_df = df.loc[
