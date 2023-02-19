@@ -1,3 +1,5 @@
+import numpy as np
+
 from ugvc.comparison.concordance_utils import read_hdf
 
 
@@ -10,6 +12,16 @@ class ReportDataLoader:
     def load_concordance_df(self):
         df = read_hdf(self.concordance_file, key="concordance")
         df.rename(columns=self.rename_dict, inplace=True)
+        df["fp"] = (df["call"] == "FP") | (df["call"] == "FP_CA")
+        df["fn"] = (df["base"] == "FN") | (df["base"] == "FN_CA")
+        df["tp"] = df["call"] == "TP"
+        if "vaf" not in df.columns:
+            df["vaf"] = df[["ad", "dp"]].apply(
+                lambda x: tuple([0]) if not isinstance(x.ad, tuple) else tuple(np.array(x.ad) / x.dp), axis=1
+            )
+        df["max_vaf"] = df["vaf"].apply(lambda x: 0 if isinstance(x, float) else max(x))
+        df["qual"] = df["tree_score"]
+        df.rename(columns={"hmer_indel_length": "hmer_length"}, inplace=True)
         return df
 
     def __get_rename_dict(self):

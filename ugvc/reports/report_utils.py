@@ -7,7 +7,8 @@ from enum import Enum
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from IPython.display import display
+from IPython.display import Markdown, display
+from matplotlib.ticker import FormatStrFormatter
 
 from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
 
@@ -54,7 +55,7 @@ class ErrorType(Enum):
 
 
 class ShortReportUtils:
-    def __init__(self, verbosity, h5outfile: str, num_plots_in_row=5, min_value=0.2):
+    def __init__(self, verbosity, h5outfile: str, num_plots_in_row=6, min_value=0.2):
         self.verbosity = verbosity
         self.h5outfile = h5outfile
         self.min_value = min_value
@@ -86,11 +87,15 @@ class ShortReportUtils:
                 )
             sec_opt_tab.to_hdf(self.h5outfile, key=out_key_sec)
             detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key_sec}_fp_details")
+            display(Markdown("### General accuracy"))
             display(sec_opt_tab)
+            display(Markdown("### False-positive details"))
             display(detailed_fp_tab)
         else:
             self.plot_performance(perf_curve, opt_res, categories)
+            display(Markdown("### General accuracy"))
             display(opt_tab)
+            display(Markdown("### False-positive details"))
             display(detailed_fp_tab)
 
     def homozygous_genotyping_analysis(self, d: pd.DataFrame, categories: list[str], out_key: str) -> None:
@@ -102,7 +107,7 @@ class ShortReportUtils:
     def base_stratification_analysis(self, d: pd.DataFrame, categories: list[str], bases: tuple) -> pd.DataFrame:
         base_data = d[
             (~d["indel"] & ((d["ref"] == bases[0]) | (d["ref"] == bases[1])))
-            | ((d["hmer_indel_length"] > 0) & ((d["hmer_indel_nuc"] == bases[0]) | (d["hmer_indel_nuc"] == bases[1])))
+            | ((d["hmer_length"] > 0) & ((d["hmer_indel_nuc"] == bases[0]) | (d["hmer_indel_nuc"] == bases[1])))
         ]
 
         opt_tab, opt_res, perf_curve, _ = self.get_performance(base_data, categories)
@@ -176,6 +181,96 @@ class ShortReportUtils:
 
         return opt_tab, opt_res, perf_curve, detailed_fp_table
 
+    @staticmethod
+    def indel_analysis(
+        data: pd.DataFrame,
+        data_name: str,
+        variable_names=("indel_length", "hmer_length", "max_vaf", "qual", "gq", "dp"),
+        min_values=(1, 0, 0, 0, 0, 0),
+        max_values=(15, 20, 1, 80, 80, 80),
+        bin_widths=(1, 1, 0.05, 3, 3, 3),
+        tick_widths=(2, 5, 0.1, 10, 10, 10),
+    ):
+        indels = data[data["indel"]].copy()
+        if tick_widths is None:
+            tick_widths = bin_widths
+        hmer_indels_index = indels["hmer_length"] > 0
+        hmer_indels = ("hmer_indels", indels[hmer_indels_index])
+        non_hmer_indels = ("non_hmer_indels", indels[~hmer_indels_index])
+
+        for k, variable_name in enumerate(variable_names):
+            min_value = min_values[k]
+            max_value = max_values[k]
+            if max_value > 1:
+                max_value += 1
+            bin_width = bin_widths[k]
+            tick_width = tick_widths[k]
+
+            if variable_name not in data.columns:
+                continue
+            display(Markdown(f"### {variable_name}"))
+            for indel_type, indels in (hmer_indels, non_hmer_indels):
+                display(Markdown(f"#### {data_name} {indel_type} - {variable_name}"))
+                _, ax = plt.subplots(1, 5, figsize=(15, 4))
+                classes = ["fp", "tp", "fn"]
+                bins = np.arange(min_value, max_value, bin_width)
+                ins_hist = {}
+                del_hist = {}
+                for i in range(3):
+                    class_ = classes[i]
+                    ax[i].set_title(class_)
+
+                    ins_hist[class_], _, _ = ax[i].hist(
+                        indels[indels[class_] & (indels["indel_classify"] == "ins")][variable_name],
+                        bins=bins,
+                        alpha=0.5,
+                        label="ins",
+                    )
+                    del_hist[class_], _, _ = ax[i].hist(
+                        indels[indels[class_] & (indels["indel_classify"] == "del")][variable_name],
+                        bins=bins,
+                        alpha=0.5,
+                        color="g",
+                        label="del",
+                    )
+                    ax[i].set_xlabel(variable_name)
+                    ax[i].set_xlim(min_value, max_value)
+                    ax[i].legend()
+                    ax[i].xaxis.set_ticks(np.arange(min_value, max_value, tick_width))
+                    if bin_width < 1:
+                        ax[i].xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
+                np.seterr(invalid="ignore")
+                precision_ins = ins_hist["tp"] / (ins_hist["tp"] + ins_hist["fp"])
+                precision_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fp"])
+                recall_ins = ins_hist["tp"] / (ins_hist["tp"] + ins_hist["fn"])
+                recall_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fn"])
+                ShortReportUtils.__plot_accuracy_metric(
+                    ax[3],
+                    bins,
+                    min_value,
+                    max_value,
+                    precision_del,
+                    precision_ins,
+                    tick_width,
+                    variable_name,
+                    "precision",
+                )
+                ShortReportUtils.__plot_accuracy_metric(
+                    ax[4], bins, min_value, max_value, recall_del, recall_ins, tick_width, variable_name, "recall"
+                )
+                plt.show()
+
+    @staticmethod
+    def __plot_accuracy_metric(fig, bins, min_value, max_value, metric_del, metric_ins, tick_width, x_label, title):
+        fig.set_title(title)
+        fig.plot(bins[1:], metric_ins, ".--", label="ins")
+        fig.plot(bins[1:], metric_del, "g.--", label="del")
+        fig.set_xlabel(x_label)
+        fig.set_xlim(min_value, max_value)
+        fig.set_ylim(0, 1)
+        fig.legend()
+        fig.xaxis.set_ticks(np.arange(min_value, max_value, tick_width))
+
     def __get_general_performance_df(self, cat, performance_dict):
         if self.verbosity > 1:
             return pd.DataFrame(
@@ -226,7 +321,7 @@ class ShortReportUtils:
     def __calc_performance(self, data: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
         score_name = "tree_score"
         d = data.copy()
-        d = d[["call", "base", score_name, "filter", "alleles", "gt_ultima", "gt_ground_truth"]]
+        d = d[["call", "base", score_name, "filter", "alleles", "gt_ultima", "gt_ground_truth", "tp", "fp", "fn"]]
         d.loc[d["call"].isna(), "call"] = "NA"
         d.loc[d["base"].isna(), "base"] = "NA"
         # Change tree_score such that PASS will get high score values. FNs will be the lowest
@@ -235,10 +330,6 @@ class ShortReportUtils:
         dir_switch = 1 if score_pass > score_not_pass else -1
         score = d[score_name] * dir_switch
         score = score - score.min()
-
-        d["fp"] = (d["call"] == "FP") | (d["call"] == "FP_CA")
-        d["fn"] = (d["base"] == "FN") | (d["base"] == "FN_CA")
-        d["tp"] = d["call"] == "TP"
 
         # define variants which didn't have any candidate
         missing_candidates_index = (d["base"] == "FN") & (d["call"] == "NA")
@@ -313,26 +404,24 @@ class ShortReportUtils:
         elif cat == "Indel":
             result = data[data["indel"]]
         elif cat == "non-hmer Indel":
-            result = data[(data["indel"]) & (data["hmer_indel_length"] == 0) & (data["indel_length"] > 0)]
+            result = data[(data["indel"]) & (data["hmer_length"] == 0) & (data["indel_length"] > 0)]
         elif cat == "non-hmer Indel w/o LCR":
-            result = data[
-                (data["indel"]) & (data["hmer_indel_length"] == 0) & (data["indel_length"] > 0) & (~data["LCR"])
-            ]
+            result = data[(data["indel"]) & (data["hmer_length"] == 0) & (data["indel_length"] > 0) & (~data["LCR"])]
         elif cat == "hmer Indel <=4":
-            result = data[(data["indel"]) & (data["hmer_indel_length"] > 0) & (data["hmer_indel_length"] <= 4)]
+            result = data[(data["indel"]) & (data["hmer_length"] > 0) & (data["hmer_length"] <= 4)]
         elif cat == "hmer Indel >4,<=8":
-            result = data[(data["indel"]) & (data["hmer_indel_length"] > 4) & (data["hmer_indel_length"] <= 8)]
+            result = data[(data["indel"]) & (data["hmer_length"] > 4) & (data["hmer_length"] <= 8)]
         elif cat == "hmer Indel >8,<=10":
-            result = data[(data["indel"]) & (data["hmer_indel_length"] > 8) & (data["hmer_indel_length"] <= 10)]
+            result = data[(data["indel"]) & (data["hmer_length"] > 8) & (data["hmer_length"] <= 10)]
         elif cat == "hmer Indel >10,<=14":
-            result = data[(data["indel"]) & (data["hmer_indel_length"] > 10) & (data["hmer_indel_length"] <= 14)]
+            result = data[(data["indel"]) & (data["hmer_length"] > 10) & (data["hmer_length"] <= 14)]
         elif cat == "hmer Indel >15,<=19":
-            result = data[(data["indel"]) & (data["hmer_indel_length"] > 14) & (data["hmer_indel_length"] <= 19)]
+            result = data[(data["indel"]) & (data["hmer_length"] > 14) & (data["hmer_length"] <= 19)]
         elif cat == "hmer Indel >=20":
-            result = data[(data["indel"]) & (data["hmer_indel_length"] >= 20)]
+            result = data[(data["indel"]) & (data["hmer_length"] >= 20)]
         for i in range(1, 10):
             if cat == "hmer Indel {0:d}".format(i):
-                result = data[(data["indel"]) & (data["hmer_indel_length"] == i)]
+                result = data[(data["indel"]) & (data["hmer_length"] == i)]
                 return result
         if result is None:
             raise RuntimeError(f"No such category: {cat}")
