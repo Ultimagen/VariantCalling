@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 
 from ugvc import logger
+from ugvc.comparison.concordance_utils import read_hdf
 
 
 def get_h5_keys(h5_filename: str):
-    with pd.HDFStore(h5_filename) as store:
+    with pd.HDFStore(h5_filename, "r") as store:
         keys = store.keys()
         return keys
 
@@ -67,7 +68,7 @@ def convert_h5_to_json(input_h5_filename: str, root_element: str, ignored_h5_key
             logger.warning("Skipping: %s", h5_key)
             continue
         logger.info("Processing: %s", h5_key)
-        df = pd.read_hdf(input_h5_filename, h5_key)
+        df = read_hdf(input_h5_filename, h5_key)
         preprocess_columns(df)
         df_to_json = df.to_json(orient="table")
         json_dict = json.loads(df_to_json)
