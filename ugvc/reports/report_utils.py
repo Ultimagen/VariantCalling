@@ -54,7 +54,7 @@ class ErrorType(Enum):
     NO_ERROR = 6
 
 
-class ShortReportUtils:
+class ReportUtils:
     def __init__(self, verbosity, h5outfile: str, num_plots_in_row=6, min_value=0.2):
         self.verbosity = verbosity
         self.h5outfile = h5outfile
@@ -73,8 +73,6 @@ class ShortReportUtils:
                 data_sec = sec_df[~(is_sec & (sec_df["classify_gt"] == "fp"))]
 
         opt_tab, opt_res, perf_curve, detailed_fp_tab = self.get_performance(data, categories)
-        opt_tab.to_hdf(self.h5outfile, key=out_key)
-        detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key}_fp_details")
 
         if data_sec is not None:
             sec_opt_tab, sec_opt_res, _, detailed_fp_tab = self.get_performance(data_sec, categories)
@@ -87,22 +85,21 @@ class ShortReportUtils:
                 )
             sec_opt_tab.to_hdf(self.h5outfile, key=out_key_sec)
             detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key_sec}_fp_details")
-            display(Markdown("### General accuracy"))
-            display(sec_opt_tab)
-            display(Markdown("### False-positive details"))
-            display(detailed_fp_tab)
+            self.__display_tables(sec_opt_tab, detailed_fp_tab)
         else:
             self.plot_performance(perf_curve, opt_res, categories)
-            display(Markdown("### General accuracy"))
-            display(opt_tab)
-            display(Markdown("### False-positive details"))
-            display(detailed_fp_tab)
+            self.__display_tables(opt_tab, detailed_fp_tab)
+
+        self.make_multi_index(opt_tab)
+        opt_tab.to_hdf(self.h5outfile, key=out_key)
+        detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key}_fp_details")
 
     def homozygous_genotyping_analysis(self, d: pd.DataFrame, categories: list[str], out_key: str) -> None:
         hmz_data = d[(d["gt_ground_truth"] == (1, 1)) & (d["classify"] != "fn")]
         opt_tab, _, _, _ = self.get_performance(hmz_data, categories)
-        opt_tab.to_hdf(self.h5outfile, out_key)
         display(opt_tab)
+        self.make_multi_index(opt_tab)
+        opt_tab.to_hdf(self.h5outfile, out_key)
 
     def base_stratification_analysis(self, d: pd.DataFrame, categories: list[str], bases: tuple) -> pd.DataFrame:
         base_data = d[
@@ -211,7 +208,7 @@ class ShortReportUtils:
             display(Markdown(f"### {variable_name}"))
             for indel_type, indels in (hmer_indels, non_hmer_indels):
                 display(Markdown(f"#### {data_name} {indel_type} - {variable_name}"))
-                _, ax = plt.subplots(1, 5, figsize=(15, 4))
+                _, ax = plt.subplots(1, 5, figsize=(15, 3))
                 classes = ["fp", "tp", "fn"]
                 bins = np.arange(min_value, max_value, bin_width)
                 ins_hist = {}
@@ -244,7 +241,7 @@ class ShortReportUtils:
                 precision_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fp"])
                 recall_ins = ins_hist["tp"] / (ins_hist["tp"] + ins_hist["fn"])
                 recall_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fn"])
-                ShortReportUtils.__plot_accuracy_metric(
+                ReportUtils.__plot_accuracy_metric(
                     ax[3],
                     bins,
                     min_value,
@@ -255,10 +252,15 @@ class ShortReportUtils:
                     variable_name,
                     "precision",
                 )
-                ShortReportUtils.__plot_accuracy_metric(
+                ReportUtils.__plot_accuracy_metric(
                     ax[4], bins, min_value, max_value, recall_del, recall_ins, tick_width, variable_name, "recall"
                 )
                 plt.show()
+
+    @staticmethod
+    def make_multi_index(df):
+        """We make the data-frames multi-index before saving them to h5, for backwards compatability"""
+        df.columns = pd.MultiIndex.from_tuples([("whole genome", x) for x in df.columns])
 
     @staticmethod
     def __plot_accuracy_metric(fig, bins, min_value, max_value, metric_del, metric_ins, tick_width, x_label, title):
@@ -270,6 +272,27 @@ class ShortReportUtils:
         fig.set_ylim(0, 1)
         fig.legend()
         fig.xaxis.set_ticks(np.arange(min_value, max_value, tick_width))
+
+    @staticmethod
+    def __display_tables(opt_tab, detailed_fp_tab):
+        display(
+            Markdown(
+                """### General accuracy
+        * #pos - total variants in ground-truth
+        * #neg - false-positive variants (before filtering)
+        * max_recall - fraction of true variants with correctly generated candidate"""
+            )
+        )
+        display(opt_tab)
+        display(
+            Markdown(
+                """### False-positive details
+        * o->e - number of homozygous variants called as heterozygous
+        * e->o - number of heterozygous variants called as homozygous
+        * ale_err - number of ground-truth positions which have a call of a non-matching allele"""
+            )
+        )
+        display(detailed_fp_tab)
 
     def __get_general_performance_df(self, cat, performance_dict):
         if self.verbosity > 1:
