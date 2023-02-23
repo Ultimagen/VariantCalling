@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from configparser import ConfigParser
 from enum import Enum
 
@@ -47,7 +48,7 @@ def parse_config(config_file):
 
 class ErrorType(Enum):
     NOISE = 1
-    MISS = 2
+    NO_VARIANT = 2
     HOM_TO_HET = 3
     HET_TO_HOM = 4
     WRONG_ALLELE = 5
@@ -72,10 +73,10 @@ class ReportUtils:
                 sec_df.loc[is_sec & (sec_df["classify_gt"] == "tp"), "classify_gt"] = "fn"
                 data_sec = sec_df[~(is_sec & (sec_df["classify_gt"] == "fp"))]
 
-        opt_tab, opt_res, perf_curve, detailed_fp_tab = self.get_performance(data, categories)
+        opt_tab, opt_res, perf_curve, error_types_tab = self.get_performance(data, categories)
 
         if data_sec is not None:
-            sec_opt_tab, sec_opt_res, _, detailed_fp_tab = self.get_performance(data_sec, categories)
+            sec_opt_tab, sec_opt_res, _, sec_error_types_tab = self.get_performance(data_sec, categories)
             if self.verbosity > 1:
                 self.plot_performance(
                     perf_curve,
@@ -84,15 +85,17 @@ class ReportUtils:
                     opt_res_sec=sec_opt_res,
                 )
             sec_opt_tab.to_hdf(self.h5outfile, key=out_key_sec)
-            detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key_sec}_fp_details")
-            self.__display_tables(sec_opt_tab, detailed_fp_tab)
+            sec_error_types_tab.to_hdf(self.h5outfile, key=f"{out_key_sec}_error_types")
+
+            sec_opt_tab = pd.concat([opt_tab, sec_opt_tab], keys=[out_key, "After filtering systematic errors"], axis=1)
+            self.__display_tables(sec_opt_tab, error_types_tab, sec_error_types_tab)
         else:
             self.plot_performance(perf_curve, opt_res, categories)
-            self.__display_tables(opt_tab, detailed_fp_tab)
+            self.__display_tables(opt_tab, error_types_tab)
 
         self.make_multi_index(opt_tab)
         opt_tab.to_hdf(self.h5outfile, key=out_key)
-        detailed_fp_tab.to_hdf(self.h5outfile, key=f"{out_key}_fp_details")
+        error_types_tab.to_hdf(self.h5outfile, key=f"{out_key}_error_types")
 
     def homozygous_genotyping_analysis(self, d: pd.DataFrame, categories: list[str], out_key: str) -> None:
         hmz_data = d[(d["gt_ground_truth"] == (1, 1)) & (d["classify"] != "fn")]
@@ -164,7 +167,7 @@ class ReportUtils:
         perf_curve = {}
         opt_res = {}
         opt_tab = pd.DataFrame()
-        detailed_fp_table = pd.DataFrame()
+        error_types_table = pd.DataFrame()
         for cat in categories:
             d = self.__filter_by_category(data, cat)
             performance_dict, pr_curve = self.__calc_performance(d)
@@ -173,10 +176,10 @@ class ReportUtils:
             row = self.__get_general_performance_df(cat, performance_dict)
             opt_tab = pd.concat([opt_tab, row])
             if self.verbosity > 1:
-                detailed_fp_row = self.__get_detailed_fp_df(cat, performance_dict)
-                detailed_fp_table = pd.concat([detailed_fp_table, detailed_fp_row])
+                error_types_row = self.__get_error_types_row(cat, performance_dict)
+                error_types_table = pd.concat([error_types_table, error_types_row])
 
-        return opt_tab, opt_res, perf_curve, detailed_fp_table
+        return opt_tab, opt_res, perf_curve, error_types_table
 
     @staticmethod
     def indel_analysis(
@@ -195,67 +198,69 @@ class ReportUtils:
         hmer_indels = ("hmer_indels", indels[hmer_indels_index])
         non_hmer_indels = ("non_hmer_indels", indels[~hmer_indels_index])
 
-        for k, variable_name in enumerate(variable_names):
-            min_value = min_values[k]
-            max_value = max_values[k]
-            if max_value > 1:
-                max_value += 1
-            bin_width = bin_widths[k]
-            tick_width = tick_widths[k]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            for k, variable_name in enumerate(variable_names):
+                min_value = min_values[k]
+                max_value = max_values[k]
+                if max_value > 1:
+                    max_value += 1
+                bin_width = bin_widths[k]
+                tick_width = tick_widths[k]
 
-            if variable_name not in data.columns:
-                continue
-            display(Markdown(f"### {variable_name}"))
-            for indel_type, indels in (hmer_indels, non_hmer_indels):
-                display(Markdown(f"#### {data_name} {indel_type} - {variable_name}"))
-                _, ax = plt.subplots(1, 5, figsize=(15, 3))
-                classes = ["fp", "tp", "fn"]
-                bins = np.arange(min_value, max_value, bin_width)
-                ins_hist = {}
-                del_hist = {}
-                for i in range(3):
-                    class_ = classes[i]
-                    ax[i].set_title(class_)
+                if variable_name not in data.columns:
+                    continue
+                display(Markdown(f"### {variable_name}"))
+                for indel_type, indels in (hmer_indels, non_hmer_indels):
+                    display(Markdown(f"#### {data_name} {indel_type} - {variable_name}"))
+                    _, ax = plt.subplots(1, 5, figsize=(15, 3))
+                    classes = ["fp", "tp", "fn"]
+                    bins = np.arange(min_value, max_value, bin_width)
+                    ins_hist = {}
+                    del_hist = {}
+                    for i in range(3):
+                        class_ = classes[i]
+                        ax[i].set_title(class_)
 
-                    ins_hist[class_], _, _ = ax[i].hist(
-                        indels[indels[class_] & (indels["indel_classify"] == "ins")][variable_name],
-                        bins=bins,
-                        alpha=0.5,
-                        label="ins",
+                        ins_hist[class_], _, _ = ax[i].hist(
+                            indels[indels[class_] & (indels["indel_classify"] == "ins")][variable_name],
+                            bins=bins,
+                            alpha=0.5,
+                            label="ins",
+                        )
+                        del_hist[class_], _, _ = ax[i].hist(
+                            indels[indels[class_] & (indels["indel_classify"] == "del")][variable_name],
+                            bins=bins,
+                            alpha=0.5,
+                            color="g",
+                            label="del",
+                        )
+                        ax[i].set_xlabel(variable_name)
+                        ax[i].set_xlim(min_value, max_value)
+                        ax[i].legend()
+                        ax[i].xaxis.set_ticks(np.arange(min_value, max_value, tick_width))
+                        if bin_width < 1:
+                            ax[i].xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
+                    np.seterr(invalid="ignore")
+                    precision_ins = ins_hist["tp"] / (ins_hist["tp"] + ins_hist["fp"])
+                    precision_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fp"])
+                    recall_ins = ins_hist["tp"] / (ins_hist["tp"] + ins_hist["fn"])
+                    recall_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fn"])
+                    ReportUtils.__plot_accuracy_metric(
+                        ax[3],
+                        bins,
+                        min_value,
+                        max_value,
+                        precision_del,
+                        precision_ins,
+                        tick_width,
+                        variable_name,
+                        "precision",
                     )
-                    del_hist[class_], _, _ = ax[i].hist(
-                        indels[indels[class_] & (indels["indel_classify"] == "del")][variable_name],
-                        bins=bins,
-                        alpha=0.5,
-                        color="g",
-                        label="del",
+                    ReportUtils.__plot_accuracy_metric(
+                        ax[4], bins, min_value, max_value, recall_del, recall_ins, tick_width, variable_name, "recall"
                     )
-                    ax[i].set_xlabel(variable_name)
-                    ax[i].set_xlim(min_value, max_value)
-                    ax[i].legend()
-                    ax[i].xaxis.set_ticks(np.arange(min_value, max_value, tick_width))
-                    if bin_width < 1:
-                        ax[i].xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
-                np.seterr(invalid="ignore")
-                precision_ins = ins_hist["tp"] / (ins_hist["tp"] + ins_hist["fp"])
-                precision_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fp"])
-                recall_ins = ins_hist["tp"] / (ins_hist["tp"] + ins_hist["fn"])
-                recall_del = del_hist["tp"] / (del_hist["tp"] + del_hist["fn"])
-                ReportUtils.__plot_accuracy_metric(
-                    ax[3],
-                    bins,
-                    min_value,
-                    max_value,
-                    precision_del,
-                    precision_ins,
-                    tick_width,
-                    variable_name,
-                    "precision",
-                )
-                ReportUtils.__plot_accuracy_metric(
-                    ax[4], bins, min_value, max_value, recall_del, recall_ins, tick_width, variable_name, "recall"
-                )
-                plt.show()
+                    plt.show()
 
     @staticmethod
     def make_multi_index(df):
@@ -273,26 +278,44 @@ class ReportUtils:
         fig.legend()
         fig.xaxis.set_ticks(np.arange(min_value, max_value, tick_width))
 
-    @staticmethod
-    def __display_tables(opt_tab, detailed_fp_tab):
-        display(
-            Markdown(
-                """### General accuracy
-        * #pos - total variants in ground-truth
-        * #neg - false-positive variants (before filtering)
-        * max_recall - fraction of true variants with correctly generated candidate"""
+    def __display_tables(self, opt_tab, error_types_tab, sec_error_types_tab=None):
+        display(Markdown("### General accuracy"))
+        if self.verbosity > 1:
+            display(
+                Markdown(
+                    "* #pos - total variants in ground-truth\n"
+                    "* neg - false-positive variants (before filtering)\n"
+                    "* max_recall - fraction of true variants with correctly generated candidate"
+                )
             )
-        )
         display(opt_tab)
-        display(
-            Markdown(
-                """### False-positive details
-        * o->e - number of homozygous variants called as heterozygous
-        * e->o - number of heterozygous variants called as homozygous
-        * ale_err - number of ground-truth positions which have a call of a non-matching allele"""
+        if self.verbosity > 1:
+            display(Markdown("### Error types"))
+            display(
+                Markdown(
+                    "* noise - called variants which have no matching true variant\n"
+                    "* wrong_allele - called variants which have a true variant in "
+                    "the same position with a non-matching allele\n"
+                    "* hom->het - homozygous variants called as heterozygous\n"
+                    "* het->hom - heterozygous variants called as homozygous\n"
+                    "* miss - completely missed true variants\n"
+                )
             )
-        )
-        display(detailed_fp_tab)
+            drop_list = [
+                "hmer Indel 4",
+                "hmer Indel 5",
+                "hmer Indel 6",
+                "hmer Indel 7",
+                "hmer Indel 8",
+                "non-hmer Indel w/o LCR",
+            ]
+            error_types_tab.drop(drop_list, errors="ignore", inplace=True)
+            display(error_types_tab)
+            if sec_error_types_tab is not None:
+                display(Markdown("After systematic error correction:"))
+                sec_error_types_tab.drop(drop_list, errors="ignore", inplace=True)
+                display(sec_error_types_tab)
+            error_types_tab.plot.bar(stacked=True, figsize=(8, 6))
 
     def __get_general_performance_df(self, cat, performance_dict):
         if self.verbosity > 1:
@@ -320,15 +343,16 @@ class ReportUtils:
             index=[cat],
         )
 
-    def __get_detailed_fp_df(self, cat, performance_dict):
+    @staticmethod
+    def __get_error_types_row(cat, performance_dict):
         return pd.DataFrame(
             {
-                "fp": performance_dict["initial_fp"],
-                "o->e": performance_dict["hom->het"],
-                "e->o": performance_dict["het->hom"],
-                "ale_err": performance_dict["wrong_allele"],
-                "fp(filter)": performance_dict["fp"],
-                "precision": performance_dict["precision"],
+                "noise": performance_dict["noise"],
+                "wrong_allele": performance_dict["wrong_allele"],
+                "hom->het": performance_dict["hom->het"],
+                "het->hom": performance_dict["het->hom"],
+                "filter_true": performance_dict["filter_true"],
+                "miss_candidate": performance_dict["miss_candidate"],
             },
             index=[cat],
         )
@@ -373,9 +397,11 @@ class ReportUtils:
 
         genotypes = d["gt_ground_truth"] + d["gt_ultima"]
         error_type = genotypes.apply(self.get_error_type)
-        hom_to_het = (error_type == ErrorType.HOM_TO_HET).sum()
-        het_to_hom = (error_type == ErrorType.HET_TO_HOM).sum()
-        wrong_allele = (error_type == ErrorType.WRONG_ALLELE).sum()
+        noise = ((error_type == ErrorType.NOISE) & (d["filter"] == "PASS")).sum()
+        hom_to_het = ((error_type == ErrorType.HOM_TO_HET) & (d["filter"] == "PASS")).sum()
+        het_to_hom = ((error_type == ErrorType.HET_TO_HOM) & (d["filter"] == "PASS")).sum()
+        wrong_allele = ((error_type == ErrorType.WRONG_ALLELE) & (d["filter"] == "PASS")).sum()
+        filtered_true = fn - missing_candidates - hom_to_het - het_to_hom - wrong_allele
 
         recall = get_recall(fn, tp, np.nan)
         max_recall = get_recall(missing_candidates, (tp + fn - missing_candidates), np.nan)
@@ -395,9 +421,12 @@ class ReportUtils:
             "tp": tp,
             "fp": fp,
             "fn": fn,
+            "noise": noise,
+            "wrong_allele": wrong_allele,
             "hom->het": hom_to_het,
             "het->hom": het_to_hom,
-            "wrong_allele": wrong_allele,
+            "filter_true": filtered_true,
+            "miss_candidate": missing_candidates,
         }
         if len(d) < 10:
             return result_dict, pr_curve
@@ -436,8 +465,10 @@ class ReportUtils:
             result = data[(data["indel"]) & (data["hmer_length"] > 4) & (data["hmer_length"] <= 8)]
         elif cat == "hmer Indel >8,<=10":
             result = data[(data["indel"]) & (data["hmer_length"] > 8) & (data["hmer_length"] <= 10)]
-        elif cat == "hmer Indel >10,<=14":
-            result = data[(data["indel"]) & (data["hmer_length"] > 10) & (data["hmer_length"] <= 14)]
+        elif cat == "hmer Indel >10,<=12":
+            result = data[(data["indel"]) & (data["hmer_length"] > 10) & (data["hmer_length"] <= 12)]
+        elif cat == "hmer Indel >12,<=14":
+            result = data[(data["indel"]) & (data["hmer_length"] > 12) & (data["hmer_length"] <= 14)]
         elif cat == "hmer Indel >15,<=19":
             result = data[(data["indel"]) & (data["hmer_length"] > 14) & (data["hmer_length"] <= 19)]
         elif cat == "hmer Indel >=20":
@@ -462,7 +493,7 @@ class ReportUtils:
             return ErrorType.NOISE
 
         if call_gt in ({0}, {None}):
-            return ErrorType.MISS
+            return ErrorType.NO_VARIANT
 
         if gtr_gt.intersection(call_gt) == gtr_gt:
             return ErrorType.HOM_TO_HET
