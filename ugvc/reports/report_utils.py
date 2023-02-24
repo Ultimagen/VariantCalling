@@ -88,10 +88,15 @@ class ReportUtils:
             sec_error_types_tab.to_hdf(self.h5outfile, key=f"{out_key_sec}_error_types")
 
             sec_opt_tab = pd.concat([opt_tab, sec_opt_tab], keys=[out_key, "After filtering systematic errors"], axis=1)
-            self.__display_tables(sec_opt_tab, error_types_tab, sec_error_types_tab)
+            self.__display_tables(
+                sec_opt_tab,
+                error_types_tab,
+                out_key,
+                sec_error_types_tab,
+            )
         else:
             self.plot_performance(perf_curve, opt_res, categories)
-            self.__display_tables(opt_tab, error_types_tab)
+            self.__display_tables(opt_tab, error_types_tab, out_key)
 
         self.make_multi_index(opt_tab)
         opt_tab.to_hdf(self.h5outfile, key=out_key)
@@ -268,6 +273,10 @@ class ReportUtils:
         df.columns = pd.MultiIndex.from_tuples([("whole genome", x) for x in df.columns])
 
     @staticmethod
+    def get_anchor(anchor_id: str) -> str:
+        return f"<a class ='anchor' id='{anchor_id}'> </a>"
+
+    @staticmethod
     def __plot_accuracy_metric(fig, bins, min_value, max_value, metric_del, metric_ins, tick_width, x_label, title):
         fig.set_title(title)
         fig.plot(bins[1:], metric_ins, ".--", label="ins")
@@ -278,8 +287,9 @@ class ReportUtils:
         fig.legend()
         fig.xaxis.set_ticks(np.arange(min_value, max_value, tick_width))
 
-    def __display_tables(self, opt_tab, error_types_tab, sec_error_types_tab=None):
-        display(Markdown("### General accuracy"))
+    def __display_tables(self, opt_tab, error_types_tab, name, sec_error_types_tab=None):
+        anchor = self.get_anchor(f"gen_acc_{name}")
+        display(Markdown(f"### General accuracy ({name}) {anchor}"))
         if self.verbosity > 1:
             display(
                 Markdown(
@@ -290,7 +300,8 @@ class ReportUtils:
             )
         display(opt_tab)
         if self.verbosity > 1:
-            display(Markdown("### Error types"))
+            anchor = self.get_anchor(f"err_types_{name}")
+            display(Markdown(f"### Error types ({name}) {anchor}"))
             display(
                 Markdown(
                     "* noise - called variants which have no matching true variant\n"
