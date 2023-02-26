@@ -63,7 +63,7 @@ class ReportUtils:
         self.num_plots_in_row = num_plots_in_row
         self.score_name = "tree_score"
 
-    def basic_analysis(self, data: pd.DataFrame, categories, out_key, out_key_sec=None) -> None:
+    def basic_analysis(self, data: pd.DataFrame, categories, out_key, out_key_sec=None):
         data_sec = None
         if out_key_sec is not None:
             sec_df = data.copy()
@@ -379,7 +379,21 @@ class ReportUtils:
     def __calc_performance(self, data: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
         score_name = "tree_score"
         d = data.copy()
-        d = d[["call", "base", score_name, "filter", "alleles", "gt_ultima", "gt_ground_truth", "tp", "fp", "fn"]]
+        d = d[
+            [
+                "call",
+                "base",
+                score_name,
+                "filter",
+                "alleles",
+                "gt_ultima",
+                "gt_ground_truth",
+                "tp",
+                "fp",
+                "fn",
+                "error_type",
+            ]
+        ]
         d.loc[d["call"].isna(), "call"] = "NA"
         d.loc[d["base"].isna(), "base"] = "NA"
         # Change tree_score such that PASS will get high score values. FNs will be the lowest
@@ -405,9 +419,7 @@ class ReportUtils:
         fp = initial_fp - filtered_fp
         fn = initial_fn + filtered_tp
         tp = initial_tp - filtered_tp
-
-        genotypes = d["gt_ground_truth"] + d["gt_ultima"]
-        error_type = genotypes.apply(self.get_error_type)
+        error_type = d["error_type"]
         noise = ((error_type == ErrorType.NOISE) & (d["filter"] == "PASS")).sum()
         hom_to_het = ((error_type == ErrorType.HOM_TO_HET) & (d["filter"] == "PASS")).sum()
         het_to_hom = ((error_type == ErrorType.HET_TO_HOM) & (d["filter"] == "PASS")).sum()
@@ -448,8 +460,8 @@ class ReportUtils:
         # Calculate precision and recall continuously
         # how many true variants are either initial FNs (missing/filtered) or below score threshold
         d["fn"] = initial_fn + np.cumsum(d["tp"])
-        d["tp"] = tp - np.cumsum(d["tp"])  # how many tps pass score threshold
-        d["fp"] = fp - np.cumsum(d["fp"])  # how many fps pass score threshold
+        d["tp"] = initial_tp - np.cumsum(d["tp"])  # how many tps pass score threshold
+        d["fp"] = initial_fp - np.cumsum(d["fp"])  # how many fps pass score threshold
         d["recall"] = d["tp"] / (d["fn"] + d["tp"])
         d["precision"] = d["tp"] / (d["fp"] + d["tp"])
 
@@ -491,25 +503,3 @@ class ReportUtils:
         if result is None:
             raise RuntimeError(f"No such category: {cat}")
         return result
-
-    @staticmethod
-    def get_error_type(genotype_pair: tuple) -> ErrorType:
-        gtr_gt = set(genotype_pair[0:2])
-        call_gt = set(genotype_pair[2:4])
-
-        if gtr_gt == call_gt:
-            return ErrorType.NO_ERROR
-
-        if gtr_gt in ({0}, {None}):
-            return ErrorType.NOISE
-
-        if call_gt in ({0}, {None}):
-            return ErrorType.NO_VARIANT
-
-        if gtr_gt.intersection(call_gt) == gtr_gt:
-            return ErrorType.HOM_TO_HET
-
-        if gtr_gt.intersection(call_gt) == call_gt:
-            return ErrorType.HET_TO_HOM
-
-        return ErrorType.WRONG_ALLELE
