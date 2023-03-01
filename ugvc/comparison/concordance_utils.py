@@ -10,10 +10,13 @@ from pandas import DataFrame
 from ugvc import logger
 from ugvc.filtering import variant_filtering_utils
 
-# from typing import Iterable, List, Optional
 
-
-def read_hdf(file_name: str, key: str = "all", skip_keys: collections.abc.Iterable[str] = ()) -> DataFrame:
+def read_hdf(
+    file_name: str,
+    key: str = "all",
+    skip_keys: collections.abc.Iterable[str] = (),
+    columns_subset: list[str] | None = None,
+) -> DataFrame:
     """
     Read data-frame or data-frames from an h5 file
 
@@ -29,6 +32,9 @@ def read_hdf(file_name: str, key: str = "all", skip_keys: collections.abc.Iterab
         3. all_somatic_chrs - chr1, ..., chr22
     skip_keys: Iterable[str]
         collection of keys to skip from reading the H5 (e.g. concordance, input_args ... )
+    columns_subset:
+        select a subset of columns
+
     Returns
     -------
     data-frame or concat data-frame read from the h5 file according to key
@@ -39,10 +45,19 @@ def read_hdf(file_name: str, key: str = "all", skip_keys: collections.abc.Iterab
         for k in skip_keys:
             if k in keys:
                 keys.remove(k)
-        dfs = [pd.read_hdf(file_name, key=key) for key in keys]
+        dfs = []
+        for k in keys:
+            tmpdf = pd.read_hdf(file_name, key=k)
+            if columns_subset is not None:
+                tmpdf = tmpdf[[x for x in columns_subset if x in tmpdf.columns]]
+            if tmpdf.shape[0] > 0:
+                dfs.append(tmpdf)
         return pd.concat(dfs)
     if key == "all_human_chrs":
-        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X"]]
+        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X", "Y"]]
+        return pd.concat(dfs)
+    if key == "all_hg19_human_chrs":
+        dfs = [pd.read_hdf(file_name, key=list(range(1, 23)) + ["X", "Y"])]
         return pd.concat(dfs)
     if key == "all_somatic_chrs":
         dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23))]

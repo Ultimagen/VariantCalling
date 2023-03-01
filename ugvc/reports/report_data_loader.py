@@ -11,7 +11,7 @@ class ReportDataLoader:
         self.rename_dict = self.__get_rename_dict()
 
     def load_concordance_df(self):
-        df = read_hdf(self.concordance_file, key="concordance")
+        df = read_hdf(self.concordance_file, key="all", skip_keys=["concordance", "input_args"])
         df.rename(columns=self.rename_dict, inplace=True)
         df["fp"] = (df["call"] == "FP") | (df["call"] == "FP_CA")
         df["fn"] = (df["base"] == "FN") | (df["base"] == "FN_CA")
