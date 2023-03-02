@@ -22,7 +22,7 @@ class ReportDataLoader:
                 lambda x: tuple([0]) if not isinstance(x.ad, tuple) else tuple(np.array(x.ad) / x.dp), axis=1
             )
         df["max_vaf"] = df["vaf"].apply(lambda x: 0 if isinstance(x, float) else max(x))
-        if "qual" not in df:
+        if "qual" not in df or (~df.qual.isna()).sum() == 0:
             df["qual"] = df["tree_score"]
         genotypes = df["gt_ground_truth"] + df["gt_ultima"]
         df["error_type"] = genotypes.apply(self.get_error_type)
