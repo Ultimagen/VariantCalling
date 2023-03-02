@@ -5,13 +5,16 @@ from ugvc.reports.report_utils import ErrorType
 
 
 class ReportDataLoader:
-    def __init__(self, concordance_file: str, reference_version: str):
+    def __init__(self, concordance_file: str, reference_version: str, exome_column_name: str):
         self.concordance_file = concordance_file
         self.reference_version = reference_version
+        self.columns = self.__columns_subset(exome_column_name)
         self.rename_dict = self.__get_rename_dict()
 
     def load_concordance_df(self):
-        df = read_hdf(self.concordance_file, key="all", skip_keys=["concordance", "input_args"])
+        df = read_hdf(
+            self.concordance_file, key="all", skip_keys=["concordance", "input_args"], columns_subset=self.columns
+        )
         df.rename(columns=self.rename_dict, inplace=True)
         df["fp"] = (df["call"] == "FP") | (df["call"] == "FP_CA")
         df["fn"] = (df["base"] == "FN") | (df["base"] == "FN_CA")
@@ -40,6 +43,41 @@ class ReportDataLoader:
                 "ug_hcr_hg19_no_chr": "ug_hcr",
             }
         return {}
+
+    def __columns_subset(self, exome_column_name):
+        common_columns = [
+            "indel",
+            "hmer_indel_length",
+            "tree_score",
+            "filter",
+            "blacklst",
+            "classify",
+            "classify_gt",
+            "indel_length",
+            "hmer_indel_nuc",
+            "well_mapped_coverage",
+            "base",
+            "call",
+            "gt_ground_truth",
+            "gt_ultima",
+            "ad",
+            "dp",
+            "vaf",
+            "ref",
+            "alleles",
+            exome_column_name,
+            "gc_content",
+            "indel_classify",
+            "qual",
+            "gq",
+        ]
+        if self.reference_version == "hg38":
+            return common_columns + ["LCR-hs38", "mappability.0", "ug_hcr"]
+
+        if self.reference_version == "hg19":
+            return common_columns + ["LCR-hg19_tab_no_chr", "mappability.hg19.0_tab_no_chr", "ug_hcr_hg19_no_chr"]
+
+        return common_columns
 
     @staticmethod
     def get_error_type(genotype_pair: tuple) -> ErrorType:
