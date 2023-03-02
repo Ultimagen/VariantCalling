@@ -24,6 +24,7 @@ class ReportDataLoader:
         df["max_vaf"] = df["vaf"].apply(lambda x: 0 if isinstance(x, float) else max(x))
         if "qual" not in df or (~df.qual.isna()).sum() == 0:
             df["qual"] = df["tree_score"]
+
         genotypes = df["gt_ground_truth"] + df["gt_ultima"]
         df["error_type"] = genotypes.apply(self.get_error_type)
         df.rename(columns={"hmer_indel_length": "hmer_length"}, inplace=True)
