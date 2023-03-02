@@ -77,13 +77,6 @@ class ReportUtils:
 
         if data_sec is not None:
             sec_opt_tab, sec_opt_res, _, sec_error_types_tab = self.get_performance(data_sec, categories)
-            if self.verbosity > 1:
-                self.plot_performance(
-                    perf_curve,
-                    opt_res,
-                    categories,
-                    opt_res_sec=sec_opt_res,
-                )
             sec_opt_tab.to_hdf(self.h5outfile, key=out_key_sec)
             sec_error_types_tab.to_hdf(self.h5outfile, key=f"{out_key_sec}_error_types")
 
@@ -94,9 +87,18 @@ class ReportUtils:
                 out_key,
                 sec_error_types_tab,
             )
+            if self.verbosity > 1:
+                self.plot_performance(
+                    perf_curve,
+                    opt_res,
+                    categories,
+                    out_key,
+                    opt_res_sec=sec_opt_res,
+                )
         else:
-            self.plot_performance(perf_curve, opt_res, categories)
             self.__display_tables(opt_tab, error_types_tab, out_key)
+            if self.verbosity > 1:
+                self.plot_performance(perf_curve, opt_res, categories, out_key)
 
         self.make_multi_index(opt_tab)
         opt_tab.to_hdf(self.h5outfile, key=out_key)
@@ -117,10 +119,9 @@ class ReportUtils:
 
         opt_tab, opt_res, perf_curve, _ = self.get_performance(base_data, categories)
         opt_tab.rename(index={a: "{0} ({1}/{2})".format(a, bases[0], bases[1]) for a in opt_tab.index}, inplace=True)
-        if self.verbosity > 1:
-            self.plot_performance(perf_curve, opt_res, categories)
-
         display(opt_tab)
+        if self.verbosity > 1:
+            self.plot_performance(perf_curve, opt_res, categories, str(bases))
         return opt_tab
 
     def plot_performance(
@@ -128,45 +129,76 @@ class ReportUtils:
         perf_curve: dict,
         opt_res: dict,
         categories: list[str],
+        name: str,
         opt_res_sec=None,
     ):
         m = self.num_plots_in_row
+        for i in range(4, 10):
+            drop_cat = f"hmer Indel {i}"
+            if drop_cat in categories:
+                categories.remove(drop_cat)
         n = math.ceil(len(categories) / m)
         num_empty_subplots = n * m - len(categories)
 
-        fig, ax = plt.subplots(n, m, figsize=(3 * m, 3 * n + 0.5 * (n - 1)))
-        opt_sec = None
-        ax_row = None
+        fig_pr, ax_pr = plt.subplots(n, m, figsize=(3 * m, 3 * n + 0.5 * (n - 1)))
+        fig_score, ax_score = plt.subplots(n, m, figsize=(3 * m, 3 * n + 0.5 * (n - 1)))
+
+        opt_sec, ax_pr_row, ax_score_row = None, None, None
         for cat_index, cat in enumerate(categories):
             i = math.floor(cat_index / m)
             j = cat_index % m
-            if len(ax.shape) == 2:
-                ax_row = ax[i]
+            if len(ax_pr.shape) == 2:
+                ax_pr_row = ax_pr[i]
+                ax_score_row = ax_score[i]
             else:
-                ax_row = ax
-            ax_row[0].set_ylabel("Precision")
+                ax_pr_row = ax_pr
+                ax_score_row = ax_score
+            ax_pr_row[0].set_ylabel("Precision")
+
             perf = perf_curve[cat]
+
             opt = opt_res[cat]
             if opt_res_sec is not None:
                 opt_sec = opt_res_sec[cat]
             if not perf.empty:
-                ax_row[j].plot(perf.recall, perf.precision, "-", color="r")
-                ax_row[j].plot(opt.get("recall"), opt.get("precision"), "o", color="red")
+                ax_pr_row[j].plot(perf.recall, perf.precision, "-", color="r")
+                ax_pr_row[j].plot(opt.get("recall"), opt.get("precision"), "o", color="red")
                 if opt_res_sec is not None:
-                    ax_row[j].plot(opt_sec.get("recall"), opt_sec.get("precision"), "o", color="black")
+                    ax_pr_row[j].plot(opt_sec.get("recall"), opt_sec.get("precision"), "o", color="black")
+                ax_score_row[j].plot(perf[self.score_name], perf.precision, label="precision")
+                ax_score_row[j].plot(perf[self.score_name], perf.recall, label="recall")
+                ax_score_row[j].plot(perf[self.score_name], perf.f1, label="f1")
 
-            title = cat
-            ax_row[j].set_title(title)
-            ax_row[j].set_xlabel("Recall")
-            ax_row[j].set_xlim([self.min_value, 1])
-            ax_row[j].set_ylim([self.min_value, 1])
-            ax_row[j].grid(True)
+                title = cat
+                ax_pr_row[j].set_title(title)
+                ax_score_row[j].set_title(title)
+                ax_pr_row[j].set_xlabel("Recall")
+                ax_score_row[j].set_xlabel("score")
+                ax_score_row[j].grid(True)
+                ax_score_row[0].legend(loc="upper right")
+
+                best_f1 = perf.f1.max()
+                f1_range = self.__get_range_from_gap(best_f1)
+                ax_pr_row[j].set_xlim(f1_range)
+                ax_pr_row[j].set_ylim(f1_range)
+                max_score = perf[perf.f1 >= f1_range[0]][self.score_name].max()
+                ax_score_row[j].set_xlim([0, max_score])
+                ax_score_row[j].set_ylim(f1_range)
+                ax_pr_row[j].grid(True)
         for i in range(num_empty_subplots):
-            if ax_row is not None:
-                fig.delaxes(ax_row[m - i - 1])
-
-        plt.tight_layout()
+            if ax_pr_row is not None:
+                fig_pr.delaxes(ax_pr_row[m - i - 1])
+                fig_score.delaxes(ax_score_row[m - i - 1])
+        fig_pr.suptitle(f"Precision/Recall curve ({name})", fontsize=20)
+        fig_score.suptitle(f"Score vs. accuracy ({name})", fontsize=20)
+        fig_pr.tight_layout()
+        fig_score.tight_layout()
         plt.show()
+
+    def __get_range_from_gap(self, metric):
+        gap = 1 - metric
+        min_ = max(metric - gap, 0)
+        return min_, 1
 
     def get_performance(self, data: pd.DataFrame, categories: list[str]):
         perf_curve = {}
@@ -377,7 +409,7 @@ class ReportUtils:
         return res
 
     def __calc_performance(self, data: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
-        score_name = "tree_score"
+        score_name = self.score_name
         d = data.copy()
         d = d[
             [
@@ -407,7 +439,7 @@ class ReportUtils:
         missing_candidates_index = (d["base"] == "FN") & (d["call"] == "NA")
         missing_candidates = missing_candidates_index.sum()
         # Give missing candidates score of -1 (order them at the top for pr_curve)
-        d[self.score_name] = np.where(missing_candidates_index, -1, score)
+        d[score_name] = np.where(missing_candidates_index, -1, score)
 
         # Calculate the precision and recall post filtering
         filtered_tp = len(d[d["tp"] & (d["filter"] != "PASS")])
@@ -426,10 +458,10 @@ class ReportUtils:
         wrong_allele = ((error_type == ErrorType.WRONG_ALLELE) & (d["filter"] == "PASS")).sum()
         filtered_true = fn - missing_candidates - hom_to_het - het_to_hom - wrong_allele
 
-        recall = get_recall(fn, tp, np.nan)
-        max_recall = get_recall(missing_candidates, (tp + fn - missing_candidates), np.nan)
-        precision = get_precision(fp, tp, np.nan)
-        f1 = get_f1(recall, precision, np.nan)
+        recall = get_recall(fn, tp, 0)
+        max_recall = get_recall(missing_candidates, (tp + fn - missing_candidates), 0)
+        precision = get_precision(fp, tp, 0)
+        f1 = get_f1(recall, precision, 0)
 
         pr_curve = pd.DataFrame()
         result_dict = {
@@ -455,20 +487,21 @@ class ReportUtils:
             return result_dict, pr_curve
 
         # Sort by score to get precision/recall curve
-        d = d.sort_values(by=[self.score_name])
+        d = d.sort_values(by=[score_name])
 
         # Calculate precision and recall continuously
         # how many true variants are either initial FNs (missing/filtered) or below score threshold
         d["fn"] = initial_fn + np.cumsum(d["tp"])
         d["tp"] = initial_tp - np.cumsum(d["tp"])  # how many tps pass score threshold
         d["fp"] = initial_fp - np.cumsum(d["fp"])  # how many fps pass score threshold
-        d["recall"] = d["tp"] / (d["fn"] + d["tp"])
-        d["precision"] = d["tp"] / (d["fp"] + d["tp"])
+        d["recall"] = d[["fn", "tp"]].apply(lambda t: get_recall(t[0], t[1], np.nan), axis=1)
+        d["precision"] = d[["fp", "tp"]].apply(lambda t: get_precision(t[0], t[1], np.nan), axis=1)
+        d["f1"] = d[["precision", "recall"]].apply(lambda t: get_f1(t[0], t[1], np.nan), axis=1)
 
         # Select for pr_curve variants which are not missed candidates / first 20 pos/neg variants
         d["mask"] = ((d["tp"] + d["fn"]) >= 20) & ((d["tp"] + d["fp"]) >= 20) & (d[self.score_name] >= 0)
         if len(d[d["mask"]]) > 0:
-            pr_curve = d[["fp", "fn", "tp", "recall", "precision"]][d["mask"]]
+            pr_curve = d[[score_name, "recall", "precision", "f1"]][d["mask"]]
         return result_dict, pr_curve
 
     @staticmethod
