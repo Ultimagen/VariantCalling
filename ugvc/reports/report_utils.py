@@ -178,12 +178,13 @@ class ReportUtils:
                 ax_score_row[0].legend(loc="upper right")
 
                 best_f1 = perf.f1.max()
-                f1_range = self.__get_range_from_gap(best_f1)
-                ax_pr_row[j].set_xlim(f1_range)
-                ax_pr_row[j].set_ylim(f1_range)
-                max_score = perf[perf.f1 >= f1_range[0]][self.score_name].max()
-                ax_score_row[j].set_xlim([0, max_score])
-                ax_score_row[j].set_ylim(f1_range)
+                if not math.isnan(best_f1):
+                    f1_range = self.__get_range_from_gap(best_f1)
+                    ax_pr_row[j].set_xlim(f1_range)
+                    ax_pr_row[j].set_ylim(f1_range)
+                    max_score = max(perf[perf.f1 >= f1_range[0]][self.score_name].max(), 0.01)
+                    ax_score_row[j].set_xlim([0, max_score])
+                    ax_score_row[j].set_ylim(f1_range)
                 ax_pr_row[j].grid(True)
         for i in range(num_empty_subplots):
             if ax_pr_row is not None:
@@ -195,8 +196,9 @@ class ReportUtils:
         fig_score.tight_layout()
         plt.show()
 
-    def __get_range_from_gap(self, metric):
-        gap = 1 - metric
+    @staticmethod
+    def __get_range_from_gap(metric):
+        gap = max(1 - metric, 0.01)
         min_ = max(metric - gap, 0)
         return min_, 1
 
@@ -458,10 +460,10 @@ class ReportUtils:
         wrong_allele = ((error_type == ErrorType.WRONG_ALLELE) & (d["filter"] == "PASS")).sum()
         filtered_true = fn - missing_candidates - hom_to_het - het_to_hom - wrong_allele
 
-        recall = get_recall(fn, tp, 0)
-        max_recall = get_recall(missing_candidates, (tp + fn - missing_candidates), 0)
-        precision = get_precision(fp, tp, 0)
-        f1 = get_f1(recall, precision, 0)
+        recall = get_recall(fn, tp, np.nan)
+        max_recall = get_recall(missing_candidates, (tp + fn - missing_candidates), np.nan)
+        precision = get_precision(fp, tp, np.nan)
+        f1 = get_f1(recall, precision, np.nan)
 
         pr_curve = pd.DataFrame()
         result_dict = {
@@ -497,11 +499,7 @@ class ReportUtils:
         d["recall"] = d[["fn", "tp"]].apply(lambda t: get_recall(t[0], t[1], np.nan), axis=1)
         d["precision"] = d[["fp", "tp"]].apply(lambda t: get_precision(t[0], t[1], np.nan), axis=1)
         d["f1"] = d[["precision", "recall"]].apply(lambda t: get_f1(t[0], t[1], np.nan), axis=1)
-
-        # Select for pr_curve variants which are not missed candidates / first 20 pos/neg variants
-        d["mask"] = ((d["tp"] + d["fn"]) >= 20) & ((d["tp"] + d["fp"]) >= 20) & (d[self.score_name] >= 0)
-        if len(d[d["mask"]]) > 0:
-            pr_curve = d[[score_name, "recall", "precision", "f1"]][d["mask"]]
+        pr_curve = d[[score_name, "recall", "precision", "f1"]]
         return result_dict, pr_curve
 
     @staticmethod
