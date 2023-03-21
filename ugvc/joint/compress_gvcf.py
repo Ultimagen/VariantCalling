@@ -8,9 +8,9 @@ def get_sample_value(record, key, sample_name):
         sample_name].keys() else None
 
 
-def get_compressed_pl_into_3_values(record):
+def get_compressed_pl_into_3_values(record, sample_name):
     compressed_pl = []
-    pl = get_sample_value(record, 'PL')
+    pl = get_sample_value(record, 'PL', sample_name)
     if len(pl) == 3:
         return pl
     else:
@@ -28,7 +28,7 @@ def get_compressed_pl_into_3_values(record):
         return tuple(compressed_pl)
 
 def get_parser() -> argparse.ArgumentParser:
-    ap_var = argparse.ArgumentParser(prog="run_comparison_pipeline.py", description="Compare VCF to ground truth")
+    ap_var = argparse.ArgumentParser(prog="compress_gvcf.py", description="Compress GVCF file by merging similar rows")
     ap_var.add_argument("--input_path", help="Input gvcf file path", required=True, type=str)
     ap_var.add_argument("--output_path", help="Output gvcf file path", required=True, type=str)
     return ap_var
@@ -50,17 +50,17 @@ def run(argv: List[str]):
             # first record
             prev_record = record
             first_record = record
-            min_gq = get_sample_value(record, 'GQ')
+            min_gq = get_sample_value(record, 'GQ', sample_name)
             max_gq = min_gq
             gq_sum = min_gq
-            min_dp = get_sample_value(record, 'MIN_DP')
+            min_dp = get_sample_value(record, 'MIN_DP', sample_name)
             merge_size += 1
-            pl = get_compressed_pl_into_3_values(record)
+            pl = get_compressed_pl_into_3_values(record, sample_name)
             continue
 
-        gq_value = get_sample_value(record, 'GQ')
+        gq_value = get_sample_value(record, 'GQ', sample_name)
         is_refcall = ('RefCall' in record.filter.keys())
-        prev_gq_value = get_sample_value(prev_record, 'GQ')
+        prev_gq_value = get_sample_value(prev_record, 'GQ', sample_name)
         is_prev_refcall = ('RefCall' in prev_record.filter.keys())
 
         if (is_refcall and (gq_value <= 22)) or (record.chrom != prev_record.chrom) or (gq_value - min_gq >= 10) or (
@@ -89,24 +89,24 @@ def run(argv: List[str]):
             prev_record = record
             first_record = record
             merge_size = 1
-            min_gq = get_sample_value(record, 'GQ')
+            min_gq = get_sample_value(record, 'GQ', sample_name)
             max_gq = min_gq
             gq_sum = min_gq
-            min_dp = get_sample_value(record, 'MIN_DP')
-            pl = get_compressed_pl_into_3_values(record)
+            min_dp = get_sample_value(record, 'MIN_DP', sample_name)
+            pl = get_compressed_pl_into_3_values(record, sample_name)
         else:
             # just continue with the same set of lines
             prev_record = record
             merge_size += 1
             min_gq = min(min_gq, gq_value)
             max_gq = max(max_gq, gq_value)
-            cur_min_dp = get_sample_value(record, 'MIN_DP')
+            cur_min_dp = get_sample_value(record, 'MIN_DP', sample_name)
             if cur_min_dp is not None:
                 if min_dp is not None:
                     min_dp = min(min_dp, cur_min_dp)
                 else:
                     min_dp = cur_min_dp
-            cur_pl = get_compressed_pl_into_3_values(record)
+            cur_pl = get_compressed_pl_into_3_values(record, sample_name)
             pl = (min(cur_pl[0], pl[0]), min(cur_pl[1], pl[1]), min(cur_pl[2], pl[2]))
             gq_sum += gq_value
 

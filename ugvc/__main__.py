@@ -46,6 +46,10 @@ from ugvc.methylation import (
     process_perRead,
 )
 
+from ugvc.joint import (
+    compress_gvcf
+)
+
 
 # create a list of imported pipeline modules
 modules = [
@@ -82,6 +86,8 @@ methylation_modules = [
     process_perRead,
 ]
 
+joint_modules = [compress_gvcf]
+
 
 misc_modules = [cloud_sync]
 
@@ -89,6 +95,7 @@ modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
 modules.extend(methylation_modules)
+modules.extends(joint_modules)
 
 
 LOGO = """
