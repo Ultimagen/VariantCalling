@@ -1,6 +1,6 @@
 import pysam
 import argparse
-from typing import Any, List, Optional, Tuple
+from typing import List
 import sys
 
 def get_sample_value(record, key, sample_name):
@@ -34,7 +34,6 @@ def get_parser() -> argparse.ArgumentParser:
     return ap_var
 
 
-# def run(argv: list[str]):
 def run(argv: List[str]):
     parser = get_parser()
     args = parser.parse_args(argv[1:])
