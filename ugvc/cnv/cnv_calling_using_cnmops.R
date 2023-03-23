@@ -68,7 +68,7 @@ if(args$save_hdf){
 
 if(args$save_csv){
     write.csv(df_cnvr,"cohort.cnmops.cnvr.csv", row.names = FALSE,quote=FALSE)
-    write.csv(individualCall_df,"cohort.cnmops.individualCall.csv",row.names = FALSE, quote=FALSE)
-    write.csv(inicall_df,"cohort.cnmops.inicall.csv",row.names = FALSE, quote=FALSE)
-    write.csv(integerCopyNumber_df,"cohort.cnmops.integerCopyNumber.csv",row.names = FALSE, quote=FALSE)
+    write.csv(df_individual_call,"cohort.cnmops.individualCall.csv",row.names = FALSE, quote=FALSE)
+    write.csv(df_inicall,"cohort.cnmops.inicall.csv",row.names = FALSE, quote=FALSE)
+    write.csv(df_integer_copy_number,"cohort.cnmops.integerCopyNumber.csv",row.names = FALSE, quote=FALSE)
 }

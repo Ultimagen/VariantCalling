@@ -8,6 +8,8 @@ parser$add_argument("-cohort_rc", "--cohort_reads_count_file",
                     help="input cohort reads count file in rds format")
 parser$add_argument("-sample_rc", "--sample_reads_count_file",
                     help="input sample reads count file in rds format")
+parser$add_argument("--save_hdf", action='store_true',
+                    help="whether to save reads count data-frames in hdf5 format")
 args <- parser$parse_args()
 
 cohort_reads_count_file <- args$cohort_reads_count_file
@@ -27,4 +29,6 @@ merged_cohort_reads_count <- GRanges(
 
 # save merged cohort
 saveRDS(merged_cohort_reads_count,file="merged_cohort_reads_count.rds")
-h5write(as.data.frame(merged_cohort_reads_count),"merged_cohort_reads_count.hdf5","merged_cohort_reads_count")
+if(args$save_hdf){
+  h5write(as.data.frame(merged_cohort_reads_count),"merged_cohort_reads_count.hdf5","merged_cohort_reads_count")
+}
