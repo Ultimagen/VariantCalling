@@ -88,9 +88,9 @@ def get_parser() -> argparse.ArgumentParser:
     return ap_var
 
 
-def compressGVCF(input_path, output_path):
+def run(argv: List[str]):
     """Makes the g.vcf file smaller by merging similar sequential records
-    The mergining is doe in the following way:
+    The merge is done in the following way:
     We merge sequential records as long as there GQ value of all the records in this merge is not different
     from each other by more than 10
     In addition, we want to keep RefCall records with GQ<22 and not merge them.
@@ -108,9 +108,9 @@ def compressGVCF(input_path, output_path):
 
     Parameters
     ----------
-    input_path : str
+    args.input_path : str
         input gvcf
-    output_path : str
+    args.output_path : str
         compressed gvcf
 
     Returns
@@ -119,9 +119,11 @@ def compressGVCF(input_path, output_path):
         Number of records in input g.vcf, number of records in compressed g.vcf
 
     """
+    parser = get_parser()
+    args = parser.parse_args(argv[1:])
 
-    gvcf_in = pysam.VariantFile(input_path, "r")
-    gvcf_out = pysam.VariantFile(output_path, "w", header=gvcf_in.header)
+    gvcf_in = pysam.VariantFile(args.input_path, "r")
+    gvcf_out = pysam.VariantFile(args.output_path, "w", header=gvcf_in.header)
     fetch_gvcf = gvcf_in.fetch()
     sample_name = list(gvcf_in.header.samples)[0]
     merge_size = 0
@@ -199,13 +201,11 @@ def compressGVCF(input_path, output_path):
 
     gvcf_in.close()
     gvcf_out.close()
-    pysam.tabix_index(output_path, preset='vcf')
+    pysam.tabix_index(args.output_path, preset='vcf')
 
     return count_in, count_out
 
 
 if __name__ == "__main__":
-    parser = get_parser()
-    args = parser.parse_args(sys.argv[1:])
-    result = compressGVCF(args.input_path, args.output_path)
+    result = run(sys.argv)
     sys.stderr.write(f"Compressed {result[0]} into {result[1]} records")

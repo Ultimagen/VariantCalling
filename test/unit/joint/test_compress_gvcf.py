@@ -3,13 +3,12 @@
 import ugvc.joint.compress_gvcf as compress_gvcf
 from os.path import join as pjoin
 from test import get_resource_dir
-import pysam
 
 def test_compress_gvcf(tmpdir):
     inputs_dir = get_resource_dir(__file__)
     input_file = pjoin(inputs_dir, "input.g.vcf.gz")
     output_file = pjoin(tmpdir, "compressed.g.vcf.gz")
-    result = compress_gvcf.compressGVCF(input_file, output_file)
+    result = compress_gvcf.run(['compress_gvcf','--input_path',input_file,'--output_path',output_file])
     assert result == (4438, 1075)
 
 
