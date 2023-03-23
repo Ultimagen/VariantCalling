@@ -19,12 +19,17 @@ parser$add_argument("-p", "--parallel",
                     type="integer", default=30)
 parser$add_argument("-o", "--base_file_name",
                     help="out base file name")
+parser$add_argument("--save_hdf", action='store_true',
+                    help="whether to save reads count data-frames in hdf5 format")
 
 args <- parser$parse_args()
 
 refSeqNames <- unlist(strsplit(args$refSeqNames_string, ","))
 bamDataRanges_RC <- getReadCountsFromBAM(args$input_bam_file, refSeqNames=refSeqNames, WL=args$window_length ,parallel=args$parallel)
 saveRDS(bamDataRanges_RC, file = paste(args$base_file_name,".ReadCounts.rds",sep = ""))
-hdf5_out_file_name <- paste(args$base_file_name,".ReadCounts.hdf5",sep = "")
-h5createFile(hdf5_out_file_name)
-h5write(as.data.frame(bamDataRanges_RC), hdf5_out_file_name,"bamDataRanges_RC")
+
+if(args$save_hdf){
+  hdf5_out_file_name <- paste(args$base_file_name,".ReadCounts.hdf5",sep = "")
+  h5createFile(hdf5_out_file_name)
+  h5write(as.data.frame(bamDataRanges_RC), hdf5_out_file_name,"bamDataRanges_RC")
+}
