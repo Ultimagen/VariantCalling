@@ -95,7 +95,7 @@ modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
 modules.extend(methylation_modules)
-modules.extends(joint_modules)
+modules.extend(joint_modules)
 
 
 LOGO = """
