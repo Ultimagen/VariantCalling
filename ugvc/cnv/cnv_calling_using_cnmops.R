@@ -29,6 +29,10 @@ parser$add_argument("-minWidth", "--min_width_val",
 parser$add_argument("-p", "--parallel",
                     help="number of parallel processes",
                     type="integer", default=30)
+parser$add_argument("--save_hdf", action='store_true',
+                    help="whether to save additional data-frames in hdf5 format")
+parser$add_argument("--save_csv", action='store_true',
+                    help="whether to save additional data-frames in csv format")
 args <- parser$parse_args()
 
 cohort_reads_count_file <- args$cohort_reads_count_file
@@ -42,25 +46,29 @@ resCNMOPS_Int <-calcIntegerCopyNumbers(resCNMOPS)
 
 saveRDS(resCNMOPS_Int,file="cohort.cnmops.rds")
 
-hdf5_out_file_name="cohort.cnmops_outputs.hdf5"
-h5createFile(hdf5_out_file_name)
-
 df_cnvs<-as.data.frame(cnvs(resCNMOPS_Int))
 write.csv(df_cnvs,"cohort.cnmops.cnvs.csv", row.names = FALSE,quote=FALSE)
-h5write(df_cnvs, hdf5_out_file_name,"df_cnvs")
 
-df_cnvr<-as.data.frame(cnvr(resCNMOPS_Int))
-h5write(df_cnvr, hdf5_out_file_name,"df_cnvr")
-#write.csv(df_cnvr,"cohort.cnmops.cnvr.csv", row.names = FALSE,quote=FALSE)
+if(args$save_hdf || args$save_csv){
+    df_cnvr<-as.data.frame(cnvr(resCNMOPS_Int))
+    df_individual_call<-as.data.frame(individualCall(resCNMOPS_Int))
+    df_inicall<-as.data.frame(iniCall(resCNMOPS_Int))
+    df_integer_copy_number<-as.data.frame(integerCopyNumber(resCNMOPS_Int))
+}
 
-df_individual_call<-as.data.frame(individualCall(resCNMOPS_Int))
-h5write(df_individual_call, hdf5_out_file_name,"df_individual_call")
-#write.csv(individualCall_df,"cohort.cnmops.individualCall.csv",row.names = FALSE, quote=FALSE)
+if(args$save_hdf){
+    hdf5_out_file_name="cohort.cnmops_outputs.hdf5"
+    h5createFile(hdf5_out_file_name)
+    h5write(df_cnvs, hdf5_out_file_name,"df_cnvs")
+    h5write(df_cnvr, hdf5_out_file_name,"df_cnvr")
+    h5write(df_individual_call, hdf5_out_file_name,"df_individual_call")
+    h5write(df_inicall, hdf5_out_file_name,"df_inicall")
+    h5write(df_integer_copy_number, hdf5_out_file_name,"df_integer_copy_number")
+}
 
-df_inicall<-as.data.frame(iniCall(resCNMOPS_Int))
-h5write(df_inicall, hdf5_out_file_name,"df_inicall")
-#write.csv(inicall_df,"cohort.cnmops.inicall.csv",row.names = FALSE, quote=FALSE)
-
-df_integer_copy_number<-as.data.frame(integerCopyNumber(resCNMOPS_Int))
-h5write(df_integer_copy_number, hdf5_out_file_name,"df_integer_copy_number")
-#write.csv(integerCopyNumber_df,"cohort.cnmops.integerCopyNumber.csv",row.names = FALSE, quote=FALSE)
+if(args$save_csv){
+    write.csv(df_cnvr,"cohort.cnmops.cnvr.csv", row.names = FALSE,quote=FALSE)
+    write.csv(df_individual_call,"cohort.cnmops.individualCall.csv",row.names = FALSE, quote=FALSE)
+    write.csv(df_inicall,"cohort.cnmops.inicall.csv",row.names = FALSE, quote=FALSE)
+    write.csv(df_integer_copy_number,"cohort.cnmops.integerCopyNumber.csv",row.names = FALSE, quote=FALSE)
+}
