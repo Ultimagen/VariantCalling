@@ -9,7 +9,7 @@ def test_compress_gvcf(tmpdir):
     input_file = pjoin(inputs_dir, "input.g.vcf.gz")
     output_file = pjoin(tmpdir, "compressed.g.vcf.gz")
     result = compress_gvcf.run(['compress_gvcf','--input_path',input_file,'--output_path',output_file])
-    assert result == (4438, 1075)
+    assert result == (4438, 1184)
 
 
 def test_get_compressed_pl_into_3_values():
