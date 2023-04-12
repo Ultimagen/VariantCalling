@@ -139,6 +139,9 @@ def get_vcf_df(
         "SB",
         "TVAF",
         "HighConfidence",
+        "BG_AD",
+        "BG_DP",
+        "BG_SB",
     ]
 
     if scoring_field is not None and scoring_field not in columns:
