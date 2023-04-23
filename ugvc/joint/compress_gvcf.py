@@ -3,17 +3,17 @@ import argparse
 from typing import List
 import sys
 
-def get_sample_value(record, key, sample_name):
-    return record.samples[sample_name].values()[record.format.keys().index(key)] if key in record.samples[
-        sample_name].keys() else None
+def get_sample_value(record: pysam.libcbcf.VariantRecord, key: str, sample_name: str):
+    return record.samples[sample_name].get(key,None)
 
 
-def get_compressed_pl_into_3_values(pl):
+def get_compressed_pl_into_3_values(pl: tuple):
     '''
     PL is tuple which its size is decided by the number of alts.
     This function makes it a 3 tuple for the merged record in the following manner:
     The input PL is of the form of
     (0,0),(0,1)(1,1),(0,2),(1,2),(2,2),(0,3),(1,3),(2,3),(3,3)..
+    so this function makes a 3 tuple by:
     so this function makes a 3 tuple by:
     ((0,0), min((0,1),(0,2),(0,3)..),min(all the others which are not 0/*)
     Parameters
@@ -64,15 +64,15 @@ def run(argv: List[str]):
     """Makes the g.vcf file smaller by merging similar sequential records
     The merge is done in the following way:
     We merge sequential records as long as there GQ value of all the records in this merge is not different
-    from each other by more than 10
-    In addition, we want to keep PASS records and RefCall records with GQ<refcall_threshold and not merge them.
+    from each other by more than merge_gq_threshold
+    In addition, we want to keep all PASS records and RefCall records with GQ<refcall_threshold and not merge them.
     When merging we create a new record with the following parameters:
     - chrom, pos, ref: are of the first record in this group of merged records
     - id: '.'
     - alts: ["<*>"]
     - qual: 0
     - GT: (0, 0)
-    - GQ: is the avg GQ of all the merged records
+    - GQ: minimum value of GQ of all the merged records
     - MIN_DP: is the minimum MIN_DP of all the merged records
     - END: is the end of the last record in the merged records
     - PL: it is always of size 3, and each value is the minimum value in this index among all the records,
@@ -86,7 +86,7 @@ def run(argv: List[str]):
         compressed gvcf
     args.refcall_gq_threshold : int
         keep RefCall records with GQ<refcall_threshold and not merge them
-    args.refcall_gq_threshold : int
+    args.merge_gq_threshold : int
         Merge records that are not far away from each other by more that merge_gq_threshold
 
     Returns
@@ -117,7 +117,6 @@ def run(argv: List[str]):
                     first_record = record
                     min_gq = get_sample_value(record, 'GQ', sample_name)
                     max_gq = min_gq
-                    gq_sum = min_gq
                     min_dp = get_sample_value(record, 'MIN_DP', sample_name)
                     merge_size += 1
                     pl = get_compressed_pl_into_3_values(get_sample_value(record, 'PL', sample_name))
@@ -152,7 +151,7 @@ def run(argv: List[str]):
                         new_record.qual = 0
                         new_record.stop = prev_record.stop
                         new_record.samples[sample_name]['GT'] = (0, 0)
-                        new_record.samples[sample_name]['GQ'] = int(gq_sum / merge_size)
+                        new_record.samples[sample_name]['GQ'] = min_gq
                         if min_dp is not None:
                             new_record.samples[sample_name]['MIN_DP'] = min_dp
                         new_record.samples[sample_name]['PL'] = pl
@@ -164,7 +163,6 @@ def run(argv: List[str]):
                     merge_size = 1
                     min_gq = get_sample_value(record, 'GQ', sample_name)
                     max_gq = min_gq
-                    gq_sum = min_gq
                     min_dp = get_sample_value(record, 'MIN_DP', sample_name)
                     pl = get_compressed_pl_into_3_values(get_sample_value(record, 'PL', sample_name))
                 else:
@@ -181,7 +179,6 @@ def run(argv: List[str]):
                             min_dp = cur_min_dp
                     cur_pl = get_compressed_pl_into_3_values(get_sample_value(record, 'PL', sample_name))
                     pl = (min(cur_pl[0], pl[0]), min(cur_pl[1], pl[1]), min(cur_pl[2], pl[2]))
-                    gq_sum += gq_value
 
     pysam.tabix_index(args.output_path, preset='vcf')
 
