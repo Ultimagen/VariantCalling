@@ -24,3 +24,24 @@ RUN source ~/.bashrc && \
     conda activate genomics.py3 && \
     cd /VariantCalling && \
     pip install .
+
+
+## install ug-cn.mops:
+## cn.mops repo key is available here: gs://ultima-data-users/tammy/keys/id_ed25519_ug.cn.mops
+## download the key file and put it in the folder where you run build_vc_docker.sh from.
+## this is a temporary solution
+
+ADD id_ed25519_ug.cn.mops /
+
+RUN chmod 600 /id_ed25519_ug.cn.mops && \
+  echo "IdentityFile /id_ed25519_ug.cn.mops" >> /etc/ssh/ssh_config && \
+  echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+
+RUN cd /opt &&\
+    git clone --branch ilyasoifer/test.1.40 git@github.com:Ultimagen/cn.mops.git cn.mops
+
+RUN source ~/.bashrc && \
+   conda activate cn.mops && \
+   Rscript -e 'remove.packages("cn.mops")' && \
+   R CMD INSTALL --preclean --no-multiarch --with-keep.source /opt/cn.mops/ && \
+   conda deactivate
