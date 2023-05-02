@@ -38,7 +38,7 @@ RUN chmod 600 /id_ed25519_ug.cn.mops && \
   echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 
 RUN cd /opt &&\
-    git clone git@github.com:Ultimagen/cn.mops.git cn.mops
+    git clone --branch ilyasoifer/test.1.40 git@github.com:Ultimagen/cn.mops.git cn.mops
 
 RUN source ~/.bashrc && \
    conda activate cn.mops && \
