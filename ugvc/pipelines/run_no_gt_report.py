@@ -24,11 +24,7 @@ import subprocess
 
 import numpy as np
 import pandas as pd
-
-import ugvc.vcfbed.variant_annotation as annotation
-from ugvc.comparison import vcf_pipeline_utils
-from ugvc.dna.utils import revcomp
-from ugvc.vcfbed import vcftools
+import os
 
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
@@ -249,6 +245,10 @@ def run_eval_tables_only(arg_values):
 
 
 def run_full_analysis(arg_values):
+    import ugvc.vcfbed.variant_annotation as annotation
+    from ugvc.comparison import vcf_pipeline_utils
+    from ugvc.dna.utils import revcomp
+    from ugvc.vcfbed import vcftools
     eval_tables = variant_eval_statistics(
         arg_values.input_file,
         arg_values.reference,
@@ -299,6 +299,122 @@ def run_full_analysis(arg_values):
         eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 
+
+def run_somatic_analysis(arg_values):
+
+    def _get_signatures_from_sig_log(log_file):
+        line = log_file.readline()
+        while "Composition After Add-Remove" not in line:
+            line = log_file.readline()
+
+        signatures = log_file.readline().strip("\n").split()
+        # parse the signatures names
+        return signatures
+
+    # Install reference
+    from SigProfilerMatrixGenerator import install as genInstall
+    from SigProfilerAssignment import Analyzer as Analyze
+    import sigProfilerPlotting as sigPlt
+    from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
+    import shutil
+
+    genInstall.install(arg_values.reference_name)
+
+    # Run SigProfilerAssignment for getting the signatures of the sample
+
+    vcf_dirname = os.path.dirname(arg_values.input_file)
+
+    Analyze.cosmic_fit(samples=vcf_dirname,
+                       output=os.path.join(arg_values.output_dir,'sbs'),
+                       input_type="vcf",
+                       context_type="96",
+                       genome_build=arg_values.reference_name,
+                       cosmic_version=3.3)
+
+    Analyze.cosmic_fit(samples=vcf_dirname,
+                       output=os.path.join(arg_values.output_dir,'id'),
+                       input_type="vcf",
+                       context_type="ID",
+                       genome_build=arg_values.reference_name,
+                       collapse_to_SBS96=False,
+                       cosmic_version=3.3)
+
+    Analyze.cosmic_fit(samples=vcf_dirname,
+                       output=os.path.join(arg_values.output_dir,'dinuc'),
+                       input_type="vcf",
+                       context_type="DINUC",
+                       genome_build=arg_values.reference_name,
+                       collapse_to_SBS96=False,
+                       cosmic_version=3.3)
+
+    # Plotting the signatures profiles
+
+    sigPlt.plotSBS(
+        os.path.join(arg_values.output_dir, 'sbs', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+        arg_values.output_dir,
+        "somatic_sig", "96", percentage=False, savefig_format="png")
+    sigPlt.plotID(
+        os.path.join(arg_values.output_dir, 'id', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+        arg_values.output_dir,
+        "somatic_sig", "83", percentage=False, savefig_format="png")
+    sigPlt.plotDBS(
+        os.path.join(arg_values.output_dir, 'dinuc', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+        arg_values.output_dir,
+        "somatic_sig", "78", percentage=False, savefig_format="png")
+
+    # Plotting the sample profile
+
+    matGen.SigProfilerMatrixGeneratorFunc("sample", arg_values.reference_name,
+                                          vcf_dirname, plot=True,
+                                          exome=False, bed_file=None, chrom_based=False, tsb_stat=False,
+                                          seqInfo=False, cushion=100)
+
+    sigPlt.plotSBS(os.path.join(vcf_dirname, "output/SBS/lib_of_vcfs.SBS96.all"),
+                   arg_values.output_dir,
+                   'sample',
+                   "96", percentage=False, savefig_format="png")
+
+    sigPlt.plotID(os.path.join(vcf_dirname, "output/ID/lib_of_vcfs.ID83.all"),
+                  arg_values.output_dir,
+                  'sample',
+                  "83", percentage=False, savefig_format="png")
+
+    sigPlt.plotDBS(os.path.join(vcf_dirname, "output/DBS/lib_of_vcfs.DBS78.all"),
+                   arg_values.output_dir,
+                   'sample',
+                   "78", percentage=False, savefig_format="png")
+
+    # Parse what are the relevant signatures
+    with open(os.path.join(arg_values.output_dir, 'sbs', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+        sig_sbs = _get_signatures_from_sig_log(log_file)
+        print(sig_sbs)
+
+    with open(os.path.join(arg_values.output_dir, 'id', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+        sig_id = _get_signatures_from_sig_log(log_file)
+        print(sig_id)
+
+    with open(os.path.join(arg_values.output_dir, 'dinuc', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+        sig_dinuc = _get_signatures_from_sig_log(log_file)
+        print(sig_dinuc)
+
+    final_results_folder = os.path.join(arg_values.output_dir, 'final_results')
+    os.mkdir(final_results_folder)
+
+    for sig in sig_sbs:
+        shutil.copy(os.path.join(arg_values.output_dir,f'SBS_96_plots_{sig}.png'), final_results_folder)
+
+    for sig in sig_id:
+        shutil.copy(os.path.join(arg_values.output_dir,f'ID_83_plots_{sig}.png'), final_results_folder)
+
+    for sig in sig_dinuc:
+        shutil.copy(os.path.join(arg_values.output_dir,f'DBS_78_plots_{sig}.png'), final_results_folder)
+
+    vcf_prefix = os.path.basename(arg_values.input_file).split('.')[0]
+    shutil.copy(os.path.join(arg_values.output_dir, f'SBS_96_plots_{vcf_prefix}.png'), final_results_folder)
+    shutil.copy(os.path.join(arg_values.output_dir, f'ID_83_plots_{vcf_prefix}.png'), final_results_folder)
+    shutil.copy(os.path.join(arg_values.output_dir, f'DBS_78_plots_{vcf_prefix}.png'), final_results_folder)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
         prog="run_no_gt_report.py",
@@ -306,7 +422,7 @@ if __name__ == "__main__":
     )
 
     subparsers = ap.add_subparsers()
-    full_analysis = subparsers.add_parser(name="full_analysis", description="Run teh full analysis of no_gt_report")
+    full_analysis = subparsers.add_parser(name="full_analysis", description="Run the full analysis of no_gt_report")
 
     full_analysis.add_argument("--input_file", help="Input vcf file", required=True, type=str)
     full_analysis.add_argument("--dbsnp", help="dbsnp vcf file", required=True, type=str)
@@ -336,7 +452,16 @@ if __name__ == "__main__":
         required=False,
         nargs="*",
     )
-    parser_eval_tables.set_defaults(func=run_eval_tables_only)
+
+    # Run somatic analysis on somatic data
+    parser_eval_tables.set_defaults(func=run_somatic_analysis)
+    full_analysis = subparsers.add_parser(name="somatic_analysis", description="Run mutation signatures and motif graphs")
+
+    full_analysis.add_argument("--input_file", help="Input vcf file", required=True, type=str)
+    full_analysis.add_argument("--reference_name", help="Reference genome name", required=False, type=str, default="GRCh38")
+    full_analysis.add_argument("--output_dir", help="output directory", required=True, type=str)
+    full_analysis.set_defaults(func=run_somatic_analysis)
+
 
     args = ap.parse_args()
     args.func(args)
