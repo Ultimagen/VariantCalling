@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.mrd.substitution_error_rate_utils import calculate_substitution_error_rate
+from ugvc.mrd.substitution_error_rate_utils import calculate_residual_snv_rate
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -86,7 +86,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def run(argv: list[str]):
     """Calculate SNP error rate per motif"""
     args = parse_args(argv)
-    calculate_substitution_error_rate(
+    calculate_residual_snv_rate(
         single_substitution_featuremap=args.featuremap_single_substitutions_dataframe,
         coverage_stats=args.coverage_stats,
         depth_data=args.depth_data,

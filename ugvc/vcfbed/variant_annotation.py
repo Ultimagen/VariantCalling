@@ -14,6 +14,7 @@ from ugvc.dna.format import (
     CYCLE_SKIP,
     CYCLE_SKIP_DTYPE,
     CYCLE_SKIP_STATUS,
+    IS_CYCLE_SKIP,
     NON_CYCLE_SKIP,
     POSSIBLE_CYCLE_SKIP,
     UNDETERMINED_CYCLE_SKIP,
@@ -73,7 +74,6 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
     fasta_idx = pyfaidx.Fasta(fasta_file, build_index=False, rebuild=False)
 
     def _is_hmer(rec, fasta_idx):
-
         if not rec["indel"]:
             return (0, None)
 
@@ -513,6 +513,7 @@ def get_cycle_skip_dataframe(flow_order: str):
         lambda row: determine_cycle_skip_status(row["ref_motif"], row["alt_motif"], flow_order),
         axis=1,
     ).astype(CYCLE_SKIP_DTYPE)
+    df_cskp.loc[:, IS_CYCLE_SKIP] = df_cskp[CYCLE_SKIP_STATUS] == CYCLE_SKIP
     return df_cskp.set_index(["ref_motif", "alt_motif"]).sort_index()
 
 

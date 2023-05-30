@@ -11,7 +11,7 @@ from scipy.interpolate import interp1d
 
 from ugvc import logger
 from ugvc.comparison.concordance_utils import read_hdf
-from ugvc.dna.format import CYCLE_SKIP, CYCLE_SKIP_STATUS, DEFAULT_FLOW_ORDER
+from ugvc.dna.format import CYCLE_SKIP, CYCLE_SKIP_STATUS, DEFAULT_FLOW_ORDER, IS_CYCLE_SKIP
 from ugvc.dna.utils import revcomp
 from ugvc.mrd.coverage_utils import collect_coverage_per_motif
 from ugvc.utils.misc_utils import set_pyplot_defaults
@@ -20,35 +20,38 @@ from ugvc.vcfbed.variant_annotation import get_cycle_skip_dataframe
 set_pyplot_defaults()
 
 
-def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
+def calculate_residual_snv_rate(  # pylint: disable=too-many-arguments
     single_substitution_featuremap,
     coverage_stats,
     depth_data,
     out_path: str,
     out_basename: str = "",
-    xscore_thresholds: list = None,
+    filters: dict = {},
     reference_fasta: str = None,
     flow_order: str = DEFAULT_FLOW_ORDER,
     featuremap_chrom: str = None,
     n_jobs=-1,
     coverage_calculation_downsampling_ratio=100,
 ):
-    # init
-    if xscore_thresholds is None:
-        xscore_thresholds = [0, 3, 5, 10]
-    assert len(xscore_thresholds) == 4, f"Length of xscore_thresholds must be 4, got {xscore_thresholds}"
+    # append input filters to default (no filter), make sure there are no spaces in filter names
+    filters = {
+        **{"no_filter": None},
+        **{k.replace(" ", "_"): v for k, v in filters.items()},
+    }
+    logger.debug(f"Using filters:\n{[f'{k}  {v}' for k, v in filters.items()]}")
 
-    xscore_thresholds = np.array(xscore_thresholds)  # pylint: disable=redefined-variable-type
-    min_xscore = np.min(xscore_thresholds)
-
+    # determine output filenames
     os.makedirs(out_path, exist_ok=True)
     if len(out_basename) > 0 and not out_basename.endswith("."):
         out_basename += "."
     out_coverage_per_motif = pjoin(out_path, f"{out_basename}coverage_per_motif.h5")
-    out_snp_rate = pjoin(out_path, f"{out_basename}substitution_error_rate.h5")
-    out_snp_rate_plots = {
-        th: pjoin(out_path, f"{out_basename}substitution_error_rate_by_motif_thresh{th}.png")
-        for th in xscore_thresholds
+    out_residual_snv_rate = pjoin(out_path, f"{out_basename}residual_snv_rate.h5")
+    out_residual_snv_plots = {
+        filter_name: pjoin(
+            out_path,
+            f"{out_basename}residual_snv_rate_by_motif_thresh{filter_name}.png",
+        )
+        for filter_name in filters.keys()
     }
 
     # read coverage stats and derive coverage range
@@ -56,7 +59,7 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
         df_coverage_stats = coverage_stats
     else:
         logger.debug(f"Reading input coverage stats from {coverage_stats}")
-        df_coverage_stats = read_hdf(coverage_stats, key="histogram").filter(regex="Genome").iloc[:, 0]
+        df_coverage_stats = pd.read_hdf(coverage_stats, key="histogram").filter(regex="Genome").iloc[:, 0]
     f = interp1d(
         (df_coverage_stats.cumsum() / df_coverage_stats.sum()).values,
         df_coverage_stats.index.values,
@@ -94,15 +97,12 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
     # read featuremap
     if isinstance(single_substitution_featuremap, pd.DataFrame):
         df = single_substitution_featuremap
-        df = df[
-            (df["X_SCORE"] >= min_xscore) & (df["X_READ_COUNT"] >= min_coverage) & (df["X_READ_COUNT"] <= max_coverage)
-        ]
+        df = df[(df["X_READ_COUNT"] >= min_coverage) & (df["X_READ_COUNT"] <= max_coverage)]
     else:
         logger.debug(f"Reading featuremap dataframe from {single_substitution_featuremap}")
         df = pd.read_parquet(
             single_substitution_featuremap,
             filters=[
-                ("X_SCORE", ">=", min_xscore),
                 ("X_READ_COUNT", ">=", min_coverage),
                 ("X_READ_COUNT", "<=", max_coverage),
             ],
@@ -116,9 +116,22 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
         if featuremap_chrom is not None:
             logger.debug(f"using only data in {featuremap_chrom}")
             df = df.loc[featuremap_chrom]
+
+    # make sure that IS_CYCLE_SKIP is set
+    if IS_CYCLE_SKIP not in df and CYCLE_SKIP_STATUS in df:
+        df.loc[:, IS_CYCLE_SKIP] = df[CYCLE_SKIP_STATUS] == CYCLE_SKIP
+
+    # apply filters
+    for filter_name, filter_query in filters.items():
+        if filter_query is not None:
+            logger.debug(f"Applying filter {filter_name}")
+            df.loc[filter_name] = df.eval(filter_query)
+            logger.debug(f"PF entries: {df.loc[filter_name].sum()}")
+
     # calculate read filtration ratio in featuremap
     read_filter_correction_factor = (df["X_FILTERED_COUNT"] + 1).sum() / df["X_READ_COUNT"].sum()
-    # process 2nd order motifs
+
+    # process 2nd order motifs - define ref_motif2
     logger.debug("Processing motifs")
     left = (
         df["left_motif"]
@@ -128,26 +141,19 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
         )
     )
     right = df["right_motif"].astype(str).str.slice(0, -2)
+    df.loc[:, "ref_motif2"] = left + df["ref"].astype(str) + right
 
-    df["ref_motif2"] = left + df["ref"].astype(str) + right
-    df["alt_motif2"] = left + df["alt"].astype(str) + right
+    #
     logger.debug("Grouping by 2nd order motif")
-    df_motifs_2 = df.groupby(["ref_motif2", "alt_motif2"]).agg(
+    # return df, df_coverage, coverage_correction_factor, read_filter_correction_factor
+    df_motifs_2 = df.groupby(["ref_motif2", "alt"]).agg(
         {
-            **{x: "first" for x in ("ref", "alt", "ref_motif", "alt_motif")},
-            **{
-                "X_SCORE": [
-                    lambda a: np.sum(a >= xscore_thresholds[0]).astype(int),
-                    lambda a: np.sum(a >= xscore_thresholds[1]).astype(int),
-                    lambda a: np.sum(a >= xscore_thresholds[2]).astype(int),
-                    lambda a: np.sum(a >= xscore_thresholds[3]).astype(int),
-                ]
-            },
+            **{x: "first" for x in ("ref", "alt", "ref_motif")},
+            **{filter_name: "sum" for filter_name in filters.keys()},
         }
     )
     df_motifs_2 = df_motifs_2.dropna(how="all")
 
-    df_motifs_2.columns = ["ref", "alt", "ref_motif", "alt_motif"] + [f"snp_count_bq{th}" for th in xscore_thresholds]
     logger.debug("Annotating cycle skip")
     df_motifs_2 = (
         df_motifs_2.reset_index()
@@ -166,7 +172,7 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
         df_motifs_2.groupby(["ref_motif", "alt_motif"])
         .agg(
             {
-                **{"ref": "first", "alt": "first", "cycle_skip_status": "first"},
+                **{"ref": "first", "alt": "first", CYCLE_SKIP_STATUS: "first"},
                 **{c: "sum" for c in df_motifs_2.columns if "snp_count" in c or "coverage" in c},
             }
         )
@@ -213,7 +219,7 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
             df_tmp.loc[:, f"error_rate_bq{th}"] = df_tmp[f"snp_count_bq{th}"] / (df_tmp["coverage"])
 
     # save
-    logger.debug(f"Saving to {out_snp_rate}")
+    logger.debug(f"Saving to {out_residual_snv_rate}")
     df_motifs_2 = df_motifs_2.reset_index().astype(
         {
             c: "category"
@@ -239,21 +245,24 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
         }
     )
     df_motifs_0 = df_motifs_0.reset_index().astype({c: "category" for c in ("ref", "alt")})
-    df_avg.to_hdf(out_snp_rate, key="average", mode="w", format="table")
-    df_motifs_0.to_hdf(out_snp_rate, key="motif_0", mode="a", format="table")
-    df_motifs_1.to_hdf(out_snp_rate, key="motif_1", mode="a", format="table")
-    df_motifs_2.to_hdf(out_snp_rate, key="motif_2", mode="a", format="table")
+    df_avg.to_hdf(out_residual_snv_rate, key="average", mode="w", format="table")
+    df_motifs_0.to_hdf(out_residual_snv_rate, key="motif_0", mode="a", format="table")
+    df_motifs_1.to_hdf(out_residual_snv_rate, key="motif_1", mode="a", format="table")
+    df_motifs_2.to_hdf(out_residual_snv_rate, key="motif_2", mode="a", format="table")
 
     # generate plots
     # by_mut_type_and_source
-    substitution_error_rate_by_mut_type_and_source = plot_substitution_error_rate_by_mut_type_and_source(
+    residual_snv_rate_by_mut_type_and_source = plot_residual_snv_rate_by_mut_type_and_source(
         df_motifs_1,
-        out_filename=pjoin(out_path, f"{out_basename}substitution_error_rate_by_mut_type_and_source.png"),
+        out_filename=pjoin(
+            out_path,
+            f"{out_basename}residual_snv_rate_by_mut_type_and_source.png",
+        ),
         title=out_basename,
     )
-    substitution_error_rate_asymmetry = plot_substitution_error_rate_asymmetry(
+    residual_snv_rate_asymmetry = plot_residual_snv_rate_asymmetry(
         df_motifs_1,
-        out_filename=pjoin(out_path, f"{out_basename}substitution_error_rate_asymmetry.png"),
+        out_filename=pjoin(out_path, f"{out_basename}residual_snv_rate_asymmetry.png"),
         title=out_basename,
     )
 
@@ -262,9 +271,9 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
         logger.debug(f"Generating plot for X_SCORE>={th}")
         error_rate_column = f"error_rate_bq{th}"
         snp_count_column = f"snp_count_bq{th}"
-        plot_substitution_error_rate_by_motif(
+        plot_residual_snv_rate_by_motif(
             df_motifs_1,
-            out_filename=out_snp_rate_plots[th],
+            out_filename=out_residual_snv_plots[th],
             title=f"{out_basename.replace('.', ' ')}\nLog-likelihood threshold = {th}",
             left_bbox_text=f"Coverage range {min_coverage}-{max_coverage}x\n"
             f"spanning {coverage_correction_factor:.0%} of the data",
@@ -272,15 +281,22 @@ def calculate_substitution_error_rate(  # pylint: disable=too-many-arguments
             snp_count_column=snp_count_column,
         )
 
-    substitution_error_rate_by_mut_type_and_source.to_hdf(
-        out_snp_rate, key="substitution_error_rate_by_mut_type_and_source", mode="a", format="table"
+    residual_snv_rate_by_mut_type_and_source.to_hdf(
+        out_residual_snv_rate,
+        key="residual_snv_rate_by_mut_type_and_source",
+        mode="a",
+        format="table",
     )
-    substitution_error_rate_asymmetry.to_hdf(
-        out_snp_rate, key="substitution_error_rate_asymmetry", mode="a", format="table"
+    residual_snv_rate_asymmetry.to_hdf(
+        out_residual_snv_rate,
+        key="residual_snv_rate_asymmetry",
+        mode="a",
+        format="table",
     )
 
 
-def create_matched_forward_and_reverse_strand_errors_dataframe(df_motifs):
+def create_matched_forward_and_reverse_strand_dataframe(df_motifs):
+    # This function is used to create a dataframe with forward and reverse strand errors matched by motif
     df_motifs = df_motifs.astype({"ref_motif": str, "alt_motif": str})
     df_motifs.loc[:, "mut_type"] = (
         df_motifs["ref_motif"].str.slice(1, 2) + "->" + df_motifs["alt_motif"].str.slice(1, 2)
@@ -291,13 +307,16 @@ def create_matched_forward_and_reverse_strand_errors_dataframe(df_motifs):
     df_rev.loc[:, "alt_motif"] = df_rev["alt_motif"].apply(revcomp)
     df_rev = df_rev.set_index(["ref_motif", "alt_motif"])
     df_for = df_for.set_index(["ref_motif", "alt_motif"])
-    df_err = df_for.filter(regex="mut_type|error_rate").join(
+    df_err = df_for.filter(regex="is_cycle_skip|mut_type|error_rate").join(
         df_rev.filter(regex="error_rate"), lsuffix="_f", rsuffix="_r"
     )
+    # add average error columns
+    for c in df_err.filter(regex="_f").columns:
+        df_err.loc[:, c[:-2]] = df_err.filter(regex=c[:-1]).mean(axis=1)
     return df_err
 
 
-def plot_substitution_error_rate_by_motif(
+def plot_residual_snv_rate_by_motif(
     df_motifs: pd.DataFrame,
     out_filename: str = None,
     title: str = "",
@@ -491,29 +510,17 @@ def plot_substitution_error_rate_by_motif(
     return fig
 
 
-def plot_substitution_error_rate_by_mut_type_and_source(
+def plot_residual_snv_rate_by_mut_type_and_source(
     df_motifs: pd.DataFrame,
+    filters: list,
     out_filename: str = None,
     title: str = "",
 ):
     # merge forward and reverse
-    df_err = create_matched_forward_and_reverse_strand_errors_dataframe(df_motifs)
-    # add average error columns
-    for c in df_err.filter(regex="_f").columns:
-        df_err.loc[:, c[:-2]] = df_err.filter(regex=c[:-1]).mean(axis=1)
-
-    # calculate errors by contribution
-    cskp_col = "error_rate_bq10"
-    other_cols = df_err.columns[-4:-1]
-    df_err_agg = df_err[["mut_type"] + list(other_cols)][df_err[cskp_col].isnull()].groupby("mut_type").mean()
-    df_err_agg = df_err_agg.rename(
-        columns={c: c.replace("error_rate_bq", "seq_error_rate_thresh") for c in df_err_agg.columns}
-    )
-    df_err_agg = df_err_agg.join(
-        df_err.groupby("mut_type").agg({cskp_col: "mean"}).rename(columns={cskp_col: "non_sequencing_errors"})
-    )
-    for c in df_err_agg.filter(regex="seq_err").columns:
-        df_err_agg.loc[:, c] = df_err_agg[c] - df_err_agg["non_sequencing_errors"]
+    df_err = create_matched_forward_and_reverse_strand_dataframe(df_motifs)
+    df_err_agg = df_err.groupby("mut_type").agg({c: "mean" for c in df_err.filter(regex="^error_rate_").columns})[
+        ["error_rate_" + x for x in filters.keys()]
+    ]
 
     # plot
     colors = {
@@ -528,16 +535,20 @@ def plot_substitution_error_rate_by_mut_type_and_source(
     title = plt.title(title, fontsize=32)
     # boxes
     plt.boxplot(
-        df_err_agg,
+        [df_err_agg[c].dropna() for c in df_err_agg],
         positions=range(df_err_agg.shape[1]),
-        labels=[
-            c.replace("seq_error_rate_thresh", "Sequencing errors\nLog-likelihood thresh ")
-            .replace("_", " ")
-            .capitalize()
-            for c in df_err_agg
-        ],
+        labels=[c.replace("error_rate_", "").replace("_", " ").replace(" ", "\n").capitalize() for c in df_err_agg],
         showfliers=False,
-        **{x: dict(alpha=0.5) for x in ("boxprops", "medianprops", "meanprops", "capprops", "whiskerprops")},
+        **{
+            x: dict(alpha=0.5)
+            for x in (
+                "boxprops",
+                "medianprops",
+                "meanprops",
+                "capprops",
+                "whiskerprops",
+            )
+        },
     )
     # lines
     for mt, row in df_err_agg.iterrows():
@@ -550,13 +561,18 @@ def plot_substitution_error_rate_by_mut_type_and_source(
             label=f"{mt[0]}:{revcomp(mt[0])}→{mt[-1]}:{revcomp(mt[-1])}",
         )
         plt.plot(row.values, c=color, linestyle="-", alpha=0.1)
-        x = row["non_sequencing_errors"]
-        plt.text(df_err_agg.shape[1] - 1 + 0.03, x, f"{x:.1e}".replace("-0", "-"), ha="left", va="center", color=color)
+        for j in range(1, 1 + df_err_agg.shape[1]):
+            x = row["error_rate_" + list(filters.keys())[-j]]
+            plt.text(
+                df_err_agg.shape[1] - j + 0.03,
+                x,
+                f"{x:.1e}".replace("-0", "-"),
+                ha="left",
+                va="center",
+                color=color,
+            )
     legend = plt.legend(title="Mutation type", fontsize=18, title_fontsize=22)
     plt.yscale("log")
-    ylim = plt.gca().get_ylim()
-    plt.plot([2.5, 2.5], ylim, "-k")
-    plt.ylim(ylim)
     ylabel = plt.ylabel("Error rate")
 
     if out_filename is None:
@@ -572,7 +588,7 @@ def plot_substitution_error_rate_by_mut_type_and_source(
     return df_err_agg
 
 
-def plot_substitution_error_rate_asymmetry(
+def plot_residual_snv_rate_asymmetry(
     df_motifs: pd.DataFrame,
     out_filename: str = None,
     title: str = "",
@@ -586,7 +602,7 @@ def plot_substitution_error_rate_asymmetry(
         "T->G": "m",
     }
 
-    df_err = create_matched_forward_and_reverse_strand_errors_dataframe(df_motifs)
+    df_err = create_matched_forward_and_reverse_strand_dataframe(df_motifs)
     df_err.loc[:, "cskp_err_rate_asym_log2"] = np.log2(df_err["error_rate_bq10_f"] / df_err["error_rate_bq10_r"])
     df_err = (
         df_err.dropna(subset=["cskp_err_rate_asym_log2"])

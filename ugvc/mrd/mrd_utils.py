@@ -208,6 +208,10 @@ def read_signature(  # pylint: disable=too-many-branches
             logger.debug(f"Reading x_columns: {x_columns}")
 
             for j, rec in enumerate(variant_file):
+                if j == 0 and tumor_sample is None:
+                    samples = rec.samples.keys()
+                    if len(samples) == 1:
+                        tumor_sample = samples[0]
                 entries.append(
                     tuple(
                         [
@@ -216,11 +220,17 @@ def read_signature(  # pylint: disable=too-many-branches
                             rec.ref,
                             rec.alts[0],
                             rec.id,
+                            rec.qual,
                             (
                                 rec.samples[tumor_sample]["AF"][0]
                                 if tumor_sample
                                 and "AF" in rec.samples[tumor_sample]
                                 and len(rec.samples[tumor_sample]) > 0
+                                else np.nan
+                            ),
+                            (
+                                rec.samples[tumor_sample]["VAF"][0]
+                                if tumor_sample and "VAF" in rec.samples[tumor_sample]
                                 else np.nan
                             ),
                             (
@@ -249,7 +259,9 @@ def read_signature(  # pylint: disable=too-many-branches
                     "ref",
                     "alt",
                     "id",
+                    "qual",
                     "af",
+                    "vaf",
                     "depth_tumor_sample",
                     "hmer",
                     "tlod",
@@ -261,6 +273,7 @@ def read_signature(  # pylint: disable=too-many-branches
             .reset_index(drop=True)
             .astype({"chrom": str, "pos": int})
             .set_index(["chrom", "pos"])
+            .dropna(how="all", axis=1)
         )
         logger.debug("Done converting to dataframe")
 
@@ -380,7 +393,16 @@ def read_intersection_dataframes(
                 signature=_get_sample_name_from_file_name(f, split_position=1),
             )
             .reset_index()
-            .astype({"chrom": str, "pos": int, "ref": str, "alt": str, "left_motif": str, "right_motif": str})
+            .astype(
+                {
+                    "chrom": str,
+                    "pos": int,
+                    "ref": str,
+                    "alt": str,
+                    "left_motif": str,
+                    "right_motif": str,
+                }
+            )
             .set_index(["signature", "chrom", "pos"])
             for f in intersected_featuremaps_parquet
         )
@@ -518,15 +540,17 @@ def featuremap_to_dataframe(
     reference_fasta: str = None,
     motif_length: int = 4,
     report_read_strand: bool = True,
-    x_fields: list = None,
+    info_fields_extra: dict = None,
     show_progress_bar: bool = False,
     flow_order: str = DEFAULT_FLOW_ORDER,
     is_matched: bool = None,
+    default_int_fillna_value: int = 0,
 ):
     """
     Converts featuremap in vcf format to dataframe
     if reference_fasta, annotates with motifs of length "motif_length"
     if flow_order is also given, annotates cycle skip status per entry
+
 
     Parameters
     ----------
@@ -542,10 +566,13 @@ def featuremap_to_dataframe(
     report_read_strand: bool
         featuremap entries are reported for the sense strand regardless of read diretion. If True (default), the ref and
         alt columns are reverse complemented for reverse strand reads (also motif if calculated).
-    x_fields: list
-        fields to extract from featuremap, if default (None) those are extracted:
-        "X_CIGAR", "X_EDIST", "X_FC1", "X_FC2", "X_FILTERED-COUNT", "X_FLAGS", "X_LENGTH", "X_MAPQ", "X_READ-COUNT",
+    info_fields_extra: dict
+        Extra fields to extract from featuremap INFO in addition to the defaults:
+        "X_CIGAR", "X_EDIST", "X_FC1", "X_FC2", "X_FILTERED_COUNT", "X_FLAGS", "X_LENGTH", "X_MAPQ", "X_READ_COUNT",
         "X_RN", "X_INDEX", "X_SCORE", "rq",
+        The keys are the INFO field names and the values are the dtypes in the dataframe
+    default_int_fillna_value: int
+        Used to fill missing values in integer columns, default 0
     show_progress_bar: bool
         displays tqdm progress bar of number of lines read (not in percent)
     flow_order: str
@@ -564,42 +591,54 @@ def featuremap_to_dataframe(
 
 
     """
-    if x_fields is None:
-        x_fields = [
-            "X_CIGAR",
-            "X_EDIST",
-            "X_FC1",
-            "X_FC2",
-            "X_READ_COUNT",
-            "X_FILTERED_COUNT",
-            "X_FLAGS",
-            "X_LENGTH",
-            "X_MAPQ",
-            "X_INDEX",
-            "X_RN",
-            "X_SCORE",
-            "rq",
-        ]
+    # Define fields to include in the output DataFrame
+    x_fields = [
+        "X_CIGAR",
+        "X_EDIST",
+        "X_FC1",
+        "X_FC2",
+        "X_READ_COUNT",
+        "X_FILTERED_COUNT",
+        "X_FLAGS",
+        "X_LENGTH",
+        "X_MAPQ",
+        "X_INDEX",
+        "X_RN",
+        "X_SCORE",
+        "rq",
+    ]
 
+    # If additional fields are provided, append them to the list
+    if info_fields_extra is not None:
+        x_fields = x_fields + list(info_fields_extra.keys())
+
+    # Read in the VCF file using pysam, extract entries, and store in a DataFrame
     with pysam.VariantFile(featuremap_vcf) as variant_file:
+        # Create a generator that maps each variant to a defaultdict with the desired fields
         vfi = map(  # pylint: disable=bad-builtin
             lambda x: defaultdict(
                 lambda: None,
                 x.info.items()
                 + [
-                    ("CHROM", x.chrom),
-                    ("POS", x.pos),
-                    ("REF", x.ref),
-                    ("ALT", x.alts[0]),
+                    ("chrom", x.chrom),
+                    ("pos", x.pos),
+                    ("ref", x.ref),
+                    ("alt", x.alts[0]),
+                    ("qual", x.qual),
+                    ("filter", x.filter.keys()[0]),
                 ]
-                + [(xf, x.info[xf]) for xf in x_fields],
+                + [(xf, x.info.get(xf, None)) for xf in x_fields],
             ),
             variant_file,
         )
-        columns = ["chrom", "pos", "ref", "alt"] + x_fields
+
+        # Define the columns for the output DataFrame
+        columns = ["chrom", "pos", "ref", "alt", "qual", "filter"] + x_fields
+
+        # Create the DataFrame using the generator and the defined columns
         df = pd.DataFrame(
             (
-                [x[y.upper() if y != "rq" else y] for y in columns]
+                [x[y] for y in columns]
                 for x in tqdm(
                     vfi,
                     disable=not show_progress_bar,
@@ -609,20 +648,34 @@ def featuremap_to_dataframe(
             columns=columns,
         )
 
+    # If additional fields were provided, convert them to the appropriate data type
+    if info_fields_extra is not None:
+        # Fill in missing values with 0 for int fields, otherwise casting
+        if int in info_fields_extra.values():
+            df = df.fillna({k: default_int_fillna_value for k, v in info_fields_extra.items() if v == int})
+        df = df.astype(info_fields_extra)
+
+    # If report_read_strand (default), determine the read strand of each substitution based on the X_FLAGS (SAM flags) field
     if report_read_strand:
+        # Ensure the X_FLAGS field is present in the dataframe
         if "X_FLAGS" not in df.columns:
             raise ValueError("X_FLAGS not found in dataframe - cannot determine read strand")
+        # Determine whether the read is reverse strand or not based on the X_FLAGS field
         is_reverse = (df["X_FLAGS"] & 16).astype(bool)
-        for column in ("ref", "alt"):  # reverse value to match the read direction
+        # Reverse complement the ref and alt alleles if necessary to match the read direction
+        for column in ("ref", "alt"):
             df[column] = df[column].where(is_reverse, df[column].apply(revcomp))
 
+    # If a reference fasta file was provided, extract flanking sequence motifs for each variant
     if reference_fasta is not None:
+        # Annotate motifs around each substitution
         df = (
             get_motif_around(df.assign(indel=False), motif_length, reference_fasta)
             .drop(columns=["indel"])
             .astype({"left_motif": str, "right_motif": str})
         )
 
+        # If specified, reverse the left and right motifs for variants on the reverse strand
         if report_read_strand:
             left_motif_reverse = df["left_motif"].apply(revcomp)
             right_motif_reverse = df["right_motif"].apply(revcomp)
@@ -643,15 +696,23 @@ def featuremap_to_dataframe(
             }
         )
 
+        # If flow order was given annotate with cycle skip status
         if flow_order is not None:
             df_cskp = get_cycle_skip_dataframe(flow_order=flow_order)
             df = df.set_index(["ref_motif", "alt_motif"]).join(df_cskp).reset_index()
 
-    df = df.set_index(["chrom", "pos"]).sort_index().reset_index()  # saving without multi-index which breaks parquet
+    # Calculate maximal softclip length
     if "X_CIGAR" in df:
         df.loc[:, "max_softclip_len"] = df["X_CIGAR"].apply(get_max_softclip_len)
+
+    # Sort by position, then reset index becase saving without multi-index which breaks parquet
+    df = df.set_index(["chrom", "pos"]).sort_index().reset_index()
+
+    # Assign is_matched field if input was given
     if is_matched is not None and isinstance(is_matched, bool):
         df = df.assign(is_matched=is_matched)
+
+    # Determine output file name
     if output_file is None:
         if featuremap_vcf.endswith(".vcf.gz"):
             output_file = featuremap_vcf[: -len(".vcf.gz")] + FileExtension.PARQUET.value
@@ -659,6 +720,8 @@ def featuremap_to_dataframe(
             output_file = f"featuremap_vcf{FileExtension.PARQUET.value}"
     elif not output_file.endswith(FileExtension.PARQUET.value):
         output_file = f"{output_file}{FileExtension.PARQUET.value}"
+
+    # Save and return
     df.to_parquet(output_file)
     return df
 

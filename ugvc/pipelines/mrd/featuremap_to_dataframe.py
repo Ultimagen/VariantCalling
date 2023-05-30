@@ -55,6 +55,15 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         help="""flow order - required for cycle skip annotation but not mandatory""",
     )
     parser.add_argument(
+        "--extra-fields",
+        type=str,
+        nargs="+",
+        default=None,
+        help="""Extra fields to extract from featuremap INFO in addition to the defaults:
+"X_CIGAR", "X_EDIST", "X_FC1", "X_FC2", "X_FILTERED_COUNT", "X_FLAGS", "X_LENGTH", "X_MAPQ", "X_READ_COUNT","""
+        """"X_RN", "X_INDEX", "X_SCORE", "rq" """,
+    )
+    parser.add_argument(
         "-m",
         "--motif_length",
         type=int,
@@ -90,9 +99,9 @@ def run(argv: list[str]):
         output_file=args_in.output,
         reference_fasta=args_in.reference_fasta,
         motif_length=args_in.motif_length,
+        info_fields_extra=args_in.extra_fields,
         report_read_strand=not args_in.report_sense_strand_bases,
         show_progress_bar=args_in.show_progress_bar,
         flow_order=args_in.flow_order,
         is_matched=is_matched,
     )
-    print("DONE")
