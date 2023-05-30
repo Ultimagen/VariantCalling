@@ -75,6 +75,8 @@ def allele_freq_hist(df, nbins=100):
 
 
 def snp_statistics(df, ref_fasta):
+    import ugvc.vcfbed.variant_annotation as annotation
+    from ugvc.dna.utils import revcomp
     # take data from Itai
     df = annotation.classify_indel(df)
     df = annotation.is_hmer_indel(df, ref_fasta)
@@ -245,9 +247,7 @@ def run_eval_tables_only(arg_values):
 
 
 def run_full_analysis(arg_values):
-    import ugvc.vcfbed.variant_annotation as annotation
     from ugvc.comparison import vcf_pipeline_utils
-    from ugvc.dna.utils import revcomp
     from ugvc.vcfbed import vcftools
     eval_tables = variant_eval_statistics(
         arg_values.input_file,
@@ -452,9 +452,10 @@ if __name__ == "__main__":
         required=False,
         nargs="*",
     )
+    parser_eval_tables.set_defaults(func=run_eval_tables_only)
+
 
     # Run somatic analysis on somatic data
-    parser_eval_tables.set_defaults(func=run_somatic_analysis)
     full_analysis = subparsers.add_parser(name="somatic_analysis", description="Run mutation signatures and motif graphs")
 
     full_analysis.add_argument("--input_file", help="Input vcf file", required=True, type=str)
