@@ -625,7 +625,7 @@ def featuremap_to_dataframe(
                     ("ref", x.ref),
                     ("alt", x.alts[0]),
                     ("qual", x.qual),
-                    ("filter", x.filter.keys()[0]),
+                    ("filter", x.filter.keys()[0] if len(x.filter.keys()) > 0 else None),
                 ]
                 + [(xf, x.info.get(xf, None)) for xf in x_fields],
             ),
@@ -655,7 +655,7 @@ def featuremap_to_dataframe(
             df = df.fillna({k: default_int_fillna_value for k, v in info_fields_extra.items() if v == int})
         df = df.astype(info_fields_extra)
 
-    # If report_read_strand (default), determine the read strand of each substitution based on the X_FLAGS (SAM flags) field
+    # If True (default), determine the read strand of each substitution based on the X_FLAGS (SAM flags) field
     if report_read_strand:
         # Ensure the X_FLAGS field is present in the dataframe
         if "X_FLAGS" not in df.columns:
