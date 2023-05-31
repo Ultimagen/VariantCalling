@@ -23,7 +23,7 @@ suppressPackageStartupMessages(library(rhdf5))
 
 parser <- ArgumentParser()
 parser$add_argument("-cohort_rc", "--cohort_reads_count_file",
-                    help="input cohort reads count file in Rdata format")
+                    help="input normalized cohort reads count file in Rdata format")
 parser$add_argument("-minWidth", "--min_width_val",
                     type="integer",default=2)
 parser$add_argument("-p", "--parallel",
@@ -41,7 +41,7 @@ cores <- args$parallel
 
 merged_cohort_reads_count <- readRDS(file = cohort_reads_count_file) #variable name : merged_cohort_reads_count
 
-resCNMOPS <- cn.mops(merged_cohort_reads_count,parallel=cores,minWidth = as.integer(min_width_val) )
+resCNMOPS <- cn.mops(merged_cohort_reads_count,parallel=cores,minWidth = as.integer(min_width_val),norm=0)
 resCNMOPS_Int <-calcIntegerCopyNumbers(resCNMOPS)
 
 saveRDS(resCNMOPS_Int,file="cohort.cnmops.rds")
