@@ -23,6 +23,22 @@ from ugvc.dna.utils import get_max_softclip_len, revcomp
 from ugvc.utils.consts import FileExtension
 from ugvc.vcfbed.variant_annotation import get_cycle_skip_dataframe, get_motif_around
 
+default_featuremap_info_fields = {
+    "X_CIGAR": str,
+    "X_EDIST": int,
+    "X_FC1": str,
+    "X_FC2": str,
+    "X_READ_COUNT": int,
+    "X_FILTERED_COUNT": int,
+    "X_FLAGS": int,
+    "X_LENGTH": int,
+    "X_MAPQ": float,
+    "X_INDEX": int,
+    "X_RN": str,
+    "X_SCORE": float,
+    "rq": int,
+}
+
 
 def _get_sample_name_from_file_name(file_name, split_position=0):
     """
@@ -534,13 +550,15 @@ def intersect_featuremap_with_signature(
     assert os.path.isfile(output_intersection_file_vcf + ".gz")
 
 
+# pylint: disable=too-many-arguments
 def featuremap_to_dataframe(
     featuremap_vcf: str,
     output_file: str = None,
     reference_fasta: str = None,
     motif_length: int = 4,
     report_read_strand: bool = True,
-    info_fields_extra: dict = None,
+    info_fields_override: dict = None,
+    format_fields: dict = None,
     show_progress_bar: bool = False,
     flow_order: str = DEFAULT_FLOW_ORDER,
     is_matched: bool = None,
@@ -566,11 +584,14 @@ def featuremap_to_dataframe(
     report_read_strand: bool
         featuremap entries are reported for the sense strand regardless of read diretion. If True (default), the ref and
         alt columns are reverse complemented for reverse strand reads (also motif if calculated).
-    info_fields_extra: dict
-        Extra fields to extract from featuremap INFO in addition to the defaults:
+    info_fields_override: dict
+        Override info fields to extract from featuremap instead of the defaults:
         "X_CIGAR", "X_EDIST", "X_FC1", "X_FC2", "X_FILTERED_COUNT", "X_FLAGS", "X_LENGTH", "X_MAPQ", "X_READ_COUNT",
         "X_RN", "X_INDEX", "X_SCORE", "rq",
         The keys are the INFO field names and the values are the dtypes in the dataframe
+    format_fields: dict
+        Extra format fields to extract from vcf
+        The keys are the FORMAT field names and the values are the dtypes in the dataframe
     default_int_fillna_value: int
         Used to fill missing values in integer columns, default 0
     show_progress_bar: bool
@@ -592,25 +613,17 @@ def featuremap_to_dataframe(
 
     """
     # Define fields to include in the output DataFrame
-    x_fields = [
-        "X_CIGAR",
-        "X_EDIST",
-        "X_FC1",
-        "X_FC2",
-        "X_READ_COUNT",
-        "X_FILTERED_COUNT",
-        "X_FLAGS",
-        "X_LENGTH",
-        "X_MAPQ",
-        "X_INDEX",
-        "X_RN",
-        "X_SCORE",
-        "rq",
-    ]
+    if info_fields_override is not None:
+        info_fields = info_fields_override
+    else:
+        info_fields = default_featuremap_info_fields
+    info_fields_list = list(info_fields.keys())
 
-    # If additional fields are provided, append them to the list
-    if info_fields_extra is not None:
-        x_fields = x_fields + list(info_fields_extra.keys())
+    if format_fields is None:
+        format_fields = {}
+        format_fields_list = []
+    else:
+        format_fields_list = list(format_fields.keys())
 
     # Read in the VCF file using pysam, extract entries, and store in a DataFrame
     with pysam.VariantFile(featuremap_vcf) as variant_file:
@@ -627,13 +640,14 @@ def featuremap_to_dataframe(
                     ("qual", x.qual),
                     ("filter", x.filter.keys()[0] if len(x.filter.keys()) > 0 else None),
                 ]
-                + [(xf, x.info.get(xf, None)) for xf in x_fields],
+                + [(xf, x.info.get(xf, None)) for xf in info_fields_list]
+                + [(ff, x.samples[0][ff]) for ff in format_fields_list],
             ),
             variant_file,
         )
 
         # Define the columns for the output DataFrame
-        columns = ["chrom", "pos", "ref", "alt", "qual", "filter"] + x_fields
+        columns = ["chrom", "pos", "ref", "alt", "qual", "filter"] + info_fields_list + format_fields_list
 
         # Create the DataFrame using the generator and the defined columns
         df = pd.DataFrame(
@@ -649,17 +663,24 @@ def featuremap_to_dataframe(
         )
 
     # If additional fields were provided, convert them to the appropriate data type
-    if info_fields_extra is not None:
+    fields = {}
+    for dictionary in (info_fields, format_fields):
+        if dictionary is not None:
+            fields.update(dictionary)
+    if len(fields) > 0:
         # Fill in missing values with 0 for int fields, otherwise casting
-        if int in info_fields_extra.values():
-            df = df.fillna({k: default_int_fillna_value for k, v in info_fields_extra.items() if v == int})
-        df = df.astype(info_fields_extra)
+        if "int" in fields.values():
+            df = df.fillna({k: default_int_fillna_value for k, v in fields.items() if v == int})
+        df = df.astype(fields)
 
     # If True (default), determine the read strand of each substitution based on the X_FLAGS (SAM flags) field
     if report_read_strand:
         # Ensure the X_FLAGS field is present in the dataframe
         if "X_FLAGS" not in df.columns:
-            raise ValueError("X_FLAGS not found in dataframe - cannot determine read strand")
+            raise ValueError(
+                "X_FLAGS not found in dataframe - cannot determine read strand, \
+                did you mean to run with report_read_strand=False?"
+            )
         # Determine whether the read is reverse strand or not based on the X_FLAGS field
         is_reverse = (df["X_FLAGS"] & 16).astype(bool)
         # Reverse complement the ref and alt alleles if necessary to match the read direction
@@ -711,6 +732,8 @@ def featuremap_to_dataframe(
     # Assign is_matched field if input was given
     if is_matched is not None and isinstance(is_matched, bool):
         df = df.assign(is_matched=is_matched)
+
+    print(df)
 
     # Determine output file name
     if output_file is None:

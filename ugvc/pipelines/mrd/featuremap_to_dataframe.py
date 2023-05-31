@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 
-from ugvc.mrd.mrd_utils import featuremap_to_dataframe
+from ugvc.mrd.mrd_utils import default_featuremap_info_fields, featuremap_to_dataframe
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:
@@ -64,6 +64,21 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
         """"X_RN", "X_INDEX", "X_SCORE", "rq" """,
     )
     parser.add_argument(
+        "--info_fields_override",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Override default info fields, give empty string for no info fields",
+    )
+
+    parser.add_argument(
+        "--format_fields",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Fields to extract from the vcf FORMAT fields",
+    )
+    parser.add_argument(
         "-m",
         "--motif_length",
         type=int,
@@ -89,17 +104,40 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
     return parser.parse_args(argv[1:])
 
 
+def __parse_dict_from_arg(arg: list[str]) -> dict:
+    """
+    parse fields command-line arguments where each argument is passed as key=val,
+    """
+    if arg is None:
+        return {}
+    d = {}
+    for f in arg:
+        if f == "":
+            continue
+        key, val = f.split("=")
+        d[key] = val
+    return d
+
+
 def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
     is_matched = None if args_in.matched is None else bool(args_in.matched)
+
+    if args_in.info_fields_override is None:
+        info_fields = default_featuremap_info_fields
+    else:
+        info_fields = __parse_dict_from_arg(args_in.info_fields_override)
+    info_fields.update(__parse_dict_from_arg(args_in.extra_fields))
+    format_fields = __parse_dict_from_arg(args_in.format_fields)
 
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,
         reference_fasta=args_in.reference_fasta,
         motif_length=args_in.motif_length,
-        info_fields_extra=args_in.extra_fields,
+        info_fields_override=info_fields,
+        format_fields=format_fields,
         report_read_strand=not args_in.report_sense_strand_bases,
         show_progress_bar=args_in.show_progress_bar,
         flow_order=args_in.flow_order,
