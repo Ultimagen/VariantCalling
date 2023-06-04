@@ -15,6 +15,8 @@ def test_ssqc_create_html_report(tmpdir):
     shutil.copy(pjoin(report_path, "top_metrics_for_tbl.csv"), tmpdir)
     # copy input
     shutil.copy(pjoin(datadir, "input_for_html_report.h5"), tmpdir)
+    # copy input base_file_name
+    shutil.copy(pjoin(datadir, "base_file_name.txt"), tmpdir)
 
     cmd = [
         "jupyter",
