@@ -16,6 +16,7 @@ def test_no_gt_report(tmpdir):
     shutil.copy(pjoin(datadir, "014790-NA12878.unfilt.no_gt_stats.h5"), tmpdir)
     shutil.copy(pjoin(datadir, "014790-NA12878.unfilt.no_gt_stats_wgs.h5"), tmpdir)
     shutil.copy(pjoin(datadir, "014790-NA12878.chr1_head.vcf.gz"), tmpdir)
+    shutil.copytree(pjoin(datadir, "signatures_data"), pjoin(tmpdir, "signatures_data"))
     with open(pjoin(tmpdir, "no_gt_report.config"), "w") as config_file:
         strg = f"""
 [NOGTReport]
@@ -31,6 +32,7 @@ interval_list = {test_dir}/resources/general/chr1_head/wgs_calling_regions.hg38.
 ref_fasta = {test_dir}/resources/general/chr1_head/Homo_sapiens_assembly38.fasta
 ref_fasta_dict = {test_dir}/resources/general/chr1_head/Homo_sapiens_assembly38.dict
 is_somatic = false
+signatures_folder = signatures_data
 h5_output = 014790-NA12878_no_gt_report.h5
 """
         config_file.write(strg)

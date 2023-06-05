@@ -38,3 +38,8 @@ RUN source ~/.bashrc && \
     cd /VariantCalling && \
     pip install .
 
+RUN source ~/.bashrc && \
+    conda activate sigpross && \
+    cd /VariantCalling && \
+    pip install .
+

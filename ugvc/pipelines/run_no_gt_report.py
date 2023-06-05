@@ -321,7 +321,6 @@ def run_somatic_analysis(arg_values):
     genInstall.install(arg_values.reference_name)
 
     # Run SigProfilerAssignment for getting the signatures of the sample
-
     vcf_dirname = os.path.dirname(arg_values.input_file)
 
     Analyze.cosmic_fit(samples=vcf_dirname,
@@ -348,7 +347,6 @@ def run_somatic_analysis(arg_values):
                        cosmic_version=3.3)
 
     # Plotting the signatures profiles
-
     sigPlt.plotSBS(
         os.path.join(arg_values.output_dir, 'sbs', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
         arg_values.output_dir,
@@ -363,23 +361,22 @@ def run_somatic_analysis(arg_values):
         "somatic_sig", "78", percentage=False, savefig_format="png")
 
     # Plotting the sample profile
-
     matGen.SigProfilerMatrixGeneratorFunc("sample", arg_values.reference_name,
                                           vcf_dirname, plot=True,
                                           exome=False, bed_file=None, chrom_based=False, tsb_stat=False,
                                           seqInfo=False, cushion=100)
 
-    sigPlt.plotSBS(os.path.join(vcf_dirname, "output/SBS/lib_of_vcfs.SBS96.all"),
+    sigPlt.plotSBS(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"),
                    arg_values.output_dir,
                    'sample',
                    "96", percentage=False, savefig_format="png")
 
-    sigPlt.plotID(os.path.join(vcf_dirname, "output/ID/lib_of_vcfs.ID83.all"),
+    sigPlt.plotID(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"),
                   arg_values.output_dir,
                   'sample',
                   "83", percentage=False, savefig_format="png")
 
-    sigPlt.plotDBS(os.path.join(vcf_dirname, "output/DBS/lib_of_vcfs.DBS78.all"),
+    sigPlt.plotDBS(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"),
                    arg_values.output_dir,
                    'sample',
                    "78", percentage=False, savefig_format="png")
