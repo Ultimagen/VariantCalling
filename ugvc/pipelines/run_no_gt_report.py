@@ -64,6 +64,8 @@ def allele_freq_hist(df, nbins=100):
     For each group return the AF distribution in bins
     """
     bins = np.linspace(0, 1, nbins + 1)
+    if "vaf" in df.columns:
+        df["af"]=df["vaf"]
     result = {}
     for group in df["variant_type"].unique():
         histogram_data, _ = np.histogram(
