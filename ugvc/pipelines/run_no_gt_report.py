@@ -352,15 +352,15 @@ def run_somatic_analysis(arg_values):
     sigPlt.plotSBS(
         os.path.join(arg_values.output_dir, 'sbs', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
         arg_values.output_dir,
-        "somatic_sig", "96", percentage=False, savefig_format="png")
+        "somatic_sig", "96", percentage=True, savefig_format="png")
     sigPlt.plotID(
         os.path.join(arg_values.output_dir, 'id', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
         arg_values.output_dir,
-        "somatic_sig", "83", percentage=False, savefig_format="png")
+        "somatic_sig", "83", percentage=True, savefig_format="png")
     sigPlt.plotDBS(
         os.path.join(arg_values.output_dir, 'dinuc', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
         arg_values.output_dir,
-        "somatic_sig", "78", percentage=False, savefig_format="png")
+        "somatic_sig", "78", percentage=True, savefig_format="png")
 
     # Plotting the sample profile
     matGen.SigProfilerMatrixGeneratorFunc("sample", arg_values.reference_name,

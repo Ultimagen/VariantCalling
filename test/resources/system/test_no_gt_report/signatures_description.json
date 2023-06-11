@@ -317,118 +317,118 @@
   },
   "DBS1": {
     "descprition": "Ultraviolet light exposure",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs1/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs1/"
   },
   "DBS2": {
     "descprition": "Tobacco smoking and other mutagens (e.g. acetaldehyde)",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs2/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs2/"
   },
   "DBS3": {
     "descprition": "Polymerase epsilon exonuclease domain mutations",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs3/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs3/"
   },
   "DBS4": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs4/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs4/"
   },
   "DBS5": {
     "descprition": "Platinum chemotherapy treatment",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs5/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs5/"
   },
   "DBS6": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs6/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs6/"
   },
   "DBS7": {
     "descprition": "Defective DNA mismatch repair",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs7/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs7/"
   },
   "DBS8": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs8/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs8/"
   },
   "DBS9": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs9/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs9/"
   },
   "DBS10": {
     "descprition": "Defective DNA mismatch repair",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs10/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs10/"
   },
   "DBS11": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/dbs11/"
+    "link": "https://cancer.sanger.ac.uk/signatures/dbs/dbs11/"
   },
   "ID1": {
     "descprition": "Slippage during DNA replication of the replicated DNA strand",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id1/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id1/"
   },
   "ID2": {
     "descprition": "Slippage during DNA replication of the replicated DNA strand",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id2/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id2/"
   },
   "ID3": {
     "descprition": "Tobacco smoking",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id3/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id3/"
   },
   "ID4": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id4/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id4/"
   },
   "ID5": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id5/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id5/"
   },
   "ID6": {
     "descprition": "Defective homologous recombination DNA damage repair",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id6/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id6/"
   },
   "ID7": {
     "descprition": "Defective DNA mismatch repair",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id7/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id7/"
   },
   "ID8": {
     "descprition": "Repair of DNA double strand breaks by NHEJ or mutations in TOP2A",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id8/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id8/"
   },
   "ID9": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id9/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id9/"
   },
   "ID10": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id10/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id10/"
   },
   "ID11": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id11/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id11/"
   },
   "ID12": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id12/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id12/"
   },
   "ID13": {
     "descprition": "Ultraviolet light exposure",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id13/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id13/"
   },
   "ID14": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id14/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id14/"
   },
   "ID15": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id15/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id15/"
   },
   "ID16": {
     "descprition": "Unknown",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id16/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id16/"
   },
   "ID17": {
     "descprition": "Mutations in topoisomerase TOP2A",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id17/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id17/"
   },
   "ID18": {
     "descprition": "Colibactin exposure (E.coli bacteria carrying pks pathogenicity island)",
-    "link": "https://cancer.sanger.ac.uk/signatures/sbs/id18/"
+    "link": "https://cancer.sanger.ac.uk/signatures/id/id18/"
   }
 }
