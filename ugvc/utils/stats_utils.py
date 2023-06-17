@@ -183,14 +183,17 @@ def precision_recall_curve(
             gtr_select, predictions_select, pos_label=True
         )
     else:
-        raw_precision = np.array([1.0])
-        raw_recall = np.array([0.0])
-        thresholds = np.array([])
+        raw_precision = np.array([gtr_select.sum() / len(gtr_select), 1.0])
+        raw_recall = np.array([1.0, 0.0])
+        thresholds = np.array([np.min(predictions_select)])
 
     recall_correction = gtr_select.sum() / (gtr_select.sum() + original_fn_count)
     recalls = raw_recall * recall_correction
-    recalls = recalls[:-1]  # remove the 1,0 value that sklearn adds
-    precisions = raw_precision[:-1]
+    recalls = recalls[
+        1:-1
+    ]  # remove the 1,0 value that sklearn adds, remove the initial value that the precision_recall_curve adds
+    precisions = raw_precision[1:-1]
+    thresholds = thresholds[1:]
     f1_score = 2 * (recalls * precisions) / (recalls + precisions + np.finfo(float).eps)
 
     # Find the score cutoff at which too few calls remain (to remove areas where the precision recall curve is noisy)

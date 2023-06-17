@@ -92,7 +92,7 @@ class TestVariantAnnotation:
 
     # This creates the expected coverage from the bam simulated by _create_temp_bam
     def _create_expected_coverage(self):
-        result = np.ones(1000, dtype=np.int)
+        result = np.ones(1000, dtype=int)
         result[((np.arange(90000, 91000)) % 2) == 1] = 0
         result_well_mapped = result.copy()
         result_well_mapped[((np.arange(90000, 91000)) % 3) == 0] = 0
