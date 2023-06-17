@@ -636,10 +636,8 @@ def featuremap_to_dataframe(
                 "chrom": CHROM_DTYPE,
                 "ref": "category",
                 "alt": "category",
-                "ref_motif": "category",
-                "alt_motif": "category",
-                "left_motif": "category",
                 "right_motif": "category",
+                "left_motif": "category",
             }
         )
 
