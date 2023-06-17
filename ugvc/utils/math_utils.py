@@ -43,7 +43,7 @@ def phred(p: list[float] | tuple[float] | np.ndarray) -> np.ndarray:
     np.ndarray
         List of float quality values
     """
-    q = -10 * np.log10(np.array(p, dtype=np.float))
+    q = -10 * np.log10(np.array(p, dtype=float))
     return q
 
 
@@ -78,7 +78,7 @@ def unphred(q: list[int | float] | tuple[int | float] | np.ndarray) -> np.ndarra
     np.ndarray
         List of error probabilities
     """
-    p = np.power(10, -np.array(q, dtype=np.float) / 10)
+    p = np.power(10, -np.array(q, dtype=float) / 10)
     return p
 
 

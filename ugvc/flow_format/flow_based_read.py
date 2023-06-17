@@ -168,7 +168,7 @@ class FlowBasedRead:
             setattr(self, k, dct[k])
         assert hasattr(self, "key"), "Something is broken in the constructor, key is not defined"
         assert hasattr(self, "flow_order"), "Something is broken in the constructor, flow_order is not defined"
-        self.flow2base = key2base(self.key).astype(np.int)
+        self.flow2base = key2base(self.key).astype(int)
         self.flow_order = simulator.get_flow2_base(self.flow_order, len(self.key))
 
         self._validate_seq()
@@ -304,7 +304,7 @@ class FlowBasedRead:
             vals = np.array(sam_record.get_tag("kd"))
             row = np.concatenate((row, dct["key"].astype(row.dtype)))
             col = np.concatenate((col, np.arange(len(dct["key"])).astype(col.dtype)))
-            vals = np.concatenate((vals, np.zeros(len(dct["key"]), dtype=np.float)))
+            vals = np.concatenate((vals, np.zeros(len(dct["key"]), dtype=float)))
             shape = (max_hmer_size + 1, len(dct["key"]))
             flow_matrix = cls._matrix_from_sparse(row, col, vals, shape, filler)
             dct["_flow_matrix"] = flow_matrix
@@ -315,8 +315,8 @@ class FlowBasedRead:
                 t0 = None
             flow_matrix = cls._matrix_from_qual_tp(
                 dct["key"],
-                np.array(sam_record.query_qualities, dtype=np.int),
-                tp_tag=np.array(sam_record.get_tag("tp"), dtype=np.int),
+                np.array(sam_record.query_qualities, dtype=int),
+                tp_tag=np.array(sam_record.get_tag("tp"), dtype=int),
                 t0_tag=t0,
                 filler=filler,
                 min_call_prob=min_call_prob,
@@ -400,7 +400,7 @@ class FlowBasedRead:
         if t0_tag is not None:
             t0_probs = phred.unphred_str(t0_tag)
 
-        flow_to_place = np.repeat(np.arange(len(key)), key.astype(np.int))
+        flow_to_place = np.repeat(np.arange(len(key)), key.astype(int))
         if t0_tag is not None:
             t0_on_flows = np.zeros(len(key))
             t0_on_flows[flow_to_place] = t0_probs
@@ -412,7 +412,7 @@ class FlowBasedRead:
             right_prob[right_neighbor >= len(key)] = 0
             flow_matrix[1, key == 0] = np.min(np.vstack((left_prob, right_prob)), axis=0)[key == 0]
 
-        place_to_locate = tp_tag + np.repeat(key, key.astype(np.int))
+        place_to_locate = tp_tag + np.repeat(key, key.astype(int))
         place_to_locate = np.clip(place_to_locate, None, max_hmer_size)
         assert np.all(place_to_locate >= 0), "Wrong position to place"
         flat_loc = np.ravel_multi_index((place_to_locate, flow_to_place), flow_matrix.shape)
@@ -603,7 +603,7 @@ class FlowBasedRead:
 
         flow_matrix = np.zeros((self._max_hmer + 1, len(key)))
 
-        conc_diffs = np.concatenate(diffs).astype(np.int)
+        conc_diffs = np.concatenate(diffs).astype(int)
         position_matrix = np.tile(pos, tmp.shape[1])
         flat_position_matrix = tmp.T.ravel()
         take = (conc_diffs >= 0) & (conc_diffs <= self._max_hmer)
@@ -697,7 +697,7 @@ class FlowBasedRead:
     @classmethod
     def _matrix_from_sparse(cls, row, column, values, shape, filler):
         flow_matrix = np.ones(shape) * filler
-        kd_vals = np.array(values, dtype=np.float)
+        kd_vals = np.array(values, dtype=float)
         kd_vals = -kd_vals
         kd_vals = kd_vals / 10
         kd_vals = 10 ** (kd_vals)
@@ -1064,7 +1064,7 @@ def _parse_sample(sample_block: str, haplotypes: pd.Series) -> pd.DataFrame:
         matrix = [x for x in sample_block[reads_end:].split("\n") if x and not x.startswith(">")]
     else:
         matrix = [x for x in sample_block[reads_end:full_matrix_start].split("\n") if x and not x.startswith(">")]
-    array = np.vstack([np.fromstring(x, dtype=np.float, sep=" ") for x in matrix])
+    array = np.vstack([np.fromstring(x, dtype=float, sep=" ") for x in matrix])
     result = pd.DataFrame(data=array, index=haplotypes.index, columns=read_names)
     result["sequence"] = haplotypes
     return result

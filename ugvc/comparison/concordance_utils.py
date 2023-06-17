@@ -51,7 +51,7 @@ def read_hdf(
             if columns_subset is not None:
                 tmpdf = tmpdf[[x for x in columns_subset if x in tmpdf.columns]]
             if tmpdf.shape[0] > 0:
-                dfs.append(tmpdf)
+                pd.concat((dfs, tmpdf))
         return pd.concat(dfs)
     if key == "all_human_chrs":
         dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X", "Y"]]
@@ -126,11 +126,11 @@ def calc_accuracy_metrics(
     # fix boundary case when there are no indels
     all_indels = all_indels.query("group=='INDELS'")
     if all_indels.shape[0] == 0:
-        all_indels.append(
-            variant_filtering_utils.get_empty_recall_precision("INDELS"),
+        all_indels = pd.concat(
+            (all_indels, pd.DataFrame(variant_filtering_utils.get_empty_recall_precision("INDELS"), index=[0])),
             ignore_index=True,
         )
-    accuracy_df = accuracy_df.append(all_indels, ignore_index=True)
+    accuracy_df = pd.concat((accuracy_df, all_indels), ignore_index=True)
     accuracy_df = accuracy_df.round(5)
     return accuracy_df
 
@@ -182,11 +182,8 @@ def calc_recall_precision_curve(
     # fix boundary case when there are no indels
     all_indels = all_indels.query("group=='INDELS'")
     if all_indels.shape[0] == 0:
-        all_indels.append(
-            variant_filtering_utils.get_empty_recall_precision_curve("INDELS"),
-            ignore_index=True,
-        )
-    recall_precision_curve_df = recall_precision_curve_df.append(all_indels, ignore_index=True)
+        pd.concat((all_indels, variant_filtering_utils.get_empty_recall_precision_curve("INDELS")), ignore_index=True)
+    recall_precision_curve_df = pd.concat((recall_precision_curve_df, all_indels), ignore_index=True)
 
     return recall_precision_curve_df
 

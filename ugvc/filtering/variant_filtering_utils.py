@@ -966,7 +966,7 @@ def add_testing_train_split_column(
     """
     groups = set(concordance[training_groups_column])
 
-    test_train_split_vector = np.zeros(concordance.shape[0], dtype=np.bool)
+    test_train_split_vector = np.zeros(concordance.shape[0], dtype=bool)
     for g_val in groups:
 
         group_vector = concordance[training_groups_column] == g_val
@@ -988,7 +988,7 @@ def add_testing_train_split_column(
         np.random.seed(42)  # making everything deterministic
         train_set = locations[
             np.random.choice(
-                np.arange(group_vector.sum(), dtype=np.int),
+                np.arange(group_vector.sum(), dtype=int),
                 train_set_size,
                 replace=False,
             )
@@ -1176,22 +1176,28 @@ def eval_decision_tree_model(
         post_filtering_recall = get_recall(post_filtering_fn, post_filtering_tp)
         post_filtering_f1 = get_f1(post_filtering_precision, post_filtering_recall)
 
-        accuracy_df = accuracy_df.append(
-            {
-                "group": g_val,
-                "tp": post_filtering_tp,
-                "fp": post_filtering_fp,
-                "fn": post_filtering_fn,
-                "precision": post_filtering_precision,
-                "recall": post_filtering_recall,
-                "f1": post_filtering_f1,
-                "initial_tp": pre_filtering_tp,
-                "initial_fp": pre_filtering_fp,
-                "initial_fn": pre_filtering_fn,
-                "initial_precision": pre_filtering_precision,
-                "initial_recall": pre_filtering_recall,
-                "initial_f1": pre_filtering_f1,
-            },
+        accuracy_df = pd.concat(
+            (
+                accuracy_df,
+                pd.DataFrame(
+                    {
+                        "group": g_val,
+                        "tp": post_filtering_tp,
+                        "fp": post_filtering_fp,
+                        "fn": post_filtering_fn,
+                        "precision": post_filtering_precision,
+                        "recall": post_filtering_recall,
+                        "f1": post_filtering_f1,
+                        "initial_tp": pre_filtering_tp,
+                        "initial_fp": pre_filtering_fp,
+                        "initial_fn": pre_filtering_fn,
+                        "initial_precision": pre_filtering_precision,
+                        "initial_recall": pre_filtering_recall,
+                        "initial_f1": pre_filtering_f1,
+                    },
+                    index=[0],
+                ),
+            ),
             ignore_index=True,
         )
     return accuracy_df
@@ -1355,7 +1361,7 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
     for g_val in all_groups:
         models[g_val] = SingleModel({}, {})
     result = MaskedHierarchicalModel("unfiltered", "group", models)
-    concordance["test_train_split"] = np.zeros(concordance.shape[0], dtype=np.bool)
+    concordance["test_train_split"] = np.zeros(concordance.shape[0], dtype=bool)
     recalls_precisions = eval_decision_tree_model(concordance, result, classify_column)
     return result, recalls_precisions
 
@@ -1368,7 +1374,7 @@ class VariantSelectionFunctions(Enum):
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
 
     def ALL(df: pd.DataFrame) -> np.ndarray:
-        return np.ones(df.shape[0], dtype=np.bool)
+        return np.ones(df.shape[0], dtype=bool)
 
     def HMER_INDEL(df: pd.DataFrame) -> np.ndarray:
         return np.array(df.hmer_indel_length > 0)

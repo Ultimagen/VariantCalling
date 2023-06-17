@@ -63,7 +63,7 @@ def _collect_coverage_per_motif(chrom: str, depth_file: str, size: int = 5, n: i
             assert len(list(depth_file_handler.chroms().keys())) == 1, "Expected single chromosome per bw"
             chrom_name = list(depth_file_handler.chroms().keys())[0]
             chrom_len = depth_file_handler.chroms()[chrom_name]
-            start_points = np.arange(0, chrom_len, chunk_size).astype(np.int)
+            start_points = np.arange(0, chrom_len, chunk_size).astype(int)
 
             for s in start_points:
                 vals = depth_file_handler.values(chrom_name, s, min(s + chunk_size, chrom_len))

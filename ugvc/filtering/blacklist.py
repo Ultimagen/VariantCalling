@@ -53,7 +53,7 @@ class Blacklist:
         idx = set(df[select].index)
         common_with_blacklist = idx & self.blacklist
         result = pd.Series("PASS", index=df.index, dtype=str)
-        result.loc[common_with_blacklist] = self.annotation
+        result.loc[list(common_with_blacklist)] = self.annotation
         return result
 
     def __str__(self):
