@@ -42,6 +42,7 @@ dependencies:
   - bcftools=1.17=h3cc50cf_1
   - beagle=5.2_21Apr21.304=hdfd78af_0
   - beautifulsoup4=4.12.2=pyha770c72_0
+  - bedops=2.4.41=h4ac6f70_1
   - bedtools=2.31.0=hf5e1c6e_2
   - binutils_impl_linux-64=2.40=hf600244_0
   - biopython=1.81=py38h1de0b5d_0
@@ -66,6 +67,7 @@ dependencies:
   - cairo=1.16.0=hbbf8b49_1016
   - certifi=2023.5.7=pyhd8ed1ab_0
   - cffi=1.15.1=py38h4a40e3a_3
+  - cfgv=3.3.1=pyhd8ed1ab_0
   - charset-normalizer=3.1.0=pyhd8ed1ab_0
   - click=8.1.3=unix_pyhd8ed1ab_2
   - cloudpickle=2.2.1=pyhd8ed1ab_0
@@ -82,12 +84,15 @@ dependencies:
   - debugpy=1.6.7=py38h8dc9893_0
   - decorator=5.1.1=pyhd8ed1ab_0
   - defusedxml=0.7.1=pyhd8ed1ab_0
+  - dill=0.3.6=pyhd8ed1ab_1
+  - distlib=0.3.6=pyhd8ed1ab_0
   - distributed=2023.5.0=pyhd8ed1ab_0
   - dnspython=2.3.0=pyhd8ed1ab_0
   - entrypoints=0.4=pyhd8ed1ab_0
   - exceptiongroup=1.1.1=pyhd8ed1ab_0
   - executing=1.2.0=pyhd8ed1ab_0
   - expat=2.5.0=hcb278e6_1
+  - filelock=3.12.2=pyhd8ed1ab_0
   - flit-core=3.9.0=pyhd8ed1ab_0
   - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - font-ttf-inconsolata=3.000=h77eed37_0
@@ -130,6 +135,7 @@ dependencies:
   - hdf5=1.14.0=nompi_hb72d44e_103
   - htslib=1.17=h81da01d_2
   - icu=72.1=hcb278e6_0
+  - identify=2.5.24=pyhd8ed1ab_0
   - idna=3.4=pyhd8ed1ab_0
   - importlib-metadata=6.6.0=pyha770c72_0
   - importlib-resources=5.12.0=pyhd8ed1ab_0
@@ -266,6 +272,7 @@ dependencies:
   - ncurses=6.4=hcb278e6_0
   - nest-asyncio=1.5.6=pyhd8ed1ab_0
   - networkx=3.1=pyhd8ed1ab_0
+  - nodeenv=1.8.0=pyhd8ed1ab_0
   - nodejs=18.15.0=h4abf6b9_1
   - nomkl=1.0=h5ca1d4c_0
   - notebook=6.5.4=pyha770c72_0
@@ -304,6 +311,7 @@ dependencies:
   - pluggy=1.0.0=pyhd8ed1ab_5
   - ply=3.11=py_1
   - pooch=1.7.0=pyha770c72_3
+  - pre-commit=3.3.3=pyha770c72_0
   - prometheus_client=0.17.0=pyhd8ed1ab_0
   - prompt-toolkit=3.0.38=pyha770c72_0
   - prompt_toolkit=3.0.38=hd8ed1ab_0
@@ -336,6 +344,7 @@ dependencies:
   - pysocks=1.7.1=pyha2e5f31_6
   - pytables=3.8.0=py38hf59a973_1
   - pytest=7.3.2=pyhd8ed1ab_1
+  - pytest-mock=3.11.1=pyhd8ed1ab_0
   - python=3.8.17=he550d4f_0_cpython
   - python-dateutil=2.8.2=pyhd8ed1ab_0
   - python-fastjsonschema=2.17.1=pyhd8ed1ab_0
@@ -407,9 +416,11 @@ dependencies:
   - tzdata=2023c=h71feb2d_0
   - tzlocal=5.0.1=py38h578d9bd_0
   - ucx=1.14.1=hf587318_2
+  - ukkonen=1.0.1=py38h43d8883_3
   - umap-learn=0.5.3=py38h578d9bd_1
   - unicodedata2=15.0.0=py38h0a891b7_0
   - urllib3=1.26.15=pyhd8ed1ab_0
+  - virtualenv=20.23.0=pyhd8ed1ab_0
   - wcwidth=0.2.6=pyhd8ed1ab_0
   - webencodings=0.5.1=py_1
   - websocket-client=1.5.3=pyhd8ed1ab_0
@@ -454,6 +465,5 @@ dependencies:
   - pip:
       - mpld3==0.5.9
       - simppl==1.0.7
-      - sklearn-pandas==2.2.0
       - ugvc==0.10
 prefix: /home/ilyas/anaconda3/envs/genomics.py3
