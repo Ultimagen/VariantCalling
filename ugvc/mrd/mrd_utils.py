@@ -36,7 +36,7 @@ default_featuremap_info_fields = {
     "X_INDEX": int,
     "X_RN": str,
     "X_SCORE": float,
-    "rq": int,
+    "rq": float,
 }
 
 
@@ -696,7 +696,11 @@ def featuremap_to_dataframe(
         # Fill in missing values with 0 for int fields, otherwise casting
         if "int" in fields.values():
             df = df.fillna({k: default_int_fillna_value for k, v in fields.items() if v == int})
-        df = df.astype(fields)
+        for k, v in fields.items():
+            try:
+                df = df.astype({k: v})
+            except ValueError:
+                logger.warning(f"Could not convert column {k} to {v}")
 
     # If True (default), determine the read strand of each substitution based on the X_FLAGS (SAM flags) field
     if report_bases_in_synthesis_direction:
