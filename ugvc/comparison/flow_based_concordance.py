@@ -501,7 +501,7 @@ def _apply_corrections(_df: pd.DataFrame, positions: pd.Index, corrections: list
         _df["compare_to_gtr_hmer_indel_len"] = _df["compare_to_gtr_hmer_indel_len"].astype(object)
     else:
         _df.loc[positions, "compare_to_gtr_changes"] = compare_to_gtr_result
-        _df.loc[positions, "compare_to_gtr_hmer_indel_len"] = hmer_indel_to_gtr
+        _df.loc[positions, "compare_to_gtr_hmer_indel_len"] = pd.Series(hmer_indel_to_gtr, index=positions)
     return _df
 
 
