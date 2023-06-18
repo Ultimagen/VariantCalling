@@ -322,7 +322,7 @@ def add_imputation_to_vcf(
                     counters[vtype]["pass"] += 1
                     if "DS" in rec.samples[0].keys():
                         current_gt = rec.samples[0]["GT"]
-                        ds_ar = np.array(rec.samples[0]["DS"], dtype=np.float)
+                        ds_ar = np.array(rec.samples[0]["DS"], dtype=float)
                         # Update counters
                         counters[vtype]["has_non_ref_imp"] += 1
                         cat_str = "has_non_ref_imp"

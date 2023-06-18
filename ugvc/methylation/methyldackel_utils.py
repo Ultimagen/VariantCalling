@@ -190,9 +190,9 @@ def calc_percent_methylation(
         df_pcnt.loc[:, "metric"] = col + "_" + df_pcnt["metric"].astype(str)
 
         if not rel:
-            add_row = pd.DataFrame({"metric": "TotalCpGs", "value": np.array(x).size}, index={0})
+            add_row = pd.DataFrame({"metric": "TotalCpGs", "value": np.array(x).size}, index=[0])
             df_pcnt = pd.concat([df_pcnt, add_row], axis=0, ignore_index=True)
-        df_distrib = df_distrib.append([df_pcnt], ignore_index=True)
+        df_distrib = pd.concat((df_distrib, df_pcnt), ignore_index=True)
         df_distrib.fillna(0, inplace=True)
         df_distrib["detail"] = table_type
         df_distrib.drop_duplicates(inplace=True)
@@ -270,7 +270,7 @@ def calc_coverage_methylation(detail_type: str, data_frame: pd.DataFrame, rel: s
                 df_abs_cov = desc.copy()
                 df_abs_cov.loc[:, "metric"] = col + "_" + df_abs_cov["metric"].astype(str)
 
-            df_distrib = df_distrib.append([df_abs_cov, df_rel_cov], ignore_index=True)
+            df_distrib = pd.concat((df_distrib, df_abs_cov, df_rel_cov), ignore_index=True)
             df_distrib.fillna(0, inplace=True)
             df_distrib["detail"] = detail_type
 
@@ -314,7 +314,7 @@ def calc_TotalCpGs(
     desc = pd.DataFrame({"metric": desc.index, "value": desc})
     desc.loc[:, "metric"] = col + "_" + desc["metric"].astype(str)
     # output
-    df_distrib = df_distrib.append([desc], ignore_index=True)
+    df_distrib = pd.concat((df_distrib, desc), ignore_index=True)
     df_distrib.fillna(0, inplace=True)
     df_distrib["detail"] = key_word
     df_distrib.drop_duplicates(inplace=True)

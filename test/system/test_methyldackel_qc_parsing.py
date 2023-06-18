@@ -1,18 +1,27 @@
+import json
+import os
 from test import get_resource_dir
 
 import numpy as np
-import os
-import json
 import pandas as pd
-from ugvc.methylation import process_Mbias, \
-    process_perRead, process_mergeContextNoCpG, \
-    process_mergeContext, concat_methyldackel_csvs
-from ugvc.methylation.methyldackel_utils import calc_percent_methylation, calc_coverage_methylation, \
-get_dict_from_dataframe, calc_TotalCpGs
+
+from ugvc.methylation import (
+    concat_methyldackel_csvs,
+    process_Mbias,
+    process_mergeContext,
+    process_mergeContextNoCpG,
+    process_perRead,
+)
+from ugvc.methylation.methyldackel_utils import (
+    calc_coverage_methylation,
+    calc_percent_methylation,
+    calc_TotalCpGs,
+    get_dict_from_dataframe,
+)
+
 
 class TestParsers:
     inputs_dir = get_resource_dir(__file__)
-    
 
     def test_process_mbias(self, tmpdir):
         output_prefix = f"{tmpdir}/output_Mbias"
@@ -32,7 +41,7 @@ class TestParsers:
         result_csv = pd.read_csv(output_file)
         ref_csv = pd.read_csv(open(f"{self.inputs_dir}/ProcessMethylDackelMbias.csv"))
 
-        assert np.all(result_csv == ref_csv)
+        pd.testing.assert_frame_equal(result_csv, ref_csv)
 
     # ------------------------------------------------------
 
@@ -54,7 +63,7 @@ class TestParsers:
         result_csv = pd.read_csv(output_file)
         ref_csv = pd.read_csv(open(f"{self.inputs_dir}/ProcessMethylDackelPerRead.csv"))
 
-        assert np.all(result_csv == ref_csv)
+        pd.testing.assert_frame_equal(result_csv, ref_csv)
 
     # ------------------------------------------------------
 
@@ -78,7 +87,7 @@ class TestParsers:
         result_csv = pd.read_csv(output_file)
         ref_csv = pd.read_csv(open(f"{self.inputs_dir}/ProcessMethylDackelMergeContextNoCpG.csv"))
 
-        assert np.all(result_csv == ref_csv)
+        pd.testing.assert_frame_equal(result_csv, ref_csv)
 
     # ------------------------------------------------------
 
@@ -118,8 +127,8 @@ class TestParsers:
             ref_output = ref_csv_sub.loc[idx, :].copy()
 
         assert np.all(np.sum(result_output.value) == np.sum(ref_output.value))
-    # ------------------------------------------------------
 
+    # ------------------------------------------------------
 
     def test_concat_methyldackel_csvs(self, tmpdir):
         output_prefix = f"{tmpdir}/concat_methyldackel_csvs"
@@ -127,17 +136,16 @@ class TestParsers:
         os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)
 
         input_file_name = f"{self.inputs_dir}/csv_files.txt"
-        csv_files = open(input_file_name).read().rstrip().split(',')
+        csv_files = open(input_file_name).read().rstrip().split(",")
         csv_files_amended = []
         for c in csv_files:
-            csv_files_amended.append(f"{self.inputs_dir}/"+ os.path.basename(c))
-        csv_output = ','.join(csv_files_amended)
+            csv_files_amended.append(f"{self.inputs_dir}/" + os.path.basename(c))
+        csv_output = ",".join(csv_files_amended)
         out_file_name = f"{self.inputs_dir}/" + "csv_files_amended.txt"
 
         fobj = open(out_file_name, "w", encoding="utf-8")
         fobj.write(csv_output)
         fobj.close()
-
 
         concat_methyldackel_csvs.run(
             [
@@ -170,9 +178,8 @@ class TestParsers:
         input_file_name = f"{self.inputs_dir}/" + input_file_name
         input_csv = pd.read_csv(open(input_file_name))
         total += input_csv.shape[0]
-
-        assert np.all(result_csv.shape[0] ==total )
-
+        os.unlink(out_file_name)
+        assert result_csv.shape[0] == total
 
     # ------------------------------------------------------
 
@@ -187,7 +194,7 @@ class TestParsers:
         df_in_report["Coverage"] = df_in_report["coverage_methylated"] + df_in_report["coverage_unmethylated"]
 
         rel = False
-        key_word = 'hg'
+        key_word = "hg"
         data_frame = pd.DataFrame()
         pat = r"^chr[0-9]+\b"
         idx = df_in_report.chr.str.contains(pat)
@@ -211,8 +218,8 @@ class TestParsers:
             ref_csv_output = ref_csv.loc[idx, :].copy()
 
         assert np.all(np.sum(ref_csv_output.value) == np.sum(result_calc.value))
-    # ------------------------------------------------------
 
+    # ------------------------------------------------------
 
     def test_methyldackel_utils_calc_coverage_methylation(self, tmpdir):
 
@@ -269,13 +276,11 @@ class TestParsers:
         input_file_name = f"{self.inputs_dir}/" + input_file_name
         ref_csv = pd.read_csv(open(input_file_name))
 
-        assert np.all(np.sum(result_calc.value) == np.sum(ref_csv.value))
+        assert np.allclose(np.sum(result_calc.value), np.sum(ref_csv.value))
 
-
-# ------------------------------------------------------
+    # ------------------------------------------------------
 
     def test_methyldackel_utils_get_dict(self, tmpdir):
-        import json
 
         input_file_name = "ProcessConcatMethylDackelMergeContext.csv"
         input_file_name = f"{self.inputs_dir}/" + input_file_name
@@ -286,7 +291,6 @@ class TestParsers:
             temp_dict = get_dict_from_dataframe(ref_csv, detail)
             dict_json_output.update(temp_dict)
 
-
         calc_json = {"metrics": {}}
         calc_json["metrics"] = {"MergeContext": dict_json_output}
 
@@ -295,9 +299,9 @@ class TestParsers:
 
         ref_json = json.load(open(input_file_name))
 
-        assert (len(calc_json['metrics']['MergeContext']['hg']) == len(ref_json['metrics']['MergeContext']['hg']))
+        assert len(calc_json["metrics"]["MergeContext"]["hg"]) == len(ref_json["metrics"]["MergeContext"]["hg"])
+
 
 # ------------------------------------------------------
 
 # ------------------------------------------------------
-

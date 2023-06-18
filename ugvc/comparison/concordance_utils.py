@@ -51,7 +51,7 @@ def read_hdf(
             if columns_subset is not None:
                 tmpdf = tmpdf[[x for x in columns_subset if x in tmpdf.columns]]
             if tmpdf.shape[0] > 0:
-                pd.concat((dfs, tmpdf))
+                dfs.append(tmpdf)
         return pd.concat(dfs)
     if key == "all_human_chrs":
         dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X", "Y"]]

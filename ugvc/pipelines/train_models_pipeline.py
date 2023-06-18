@@ -21,10 +21,10 @@ from __future__ import annotations
 
 import argparse
 import logging
-import pickle
 import random
 import sys
 
+import dill as pickle
 import numpy as np
 import pandas as pd
 
@@ -169,7 +169,6 @@ def run(argv: list[str]):
             "X_GCC",
             "X_CSS",
         ]
-
         with_dbsnp_bl = args.input_file.endswith("vcf.gz")
         if with_dbsnp_bl:
             if args.list_of_contigs_to_read != []:
@@ -390,8 +389,7 @@ def run(argv: list[str]):
         logger.info("Model training run: success")
 
     except Exception as err:
-        exc_info = sys.exc_info()
-        logger.error(*exc_info)
+        logger.exception(err)
         logger.error("Model training run: failed")
         raise err
 

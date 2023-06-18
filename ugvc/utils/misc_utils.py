@@ -135,7 +135,7 @@ def contig_lens_from_bam_header(bam_file: str, output_file: str):
 def max_merits(specificity, recall):
     """Finds ROC envelope from multiple sets of specificity and recall"""
     N = specificity.shape[0]
-    ind_max = np.ones(N, np.bool)
+    ind_max = np.ones(N, bool)
     for j in range(N):
         for i in range(N):
             if (specificity[i] > specificity[j]) & (recall[i] > recall[j]):
