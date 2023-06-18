@@ -117,6 +117,8 @@ def read_signature(  # pylint: disable=too-many-branches
     verbose: bool = True,
     raise_exception_on_sample_not_found: bool = False,
     is_matched: bool = None,
+    return_dataframes: bool = False,
+    concat_to_existing_output_parquet: bool = False,
 ):
     """
     Read signature (variant calling output, generally mutect) results to dataframe.
@@ -124,7 +126,8 @@ def read_signature(  # pylint: disable=too-many-branches
     signature_vcf_files: str or list[str]
         File name or a list of file names
     output_parquet: str, optional
-        File name to save result to, default None. If this file exists data is apppended to it
+        File name to save result to, unless None (default).
+        If this file exists and concat_to_existing_output_parquet is True data is apppended
     coverage_bw_files: list[str], optional
         Coverage bigwig files generated with "coverage_analysis full_analysis", defualt None
     tumor_sample: str, optional
@@ -142,6 +145,8 @@ def read_signature(  # pylint: disable=too-many-branches
         if True (default False) and the sample name could not be found to determine AF, raise a ValueError
     is_matched: bool, optional
         Set is_matched column in the dataframe to be equal to the input value, if it is not None
+    concat_to_existing_output_parquet: bool, optional
+        If True (default False) and output_parquet is not None and it exists, the new data is concatenated to the
 
 
     Raises
@@ -151,10 +156,17 @@ def read_signature(  # pylint: disable=too-many-branches
 
     """
     if output_parquet and os.path.isfile(output_parquet):  # concat new data with existing
+        if not concat_to_existing_output_parquet:
+            raise ValueError(
+                f"output_parquet {output_parquet} exists and concat_to_existing_output_parquet is False - cannot continue"
+            )
         logger.debug(f"Reading existing data from {output_parquet}")
         df_existing = pd.read_parquet(output_parquet)
     else:
         df_existing = None
+
+    if output_parquet is None and not return_dataframes:
+        raise ValueError("output_parquet is not None and return_dataframes is False - nothing to do")
 
     if signature_vcf_files is None or len(signature_vcf_files) == 0:
         logger.debug("Empty input to read_signature - exiting without doing anything")
@@ -170,6 +182,7 @@ def read_signature(  # pylint: disable=too-many-branches
                 read_signature(
                     file_name,
                     output_parquet=None,
+                    return_dataframes=True,
                     tumor_sample=tumor_sample,
                     x_columns_name_dict=x_columns_name_dict,
                     columns_to_drop=columns_to_drop,
@@ -359,19 +372,23 @@ def read_signature(  # pylint: disable=too-many-branches
     if is_matched is not None and isinstance(is_matched, bool):
         df_sig = df_sig.assign(is_matched=is_matched)
 
+    if df_existing is not None:
+        logger.debug(f"Concatenating to previous existing data in {output_parquet}")
+        df_sig = pd.concat((df_existing.set_index(df_sig.index.names), df_sig))
+
     if output_parquet:
-        if df_existing is not None:
-            logger.debug(f"Concatenating to previous existing data in {output_parquet}")
-            df_sig = pd.concat((df_existing.set_index(df_sig.index.names), df_sig))
         logger.debug(f"Saving output signature/s to {output_parquet}")
         df_sig.reset_index().to_parquet(output_parquet)
-    return df_sig
+
+    if return_dataframes:
+        return df_sig
 
 
 def read_intersection_dataframes(
     intersected_featuremaps_parquet,
     substitution_error_rate=None,
     output_parquet=None,
+    return_dataframes=False,
 ):
     """
     Read featuremap dataframes from several intersections of one featuremaps with several signatures, each is annotated
@@ -398,6 +415,8 @@ def read_intersection_dataframes(
         may be raised
 
     """
+    if output_parquet is None and not return_dataframes:
+        raise ValueError("output_parquet is not None and return_dataframes is False - nothing to do")
     if isinstance(intersected_featuremaps_parquet, str):
         intersected_featuremaps_parquet = [intersected_featuremaps_parquet]
     logger.debug(f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps")
@@ -450,7 +469,8 @@ def read_intersection_dataframes(
     df_int.columns = [x.replace("-", "_") for x in df_int.columns]
     if output_parquet is not None:
         df_int.reset_index().to_parquet(output_parquet)
-    return df_int
+    if return_dataframes:
+        return df_int
 
 
 def intersect_featuremap_with_signature(
@@ -758,6 +778,7 @@ def prepare_data_from_mrd_pipeline(
     tumor_sample=None,
     output_dir=None,
     output_basename=None,
+    return_dataframes=False,
 ):
     """
 
@@ -806,17 +827,14 @@ def prepare_data_from_mrd_pipeline(
         else None
     )
 
-    intersection_dataframe = read_intersection_dataframes(
-        intersected_featuremaps_parquet,
-        substitution_error_rate=substitution_error_rate_hdf,
-        output_parquet=intersection_dataframe_fname,
-    )
     read_signature(
         matched_signatures_vcf_files,
         coverage_bw_files=coverage_bw_files,
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         is_matched=True,
+        return_dataframes=return_dataframes,
+        concat_to_existing_output_parquet=False,
     )
     signature_dataframe = read_signature(
         control_signatures_vcf_files,
@@ -824,8 +842,19 @@ def prepare_data_from_mrd_pipeline(
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         is_matched=False,
+        return_dataframes=return_dataframes,
+        concat_to_existing_output_parquet=True,
     )
-    return signature_dataframe, intersection_dataframe
+
+    intersection_dataframe = read_intersection_dataframes(
+        intersected_featuremaps_parquet,
+        substitution_error_rate=substitution_error_rate_hdf,
+        output_parquet=intersection_dataframe_fname,
+        return_dataframes=return_dataframes,
+    )
+
+    if return_dataframes:
+        return signature_dataframe, intersection_dataframe
 
 
 def concat_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
