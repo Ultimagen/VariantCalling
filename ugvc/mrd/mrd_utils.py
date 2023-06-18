@@ -107,7 +107,7 @@ def _safe_tabix_index(vcf_file: str):
     return vcf_file
 
 
-def read_signature(  # pylint: disable=too-many-branches
+def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
     signature_vcf_files: list[str],
     output_parquet: str = None,
     coverage_bw_files: list[str] = None,
@@ -158,7 +158,8 @@ def read_signature(  # pylint: disable=too-many-branches
     if output_parquet and os.path.isfile(output_parquet):  # concat new data with existing
         if not concat_to_existing_output_parquet:
             raise ValueError(
-                f"output_parquet {output_parquet} exists and concat_to_existing_output_parquet is False - cannot continue"
+                f"output_parquet {output_parquet} exists and concat_to_existing_output_parquet is False"
+                " - cannot continue"
             )
         logger.debug(f"Reading existing data from {output_parquet}")
         df_existing = pd.read_parquet(output_parquet)
@@ -382,6 +383,7 @@ def read_signature(  # pylint: disable=too-many-branches
 
     if return_dataframes:
         return df_sig
+    return None
 
 
 def read_intersection_dataframes(
@@ -403,6 +405,8 @@ def read_intersection_dataframes(
         substitution error rate result generated from mrd.substitution_error_rate
     output_parquet: str
         File name to save result to, default None
+    return_dataframes: bool
+        Return dataframes
 
     Returns
     -------
@@ -471,6 +475,7 @@ def read_intersection_dataframes(
         df_int.reset_index().to_parquet(output_parquet)
     if return_dataframes:
         return df_int
+    return None
 
 
 def intersect_featuremap_with_signature(
@@ -576,7 +581,7 @@ def featuremap_to_dataframe(
     output_file: str = None,
     reference_fasta: str = None,
     motif_length: int = 4,
-    report_read_strand: bool = True,
+    report_bases_in_synthesis_direction: bool = True,
     info_fields_override: dict = None,
     format_fields: dict = None,
     show_progress_bar: bool = False,
@@ -601,7 +606,7 @@ def featuremap_to_dataframe(
         entries in the featuremap are annorated for motifs with the length of the next parameters from either side
     motif_length: int
         default 4
-    report_read_strand: bool
+    report_bases_in_synthesis_direction: bool
         featuremap entries are reported for the sense strand regardless of read diretion. If True (default), the ref and
         alt columns are reverse complemented for reverse strand reads (also motif if calculated).
     info_fields_override: dict
@@ -694,7 +699,7 @@ def featuremap_to_dataframe(
         df = df.astype(fields)
 
     # If True (default), determine the read strand of each substitution based on the X_FLAGS (SAM flags) field
-    if report_read_strand:
+    if report_bases_in_synthesis_direction:
         # Ensure the X_FLAGS field is present in the dataframe
         if "X_FLAGS" not in df.columns:
             raise ValueError(
@@ -702,10 +707,10 @@ def featuremap_to_dataframe(
                 did you mean to run with report_read_strand=False?"
             )
         # Determine whether the read is reverse strand or not based on the X_FLAGS field
-        is_reverse = (df["X_FLAGS"] & 16).astype(bool)
+        is_forward = ~(df["X_FLAGS"] & 16).astype(bool)
         # Reverse complement the ref and alt alleles if necessary to match the read direction
         for column in ("ref", "alt"):
-            df[column] = df[column].where(is_reverse, df[column].apply(revcomp))
+            df[column] = df[column].where(is_forward, df[column].apply(revcomp))
 
     # If a reference fasta file was provided, extract flanking sequence motifs for each variant
     if reference_fasta is not None:
@@ -717,11 +722,11 @@ def featuremap_to_dataframe(
         )
 
         # If specified, reverse the left and right motifs for variants on the reverse strand
-        if report_read_strand:
+        if report_bases_in_synthesis_direction:
             left_motif_reverse = df["left_motif"].apply(revcomp)
             right_motif_reverse = df["right_motif"].apply(revcomp)
-            df["left_motif"] = df["left_motif"].where(is_reverse, right_motif_reverse)
-            df["right_motif"] = df["right_motif"].where(is_reverse, left_motif_reverse)
+            df["left_motif"] = df["left_motif"].where(is_forward, right_motif_reverse)
+            df["right_motif"] = df["right_motif"].where(is_forward, left_motif_reverse)
 
         df["ref_motif"] = df["left_motif"].str.slice(-1) + df["ref"] + df["right_motif"].str.slice(0, 1)
         df["alt_motif"] = df["left_motif"].str.slice(-1) + df["alt"] + df["right_motif"].str.slice(0, 1)
@@ -855,6 +860,7 @@ def prepare_data_from_mrd_pipeline(
 
     if return_dataframes:
         return signature_dataframe, intersection_dataframe
+    return None
 
 
 def concat_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):

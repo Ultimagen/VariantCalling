@@ -72,7 +72,7 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
     )
 
     parser.add_argument(
-        "--format_fields",
+        "--format-fields",
         type=str,
         nargs="+",
         default=None,
@@ -80,20 +80,20 @@ most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly
     )
     parser.add_argument(
         "-m",
-        "--motif_length",
+        "--motif-length",
         type=int,
         default=4,
         help="motif length to annotate the vcf with",
     )
     parser.add_argument(
-        "--report_sense_strand_bases",
+        "--report-bases-in-reference-direction",
         default=False,
         action="store_true",
         help="if True, the ref, alt, and motifs will be reported according to the sense strand "
         "and not according to the read orientation",
     )
     parser.add_argument(
-        "--show_progress_bar",
+        "--show-progress-bar",
         default=False,
         action="store_true",
         help="show progress bar (tqdm)",
@@ -138,7 +138,7 @@ def run(argv: list[str]):
         motif_length=args_in.motif_length,
         info_fields_override=info_fields,
         format_fields=format_fields,
-        report_read_strand=not args_in.report_sense_strand_bases,
+        report_bases_in_synthesis_direction=not args_in.report_bases_in_reference_direction,
         show_progress_bar=args_in.show_progress_bar,
         flow_order=args_in.flow_order,
         is_matched=is_matched,
