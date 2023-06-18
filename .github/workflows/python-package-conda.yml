@@ -29,11 +29,11 @@ jobs:
           export PAPYRUS_ACCESS_STRING=mongodb+srv://inigo-montoya:1aBc5678910@testcluster.jm2x3.mongodb.net/test
       - name: Install dependencies
         run: |
+          conda env create --file setup/environment.yml
           pip install flake8
           conda env update --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
           conda env create --file setup/other_envs/cnmops.yml
-          conda env create --file setup/environment.yml
       - name: Install as a package
         run: |
           conda activate genomics.py3
