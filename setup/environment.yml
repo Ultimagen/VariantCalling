@@ -465,5 +465,4 @@ dependencies:
   - pip:
       - mpld3==0.5.9
       - simppl==1.0.7
-      - ugvc==0.10
 prefix: /home/ilyas/anaconda3/envs/genomics.py3
