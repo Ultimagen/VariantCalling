@@ -473,10 +473,13 @@ def plot_substitution_error_rate_by_motif(
     text2 = fig.text(0.12, 0.015, "Cycle skip:", ha="right")
     text3 = fig.text(0.12, -0.07, "Mean error -> \n(Forward/Reverse)", ha="center")
 
-    plt.ylim(
-        min(df_motifs[error_rate_column].min() * 0.8, 1e-6),
-        max(df_motifs[error_rate_column].max() * 1.2, 1e-3),
-    )
+    try:
+        plt.ylim(
+            min(df_motifs[error_rate_column].min() * 0.8, 1e-6),
+            max(df_motifs[error_rate_column].max() * 1.2, 1e-3),
+        )
+    except ValueError:
+        pass
 
     if out_filename is not None:
         fig.savefig(
