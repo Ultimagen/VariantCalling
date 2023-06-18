@@ -1,8 +1,7 @@
-name: genomics.py3
+name: genomics.py3.dev
 channels:
-  - conda-forge
   - bioconda
-  - r
+  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
@@ -60,12 +59,12 @@ dependencies:
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.19.1=hd590300_0
   - c-blosc2=2.9.2=hb4ffafa_0
-  - ca-certificates=2023.5.7=hbcca054_0
+  - ca-certificates=2023.05.30=h06a4308_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
   - cachetools=5.3.0=pyhd8ed1ab_0
   - cairo=1.16.0=hbbf8b49_1016
-  - certifi=2023.5.7=pyhd8ed1ab_0
+  - certifi=2023.5.7=py38h06a4308_0
   - cffi=1.15.1=py38h4a40e3a_3
   - cfgv=3.3.1=pyhd8ed1ab_0
   - charset-normalizer=3.1.0=pyhd8ed1ab_0
@@ -119,7 +118,6 @@ dependencies:
   - google-api-core=2.11.1=pyhd8ed1ab_0
   - google-auth=2.20.0=pyh1a96a4e_0
   - google-cloud-core=2.3.2=pyhd8ed1ab_0
-  - google-cloud-sdk=435.0.1=py38h578d9bd_0
   - google-cloud-storage=2.9.0=pyh1a96a4e_0
   - google-crc32c=1.1.2=py38h57c428a_4
   - google-resumable-media=2.5.0=pyhd8ed1ab_0
@@ -420,6 +418,7 @@ dependencies:
   - umap-learn=0.5.3=py38h578d9bd_1
   - unicodedata2=15.0.0=py38h0a891b7_0
   - urllib3=1.26.15=pyhd8ed1ab_0
+  - vcfanno=0.3.3=h9ee0642_0
   - virtualenv=20.23.0=pyhd8ed1ab_0
   - wcwidth=0.2.6=pyhd8ed1ab_0
   - webencodings=0.5.1=py_1
@@ -463,6 +462,6 @@ dependencies:
   - zlib-ng=2.0.7=h0b41bf4_0
   - zstd=1.5.2=h3eb15da_6
   - pip:
-      - mpld3==0.5.9
       - simppl==1.0.7
-prefix: /home/ilyas/anaconda3/envs/genomics.py3
+      - mpld3==0.5.9
+prefix: /home/ubuntu/miniconda3/envs/genomics.py3
