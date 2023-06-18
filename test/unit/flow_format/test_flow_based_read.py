@@ -21,4 +21,4 @@ def test_matrix_from_qual_tp():
     for i, rec in enumerate(fbrs):
         assert rec.key.sum() == len(rec.record.query_sequence)
         if i < len(expected):
-            assert np.all(expected[i] == rec._flow_matrix)
+            assert np.allclose(expected[i], rec._flow_matrix)

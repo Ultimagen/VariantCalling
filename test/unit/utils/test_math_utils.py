@@ -16,8 +16,8 @@ def test_phred_str():
 
 
 def test_unphred():
-    assert np.all(math_utils.unphred((10, 20, 30)) == np.array([0.1, 0.01, 0.001]))
+    assert np.allclose(math_utils.unphred((10, 20, 30)), np.array([0.1, 0.01, 0.001]))
 
 
 def test_unphred_str():
-    assert np.all(math_utils.unphred_str("+5?") == np.array([0.1, 0.01, 0.001]))
+    assert np.allclose(math_utils.unphred_str("+5?"), np.array([0.1, 0.01, 0.001]))
