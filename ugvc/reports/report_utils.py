@@ -160,7 +160,7 @@ class ReportUtils:
             opt = opt_res[cat]
             if opt_res_sec is not None:
                 opt_sec = opt_res_sec[cat]
-            if not perf.empty:
+            if not perf.empty and not np.all(pd.isnull(perf.precision)) and not np.all(pd.isnull(perf.recall)):
                 ax_pr_row[j].plot(perf.recall, perf.precision, "-", color="r")
                 ax_pr_row[j].plot(opt.get("recall"), opt.get("precision"), "o", color="red")
                 if opt_res_sec is not None:
