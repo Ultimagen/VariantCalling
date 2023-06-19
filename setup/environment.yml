@@ -118,6 +118,7 @@ dependencies:
   - google-api-core=2.11.1=pyhd8ed1ab_0
   - google-auth=2.20.0=pyh1a96a4e_0
   - google-cloud-core=2.3.2=pyhd8ed1ab_0
+  - google-cloud-sdk=435.0.1=py38h578d9bd_0
   - google-cloud-storage=2.9.0=pyh1a96a4e_0
   - google-crc32c=1.1.2=py38h57c428a_4
   - google-resumable-media=2.5.0=pyhd8ed1ab_0
@@ -462,6 +463,16 @@ dependencies:
   - zlib-ng=2.0.7=h0b41bf4_0
   - zstd=1.5.2=h3eb15da_6
   - pip:
-      - simppl==1.0.7
+      - arrow==1.2.3
+      - fqdn==1.5.1
+      - frz-jupyterlab-variableinspector==0.1.4
+      - isoduration==20.11.0
+      - jsonpointer==2.4
+      - jupyterlab-execute-time==3.0.0
+      - jupyterlab-notify==2.0.0
       - mpld3==0.5.9
+      - simppl==1.0.7
+      - ugvc==0.10
+      - uri-template==1.2.0
+      - webcolors==1.13
 prefix: /home/ubuntu/miniconda3/envs/genomics.py3
