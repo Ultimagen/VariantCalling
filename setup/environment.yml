@@ -1,4 +1,4 @@
-name: genomics.py3.dev
+name: genomics.py3
 channels:
   - bioconda
   - conda-forge
