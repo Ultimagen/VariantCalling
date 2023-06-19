@@ -32,9 +32,10 @@ jobs:
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
           conda env create --file setup/other_envs/cnmops.yml --name cn.mops
           conda env create --file setup/environment.yml --name genomics.py3
+          conda init --all
       - name: Install as a package
         run: |
-          source activate genomics.py3
+          conda activate genomics.py3
           pip install .
       - name: Lint with flake8
         run: |
@@ -44,7 +45,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Import integrity tests
         run: |
-          source activate genomics.py3
+          conda activate genomics.py3
           python ugvc
           run_comparison_pipeline.py -h
           filter_variants_pipeline.py -h
@@ -58,6 +59,6 @@ jobs:
           correct_genotypes_by_imputation.py -h
       - name: Test with pytest
         run: |
-          source activate genomics.py3
+          conda activate genomics.py3
           python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system
