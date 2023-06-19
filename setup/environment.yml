@@ -463,16 +463,6 @@ dependencies:
   - zlib-ng=2.0.7=h0b41bf4_0
   - zstd=1.5.2=h3eb15da_6
   - pip:
-      - arrow==1.2.3
-      - fqdn==1.5.1
-      - frz-jupyterlab-variableinspector==0.1.4
-      - isoduration==20.11.0
-      - jsonpointer==2.4
-      - jupyterlab-execute-time==3.0.0
-      - jupyterlab-notify==2.0.0
       - mpld3==0.5.9
       - simppl==1.0.7
-      - ugvc==0.10
-      - uri-template==1.2.0
-      - webcolors==1.13
 prefix: /home/ubuntu/miniconda3/envs/genomics.py3
