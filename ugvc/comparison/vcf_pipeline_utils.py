@@ -295,7 +295,7 @@ class VcfPipelineUtils:
             -Oz -o {output_vcf} {tempdir}/step4.vcf.gz"
         )
         self.index_vcf(output_vcf)
-        shutil.rmtree(tempdir)
+        # shutil.rmtree(tempdir)
 
     def fix_vcf_format(self, output_prefix: str):
         """Legacy function to fix the PS field format in the old GIAB truth sets. The function overwrites the input file
@@ -395,7 +395,9 @@ def _fix_errors(df: pd.DataFrame) -> pd.DataFrame:
     # (FP_CA,FN_CA), (FP_CA,None) - Fake a genotype from ultima such that one of the alleles is the same (and only one)
     df.loc[(df["call"] == "FP_CA") & ((df["base"] == "FN_CA") | (df["base"].isna())), "gt_ground_truth"] = df[
         (df["call"] == "FP_CA") & ((df["base"] == "FN_CA") | (df["base"].isna()))
-    ]["gt_ultima"].apply(lambda x: ((x[0], x[0]) if (x[1] == 0) else ((x[1], x[1]) if (x[0] == 0) else (x[0], 0))))
+    ]["gt_ultima"].apply(
+        lambda x: ((x[0], x[0]) if (len(x) < 2 or (x[1] == 0)) else ((x[1], x[1]) if (x[0] == 0) else (x[0], 0)))
+    )
     return df
 
 

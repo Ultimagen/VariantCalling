@@ -20,6 +20,7 @@ def print_and_execute(
     if simple_pipeline is None:
         logger.info(command)
         cmd = command.split(" ")
+        cmd = [x for x in cmd if x]
         if output_file is not None:
             with open(output_file, "w", encoding="utf-8") as f:
                 subprocess.call(cmd, stdout=f)
