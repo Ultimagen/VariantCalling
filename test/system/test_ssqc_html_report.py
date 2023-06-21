@@ -13,7 +13,7 @@ def test_ssqc_create_html_report(tmpdir):
     cmd = (
         f"papermill {report_path}/single_sample_qc_create_html_report.ipynb single_sample_qc_create_html_report.papermill.ipynb "
         f"-p top_metrics_file {report_path}/top_metrics_for_tbl.csv "
-        f"-p input_h5_file ~{datadir}/input_for_html_report.h5 "
+        f"-p input_h5_file {datadir}/input_for_html_report.h5 "
         f"-p input_base_file_name TEST".split()
     )
 
