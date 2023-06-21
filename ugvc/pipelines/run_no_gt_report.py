@@ -170,7 +170,7 @@ def variant_eval_statistics(  # pylint: disable=dangerous-default-value
     output_prefix,
     annotation_names=[],
 ):
-    annotation_names_str = [f"--select_name {x}" for x in annotation_names]
+    annotation_names_str = [f"--selectNames {x}" for x in annotation_names]
     annotation_conditions_str = [f'--select vc.hasAttribute("{x}")' for x in annotation_names]
     cmd = (
         [
