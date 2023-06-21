@@ -310,8 +310,9 @@ def run_somatic_analysis(arg_values):
             line = log_file.readline()
 
         signatures = log_file.readline().strip("\n").split()
+        activity_values = log_file.readline().strip("\n").split()[1:]
         # parse the signatures names
-        return signatures
+        return signatures, activity_values
 
     # Install reference
     from SigProfilerMatrixGenerator import install as genInstall
@@ -324,16 +325,16 @@ def run_somatic_analysis(arg_values):
 
     # Run SigProfilerAssignment for getting the signatures of the sample
     vcf_dirname = os.path.dirname(arg_values.input_file)
-
+    output_dir = arg_values.output_prefix + '/'
     Analyze.cosmic_fit(samples=vcf_dirname,
-                       output=os.path.join(arg_values.output_dir,'sbs'),
+                       output=os.path.join(output_dir,'sbs'),
                        input_type="vcf",
                        context_type="96",
                        genome_build=arg_values.reference_name,
                        cosmic_version=3.3)
 
     Analyze.cosmic_fit(samples=vcf_dirname,
-                       output=os.path.join(arg_values.output_dir,'id'),
+                       output=os.path.join(output_dir,'id'),
                        input_type="vcf",
                        context_type="ID",
                        genome_build=arg_values.reference_name,
@@ -341,7 +342,7 @@ def run_somatic_analysis(arg_values):
                        cosmic_version=3.3)
 
     Analyze.cosmic_fit(samples=vcf_dirname,
-                       output=os.path.join(arg_values.output_dir,'dinuc'),
+                       output=os.path.join(output_dir,'dinuc'),
                        input_type="vcf",
                        context_type="DINUC",
                        genome_build=arg_values.reference_name,
@@ -350,16 +351,16 @@ def run_somatic_analysis(arg_values):
 
     # Plotting the signatures profiles
     sigPlt.plotSBS(
-        os.path.join(arg_values.output_dir, 'sbs', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
-        arg_values.output_dir,
+        os.path.join(output_dir, 'sbs', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+        output_dir,
         "somatic_sig", "96", percentage=True, savefig_format="png")
     sigPlt.plotID(
-        os.path.join(arg_values.output_dir, 'id', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
-        arg_values.output_dir,
+        os.path.join(output_dir, 'id', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+        output_dir,
         "somatic_sig", "83", percentage=True, savefig_format="png")
     sigPlt.plotDBS(
-        os.path.join(arg_values.output_dir, 'dinuc', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
-        arg_values.output_dir,
+        os.path.join(output_dir, 'dinuc', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+        output_dir,
         "somatic_sig", "78", percentage=True, savefig_format="png")
 
     # Plotting the sample profile
@@ -369,50 +370,71 @@ def run_somatic_analysis(arg_values):
                                           seqInfo=False, cushion=100)
 
     sigPlt.plotSBS(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"),
-                   arg_values.output_dir,
+                   output_dir,
                    'sample',
                    "96", percentage=False, savefig_format="png")
 
     sigPlt.plotID(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"),
-                  arg_values.output_dir,
+                  output_dir,
                   'sample',
                   "83", percentage=False, savefig_format="png")
 
     sigPlt.plotDBS(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"),
-                   arg_values.output_dir,
+                   output_dir,
                    'sample',
                    "78", percentage=False, savefig_format="png")
 
     # Parse what are the relevant signatures
-    with open(os.path.join(arg_values.output_dir, 'sbs', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-        sig_sbs = _get_signatures_from_sig_log(log_file)
+    with open(os.path.join(output_dir, 'sbs', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+        sig_sbs,activity_values_sbs = _get_signatures_from_sig_log(log_file)
         print(sig_sbs)
 
-    with open(os.path.join(arg_values.output_dir, 'id', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-        sig_id = _get_signatures_from_sig_log(log_file)
+    with open(os.path.join(output_dir, 'id', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+        sig_id,activity_values_id = _get_signatures_from_sig_log(log_file)
         print(sig_id)
 
-    with open(os.path.join(arg_values.output_dir, 'dinuc', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-        sig_dinuc = _get_signatures_from_sig_log(log_file)
+    with open(os.path.join(output_dir, 'dinuc', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+        sig_dinuc,activity_values_dinuc = _get_signatures_from_sig_log(log_file)
         print(sig_dinuc)
 
-    final_results_folder = os.path.join(arg_values.output_dir, 'final_results')
+    final_results_folder = os.path.join(output_dir, 'final_results')
     os.mkdir(final_results_folder)
 
+    # copy the signatures pngs
     for sig in sig_sbs:
-        shutil.copy(os.path.join(arg_values.output_dir,f'SBS_96_plots_{sig}.png'), final_results_folder)
+        shutil.copy(os.path.join(output_dir,f'SBS_96_plots_{sig}.png'), final_results_folder)
 
     for sig in sig_id:
-        shutil.copy(os.path.join(arg_values.output_dir,f'ID_83_plots_{sig}.png'), final_results_folder)
+        shutil.copy(os.path.join(output_dir,f'ID_83_plots_{sig}.png'), final_results_folder)
 
     for sig in sig_dinuc:
-        shutil.copy(os.path.join(arg_values.output_dir,f'DBS_78_plots_{sig}.png'), final_results_folder)
+        shutil.copy(os.path.join(output_dir,f'DBS_78_plots_{sig}.png'), final_results_folder)
 
+    # create signatures activity files
+    activities_sbs = pd.Series(activity_values_sbs, index=[sig_sbs])
+    activities_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_activity")
+
+    activities_id = pd.Series(activity_values_id, index=[sig_id])
+    activities_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_activity")
+
+    activities_dinuc = pd.Series(activity_values_dinuc, index=[sig_dinuc])
+    activities_dinuc.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_activity")
+
+    # copy the sample profile pngs
     vcf_prefix = os.path.basename(arg_values.input_file).split('.')[0]
-    shutil.copy(os.path.join(arg_values.output_dir, f'SBS_96_plots_{vcf_prefix}.png'), final_results_folder)
-    shutil.copy(os.path.join(arg_values.output_dir, f'ID_83_plots_{vcf_prefix}.png'), final_results_folder)
-    shutil.copy(os.path.join(arg_values.output_dir, f'DBS_78_plots_{vcf_prefix}.png'), final_results_folder)
+    shutil.copy(os.path.join(output_dir, f'SBS_96_plots_{vcf_prefix}.png'), final_results_folder)
+    shutil.copy(os.path.join(output_dir, f'ID_83_plots_{vcf_prefix}.png'), final_results_folder)
+    shutil.copy(os.path.join(output_dir, f'DBS_78_plots_{vcf_prefix}.png'), final_results_folder)
 
+    # save the sample profile to h5
+    sig_profile_sbs = pd.read_csv(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"), sep='\t')
+    sig_profile_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_profile")
+
+    sig_profile_id = pd.read_csv(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"), sep='\t')
+    sig_profile_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_profile")
+
+    sig_profile_dbs = pd.read_csv(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"), sep='\t')
+    sig_profile_dbs.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_profile")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
@@ -457,9 +479,9 @@ if __name__ == "__main__":
     # Run somatic analysis on somatic data
     full_analysis = subparsers.add_parser(name="somatic_analysis", description="Run mutation signatures and motif graphs")
 
-    full_analysis.add_argument("--input_file", help="Input vcf file", required=True, type=str)
+    full_analysis.add_argument("--input_file", help="Input unzipped vcf file", required=True, type=str)
     full_analysis.add_argument("--reference_name", help="Reference genome name", required=False, type=str, default="GRCh38")
-    full_analysis.add_argument("--output_dir", help="output directory", required=True, type=str)
+    full_analysis.add_argument("--output_prefix", help="output file and directory", required=True, type=str)
     full_analysis.set_defaults(func=run_somatic_analysis)
 
 
