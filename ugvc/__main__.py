@@ -12,17 +12,25 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 from ugvc.cnv import filter_sample_cnvs
-
+from ugvc.joint import compress_gvcf
+from ugvc.methylation import (
+    concat_methyldackel_csvs,
+    process_Mbias,
+    process_mergeContext,
+    process_mergeContextNoCpG,
+    process_perRead,
+)
 from ugvc.pipelines import (
+    convert_haploid_regions,
+    correct_genotypes_by_imputation,
     coverage_analysis,
     evaluate_concordance,
     filter_variants_pipeline,
     run_comparison_pipeline,
     train_models_pipeline,
-    convert_haploid_regions,
-    correct_genotypes_by_imputation,
-    vcfeval_flavors
+    vcfeval_flavors,
 )
+from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugvc.pipelines.mrd import (
     collect_coverage_per_motif,
     concat_dataframes,
@@ -38,19 +46,6 @@ from ugvc.pipelines.mrd import (
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.utils import cloud_sync
 
-from ugvc.methylation import (
-    concat_methyldackel_csvs,
-    process_Mbias,
-    process_mergeContext,
-    process_mergeContextNoCpG,
-    process_perRead,
-)
-
-from ugvc.joint import (
-    compress_gvcf
-)
-
-
 # create a list of imported pipeline modules
 modules = [
     assess_sec_concordance,
@@ -62,7 +57,7 @@ modules = [
     filter_sample_cnvs,
     convert_haploid_regions,
     correct_genotypes_by_imputation,
-    vcfeval_flavors
+    vcfeval_flavors,
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
@@ -91,12 +86,17 @@ joint_modules = [compress_gvcf]
 
 misc_modules = [cloud_sync]
 
+lpr_modules = [
+    train_lib_prep_recalibration_model,
+    filter_vcf_with_lib_prep_recalibration_model,
+]
+
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
 modules.extend(methylation_modules)
 modules.extend(joint_modules)
-
+modules.extend(lpr_modules)
 
 LOGO = """
       __    __    ___________    ____  ______
