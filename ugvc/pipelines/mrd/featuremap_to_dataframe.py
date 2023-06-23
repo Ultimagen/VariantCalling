@@ -111,6 +111,9 @@ def __parse_dict_from_arg(arg: list[str]) -> dict:
     if arg is None:
         return {}
     d = {}
+    # wasn't splitted correctly, such as when calling from simppl print_and_run_clt
+    if len(arg) == 1 and " " in arg[0]:
+        arg = arg[0].split(" ")
     for f in arg:
         if f == "":
             continue
