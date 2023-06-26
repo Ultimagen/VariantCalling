@@ -1,16 +1,19 @@
 name: genomics.py3
 channels:
-  - conda-forge
+  - anaconda
   - bioconda
+  - conda-forge
   - r
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
+  - _py-xgboost-mutex=2.0=cpu_0
   - _r-mutex=1.0.1=anacondar_1
   - aiohttp=3.8.4=py38h01eb140_1
   - aiosignal=1.3.1=pyhd8ed1ab_0
   - alsa-lib=1.2.8=h166bdaf_0
+  - altair=5.0.1=py38h06a4308_0
   - anndata=0.9.1=pyhd8ed1ab_0
   - ansiwrap=0.8.4=py_0
   - anyio=3.7.0=pyhd8ed1ab_1
@@ -65,7 +68,7 @@ dependencies:
   - cached_property=1.5.2=pyha770c72_1
   - cachetools=5.3.0=pyhd8ed1ab_0
   - cairo=1.16.0=hbbf8b49_1016
-  - certifi=2023.5.7=pyhd8ed1ab_0
+  - certifi=2023.5.7=py38h06a4308_0
   - cffi=1.15.1=py38h4a40e3a_3
   - cfgv=3.3.1=pyhd8ed1ab_0
   - charset-normalizer=3.1.0=pyhd8ed1ab_0
@@ -89,6 +92,7 @@ dependencies:
   - distributed=2023.5.0=pyhd8ed1ab_0
   - dnspython=2.3.0=pyhd8ed1ab_0
   - entrypoints=0.4=pyhd8ed1ab_0
+  - et_xmlfile=1.1.0=py38h06a4308_0
   - exceptiongroup=1.1.1=pyhd8ed1ab_0
   - executing=1.2.0=pyhd8ed1ab_0
   - expat=2.5.0=hcb278e6_1
@@ -237,6 +241,7 @@ dependencies:
   - libvorbis=1.3.7=h9c3ff4c_0
   - libwebp-base=1.3.0=h0b41bf4_0
   - libxcb=1.15=h0b41bf4_0
+  - libxgboost=1.7.3=h6a678d5_0
   - libxkbcommon=1.5.0=h5d7e998_3
   - libxml2=2.11.4=h0d562d8_0
   - libzlib=1.2.13=hd590300_5
@@ -287,6 +292,7 @@ dependencies:
   - numpy=1.24.3=py38h59b608b_0
   - openjdk=17.0.3=h19c1b89_7
   - openjpeg=2.5.0=hfec8fc6_2
+  - openpyxl=3.0.10=py38h5eee18b_0
   - openssl=3.1.1=hd590300_1
   - orc=1.8.4=h2f23424_0
   - overrides=7.3.1=pyhd8ed1ab_0
@@ -313,6 +319,7 @@ dependencies:
   - plotnine=0.12.1=pyhd8ed1ab_1
   - pluggy=1.0.0=pyhd8ed1ab_5
   - ply=3.11=py_1
+  - polars=0.18.3=py38h0cc4f7c_0
   - pooch=1.7.0=pyha770c72_3
   - pre-commit=3.3.3=pyha770c72_0
   - prometheus_client=0.17.0=pyhd8ed1ab_0
@@ -325,6 +332,7 @@ dependencies:
   - pulseaudio-client=16.1=hb77b528_4
   - pure_eval=0.2.2=pyhd8ed1ab_0
   - py-cpuinfo=9.0.0=pyhd8ed1ab_0
+  - py-xgboost=1.7.3=py38h06a4308_0
   - pyarrow=12.0.0=py38h39356d1_8_cpu
   - pyasn1=0.4.8=py_0
   - pyasn1-modules=0.2.7=py_0
@@ -435,6 +443,7 @@ dependencies:
   - xcb-util-keysyms=0.4.0=h8ee46fc_1
   - xcb-util-renderutil=0.3.9=hd590300_1
   - xcb-util-wm=0.4.1=h8ee46fc_1
+  - xgboost=1.7.3=py38h06a4308_0
   - xkeyboard-config=2.39=hd590300_0
   - xlrd=2.0.1=pyhd8ed1ab_3
   - xorg-fixesproto=5.0=h7f98852_1002

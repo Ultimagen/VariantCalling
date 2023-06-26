@@ -11,5 +11,6 @@ CYCLE_SKIP = "cycle-skip"
 POSSIBLE_CYCLE_SKIP = "possible-cycle-skip"
 NON_CYCLE_SKIP = "non-skip"
 UNDETERMINED_CYCLE_SKIP = "NA"
+IS_CYCLE_SKIP = "is_cycle_skip"
 
 CYCLE_SKIP_DTYPE = CategoricalDtype(categories=[CYCLE_SKIP, POSSIBLE_CYCLE_SKIP, NON_CYCLE_SKIP], ordered=True)
