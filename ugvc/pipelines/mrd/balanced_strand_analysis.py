@@ -31,7 +31,7 @@ from ugvc.mrd.balanced_strand_utils import (
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="featuremap_to_dataframe", description=run.__doc__)
+    parser = argparse.ArgumentParser(prog="balanced_strand_analysis", description=run.__doc__)
     parser.add_argument(
         "--adapter-version",
         choices=[v.value for v in supported_adapter_versions],

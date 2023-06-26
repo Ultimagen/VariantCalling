@@ -11,7 +11,9 @@ import pysam
 import ugvc.vcfbed.variant_annotation as variant_annotation
 import ugvc.vcfbed.vcftools as vcftools
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.mrd.featuremap_utils import FeatureMapFields, RefContextVcfAnnotator
 
+general_inputs_dir = pjoin(test_dir, "resources", "general")
 resource_dir = pjoin(get_resource_dir(__file__))
 
 
@@ -131,3 +133,125 @@ class TestVariantAnnotation:
         )
         result = pd.Series(cycleskip_status)
         return df, result
+
+    def __ref_context_annotator_assertion(
+        self,
+        annotated_vcf: str,
+        motif_length: int,
+        num_cycle_skips: int,
+        num_non_cycle_skips: int,
+        hmer_context_ref_sum: int,
+        hmer_context_alt_sum: int,
+    ):
+        annotated_variants = pysam.VariantFile(annotated_vcf, "r")
+        assert FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value in annotated_variants.header.info
+        assert FeatureMapFields.HMER_CONTEXT_REF.value in annotated_variants.header.info
+        assert FeatureMapFields.HMER_CONTEXT_ALT.value in annotated_variants.header.info
+        assert FeatureMapFields.IS_CYCLE_SKIP.value in annotated_variants.header.info
+        assert f"prev_{motif_length}bp" in annotated_variants.header.info
+        assert f"next_{motif_length}bp" in annotated_variants.header.info
+
+        cycle_skips = 0
+        non_cycle_skips = 0
+        hmer_context_ref_sum = 0
+        hmer_context_alt_sum = 0
+        for variant in annotated_variants:
+            assert len(variant.info[FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]) == motif_length + 1
+            assert len(variant.info[FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]) == motif_length + 1
+            assert len(variant.info[f"prev_{motif_length}bp"]) == motif_length
+            assert len(variant.info[f"next_{motif_length}bp"]) == motif_length
+            if variant.info[FeatureMapFields.IS_CYCLE_SKIP.value]:
+                cycle_skips += 1
+            else:
+                non_cycle_skips += 1
+            hmer_context_ref_sum += variant.info[FeatureMapFields.HMER_CONTEXT_REF.value]
+            hmer_context_alt_sum += variant.info[FeatureMapFields.HMER_CONTEXT_ALT.value]
+
+        assert cycle_skips == num_cycle_skips
+        assert non_cycle_skips == num_non_cycle_skips
+        assert hmer_context_ref_sum == hmer_context_ref_sum
+        assert hmer_context_alt_sum == hmer_context_alt_sum
+
+    def test_ref_context_vcf_annotator_somatic_dv(self, tmpdir):
+        # data files
+        sample_vcf = pjoin(resource_dir, "Pa_46.FFPE.chr20_sample.vcf.gz")
+        motif_length = 3
+        ref_contetxt_variant_annotator = RefContextVcfAnnotator(
+            ref_fasta=pjoin(general_inputs_dir, "sample.fasta"),
+            flow_order=DEFAULT_FLOW_ORDER,
+            motif_length_to_annotate=motif_length,
+        )
+
+        # test on vcf file (from somatic DV)
+        annotated_somatic_dv_vcf = pjoin(tmpdir, "annotated_somatic_dv.vcf.gz")
+        variant_annotation.VcfAnnotator.process_vcf(
+            input_path=sample_vcf,
+            output_path=annotated_somatic_dv_vcf,
+            annotators=[ref_contetxt_variant_annotator],
+        )
+        self.__ref_context_annotator_assertion(
+            annotated_vcf=annotated_somatic_dv_vcf,
+            motif_length=motif_length,
+            num_cycle_skips=3,
+            num_non_cycle_skips=9,
+            hmer_context_ref_sum=27,
+            hmer_context_alt_sum=23,
+        )
+
+    def test_ref_context_vcf_annotator_featuremap_with_bs(self, tmpdir):
+        # test on FeatureMap file (from bsDNA)
+        sample_featuremap = pjoin(resource_dir, "Pa_46.bsDNA.chr20_sample.vcf.gz")
+        motif_length = 3
+        ref_contetxt_variant_annotator = RefContextVcfAnnotator(
+            ref_fasta=pjoin(general_inputs_dir, "sample.fasta"),
+            flow_order=DEFAULT_FLOW_ORDER,
+            motif_length_to_annotate=motif_length,
+        )
+        annotated_balanced_featuremap = pjoin(tmpdir, "annotated_balanced_featuremap.vcf.gz")
+        variant_annotation.VcfAnnotator.process_vcf(
+            input_path=sample_featuremap,
+            output_path=annotated_balanced_featuremap,
+            annotators=[ref_contetxt_variant_annotator],
+        )
+        self.__ref_context_annotator_assertion(
+            annotated_vcf=annotated_balanced_featuremap,
+            motif_length=motif_length,
+            num_cycle_skips=0,
+            num_non_cycle_skips=31,
+            hmer_context_ref_sum=64,
+            hmer_context_alt_sum=41,
+        )
+
+    def test_ref_context_vcf_annotator_multi_processing(self, tmpdir):
+        # test on FeatureMap file, with multi-processing)
+        sample_featuremap = pjoin(resource_dir, "Pa_46.bsDNA.chr20_sample.vcf.gz")
+        motif_length = 3
+        ref_contetxt_variant_annotator = RefContextVcfAnnotator(
+            ref_fasta=pjoin(general_inputs_dir, "sample.fasta"),
+            flow_order=DEFAULT_FLOW_ORDER,
+            motif_length_to_annotate=motif_length,
+        )
+        annotated_balanced_featuremap = pjoin(tmpdir, "annotated_balanced_featuremap.vcf.gz")
+        variant_annotation.VcfAnnotator.process_vcf(
+            input_path=sample_featuremap,
+            output_path=annotated_balanced_featuremap,
+            annotators=[ref_contetxt_variant_annotator],
+            process_number=1,
+        )
+        self.__ref_context_annotator_assertion(
+            annotated_vcf=annotated_balanced_featuremap,
+            motif_length=motif_length,
+            num_cycle_skips=0,
+            num_non_cycle_skips=31,
+            hmer_context_ref_sum=64,
+            hmer_context_alt_sum=41,
+        )
+
+    def test_pickle_an_annotator(self, tmpdir):
+        import pickle
+
+        from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
+
+        annotator = BalancedStrandVcfAnnotator(adapter_version="LA_v5")
+        with open(pjoin(tmpdir, "annotators_pickle"), "wb") as f:
+            pickle.dump(annotator, f)

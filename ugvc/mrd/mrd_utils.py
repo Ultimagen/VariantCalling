@@ -20,9 +20,28 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from ugvc import logger
+from ugvc.dna.format import ALT, CHROM, DEFAULT_FLOW_ORDER, FILTER, POS, QUAL, REF
 from ugvc.dna.utils import revcomp
+from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
+from ugvc.mrd.featuremap_utils import FeaturemapAnnotator, RefContextVcfAnnotator, VcfAnnotator
 from ugvc.utils.consts import FileExtension
 from ugvc.vcfbed.variant_annotation import get_trinuc_substitution_dist, parse_trinuc_sub
+
+default_featuremap_info_fields = {
+    "X_CIGAR": str,
+    "X_EDIST": int,
+    "X_FC1": str,
+    "X_FC2": str,
+    "X_READ_COUNT": int,
+    "X_FILTERED_COUNT": int,
+    "X_FLAGS": int,
+    "X_LENGTH": int,
+    "X_MAPQ": float,
+    "X_INDEX": int,
+    "X_RN": str,
+    "X_SCORE": float,
+    "rq": float,
+}
 
 
 def _get_sample_name_from_file_name(file_name, split_position=0):
@@ -114,7 +133,43 @@ def _validate_info(x):
     return None
 
 
-def read_signature(  # pylint: disable=too-many-branches
+def collect_coverage_per_locus(coverage_bw_files, df_sig):
+    try:
+        logger.debug("Reading input from bigwig coverage data")
+        f_bw = [bw.open(x) for x in coverage_bw_files]
+        df_list = []
+
+        for chrom, df_tmp in tqdm(df_sig.groupby(level="chrom")):
+            if df_tmp.shape[0] == 0:
+                continue
+            found_correct_file = False
+
+            f_bw_chrom = {}
+            for f_bw_chrom in f_bw:
+                if chrom in f_bw_chrom.chroms():
+                    found_correct_file = True
+                    break
+
+            if not found_correct_file:
+                raise ValueError(f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}")
+
+            chrom_start = df_tmp.index.get_level_values("pos") - 1
+            chrom_end = df_tmp.index.get_level_values("pos")
+            df_list.append(
+                df_tmp.assign(
+                    coverage=np.concatenate(
+                        [f_bw_chrom.values(chrom, x, y, numpy=True) for x, y in zip(chrom_start, chrom_end)]
+                    )
+                )
+            )
+    finally:
+        if "f_bw" in locals():
+            for variant_file in f_bw:
+                variant_file.close()
+    return df_list
+
+
+def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
     signature_vcf_files: list[str],
     output_parquet: str = None,
     coverage_bw_files: list[str] = None,
@@ -124,6 +179,8 @@ def read_signature(  # pylint: disable=too-many-branches
     verbose: bool = True,
     raise_exception_on_sample_not_found: bool = False,
     signature_type: str = None,
+    return_dataframes: bool = False,
+    concat_to_existing_output_parquet: bool = False,
 ):
     """
     Read signature (variant calling output, generally mutect) results to dataframe.
@@ -131,7 +188,8 @@ def read_signature(  # pylint: disable=too-many-branches
     signature_vcf_files: str or list[str]
         File name or a list of file names
     output_parquet: str, optional
-        File name to save result to, default None. If this file exists data is apppended to it
+        File name to save result to, unless None (default).
+        If this file exists and concat_to_existing_output_parquet is True data is appended
     coverage_bw_files: list[str], optional
         Coverage bigwig files generated with "coverage_analysis full_analysis", defualt None
     tumor_sample: str, optional
@@ -149,6 +207,8 @@ def read_signature(  # pylint: disable=too-many-branches
         if True (default False) and the sample name could not be found to determine AF, raise a ValueError
     signature_type: str, optional
         Set signature_type column in the dataframe to be equal to the input value, if it is not None
+    concat_to_existing_output_parquet: bool, optional
+        If True (default False) and output_parquet is not None and it exists, the new data is concatenated to the
 
 
     Raises
@@ -158,10 +218,18 @@ def read_signature(  # pylint: disable=too-many-branches
 
     """
     if output_parquet and os.path.isfile(output_parquet):  # concat new data with existing
+        if not concat_to_existing_output_parquet:
+            raise ValueError(
+                f"output_parquet {output_parquet} exists and concat_to_existing_output_parquet is False"
+                " - cannot continue"
+            )
         logger.debug(f"Reading existing data from {output_parquet}")
         df_existing = pd.read_parquet(output_parquet)
     else:
         df_existing = None
+
+    if output_parquet is None and not return_dataframes:
+        raise ValueError("output_parquet is not None and return_dataframes is False - nothing to do")
 
     if signature_vcf_files is None or len(signature_vcf_files) == 0:
         logger.debug("Empty input to read_signature - exiting without doing anything")
@@ -177,6 +245,7 @@ def read_signature(  # pylint: disable=too-many-branches
                 read_signature(
                     file_name,
                     output_parquet=None,
+                    return_dataframes=True,
                     tumor_sample=tumor_sample,
                     x_columns_name_dict=x_columns_name_dict,
                     columns_to_drop=columns_to_drop,
@@ -248,10 +317,14 @@ def read_signature(  # pylint: disable=too-many-branches
                 # synthetic signature
                 af_field = "DNA_VAF"
             else:
-                af_field = None
+                af_field = "no_AF_field_found"
             logger.debug(f"Reading x_columns: {x_columns}")
 
             for j, rec in enumerate(variant_file):
+                if j == 0 and tumor_sample is None:
+                    samples = rec.samples.keys()
+                    if len(samples) == 1:
+                        tumor_sample = samples[0]
                 entries.append(
                     tuple(
                         [
@@ -260,11 +333,12 @@ def read_signature(  # pylint: disable=too-many-branches
                             rec.ref,
                             rec.alts[0],
                             rec.id,
+                            rec.qual,
                             (
                                 rec.samples[tumor_sample][af_field][0]
                                 if tumor_sample
                                 and af_field in rec.samples[tumor_sample]
-                                and len(rec.samples[tumor_sample]) > 0
+                                and len(rec.samples[tumor_sample][af_field]) > 0
                                 else rec.info[af_field]
                                 if af_field in rec.info
                                 else np.nan
@@ -284,8 +358,7 @@ def read_signature(  # pylint: disable=too-many-branches
                         + [rec.info[c][0] if isinstance(rec.info[c], tuple) else rec.info[c] for c in x_columns]
                     )
                 )
-        logger.debug(f"Done reading vcf file {signature_vcf_files}")
-        logger.debug("Converting to dataframe")
+        logger.debug(f"Done reading vcf file {signature_vcf_files}" "Converting to dataframe")
         df_sig = (
             pd.DataFrame(
                 entries,
@@ -295,6 +368,7 @@ def read_signature(  # pylint: disable=too-many-branches
                     "ref",
                     "alt",
                     "id",
+                    "qual",
                     "af",
                     "depth_tumor_sample",
                     "hmer",
@@ -313,42 +387,12 @@ def read_signature(  # pylint: disable=too-many-branches
     df_sig = df_sig.sort_index()
 
     if coverage_bw_files:  # collect coverage per locus
-        try:
-            logger.debug("Reading input from bigwig coverage data")
-            f_bw = [bw.open(x) for x in coverage_bw_files]
-            df_list = []
-
-            for chrom, df_tmp in tqdm(df_sig.groupby(level="chrom")):
-                if df_tmp.shape[0] == 0:
-                    continue
-                found_correct_file = False
-
-                f_bw_chrom = {}
-                for f_bw_chrom in f_bw:
-                    if chrom in f_bw_chrom.chroms():
-                        found_correct_file = True
-                        break
-
-                if not found_correct_file:
-                    raise ValueError(f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}")
-
-                chrom_start = df_tmp.index.get_level_values("pos") - 1
-                chrom_end = df_tmp.index.get_level_values("pos")
-                df_list.append(
-                    df_tmp.assign(
-                        coverage=np.concatenate(
-                            [f_bw_chrom.values(chrom, x, y, numpy=True) for x, y in zip(chrom_start, chrom_end)]
-                        )
-                    )
-                )
-        finally:
-            if "f_bw" in locals():
-                for variant_file in f_bw:
-                    variant_file.close()
+        df_list = collect_coverage_per_locus(coverage_bw_files, df_sig)
         df_sig = pd.concat(df_list).astype({"coverage": int})
-    df_sig["hmer"] = pd.to_numeric(df_sig["hmer"], errors="coerce")
+
     logger.debug("Calculating reference hmer")
     try:
+        df_sig["hmer"] = pd.to_numeric(df_sig["hmer"], errors="coerce")
         df_sig.loc[:, "hmer"] = (
             df_sig[["hmer"]]
             .assign(
@@ -376,18 +420,23 @@ def read_signature(  # pylint: disable=too-many-branches
     if signature_type is not None and isinstance(signature_type, str):
         df_sig = df_sig.assign(signature_type=signature_type)
 
+    if df_existing is not None:
+        logger.debug(f"Concatenating to previous existing data in {output_parquet}")
+        df_sig = pd.concat((df_existing.set_index(df_sig.index.names), df_sig))
+
     if output_parquet:
-        if df_existing is not None:
-            logger.debug(f"Concatenating to previous existing data in {output_parquet}")
-            df_sig = pd.concat((df_existing.set_index(df_sig.index.names), df_sig))
         logger.debug(f"Saving output signature/s to {output_parquet}")
         df_sig.reset_index().to_parquet(output_parquet)
-    return df_sig
+
+    if return_dataframes:
+        return df_sig
+    return None
 
 
 def read_intersection_dataframes(
     intersected_featuremaps_parquet,
     output_parquet=None,
+    return_dataframes=False,
 ):
     """
     Read featuremap dataframes from several intersections of one featuremaps with several signatures, each is annotated
@@ -400,6 +449,8 @@ def read_intersection_dataframes(
         list of featuremaps intesected with various signatures
     output_parquet: str
         File name to save result to, default None
+    return_dataframes: bool
+        Return dataframes
 
     Returns
     -------
@@ -412,6 +463,8 @@ def read_intersection_dataframes(
         may be raised
 
     """
+    if output_parquet is None and not return_dataframes:
+        raise ValueError("output_parquet is not None and return_dataframes is False - nothing to do")
     if isinstance(intersected_featuremaps_parquet, str):
         intersected_featuremaps_parquet = [intersected_featuremaps_parquet]
     logger.debug(f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps")
@@ -427,7 +480,9 @@ def read_intersection_dataframes(
     )
     if output_parquet is not None:
         df_int.reset_index().to_parquet(output_parquet)
-    return df_int
+    if return_dataframes:
+        return df_int
+    return None
 
 
 def intersect_featuremap_with_signature(
@@ -675,7 +730,12 @@ def featuremap_to_dataframe(
             sample_index = list(pysam.VariantFile(featuremap_vcf).header.samples).index(sample_name)
 
     # define type conversion dictionary, String is converted to object to support np.nan
-    type_conversion_dict = {"String": object, "Integer": int, "Float": float, "Flag": bool}
+    type_conversion_dict = {
+        "String": object,
+        "Integer": int,
+        "Float": float,
+        "Flag": bool,
+    }
 
     # auxiliary function to parse info and formats fields to read
     def get_metadata_dict(values: list[str], input_fields: list[str] = None):
@@ -699,6 +759,7 @@ def featuremap_to_dataframe(
         format_metadata_dict, format_input_fields_to_use = get_metadata_dict(
             values=header.formats.values(), input_fields=input_format_fields
         )
+        # TODO remove this patch once the issue is fixed in FeatureMap
         # This section is a patch for specific integer tags, since there is an issue with FeautreMap
         # not propagating the types of copied SAM tags properly, so that they all default to String.
         # There is a pending request to fix, in the mean time this is a workaround.
@@ -715,9 +776,7 @@ def featuremap_to_dataframe(
                 formats_metadata_dict=format_metadata_dict,
                 sample_index=sample_index,
             ),
-            columns=["chrom", "pos", "ref", "alt", "qual", "filter"]
-            + info_input_fields_to_use
-            + format_input_fields_to_use,
+            columns=[CHROM, POS, REF, ALT, QUAL, FILTER] + info_input_fields_to_use + format_input_fields_to_use,
         )
     # fillna in int columns before converting types, because int columns can't contain NaNs
     df = df.fillna(
@@ -759,6 +818,8 @@ def featuremap_to_dataframe(
             )
     elif not output_file.endswith(FileExtension.PARQUET.value):
         output_file = f"{output_file}{FileExtension.PARQUET.value}"
+
+    # Save and return
     df.to_parquet(output_file)
     return df
 
@@ -772,6 +833,7 @@ def prepare_data_from_mrd_pipeline(
     tumor_sample=None,
     output_dir=None,
     output_basename=None,
+    return_dataframes=False,
 ):
     """
 
@@ -825,8 +887,7 @@ def prepare_data_from_mrd_pipeline(
     )
 
     intersection_dataframe = read_intersection_dataframes(
-        intersected_featuremaps_parquet,
-        output_parquet=intersection_dataframe_fname,
+        intersected_featuremaps_parquet, output_parquet=intersection_dataframe_fname, return_dataframes=True
     )
     signature_dataframe = read_signature(
         matched_signatures_vcf_files,
@@ -834,6 +895,8 @@ def prepare_data_from_mrd_pipeline(
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         signature_type="matched",
+        return_dataframes=return_dataframes,
+        concat_to_existing_output_parquet=False,
     )
     signature_dataframe = read_signature(
         control_signatures_vcf_files,
@@ -841,6 +904,7 @@ def prepare_data_from_mrd_pipeline(
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         signature_type="control",
+        concat_to_existing_output_parquet=True,
     )
     signature_dataframe = read_signature(
         db_control_signatures_vcf_files,
@@ -848,8 +912,19 @@ def prepare_data_from_mrd_pipeline(
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         signature_type="db_control",
+        return_dataframes=return_dataframes,
+        concat_to_existing_output_parquet=True,
     )
-    return signature_dataframe, intersection_dataframe
+
+    intersection_dataframe = read_intersection_dataframes(
+        intersected_featuremaps_parquet,
+        output_parquet=intersection_dataframe_fname,
+        return_dataframes=return_dataframes,
+    )
+
+    if return_dataframes:
+        return signature_dataframe, intersection_dataframe
+    return None
 
 
 def concat_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
@@ -936,3 +1011,51 @@ def generate_synthetic_signatures(
         pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
 
     return synthetic_signatures
+
+
+def annotate_featuremap(
+    input_featuremap: str,
+    output_featuremap: str,
+    ref_fasta: str,
+    motif_length_to_annotate: int,
+    max_hmer_length: int,
+    flow_order: str = DEFAULT_FLOW_ORDER,
+    balanced_strand_adapter_version: str = None,
+):
+    """
+    Annotate featuremap with ref context, hmer length and balanced strand features
+
+    Parameters
+    ----------
+    input_featuremap: str
+        Input featuremap file
+    output_featuremap: str
+        Output featuremap file
+    ref_fasta: str
+        Reference fasta file
+    motif_length_to_annotate: int
+        Motif length to annotate
+    max_hmer_length: int
+        Max hmer length
+    flow_order: str, optional
+        Flow order, default TGCA
+    balanced_strand_adapter_version: str, optional
+        Balanced strand adapter version, if None no balanced strand annotation is performed
+    """
+    featuremap_annotator = FeaturemapAnnotator()
+    ref_context_annotator = RefContextVcfAnnotator(
+        ref_fasta=ref_fasta,
+        flow_order=flow_order,
+        motif_length_to_annotate=motif_length_to_annotate,
+        max_hmer_length=max_hmer_length,
+    )
+    annotators = [featuremap_annotator, ref_context_annotator]
+    if balanced_strand_adapter_version:
+        balanced_strand_annotator = BalancedStrandVcfAnnotator(adapter_version=balanced_strand_adapter_version)
+        annotators.append(balanced_strand_annotator)
+    VcfAnnotator.process_vcf(
+        annotators=annotators,
+        input_path=input_featuremap,
+        output_path=output_featuremap,
+        process_number=1,
+    )

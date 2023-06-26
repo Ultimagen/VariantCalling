@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import itertools
+import multiprocessing
 import os
-import tempfile
+import pickle
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -10,7 +11,7 @@ import pandas as pd
 import pyBigWig as pbw
 import pyfaidx
 import pysam
-from joblib import Parallel, delayed
+from simppl.simple_pipeline import SimplePipeline
 
 import ugvc.dna.utils as dnautils
 import ugvc.flow_format.flow_based_read as flowBasedRead
@@ -19,6 +20,7 @@ from ugvc.dna.format import (
     CYCLE_SKIP,
     CYCLE_SKIP_DTYPE,
     CYCLE_SKIP_STATUS,
+    IS_CYCLE_SKIP,
     NON_CYCLE_SKIP,
     POSSIBLE_CYCLE_SKIP,
     UNDETERMINED_CYCLE_SKIP,
@@ -39,7 +41,6 @@ class VcfAnnotator(ABC):
         Initializer of the base class.
         Derived classes should override this method if they require additional parameters.
         """
-        pass
 
     @abstractmethod
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
@@ -113,7 +114,7 @@ class VcfAnnotator(ABC):
         input_path: str,
         output_path: str,
         chunk_size: int = 10000,
-        multiprocess_contigs: bool = False,
+        process_number: int = 1,
     ):
         """
         Static method to process a VCF file in chunks with multiple VcfAnnotator objects.
@@ -125,65 +126,68 @@ class VcfAnnotator(ABC):
             List of VcfAnnotator objects.
         input_path : str
             Path to the input VCF file.
-        output_path : str or pysam.VariantFile
-            Path to the output file. If provided, a separate output file is created for each contig.
+        output_path : str
+            Path to the output file.
         chunk_size : int, optional
             The chunk size. Defaults to 10000.
-        multiprocess_contigs : bool, optional
-            If True, runs in parallel over different contigs. Defaults to False.
-
-
+        process_number : int, optional
+            Number of processes to use. If N < 1, use all-available - abs(N) cores. Defaults to 1.
         """
+        # pickle the annotators
+        annotators_pickle = output_path + ".annotators.pickle"
+        with open(annotators_pickle, "wb") as f:
+            pickle.dump(annotators, f)
+
+        out_dir = os.path.dirname(output_path)
         # Open the input VCF file
-        with pysam.VariantFile(input_path) as vcf_in:
-            # Edit the header
-            new_header = vcf_in.header
+        with pysam.VariantFile(input_path) as input_variant_file:
+            new_header = input_variant_file.header
             for annotator in annotators:
                 new_header = annotator.edit_vcf_header(new_header)
 
             # Get the contigs
-            contigs = list(vcf_in.header.contigs)
-
-            if multiprocess_contigs:
-                with tempfile.TemporaryDirectory(dir=os.path.dirname(output_path)) as temp_dir:
-                    # determine output paths
-                    tmp_output_paths = {c: os.path.join(temp_dir, c) for c in contigs}
-                    # Process the contigs in parallel
-                    Parallel(n_jobs=-1)(
-                        delayed(VcfAnnotator._process_contig)(
-                            vcf_in,
-                            tmp_output_paths[contig],
-                            annotators,
-                            contig,
-                            chunk_size,
-                        )
-                        for contig in contigs
+            contigs = list(input_variant_file.header.contigs)
+            tmp_output_paths = []
+            sp = SimplePipeline(0, 100, debug=False)
+            commands = []
+            ugvc_path = os.path.dirname(os.path.dirname(__file__))
+            for contig in contigs:
+                try:
+                    next(input_variant_file.fetch(contig))  # to raise StopIteration if contig is empty
+                    out_per_contig = os.path.join(out_dir, contig + ".vcf.gz")
+                    commands.append(
+                        f"python {ugvc_path} annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} "
+                        f"--annotators_pickle {annotators_pickle} --contig {contig} --chunk_size {chunk_size}"
                     )
+                    tmp_output_paths.append(out_per_contig)
+                except StopIteration:
+                    pass
+            # process_number<1 it is interpreted as all the CPUs except -process_number
+            if process_number < 1:
+                process_number = multiprocessing.cpu_count() + process_number
 
-                    # Merge the temporary output files into the final output file and remove them
-                    VcfAnnotator.merge_temp_files(tmp_output_paths.values(), output_path, new_header)
+            if process_number > 1:  # multiprocessing
+                sp.run_parallel(commands, process_number)
             else:
-                # Process the contigs one at a time
-                with pysam.VariantFile(output_path, "w", header=new_header) as vcf_out:
-                    for contig in contigs:
-                        VcfAnnotator._process_contig(vcf_in, vcf_out, annotators, contig, chunk_size)
+                for command in commands:
+                    sp.print_and_run(command)
+            # Merge the temporary output files into the final output file and remove them
+            VcfAnnotator.merge_temp_files(tmp_output_paths, output_path, new_header)
             # Create a tabix index for the final output file
             pysam.tabix_index(output_path, preset="vcf", force=True)
 
     @staticmethod
-    def _process_contig(
-        vcf_in: pysam.VariantFile,
-        vcf_out: [pysam.VariantFile | str],
+    def process_contig(
+        vcf_in: str,
+        vcf_out: str,
         annotators: list[VcfAnnotator],
         contig: str,
         chunk_size: int,
-        header: pysam.VariantHeader = None,
     ):
         """
         Static helper method to process a single contig in chunks.
-
         Args:
-        vcf_in : pysam.VariantFile)
+        vcf_in : str
             The input VCF file.
         annotators : list[VcfAnnotator]
             List of VcfAnnotator objects.
@@ -191,35 +195,38 @@ class VcfAnnotator(ABC):
             The contig to process.
         chunk_size : int
             The chunk size.
-        output_path : str, optional
-            Path to the output file. If provided, a separate output file is created for each contig.
+        output_path : str
+            Path to the output file.
         """
-        try:
-            if isinstance(vcf_out, str):
-                vcf_out = pysam.VariantFile(vcf_out, "w", header=header)
-            records = []
-            for record in vcf_in.fetch(contig):
-                records.append(record)
 
-                if len(records) == chunk_size:
+        with pysam.VariantFile(vcf_in) as input_variant_file:
+            # Edit the header - needed in case new INFO/FORMATS fields are added
+            new_header = input_variant_file.header
+            for annotator in annotators:
+                new_header = annotator.edit_vcf_header(new_header)
+            # Write output file
+            with pysam.VariantFile(vcf_out, "w", header=new_header) as output_variant_file:
+                records = []
+                for record in input_variant_file.fetch(contig):
+                    records.append(record)
+
+                    if len(records) == chunk_size:
+                        for annotator in annotators:
+                            records = annotator.process_records(records)
+
+                        for record in records:
+                            output_variant_file.write(record)
+
+                        records = []
+
+                # Process the remaining records
+                if records:
                     for annotator in annotators:
                         records = annotator.process_records(records)
 
                     for record in records:
-                        vcf_out.write(record)
-
-                    records = []
-
-            # Process the remaining records
-            if records:
-                for annotator in annotators:
-                    records = annotator.process_records(records)
-
-                for record in records:
-                    vcf_out.write(record)
-        finally:
-            if isinstance(vcf_out, pysam.VariantFile):
-                vcf_out.close()
+                        output_variant_file.write(record)
+        pysam.tabix_index(vcf_out, preset="vcf", force=True)
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
@@ -303,6 +310,31 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
     concordance["hmer_indel_length"] = [x[0] for x in results]
     concordance["hmer_indel_nuc"] = [x[1] for x in results]
     return concordance
+
+
+def get_motif_around_snv(record: pysam.VariantRecord, size: int, faidx: pyfaidx.Fasta):
+    """ "
+    Extract sequence around an SNV, of size "size" on each side with the central base being the ref base
+
+    Parameters
+    ----------
+    record: pysam.VariantRecord
+        Record, must be an SNV or result will be wrong
+    size: int
+        Size of motif on each side
+    faidx: pyfaidx.Fasta
+        Fasta index
+
+    Returns
+    -------
+    """
+    assert isinstance(record, pysam.VariantRecord), f"record must be pysam.VariantRecord, got {type(record)}"
+    size = int(size)
+    assert size > 0, f"size must be positive, got {size}"
+
+    chrom = faidx[record.chrom]
+    pos = record.pos
+    return chrom[pos - size - 1 : pos + size].seq.upper()
 
 
 def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> pd.DataFrame:
@@ -711,6 +743,7 @@ def get_cycle_skip_dataframe(flow_order: str):
         lambda row: determine_cycle_skip_status(row["ref_motif"], row["alt_motif"], flow_order),
         axis=1,
     ).astype(CYCLE_SKIP_DTYPE)
+    df_cskp.loc[:, IS_CYCLE_SKIP] = df_cskp[CYCLE_SKIP_STATUS] == CYCLE_SKIP
     return df_cskp.set_index(["ref_motif", "alt_motif"]).sort_index()
 
 

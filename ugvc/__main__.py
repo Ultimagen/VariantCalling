@@ -30,7 +30,9 @@ from ugvc.pipelines import (
     train_models_pipeline,
     vcfeval_flavors,
 )
+from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugvc.pipelines.mrd import (
+    annotate_featuremap,
     balanced_strand_analysis,
     collect_coverage_per_motif,
     concat_dataframes,
@@ -41,12 +43,15 @@ from ugvc.pipelines.mrd import (
     pileup_based_read_features,
     positional_error_rate_profile,
     prepare_data_from_mrd_pipeline,
+    srsnv_inference,
+    srsnv_training,
     substitution_error_rate,
 )
 
 # import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.scripts import sorter_to_h5
+from ugvc.pipelines.vcfbed import annotate_contig
 from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.utils import cloud_sync
 
@@ -79,6 +84,9 @@ mrd_modules = [
     prepare_data_from_mrd_pipeline,
     pileup_based_read_features,
     generate_synthetic_signatures,
+    annotate_featuremap,
+    srsnv_training,
+    srsnv_inference,
 ]
 
 methylation_modules = [
@@ -97,11 +105,22 @@ misc_modules = [
     sorter_to_h5,
 ]
 
+lpr_modules = [
+    train_lib_prep_recalibration_model,
+    filter_vcf_with_lib_prep_recalibration_model,
+]
+
+vcfbed_modules = [
+    annotate_contig,
+]
+
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
 modules.extend(methylation_modules)
 modules.extend(joint_modules)
+modules.extend(lpr_modules)
+modules.extend(vcfbed_modules)
 
 
 LOGO = """

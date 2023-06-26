@@ -6,10 +6,19 @@ CHROM_DTYPE = CategoricalDtype(
     ordered=True,
 )
 
+# cycle skip
 CYCLE_SKIP_STATUS = "cycle_skip_status"
 CYCLE_SKIP = "cycle-skip"
 POSSIBLE_CYCLE_SKIP = "possible-cycle-skip"
 NON_CYCLE_SKIP = "non-skip"
 UNDETERMINED_CYCLE_SKIP = "NA"
-
+IS_CYCLE_SKIP = "is_cycle_skip"
 CYCLE_SKIP_DTYPE = CategoricalDtype(categories=[CYCLE_SKIP, POSSIBLE_CYCLE_SKIP, NON_CYCLE_SKIP], ordered=True)
+
+# vcf
+CHROM = "chrom"
+POS = "pos"
+REF = "ref"
+ALT = "alt"
+QUAL = "qual"
+FILTER = "filter"
