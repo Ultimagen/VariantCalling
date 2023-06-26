@@ -35,6 +35,7 @@ ref_fasta_dict = {test_dir}/resources/general/chr1_head/Homo_sapiens_assembly38.
 is_somatic = false
 signatures_folder = signatures_data
 signatures_description = signatures_description
+h5_statistics_sig = h5_statistics_sig
 h5_output = 014790-NA12878_no_gt_report.h5
 """
         config_file.write(strg)
