@@ -8,17 +8,32 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 
 from ugvc.mrd.mrd_utils import (
+    FeaturemapAnnotator,
     featuremap_to_dataframe,
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
     read_intersection_dataframes,
     read_signature,
 )
+from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 general_inputs_dir = pjoin(test_dir, "resources", "general")
 inputs_dir = get_resource_dir(__file__)
 reference_fasta = pjoin(general_inputs_dir, "chr1_head", "Homo_sapiens_assembly38.fasta")
 intersection_file_basename = "MRD_test_subsample.MRD_test_subsample_annotated_AF_vcf_gz_mrd_quality_snvs.intersection"
+
+
+def test_FeaturemapAnnotator():
+    input_featuremap = pjoin(inputs_dir, "Pa_46.bsDNA.chr20_sample.vcf.gz")
+    expected_featuremap = pjoin(inputs_dir, "Pa_46.bsDNA.chr20_sample.annotated.vcf.gz")
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmp_out_path = pjoin(tmpdirname, "tmp_out.vcf.gz")
+        VcfAnnotator.process_vcf(
+            input_path=input_featuremap,
+            output_path=tmp_out_path,
+            annotators=[FeaturemapAnnotator()],
+        )
+        assert filecmp.cmp(tmp_out_path, expected_featuremap)
 
 
 def test_read_signature_ug_mutect():

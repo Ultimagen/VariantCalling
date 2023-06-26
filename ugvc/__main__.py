@@ -31,6 +31,7 @@ from ugvc.pipelines import (
     train_models_pipeline,
     vcfeval_flavors,
 )
+from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugvc.pipelines.mrd import (
     balanced_strand_analysis,
     collect_coverage_per_motif,
@@ -43,6 +44,8 @@ from ugvc.pipelines.mrd import (
     positional_error_rate_profile,
     prepare_data_from_mrd_pipeline,
     substitution_error_rate,
+    bqsr_train,
+    bqsr_inference,
 )
 
 # import pipeline modules implementing run(argv) method
@@ -78,6 +81,8 @@ mrd_modules = [
     prepare_data_from_mrd_pipeline,
     pileup_based_read_features,
     generate_synthetic_signatures,
+    bqsr_train,
+    bqsr_inference,
 ]
 
 methylation_modules = [
@@ -93,12 +98,17 @@ joint_modules = [compress_gvcf]
 
 misc_modules = [cloud_sync]
 
+lpr_modules = [
+    train_lib_prep_recalibration_model,
+    filter_vcf_with_lib_prep_recalibration_model,
+]
+
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
 modules.extend(methylation_modules)
 modules.extend(joint_modules)
-
+modules.extend(lpr_modules)
 
 LOGO = """
       __    __    ___________    ____  ______

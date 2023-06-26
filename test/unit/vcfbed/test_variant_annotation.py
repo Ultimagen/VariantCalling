@@ -1,4 +1,6 @@
+import filecmp
 import subprocess
+import tempfile
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
@@ -12,6 +14,7 @@ import ugvc.vcfbed.variant_annotation as variant_annotation
 import ugvc.vcfbed.vcftools as vcftools
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 
+general_inputs_dir = pjoin(test_dir, "resources", "general")
 resource_dir = pjoin(get_resource_dir(__file__))
 
 
@@ -131,3 +134,31 @@ class TestVariantAnnotation:
         )
         result = pd.Series(cycleskip_status)
         return df, result
+
+    def test_RefContextVcfAnnotator(self):
+        # data files
+        sample_vcf = pjoin(resource_dir, "Pa_46.FFPE.chr20_sample.vcf.gz")
+        expected_output_vcf = pjoin(resource_dir, "Pa_46.FFPE.chr20_sample.annotated.vcf.gz")
+        sample_featuremap = pjoin(resource_dir, "Pa_46.bsDNA.chr20_sample.vcf.gz")
+        expected_output_featuremap = pjoin(resource_dir, "Pa_46.bsDNA.chr20_sample.annotated.vcf.gz")
+        ref_contetxt_variant_annotator = variant_annotation.RefContextVcfAnnotator(
+            ref_fasta=pjoin(general_inputs_dir, "sample.fasta"),
+            flow_order=DEFAULT_FLOW_ORDER,
+        )
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            # test on vcf file (from somatic DV)
+            tmp_out_path = pjoin(tmpdirname, "tmp_out.vcf.gz")
+            variant_annotation.VcfAnnotator.process_vcf(
+                input_path=sample_vcf,
+                output_path=tmp_out_path,
+                annotators=[ref_contetxt_variant_annotator],
+            )
+            assert filecmp.cmp(tmp_out_path, expected_output_vcf, shallow=False)
+            # test on FeatureMap file (from bsDNA)
+            tmp_out_path2 = pjoin(tmpdirname, "tmp_out2.vcf.gz")
+            variant_annotation.VcfAnnotator.process_vcf(
+                input_path=sample_featuremap,
+                output_path=tmp_out_path2,
+                annotators=[ref_contetxt_variant_annotator],
+            )
+            assert filecmp.cmp(tmp_out_path2, expected_output_featuremap, shallow=False)
