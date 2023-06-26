@@ -14,12 +14,10 @@ jobs:
       - uses: actions/checkout@v2
         with:
           lfs: True
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: s-weigand/setup-conda@v1.1.1
         with:
-          miniconda-version: "latest"
-          use-only-tar-bz2: true  # IMPORTANT: This needs to be set for caching to work properly!
-          auto-update-conda: true
-          auto-activate-base: true
+          activate-conda: true
+          conda-channels: conda-forge, bioconda, r, defaults
       - name: Setup file system
         run: |
           sudo mkdir -p /data
@@ -30,13 +28,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install flake8
-          conda env update --file setup/other_envs/ucsc.yml --name ucsc
+          conda env create --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
-          conda env create --file setup/other_envs/cnmops.yml
-          conda env create --file setup/environment.yml
+          conda env create --file setup/other_envs/cnmops.yml --name cn.mops
+          conda env create --file setup/environment.yml --name genomics.py3
       - name: Install as a package
         run: |
-          conda activate genomics.py3
+          source activate genomics.py3
           pip install .
       - name: Lint with flake8
         run: |
@@ -46,7 +44,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Import integrity tests
         run: |
-          conda activate genomics.py3
+          source activate genomics.py3
           python ugvc
           run_comparison_pipeline.py -h
           filter_variants_pipeline.py -h
@@ -60,6 +58,6 @@ jobs:
           correct_genotypes_by_imputation.py -h
       - name: Test with pytest
         run: |
-          conda activate genomics.py3
+          source activate genomics.py3
           python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system

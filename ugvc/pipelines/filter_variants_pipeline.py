@@ -220,7 +220,8 @@ def run(argv: list[str]):
 
     except Exception as err:
         exc_info = sys.exc_info()
-        logger.error(*exc_info)
+        logger.error(exc_info[:2])
+        logger.exception(err)
         logger.error("Variant filtering run: failed")
         raise err
 

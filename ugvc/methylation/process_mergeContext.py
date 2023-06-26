@@ -107,8 +107,8 @@ def run(argv: list[str]):
             if idx.any(axis=None):
                 data_frame = df_in_report.loc[idx, :].copy()
 
-            df_pcnt_meth = df_pcnt_meth.append(
-                calc_percent_methylation(genome_type, data_frame, False), ignore_index=True
+            df_pcnt_meth = pd.concat(
+                (df_pcnt_meth, calc_percent_methylation(genome_type, data_frame, False)), ignore_index=True
             )
         # get CPG coverage
         df_cov_meth = pd.DataFrame()
@@ -122,8 +122,8 @@ def run(argv: list[str]):
             if idx.any(axis=None):
                 data_frame = df_in_report.loc[idx, :].copy()
 
-            df_cov_meth = df_cov_meth.append(
-                calc_coverage_methylation(genome_type, data_frame, False), ignore_index=True
+            df_cov_meth = pd.concat(
+                (df_cov_meth, calc_coverage_methylation(genome_type, data_frame, False)), ignore_index=True
             )
 
         df_csv_output = pd.concat([df_pcnt_meth, df_cov_meth], axis=0, ignore_index=True)

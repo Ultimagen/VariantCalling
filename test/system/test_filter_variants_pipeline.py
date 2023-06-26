@@ -15,7 +15,7 @@ class TestFilterVariantPipeline:
                 "--input_file",
                 f"{self.inputs_dir}/004777-X0024.annotated.AF_chr1_1_1000000.vcf.gz",
                 "--model_file",
-                f"{self.inputs_dir}/004777-X0024.model_rf_model_ignore_gt_incl_hpol_runs.pkl",
+                f"{self.inputs_dir}/006919-UGAv3-49.model_rf_model_ignore_gt_incl_hpol_runs.pkl",
                 "--model_name",
                 "rf_model_ignore_gt_incl_hpol_runs",
                 "--runs_file",
@@ -42,7 +42,7 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
-        assert {"LOW_SCORE": 104, "PASS": 804} == dict(df["filter"].value_counts())
+        assert {"LOW_SCORE": 106, "PASS": 802} == dict(df["filter"].value_counts())
 
     def test_filter_variants_pipeline_blacklist_only(self, tmpdir):
         output_file = f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.blacklist_only.vcf.gz"
@@ -72,7 +72,7 @@ class TestFilterVariantPipeline:
                 "--input_file",
                 f"{self.inputs_dir}/004777-X0024.annotated.AF_chr1_1_1000000.dummy.vcf.gz",
                 "--model_file",
-                f"{self.inputs_dir}/004777-X0024.model_rf_model_ignore_gt_incl_hpol_runs.pkl",
+                f"{self.inputs_dir}/006919-UGAv3-49.model_rf_model_ignore_gt_incl_hpol_runs.pkl",
                 "--model_name",
                 "rf_model_ignore_gt_incl_hpol_runs",
                 "--runs_file",
@@ -99,4 +99,4 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
-        assert {"LOW_SCORE": 96, "PASS": 728, "TEST": 76, "TEST;LOW_SCORE": 8} == dict(df["filter"].value_counts())
+        assert {"LOW_SCORE": 97, "PASS": 727, "TEST": 75, "TEST;LOW_SCORE": 9} == dict(df["filter"].value_counts())

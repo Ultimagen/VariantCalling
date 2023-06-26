@@ -6,10 +6,9 @@ from enum import Enum
 
 import numpy as np
 import pandas as pd
-import sklearn_pandas
 import tqdm
 from pandas import DataFrame
-from sklearn import impute, preprocessing
+from sklearn import compose, impute, preprocessing
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
@@ -32,7 +31,7 @@ class SingleModel:
         self.is_greater_then = is_greater_then
 
     def predict(self, df: pd.DataFrame) -> pd.Series:
-        result_vec = np.ones(df.shape[0], dtype=np.bool)
+        result_vec = np.ones(df.shape[0], dtype=bool)
         for var in self.threshold_dict:
             result_vec = result_vec & ((df[var] > self.threshold_dict[var]) == self.is_greater_then[var])
         return np.where(np.array(result_vec), "tp", "fp")
@@ -85,7 +84,7 @@ class MaskedHierarchicalModel:
         _name: str,
         _group_column: str,
         _models_dict: dict,
-        transformer: sklearn_pandas.DataFrameMapper | None = None,
+        transformer: compose.ColumnTransformer | None = None,
         tree_score_fpr=None,
         threshold=None,
     ):
@@ -119,7 +118,7 @@ class MaskedHierarchicalModel:
         if mask_column is not None:
             mask = df[mask_column] == "fn"
         else:
-            mask = np.zeros(df.shape[0], dtype=np.bool)
+            mask = np.zeros(df.shape[0], dtype=bool)
 
         apply_df = df[~mask]
         groups = set(df[self.group_column])
@@ -248,7 +247,7 @@ def train_threshold_model(
     test_train_split: pd.Series,
     selection: pd.Series,
     gtr_column: str,
-    transformer: sklearn_pandas.DataFrameMapper,
+    transformer: compose.ColumnTransformer,
     vtype: VcfType,
     interval_size: int,
     annots: list = None,
@@ -292,7 +291,7 @@ def train_threshold_model(
     _validate_data(labels.to_numpy())
     enclabels = np.array(labels == "tp")
     train_qual = train_data[qual_column]
-    train_sor = train_data["sor"]
+    train_sor = train_data["sor__sor"]
 
     qq_val = train_qual.to_numpy()[:, np.newaxis] > quals[np.newaxis, :]
     ss_val = train_sor.to_numpy()[:, np.newaxis] < sors[np.newaxis, :]
@@ -324,9 +323,9 @@ def train_threshold_model(
     regression_model = SingleRegressionModel(
         {
             qual_column: np.array([x[0] for x in rsi.index]),
-            "sor": np.array([x[1] for x in rsi.index]),
+            "sor__sor": np.array([x[1] for x in rsi.index]),
         },
-        {"sor": False, qual_column: True},
+        {"sor__sor": False, qual_column: True},
         np.array(rsi["score"]),
     )
     tree_scores = regression_model.predict_proba(train_data)[:, 1]
@@ -463,12 +462,31 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     """
 
     default_filler = impute.SimpleImputer(strategy="constant", fill_value=0)
-    tuple_filter = sklearn_pandas.FunctionTransformer(tuple_break)
-    tuple_filter_second = sklearn_pandas.FunctionTransformer(tuple_break_second)
-    left_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_left)
-    right_motif_filter = sklearn_pandas.FunctionTransformer(motif_encode_right)
-    allele_filter = sklearn_pandas.FunctionTransformer(allele_encode)
-    gt_filter = sklearn_pandas.FunctionTransformer(gt_encode)
+
+    def tuple_encode_df(s):
+        return pd.DataFrame(np.array([tuple_break(y) for y in s]).reshape((-1, 1)), index=s.index)
+
+    def motif_encode_left_df(s):
+        return pd.DataFrame(np.array([motif_encode_left(y) for y in s]).reshape((-1, 1)), index=s.index)
+
+    def motif_encode_right_df(s):
+        return pd.DataFrame(np.array([motif_encode_right(y) for y in s]).reshape((-1, 1)), index=s.index)
+
+    tuple_filter = preprocessing.FunctionTransformer(tuple_encode_df)
+
+    left_motif_filter = preprocessing.FunctionTransformer(motif_encode_left_df)
+
+    right_motif_filter = preprocessing.FunctionTransformer(motif_encode_right_df)
+
+    def allele_encode_df(s):
+        return pd.DataFrame(np.array([x[:2] for x in s]), index=s.index).applymap(allele_encode)
+
+    allele_filter = preprocessing.FunctionTransformer(allele_encode_df)
+
+    def gt_encode_df(s):
+        return pd.DataFrame(np.array([gt_encode(y) for y in s]).reshape((-1, 1)), index=s.index)
+
+    gt_filter = preprocessing.FunctionTransformer(gt_encode_df)
 
     features = [
         "qd",
@@ -495,28 +513,27 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     ]
 
     transform_list = [
-        (["sor"], default_filler),
-        (["dp"], default_filler),
-        ("hmer_indel_nuc", preprocessing.LabelEncoder()),
-        ("inside_hmer_run", None),
-        ("close_to_hmer_run", None),
-        (["hmer_indel_length"], default_filler),
-        (["indel_length"], default_filler),
-        (["fs"], default_filler),
-        (["qd"], default_filler),
-        (["mq"], default_filler),
-        (["an"], default_filler),
-        (["baseqranksum"], default_filler),
-        (["excesshet"], default_filler),
-        (["mqranksum"], default_filler),
-        (["readposranksum"], default_filler),
-        ("indel", None),
-        ("left_motif", [left_motif_filter]),
-        ("right_motif", [right_motif_filter]),
-        ("cycleskip_status", preprocessing.LabelEncoder()),
-        ("alleles", [tuple_filter, allele_filter]),
-        ("alleles", [tuple_filter_second, allele_filter]),
-        (["gc_content"], default_filler),
+        ("sor", default_filler, ["sor"]),
+        ("dp", default_filler, ["dp"]),
+        ("inside_hmer_run", "passthrough", ["inside_hmer_run"]),
+        ("close_to_hmer_run", "passthrough", ["close_to_hmer_run"]),
+        ("hmer_indel_length", default_filler, ["hmer_indel_length"]),
+        ("indel_length", default_filler, ["indel_length"]),
+        ("fs", default_filler, ["fs"]),
+        ("qd", default_filler, ["qd"]),
+        ("mq", default_filler, ["mq"]),
+        ("an", default_filler, ["an"]),
+        ("baseqranksum", default_filler, ["baseqranksum"]),
+        ("excesshet", default_filler, ["excesshet"]),
+        ("mqranksum", default_filler, ["mqranksum"]),
+        ("readposranksum", default_filler, ["readposranksum"]),
+        ("indel", "passthrough", ["indel"]),
+        ("hmer_indel_nuc", preprocessing.OrdinalEncoder(), ["hmer_indel_nuc"]),
+        ("left_motif", left_motif_filter, "left_motif"),
+        ("right_motif", right_motif_filter, "right_motif"),
+        ("cycleskip_status", preprocessing.OrdinalEncoder(), ["cycleskip_status"]),
+        ("alleles", allele_filter, "alleles"),
+        ("gc_content", default_filler, ["gc_content"]),
     ]
 
     if vtype == "single_sample":
@@ -524,17 +541,17 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
         features.extend(["qual", "ps", "ac", "ad", "gt", "xc", "gq", "pl", "af", "mleac", "mleaf"])
         transform_list.extend(
             [
-                ("qual", None),
-                (["ps"], default_filler),
-                ("ac", [tuple_filter]),
-                ("ad", [tuple_filter]),
-                ("gt", [gt_filter]),
-                (["xc"], default_filler),
-                (["gq"], default_filler),
-                ("pl", [tuple_filter]),
-                ("af", [tuple_filter]),
-                ("mleac", [tuple_filter]),
-                ("mleaf", [tuple_filter]),
+                ("qual", "passthrough", ["qual"]),
+                ("ps", default_filler, ["ps"]),
+                ("ac", tuple_filter, "ac"),
+                ("ad", tuple_filter, "ad"),
+                ("gt", gt_filter, "gt"),
+                ("xc", default_filler, ["xc"]),
+                ("gq", default_filler, ["gq"]),
+                ("pl", tuple_filter, "pl"),
+                ("af", tuple_filter, "af"),
+                ("mleac", tuple_filter, "mleac"),
+                ("mleaf", tuple_filter, "mleaf"),
             ]
         )
 
@@ -543,10 +560,10 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     else:
         raise ValueError("Unrecognized VCF type")
 
-    return [features, transform_list, qual_column]
+    return features, transform_list, f"{qual_column}__{qual_column}"
 
 
-def feature_prepare(vtype: VcfType, output_df: bool = False, annots: list = None) -> sklearn_pandas.DataFrameMapper:
+def feature_prepare(vtype: VcfType, output_df: bool = False, annots: list = None) -> compose.ColumnTransformer:
     """Prepare dataframe for analysis (encode features, normalize etc.)
 
     Parameters
@@ -560,17 +577,20 @@ def feature_prepare(vtype: VcfType, output_df: bool = False, annots: list = None
 
     Returns
     -------
-    tuple
-        Mapper, list of features
+    compose.ColumnTransformer
+        Transformer of the dataframe to dataframe
     """
     if annots is None:
         annots = []
     _, transform_list, _ = modify_features_based_on_vcf_type(vtype)
 
     for annot in annots:
-        transform_list.append((annot, None))
+        transform_list.append((annot, "passthrough", [annot]))
+    if output_df:
+        transformer = compose.ColumnTransformer(transform_list).set_output(transform="pandas")
+    else:
+        transformer = compose.ColumnTransformer(transform_list)
 
-    transformer = sklearn_pandas.DataFrameMapper(transform_list, df_out=output_df)
     return transformer
 
 
@@ -580,7 +600,7 @@ def train_model(
     test_train_split: np.ndarray,
     selection: pd.Series,
     gtr_column: str,
-    transformer: sklearn_pandas.DataFrameMapper,
+    transformer: compose.ColumnTransformer,
     interval_size: int,
     classify_model,
     vtype: VcfType,
@@ -668,7 +688,7 @@ def train_model_rf(
     test_train_split: np.ndarray,
     selection: pd.Series,
     gtr_column: str,
-    transformer: sklearn_pandas.DataFrameMapper,
+    transformer: compose.ColumnTransformer,
     vtype: VcfType,
     interval_size: int,
     annots: list = None,
@@ -966,7 +986,7 @@ def add_testing_train_split_column(
     """
     groups = set(concordance[training_groups_column])
 
-    test_train_split_vector = np.zeros(concordance.shape[0], dtype=np.bool)
+    test_train_split_vector = np.zeros(concordance.shape[0], dtype=bool)
     for g_val in groups:
 
         group_vector = concordance[training_groups_column] == g_val
@@ -988,7 +1008,7 @@ def add_testing_train_split_column(
         np.random.seed(42)  # making everything deterministic
         train_set = locations[
             np.random.choice(
-                np.arange(group_vector.sum(), dtype=np.int),
+                np.arange(group_vector.sum(), dtype=int),
                 train_set_size,
                 replace=False,
             )
@@ -1176,22 +1196,28 @@ def eval_decision_tree_model(
         post_filtering_recall = get_recall(post_filtering_fn, post_filtering_tp)
         post_filtering_f1 = get_f1(post_filtering_precision, post_filtering_recall)
 
-        accuracy_df = accuracy_df.append(
-            {
-                "group": g_val,
-                "tp": post_filtering_tp,
-                "fp": post_filtering_fp,
-                "fn": post_filtering_fn,
-                "precision": post_filtering_precision,
-                "recall": post_filtering_recall,
-                "f1": post_filtering_f1,
-                "initial_tp": pre_filtering_tp,
-                "initial_fp": pre_filtering_fp,
-                "initial_fn": pre_filtering_fn,
-                "initial_precision": pre_filtering_precision,
-                "initial_recall": pre_filtering_recall,
-                "initial_f1": pre_filtering_f1,
-            },
+        accuracy_df = pd.concat(
+            (
+                accuracy_df,
+                pd.DataFrame(
+                    {
+                        "group": g_val,
+                        "tp": post_filtering_tp,
+                        "fp": post_filtering_fp,
+                        "fn": post_filtering_fn,
+                        "precision": post_filtering_precision,
+                        "recall": post_filtering_recall,
+                        "f1": post_filtering_f1,
+                        "initial_tp": pre_filtering_tp,
+                        "initial_fp": pre_filtering_fp,
+                        "initial_fn": pre_filtering_fn,
+                        "initial_precision": pre_filtering_precision,
+                        "initial_recall": pre_filtering_recall,
+                        "initial_f1": pre_filtering_f1,
+                    },
+                    index=[0],
+                ),
+            ),
             ignore_index=True,
         )
     return accuracy_df
@@ -1355,7 +1381,7 @@ def calculate_unfiltered_model(concordance: pd.DataFrame, classify_column: str) 
     for g_val in all_groups:
         models[g_val] = SingleModel({}, {})
     result = MaskedHierarchicalModel("unfiltered", "group", models)
-    concordance["test_train_split"] = np.zeros(concordance.shape[0], dtype=np.bool)
+    concordance["test_train_split"] = np.zeros(concordance.shape[0], dtype=bool)
     recalls_precisions = eval_decision_tree_model(concordance, result, classify_column)
     return result, recalls_precisions
 
@@ -1368,7 +1394,7 @@ class VariantSelectionFunctions(Enum):
     """Collecton of variant selection functions - all get DF as input and return boolean np.array"""
 
     def ALL(df: pd.DataFrame) -> np.ndarray:
-        return np.ones(df.shape[0], dtype=np.bool)
+        return np.ones(df.shape[0], dtype=bool)
 
     def HMER_INDEL(df: pd.DataFrame) -> np.ndarray:
         return np.array(df.hmer_indel_length > 0)

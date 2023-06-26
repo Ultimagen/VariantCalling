@@ -170,8 +170,8 @@ def variant_eval_statistics(  # pylint: disable=dangerous-default-value
     output_prefix,
     annotation_names=[],
 ):
-    annotation_names_str = [f"--SELECT_NAMES {x}" for x in annotation_names]
-    annotation_conditions_str = [f'--SELECT_EXPS vc.hasAttribute("{x}")' for x in annotation_names]
+    annotation_names_str = [f"--selectNames {x}" for x in annotation_names]
+    annotation_conditions_str = [f'--select vc.hasAttribute("{x}")' for x in annotation_names]
     cmd = (
         [
             "gatk",

@@ -135,7 +135,7 @@ def get_vcf_df(
         "BLACKLST",
         "SCORE",
         "CALL",
-        "BASE"
+        "BASE",
     ]
 
     if scoring_field is not None and scoring_field not in columns:
@@ -405,7 +405,7 @@ class FilterWrapper:
             if kind == "fn":
                 blacklist_color = self.blacklist()
             else:
-                blacklist_color = np.zeros(self.df.shape[0], dtype=np.bool)
+                blacklist_color = np.zeros(self.df.shape[0], dtype=bool)
         hmer_length_column = self.df["hmer_indel_length"]
         # end pos
         # we want to add the rgb column, so we need to add all the columns
