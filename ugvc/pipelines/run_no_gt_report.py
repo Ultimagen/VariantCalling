@@ -26,6 +26,17 @@ import numpy as np
 import pandas as pd
 import os
 
+import ugvc.vcfbed.variant_annotation as annotation
+from ugvc.comparison import vcf_pipeline_utils
+from ugvc.dna.utils import revcomp
+from ugvc.vcfbed import vcftools
+
+from SigProfilerMatrixGenerator import install as genInstall
+from SigProfilerAssignment import Analyzer as Analyze
+import sigProfilerPlotting as sigPlt
+from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
+import shutil
+
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
 
@@ -77,8 +88,6 @@ def allele_freq_hist(df, nbins=100):
 
 
 def snp_statistics(df, ref_fasta):
-    import ugvc.vcfbed.variant_annotation as annotation
-    from ugvc.dna.utils import revcomp
     # take data from Itai
     df = annotation.classify_indel(df)
     df = annotation.is_hmer_indel(df, ref_fasta)
@@ -249,8 +258,6 @@ def run_eval_tables_only(arg_values):
 
 
 def run_full_analysis(arg_values):
-    from ugvc.comparison import vcf_pipeline_utils
-    from ugvc.vcfbed import vcftools
     eval_tables = variant_eval_statistics(
         arg_values.input_file,
         arg_values.reference,
@@ -315,12 +322,6 @@ def run_somatic_analysis(arg_values):
         return signatures, activity_values
 
     # Install reference
-    from SigProfilerMatrixGenerator import install as genInstall
-    from SigProfilerAssignment import Analyzer as Analyze
-    import sigProfilerPlotting as sigPlt
-    from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
-    import shutil
-
     genInstall.install(arg_values.reference_name)
 
     # Run SigProfilerAssignment for getting the signatures of the sample
