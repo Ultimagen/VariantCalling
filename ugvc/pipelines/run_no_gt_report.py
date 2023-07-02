@@ -412,13 +412,13 @@ def run_somatic_analysis(arg_values):
         shutil.copy(os.path.join(output_dir,f'DBS_78_plots_{sig}.png'), final_results_folder)
 
     # create signatures activity files
-    activities_sbs = pd.Series(activity_values_sbs, index=[sig_sbs])
+    activities_sbs = pd.Series(activity_values_sbs, index=sig_sbs)
     activities_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_activity")
 
-    activities_id = pd.Series(activity_values_id, index=[sig_id])
+    activities_id = pd.Series(activity_values_id, index=sig_id)
     activities_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_activity")
 
-    activities_dinuc = pd.Series(activity_values_dinuc, index=[sig_dinuc])
+    activities_dinuc = pd.Series(activity_values_dinuc, index=sig_dinuc)
     activities_dinuc.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_activity")
 
     # copy the sample profile pngs
