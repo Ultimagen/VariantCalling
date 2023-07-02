@@ -92,9 +92,11 @@ def run(argv: List[str]):
     - GT: (0, 0)
     - GQ: minimum value of GQ of all the merged records
     - MIN_DP: is the minimum MIN_DP of all the merged records
+            In case there are no MIN_DP values we take the minimum DP of all the merged records
     - END: is the end of the last record in the merged records
     - PL: it is always of size 3, and each value is the minimum value in this index among all the records,
         see get_compressed_pl_into_3_values for more details
+    -REF: the first letter in the block
 
     Parameters
     ----------
@@ -136,6 +138,7 @@ def run(argv: List[str]):
                     min_gq = get_sample_value(record, 'GQ', sample_name)
                     max_gq = min_gq
                     min_dp = get_sample_value(record, 'MIN_DP', sample_name)
+                    dp = get_sample_value(record, 'DP', sample_name)
                     merge_size += 1
                     pl = get_compressed_pl_into_3_values(get_sample_value(record, 'PL', sample_name))
                     continue
@@ -164,7 +167,7 @@ def run(argv: List[str]):
                         new_record.chrom = first_record.chrom
                         new_record.pos = first_record.pos
                         new_record.id = "."
-                        new_record.ref = first_record.ref
+                        new_record.ref = first_record.ref[0]
                         new_record.alts = ["<*>"]
                         new_record.qual = 0
                         new_record.stop = prev_record.stop
@@ -172,6 +175,8 @@ def run(argv: List[str]):
                         new_record.samples[sample_name]['GQ'] = min_gq
                         if min_dp is not None:
                             new_record.samples[sample_name]['MIN_DP'] = min_dp
+                        else:
+                            new_record.samples[sample_name]['MIN_DP'] = dp
                         new_record.samples[sample_name]['PL'] = pl
                         gvcf_out.write(new_record)
                         count_out += 1
@@ -182,6 +187,7 @@ def run(argv: List[str]):
                     min_gq = get_sample_value(record, 'GQ', sample_name)
                     max_gq = min_gq
                     min_dp = get_sample_value(record, 'MIN_DP', sample_name)
+                    dp = get_sample_value(record, 'DP', sample_name)
                     pl = get_compressed_pl_into_3_values(get_sample_value(record, 'PL', sample_name))
                 else:
                     # just continue with the same set of lines
@@ -195,6 +201,13 @@ def run(argv: List[str]):
                             min_dp = min(min_dp, cur_min_dp)
                         else:
                             min_dp = cur_min_dp
+
+                    cur_dp = get_sample_value(record, 'DP', sample_name)
+                    if cur_dp is not None:
+                        if dp is not None:
+                            dp = min(dp, cur_dp)
+                        else:
+                            dp = cur_dp
                     cur_pl = get_compressed_pl_into_3_values(get_sample_value(record, 'PL', sample_name))
                     pl = (min(cur_pl[0], pl[0]), min(cur_pl[1], pl[1]), min(cur_pl[2], pl[2]))
 
