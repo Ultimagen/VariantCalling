@@ -295,20 +295,29 @@ parser$add_argument("-out_prefix", "--out_prefix",
 parser$add_argument("-ploidy", "--ploidy",
 					help="ploidy file decoding cohort's sample gender as 1-male 2-female",
 					required = FALSE)
+parser$add_argument("-chrX_name", "--chrX_name",default = "chrX",
+					help="chrX_name, default: chrX",
+					required = FALSE)
+parser$add_argument("-chrY_name", "--chrY_name", default = "chrY",
+					help="chrY_name, default: chrY",
+					required = FALSE)
+
 
 args <- parser$parse_args()
 
 cohort_reads_count_file <- args$cohort_reads_count_file
 out_prefix <- args$out_prefix
 ploidy_file <-args$ploidy
+chrX_name <- args$chrX_name
+chrY_name <- args$chrY_name
 
 cohort_reads_count<- readRDS(file = cohort_reads_count_file )
 if (!is.null(ploidy_file)) {
 	ploidy_vector<-readLines(ploidy_file)
-	cohort_reads_count_normalized <- normalizeChromosomesGenomewize(cohort_reads_count,ploidy=ploidy_vector)
+	cohort_reads_count_normalized <- normalizeChromosomesGenomewize(cohort_reads_count,ploidy=ploidy_vector,chr_X_name=chrX_name,chr_Y_name=chrY_name)
 	saveRDS(cohort_reads_count_normalized,paste(out_prefix,"cohort_reads_count.norm.rds",sep=""))
 } else {
 	print("Sex will be estimated by chrX coverage")
-	cohort_reads_count_normalized <- normalizeChromosomesGenomewize(cohort_reads_count)
+	cohort_reads_count_normalized <- normalizeChromosomesGenomewize(cohort_reads_count,chr_X_name=chrX_name,chr_Y_name=chrY_name)
 	saveRDS(cohort_reads_count_normalized,paste(out_prefix,"cohort_reads_count.norm.rds",sep=""))
 }
