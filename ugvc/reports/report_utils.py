@@ -260,15 +260,16 @@ class ReportUtils:
                     for i in range(3):
                         class_ = classes[i]
                         ax[i].set_title(class_)
-
+                        vals = indels[indels[class_] & (indels["indel_classify"] == "ins")][variable_name]
                         ins_hist[class_], _, _ = ax[i].hist(
-                            indels[indels[class_] & (indels["indel_classify"] == "ins")][variable_name],
+                            vals[~vals.isna()],
                             bins=bins,
                             alpha=0.5,
                             label="ins",
                         )
+                        vals = indels[indels[class_] & (indels["indel_classify"] == "del")][variable_name]
                         del_hist[class_], _, _ = ax[i].hist(
-                            indels[indels[class_] & (indels["indel_classify"] == "del")][variable_name],
+                            vals[~vals.isna()],
                             bins=bins,
                             alpha=0.5,
                             color="g",
