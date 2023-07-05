@@ -40,7 +40,8 @@ def run(argv):
 
     tp_positions = f"{out_dir}/true_positions.csv"
     sp.print_and_run(
-        f"bcftools view {truth_vcf} -H -f PASS -i 'QUAL>{args.min_truth_qual}' " "| awk '{print $2}' > " + tp_positions
+        f"bcftools view {truth_vcf} -H -f PASS -i 'QUAL>{args.min_truth_qual}' "
+        "| awk -v OFS=',' '{print $1,$2,$4,$5}' > " + tp_positions
     )
 
     base_dir = args.notebooks_dir
