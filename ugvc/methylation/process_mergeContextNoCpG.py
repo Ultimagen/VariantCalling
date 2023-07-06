@@ -109,7 +109,6 @@ def run(argv: list[str]):
             lambda x: x["coverage_methylated"] + x["coverage_unmethylated"], axis=1
         )
 
-        pat = r"^chr[0-9]+\b"  # remove non
         idx = df_chh_input.chr.str.contains(pat)
 
         if idx.any(axis=None):
