@@ -463,6 +463,7 @@ dependencies:
   - zlib=1.2.13=hd590300_5
   - zlib-ng=2.0.7=h0b41bf4_0
   - zstd=1.5.2=h3eb15da_6
+  - methyldackel=0.5.3=h047f149_0
   - pip:
       - about-time==4.2.1
       - alive-progress==3.1.4
