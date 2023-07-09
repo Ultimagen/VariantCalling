@@ -9,8 +9,28 @@ from ugvc import base_dir
 resources_dir = get_resource_dir(__file__)
 script_path = pjoin(base_dir, "cnv/normalize_reads_count.R")
 
-
 def test_normalize_reads_count(tmpdir):
+    in_cohort_reads_count_file = pjoin(resources_dir, "test_rc.rds")
+    expected_out_norm_rc = pjoin(resources_dir, "test_rc.norm.cohort_reads_count.norm.rds")
+
+    out_file = pjoin(tmpdir, "cohort_reads_count.norm.rds")
+    os.chdir(tmpdir)
+    cmd = [
+        "conda",
+        "run",
+        "-n",
+        "cn.mops",
+        "Rscript",
+        "--vanilla",
+        script_path,
+        "-cohort_reads_count_file",
+        in_cohort_reads_count_file,
+    ]
+    assert subprocess.check_call(cmd, cwd=tmpdir) == 0
+    assert filecmp.cmp(out_file, expected_out_norm_rc)
+
+
+def test_normalize_reads_count_with_ploidy(tmpdir):
     in_cohort_reads_count_file = pjoin(resources_dir, "test_rc.rds")
     ploidy_file = pjoin(resources_dir, "test_rc.ploidy")
     expected_out_norm_rc = pjoin(resources_dir, "test_rc.norm.cohort_reads_count.norm.rds")
@@ -32,3 +52,44 @@ def test_normalize_reads_count(tmpdir):
     ]
     assert subprocess.check_call(cmd, cwd=tmpdir) == 0
     assert filecmp.cmp(out_file, expected_out_norm_rc)
+
+def test_normalize_reads_count_without_chrX(tmpdir):
+    in_cohort_reads_count_file = pjoin(resources_dir, "test_rc.noX.rds")
+    expected_out_norm_rc = pjoin(resources_dir, "cohort_reads_count_noX.norm.rds")
+
+    out_file = pjoin(tmpdir, "cohort_reads_count.norm.rds")
+    os.chdir(tmpdir)
+    cmd = [
+        "conda",
+        "run",
+        "-n",
+        "cn.mops",
+        "Rscript",
+        "--vanilla",
+        script_path,
+        "-cohort_reads_count_file",
+        in_cohort_reads_count_file,
+    ]
+    assert subprocess.check_call(cmd, cwd=tmpdir) == 0
+    assert filecmp.cmp(out_file, expected_out_norm_rc)
+
+def test_normalize_reads_count_without_chrXchrY(tmpdir):
+    in_cohort_reads_count_file = pjoin(resources_dir, "test_rc.noXnoY.rds")
+    expected_out_norm_rc = pjoin(resources_dir, "cohort_reads_count.norm.noXnoY.rds")
+
+    out_file = pjoin(tmpdir, "cohort_reads_count.norm.rds")
+    os.chdir(tmpdir)
+    cmd = [
+        "conda",
+        "run",
+        "-n",
+        "cn.mops",
+        "Rscript",
+        "--vanilla",
+        script_path,
+        "-cohort_reads_count_file",
+        in_cohort_reads_count_file,
+    ]
+    assert subprocess.check_call(cmd, cwd=tmpdir) == 0
+    assert filecmp.cmp(out_file, expected_out_norm_rc)
+    
