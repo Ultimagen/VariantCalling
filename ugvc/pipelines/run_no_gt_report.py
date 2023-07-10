@@ -332,7 +332,7 @@ def run_somatic_analysis(arg_values):
                        input_type="vcf",
                        context_type="96",
                        genome_build=arg_values.reference_name,
-                       cosmic_version=3.3)
+                       cosmic_version=arg_values.cosmic_version)
 
     Analyze.cosmic_fit(samples=vcf_dirname,
                        output=os.path.join(output_dir,'id'),
@@ -340,7 +340,7 @@ def run_somatic_analysis(arg_values):
                        context_type="ID",
                        genome_build=arg_values.reference_name,
                        collapse_to_SBS96=False,
-                       cosmic_version=3.3)
+                       cosmic_version=arg_values.cosmic_version)
 
     Analyze.cosmic_fit(samples=vcf_dirname,
                        output=os.path.join(output_dir,'dinuc'),
@@ -348,7 +348,7 @@ def run_somatic_analysis(arg_values):
                        context_type="DINUC",
                        genome_build=arg_values.reference_name,
                        collapse_to_SBS96=False,
-                       cosmic_version=3.3)
+                       cosmic_version=arg_values.cosmic_version)
 
     # Plotting the signatures profiles
     sigPlt.plotSBS(
@@ -478,12 +478,13 @@ if __name__ == "__main__":
 
 
     # Run somatic analysis on somatic data
-    full_analysis = subparsers.add_parser(name="somatic_analysis", description="Run mutation signatures and motif graphs")
+    somatic_analysis = subparsers.add_parser(name="somatic_analysis", description="Run mutation signatures and motif graphs")
 
-    full_analysis.add_argument("--input_file", help="Input unzipped vcf file", required=True, type=str)
-    full_analysis.add_argument("--reference_name", help="Reference genome name", required=False, type=str, default="GRCh38")
-    full_analysis.add_argument("--output_prefix", help="output file and directory", required=True, type=str)
-    full_analysis.set_defaults(func=run_somatic_analysis)
+    somatic_analysis.add_argument("--input_file", help="Input unzipped vcf file", required=True, type=str)
+    somatic_analysis.add_argument("--reference_name", help="Reference genome name", required=False, type=str, default="GRCh38")
+    somatic_analysis.add_argument("--output_prefix", help="output file and directory", required=True, type=str)
+    somatic_analysis.add_argument("--cosmic_version", help="Signatures cosmic version", required=False, type=str, default=3.3)
+    somatic_analysis.set_defaults(func=run_somatic_analysis)
 
 
     args = ap.parse_args()
