@@ -17,7 +17,7 @@ def test_no_gt_report(tmpdir):
     shutil.copy(pjoin(datadir, "014790-NA12878.unfilt.no_gt_stats_wgs.h5"), tmpdir)
     shutil.copy(pjoin(datadir, "cosmic_signatures_v3.3.json"), tmpdir)
     shutil.copy(pjoin(report_path, "nexusplt.py"), tmpdir)
-    shutil.copytree(pjoin(datadir, "signatures_plots"), pjoin(tmpdir, "signatures_plots"))
+    shutil.copytree(pjoin(datadir, "signature_plots_folder"), pjoin(tmpdir, "signature_plots_folder"))
     with open(pjoin(tmpdir, "no_gt_report.config"), "w") as config_file:
         strg = f"""
 [NOGTReport]
@@ -33,7 +33,7 @@ interval_list = {test_dir}/resources/general/chr1_head/wgs_calling_regions.hg38.
 ref_fasta = {test_dir}/resources/general/chr1_head/Homo_sapiens_assembly38.fasta
 ref_fasta_dict = {test_dir}/resources/general/chr1_head/Homo_sapiens_assembly38.dict
 is_somatic = false
-signatures_folder = signatures_plots
+signature_plots_folder = signature_plots_folder
 cosmic_signatures = cosmic_signatures
 h5_output = 014790-NA12878_no_gt_report.h5
 """
