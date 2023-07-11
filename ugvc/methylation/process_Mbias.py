@@ -57,6 +57,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     ap_var.add_argument("--input", help="MethylDackel Mbias input file", type=str, required=True)
     ap_var.add_argument("--output", help="Output file basename", type=str, required=True)
+    ap_var.add_argument("--noCpG", help="use this flag to tag Mbias call on no-CpG cytosines", type=bool, required=False)
 
     return ap_var.parse_args(argv[1:])
 
@@ -98,8 +99,12 @@ def run(argv: list[str]):
 
         # print to JSON file
         # ==========================================================================================
+        metric_title = "Mbias"
+        if args.noCpG:
+            metric_title = "MbiasNoCpG"
+        
         out_json = {"metrics": {}}
-        out_json["metrics"] = {"Mbias": dict_json_output}
+        out_json["metrics"] = {metric_title : dict_json_output}
         out_file_name = args.output + ".json"
         with open(out_file_name, "w", encoding="utf-8") as file_handler:
             json.dump(out_json, file_handler, indent=2, default=str)

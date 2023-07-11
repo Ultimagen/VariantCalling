@@ -95,12 +95,13 @@ def run(argv: list[str]):
         list_genomes = find_list_genomes(list_chroms_genomes)
         list_genomes = [s.replace("chr", "hg") for s in list_genomes]
 
-        # get percent methylation
+        # get percent methylation and CPG coverage
         df_pcnt_meth = pd.DataFrame()
+        df_cov_meth = pd.DataFrame()
         for genome_type in list_genomes:
             data_frame = pd.DataFrame()
             if genome_type == "hg":
-                pat = r"^chr[0-9]+\b"
+                pat = r"^chr"
             else:
                 pat = r"^" + genome_type
             idx = df_in_report.chr.str.contains(pat)
@@ -110,18 +111,6 @@ def run(argv: list[str]):
             df_pcnt_meth = pd.concat(
                 (df_pcnt_meth, calc_percent_methylation(genome_type, data_frame, False)), ignore_index=True
             )
-        # get CPG coverage
-        df_cov_meth = pd.DataFrame()
-        for genome_type in list_genomes:
-            data_frame = pd.DataFrame()
-            if genome_type == "hg":
-                pat = r"^chr[0-9]+\b"
-            else:
-                pat = r"^" + genome_type
-            idx = df_in_report.chr.str.contains(pat)
-            if idx.any(axis=None):
-                data_frame = df_in_report.loc[idx, :].copy()
-
             df_cov_meth = pd.concat(
                 (df_cov_meth, calc_coverage_methylation(genome_type, data_frame, False)), ignore_index=True
             )
@@ -130,7 +119,6 @@ def run(argv: list[str]):
         # ==========================================================================================
 
         # run if control genomes Lambda and pUC19 exist in input file
-        df_ctrl = pd.DataFrame()
         df_ctrl = get_ctrl_genomes_data(df_in_report, list_genomes)
 
         # concatenate the additional data for control genomes (if Lambda, pUC19 genomes exist)
