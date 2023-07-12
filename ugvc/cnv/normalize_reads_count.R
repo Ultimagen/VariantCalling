@@ -86,7 +86,7 @@ GetVarianceSum <- function(X,in_cutoff){
 
 
 normalizeChromosomesGenomewize <- function(X, chr, normType="poisson", sizeFactor="mean",
-		qu=0.25, quSizeFactor=0.75, ploidy, chr_X_name = "chrX", chr_Y_name="chrY"){
+		qu=0.25, quSizeFactor=0.75,chr_X_name = "chrX", chr_Y_name="chrY", ploidy){
 
 	if (!(normType %in% c("mean","median","poisson","mode", "quant"))){
 		stop(paste("Set TO of normalization to \"mean\"",
@@ -215,63 +215,69 @@ normalizeChromosomesGenomewize <- function(X, chr, normType="poisson", sizeFacto
 
 	#handle Sex chromosomes(chrX,chrY) by Gender ploidy value.
 	#for male we will multiply normalized X and Y coverage with 2.
+	if(length(chr[chr == chr_X_name])>1)
+	{
+		if (missing(ploidy)){
+			ploidy <- rep(2,ncol(X))
+			chrIdx <- which(chr == chr_X_name)
+			chrX_matrix <-Y[chrIdx,]
+			chrX_matrix_nonZero <- chrX_matrix[which(rowSums(chrX_matrix) > 0),]
+			chrX_means <- colMeans(chrX_matrix_nonZero,na.rm=TRUE)
 
-	if (missing(ploidy)){
-		ploidy <- rep(2,ncol(X))
-		chrIdx <- which(chr == chr_X_name)
-		chrX_matrix <-Y[chrIdx,]
-		chrX_matrix_nonZero <- chrX_matrix[which(rowSums(chrX_matrix) > 0),]
-  		chrX_means <- colMeans(chrX_matrix_nonZero,na.rm=TRUE)
+			cutoff=min(chrX_means)+1
+			sum_var=GetVarianceSum(chrX_means,cutoff)
+			cutoff_range = seq(from = min(chrX_means)+1, to = max(chrX_means), by = 1)
 
-		cutoff=min(chrX_means)+1
-		sum_var=GetVarianceSum(chrX_means,cutoff)
-		cutoff_range = seq(from = min(chrX_means)+1, to = max(chrX_means), by = 1)
-
-		for (cutoff_tmp in cutoff_range) {
-			sum_var_tmp = GetVarianceSum(chrX_means,cutoff_tmp)
-			if(sum_var_tmp < sum_var) {
-			  sum_var = sum_var_tmp
-			  cutoff = cutoff_tmp
+			for (cutoff_tmp in cutoff_range) {
+				sum_var_tmp = GetVarianceSum(chrX_means,cutoff_tmp)
+				if(sum_var_tmp < sum_var) {
+				  sum_var = sum_var_tmp
+				  cutoff = cutoff_tmp
+				}
 			}
-  		}
-		ploidy[chrX_means<=cutoff]<-1
-		write.table(ploidy,paste(out_prefix,".estimate_gender",sep=""),row.names = FALSE,quote=FALSE,col.names = FALSE)
+			ploidy[chrX_means<=cutoff]<-1
+			write.table(ploidy,paste(out_prefix,".estimate_gender",sep=""),row.names = FALSE,quote=FALSE,col.names = FALSE)
 
-		png(paste(out_prefix,"chrX_mean_coverage_distribution.png"))
-		hist(chrX_means)
-  		abline(v=cutoff, col='red', lwd=3, lty='dashed')
-		dev.off()
-	}
-
-	if (any(ploidy!=as.integer(ploidy))){
-		stop("Ploidy values must be integers!")
-	}
-	if (length(ploidy)!=ncol(X)){
-		stop("Length of the ploidy vector does not match the number of",
-				"columns of the read count matrix!")
-	}
-	ploidy <- as.integer(ploidy)
-	if (length(unique(ploidy))==1) ploidy <- rep(2, ncol(X))
-	if (!length(which(ploidy>=2))){
-		stop("At least two diploid samples must be contained in the data.")
-	}
-	#ploidy[ploidy==0] <- 0.05
-
-	ploidy2median <- median(Y[!idxSG,ploidy==2],na.rm=TRUE)
-	for (pp in unique(ploidy)){
-		if (pp!=2){
-			mm <- median(Y[!idxSG, ],na.rm=TRUE)
-			if (ploidy2median==0 & mm==0){
-				YY[,ploidy==pp] <- Y[,ploidy==pp]
-			} else {
-			  chrIdx <- which((chr == chr_X_name) | (chr == chr_Y_name))
-				YY[chrIdx,ploidy==pp] <- Y[chrIdx,ploidy==pp]*2
-				chrIdx <- which((chr != chr_X_name) & (chr != chr_Y_name))
-				YY[chrIdx,ploidy==pp] <- Y[chrIdx,ploidy==pp]
-			}
-		} else{
-			YY[,ploidy==pp] <- Y[,ploidy==pp]
+			png(paste(out_prefix,"chrX_mean_coverage_distribution.png"))
+			hist(chrX_means)
+			abline(v=cutoff, col='red', lwd=3, lty='dashed')
+			dev.off()
 		}
+
+
+		if (any(ploidy!=as.integer(ploidy))){
+			stop("Ploidy values must be integers!")
+		}
+		if (length(ploidy)!=ncol(X)){
+			stop("Length of the ploidy vector does not match the number of",
+					"columns of the read count matrix!")
+		}
+		ploidy <- as.integer(ploidy)
+		if (length(unique(ploidy))==1) ploidy <- rep(2, ncol(X))
+		if (!length(which(ploidy>=2))){
+			stop("At least two diploid samples must be contained in the data.")
+		}
+		#ploidy[ploidy==0] <- 0.05
+
+		ploidy2median <- median(Y[!idxSG,ploidy==2],na.rm=TRUE)
+		for (pp in unique(ploidy)){
+			if (pp!=2){
+				mm <- median(Y[!idxSG, ],na.rm=TRUE)
+				if (ploidy2median==0 & mm==0){
+					YY[,ploidy==pp] <- Y[,ploidy==pp]
+				} else {
+				  chrIdx <- which((chr == chr_X_name) | (chr == chr_Y_name))
+					YY[chrIdx,ploidy==pp] <- Y[chrIdx,ploidy==pp]*2
+					chrIdx <- which((chr != chr_X_name) & (chr != chr_Y_name))
+					YY[chrIdx,ploidy==pp] <- Y[chrIdx,ploidy==pp]
+				}
+			} else{
+				YY[,ploidy==pp] <- Y[,ploidy==pp]
+			}
+		}
+	}
+	else {
+		YY<-Y
 	}
 
 	rownames(YY) <- rownames(Xorig)
