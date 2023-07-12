@@ -124,6 +124,7 @@ dependencies:
   - google-crc32c=1.1.2=py38h57c428a_4
   - google-resumable-media=2.5.0=pyhd8ed1ab_0
   - googleapis-common-protos=1.59.1=pyhd8ed1ab_0
+  - gputil=1.4.0=pyh9f0ad1d_0
   - graphite2=1.3.13=h58526e2_1001
   - grpcio=1.54.2=py38h8dc9893_2
   - gsl=2.7=he838d99_0
