@@ -114,6 +114,7 @@ class ComparisonPipeline:  # pylint: disable=too-many-instance-attributes
             self.call_sample,
             self.truth_sample,
             self.ignore_filter,
+            "combine",
         )
         annotated_concordance_vcf = self.vpu.annotate_tandem_repeats(concordance_vcf, self.ref_genome)
 

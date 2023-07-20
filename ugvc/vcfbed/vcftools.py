@@ -81,6 +81,7 @@ def get_vcf_df(
         "DP",
         "AD",
         "MQ",
+        "MMQ",
         "SOR",
         "AF",
         "DP_R",
@@ -117,6 +118,7 @@ def get_vcf_df(
         "XC",
         "ID",
         "GNOMAD_AF",
+        "gnomad.AF",
         "NLOD",
         "NALOD",
         "X_IC",
@@ -136,7 +138,6 @@ def get_vcf_df(
         "SCORE",
         "CALL",
         "BASE",
-        "SB",
         "TVAF",
         "HighConfidence",
         "BG_AD",
@@ -160,6 +161,19 @@ def get_vcf_df(
         "ADR",
         "SCR",
         "GP",
+        "SYNC",
+        "ML_PROB",
+        "ASSEMBLED_HAPLOTYPES",
+        "EXOME",
+        "FILTERED_HAPS",
+        "HAPCOMP",
+        "HAPDOM",
+        "HEC",
+        "SB",
+        "MQ0C",
+        "SCL",
+        "SCR",
+        "BG_AD",
     ]
 
     if scoring_field is not None and scoring_field not in columns:
@@ -591,7 +605,6 @@ def genotype_ordering(num_alt: int) -> np.ndarray:
     return gr_ar
 
 
-# pylint: disable=W9015
 def replace_data_in_specific_chromosomes(
     input_vcf: str, new_data_json: str, header_file: str, output_vcf: str, tempdir: str | None = None
 ):
@@ -609,7 +622,7 @@ def replace_data_in_specific_chromosomes(
        A file with a valid vcf header that will replace the current header. Make sure the new header fits the new data
     output_vcf: str
        Name of the output vcf
-    tempdir: str | None
+    tempdir: str, optional
        Name of the temporary directory. None means the default temporary directory.
 
     Returns
