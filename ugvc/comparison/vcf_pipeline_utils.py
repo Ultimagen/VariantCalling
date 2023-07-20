@@ -131,6 +131,7 @@ class VcfPipelineUtils:
         """
         self.__execute(f"gatk SelectVariants -V {input_fn} -L {intervals_fn} -O {output_fn}")
 
+    # pylint: disable=too-many-arguments
     def run_vcfeval_concordance(
         self,
         input_file: str,
@@ -139,9 +140,10 @@ class VcfPipelineUtils:
         ref_genome: str,
         evaluation_regions: str,
         comparison_intervals: str | None = None,
-        input_sample: str = "NA12878",
-        truth_sample="HG001",
+        input_sample: str | None = None,
+        truth_sample: str | None = None,
         ignore_filter: bool = False,
+        mode: str = "combine",
     ) -> str:
         """Run vcfeval to evaluate concordance
 
@@ -161,13 +163,16 @@ class VcfPipelineUtils:
             Picard intervals file to make the comparisons on. Default: None = all genome
         input_sample : str, optional
             Name of the sample in our input_file
-        truth_sample : str
+        truth_sample : str, optional
             Name of the sample in the truth file
         ignore_filter : bool, optional
             Ignore status of the variant filter
+        mode: str, optional
+            Mode of vcfeval (default - combine)
         Returns
         -------
-        final concordance vcf file
+        final concordance vcf file if the mode is "combine"
+        otherwise - returns the output directory of vcfeval
         """
 
         output_dir = os.path.dirname(output_prefix)
@@ -193,32 +198,36 @@ class VcfPipelineUtils:
             f"-e {evaluation_regions} "
             f"-t {SDF_path} "
             f"-o {vcfeval_output_dir} "
-            f"-m combine "
-            f"--sample {truth_sample},{input_sample} "
-            f"--decompose"
+            f"-m {mode} "
+            f"--decompose "
         )
+        if truth_sample is not None and input_sample is not None:
+            vcfeval_command += f"--sample {truth_sample},{input_sample} "
+
         if ignore_filter:
             vcfeval_command += " --all-records"
         self.__execute(vcfeval_command)
 
-        # fix the vcf file format
-        self.fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
+        if mode == "combine":
+            # fix the vcf file format
+            self.fix_vcf_format(os.path.join(vcfeval_output_dir, "output"))
 
-        # make the vcfeval output file without weird variants
-        self.normalize_vcfeval_vcf(
-            os.path.join(vcfeval_output_dir, "output.vcf.gz"),
-            os.path.join(vcfeval_output_dir, "output.norm.vcf.gz"),
-            ref_genome,
-        )
+            # make the vcfeval output file without weird variants
+            self.normalize_vcfeval_vcf(
+                os.path.join(vcfeval_output_dir, "output.vcf.gz"),
+                os.path.join(vcfeval_output_dir, "output.norm.vcf.gz"),
+                ref_genome,
+            )
 
-        vcf_concordance_file = f'{output_prefix + ".vcfeval_concordance.vcf.gz"}'
-        # move the file to be compatible with the output file of the genotype
-        # concordance
-        self.__execute(f'mv {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")} {vcf_concordance_file}')
+            vcf_concordance_file = f'{output_prefix + ".vcfeval_concordance.vcf.gz"}'
+            # move the file to be compatible with the output file of the genotype
+            # concordance
+            self.__execute(f'mv {os.path.join(vcfeval_output_dir, "output.norm.vcf.gz")} {vcf_concordance_file}')
 
-        # generate index file for the vcf.gz file
-        self.index_vcf(vcf_concordance_file)
-        return vcf_concordance_file
+            # generate index file for the vcf.gz file
+            self.index_vcf(vcf_concordance_file)
+            return vcf_concordance_file
+        return vcfeval_output_dir
 
     def normalize_vcfeval_vcf(self, input_vcf: str, output_vcf: str, ref: str) -> None:
         """Combines monoallelic rows from VCFEVAL into multiallelic
@@ -250,19 +259,18 @@ class VcfPipelineUtils:
         self.index_vcf(f"{tempdir}/step1.vcf.gz")
         self.__execute(
             f"bcftools annotate -a {input_vcf} -c CHROM,POS,CALL,BASE -Oz \
-            -o {tempdir}/step2.vcf.gz {tempdir}/step1.vcf.gz"
+                -o {tempdir}/step2.vcf.gz {tempdir}/step1.vcf.gz"
         )
         self.index_vcf(f"{tempdir}/step2.vcf.gz")
 
         # Step2 - write out the annotation table. We use VariantsToTable from gatk, but remove
         # the mandatory header and replace NA by "."
         self.__execute(
-            f"gatk VariantsToTable -V {input_vcf} -O {tempdir}/source.tsv \
-            -F CHROM -F POS -F REF -F CALL -F BASE"
+            f"gatk VariantsToTable -V {input_vcf} -O {tempdir}/source.tsv -F CHROM -F POS -F REF -F CALL -F BASE"
         )
         self.__execute(
             f"gatk VariantsToTable -V {tempdir}/step2.vcf.gz -O {tempdir}/dest.tsv \
-            -F CHROM -F POS -F REF -F CALL -F BASE"
+                -F CHROM -F POS -F REF -F CALL -F BASE"
         )
 
         # Step3 - identify lines that still need to be filled (where the CALL/BASE after the nomrmalization
@@ -287,12 +295,12 @@ class VcfPipelineUtils:
         self.__execute(f"tabix -s1 -e2 -b2 {tempdir}/step3.base.tsv.gz")
         self.__execute(
             f"bcftools annotate -c CHROM,POS,CALL -a {tempdir}/step3.call.tsv.gz \
-            -Oz -o {tempdir}/step4.vcf.gz {tempdir}/step2.vcf.gz"
+                -Oz -o {tempdir}/step4.vcf.gz {tempdir}/step2.vcf.gz"
         )
         self.index_vcf(f"{tempdir}/step4.vcf.gz")
         self.__execute(
             f"bcftools annotate -c CHROM,POS,CALL -a {tempdir}/step3.base.tsv.gz \
-            -Oz -o {output_vcf} {tempdir}/step4.vcf.gz"
+                -Oz -o {output_vcf} {tempdir}/step4.vcf.gz"
         )
         self.index_vcf(output_vcf)
         # shutil.rmtree(tempdir)
