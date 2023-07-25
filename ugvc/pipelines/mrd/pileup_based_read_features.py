@@ -80,18 +80,27 @@ class PileupBasedReadFeatures:
     PADDING = 300
     AF_THRESHOLD = 0.2
 
-    LAST_POSITION = 0
-    LAST_CHR = ""
-
-    def __init__(self, args):
-        self.args = args
-        self.no_overlap_bed = f"{self.args.output_pref}_no_overlap.bed"
-        self.tmp_region_bed = f"{args.output_pref}_tmp_region.bed"
-        self.tmp_pileup_file = f"{args.output_pref}.pileup.txt"
-        self.featuremap = pysam.VariantFile(args.input_featuremap)
-        self.read_features_tsv = f"{args.output_pref}.read_features.tsv"
+    def __init__(
+        self,
+        input_featuremap: str,
+        input_bam: str,
+        input_bed: str,
+        reference_fasta: str,
+        output_pref: str,
+        simple_pipeline_args=(0, 10000, False),
+    ):
+        self.input_bam = input_bam
+        self.input_bed = input_bed
+        self.ref = reference_fasta
+        self.tmp_region_bed = f"{output_pref}_tmp_region.bed"
+        self.tmp_pileup_file = f"{output_pref}.pileup.txt"
+        self.featuremap = pysam.VariantFile(input_featuremap)
+        self.read_features_tsv = f"{output_pref}.read_features.tsv"
         if os.path.exists(self.read_features_tsv):
             os.remove(self.read_features_tsv)
+
+        self.last_position = 0
+        self.last_chr = ""
 
         for feature_name in self.FEATURE_NAMES:
             self.featuremap.header.add_meta(
@@ -105,16 +114,17 @@ class PileupBasedReadFeatures:
             )
 
         self.output_featuremap = pysam.VariantFile(
-            f"{args.output_pref}.output_featuremap.vcf.gz", "w", header=self.featuremap.header
+            f"{output_pref}.output_featuremap.vcf.gz", "w", header=self.featuremap.header
         )
-        self.sp = SimplePipeline(args.fc, args.lc, debug=args.d, print_timing=True)
+        self.sp = SimplePipeline(
+            simple_pipeline_args[0], simple_pipeline_args[1], debug=simple_pipeline_args[2], print_timing=True
+        )
 
     def process(self):
         """
         main loop iterating input regions, breaking to chuncks that fit in memory,
         running pileup on each chunk, and counting events of each type from pileups (per read)
         """
-        args = self.args
         regions = self.__load_regions()
 
         regions_index = 0
@@ -142,8 +152,8 @@ class PileupBasedReadFeatures:
                     for chrom, start, end in tmp_regions:
                         tmp_bed.write(f"{chrom}\t{start - self.PADDING}\t{end + self.PADDING}\n")
                 self.sp.print_and_run(
-                    f'samtools mpileup {args.input_bam} -Q 0 --ff "" -l {self.tmp_region_bed} '
-                    f"-f {args.ref} --output-extra QNAME -o {self.tmp_pileup_file}"
+                    f'samtools mpileup {self.input_bam} -Q 0 --ff "" -l {self.tmp_region_bed} '
+                    f"-f {self.ref} --output-extra QNAME -o {self.tmp_pileup_file}"
                 )
                 read_features, events_per_read = self.__calc_read_features_from_pileup()
                 # sys.stderr.write(f'{read_alts}\n')
@@ -158,9 +168,9 @@ class PileupBasedReadFeatures:
                     padded_start = start_ - self.PADDING
                     padded_end = end_ + self.PADDING
                     self.sp.print_and_run(
-                        f'samtools mpileup {args.input_bam} -Q 0 --ff "" '
+                        f'samtools mpileup {self.input_bam} -Q 0 --ff "" '
                         f"-r {last_region_chrom}:{padded_start}-{padded_end} "
-                        f"-f {args.ref} --output-extra QNAME -o {self.tmp_pileup_file}"
+                        f"-f {self.ref} --output-extra QNAME -o {self.tmp_pileup_file}"
                     )
                     read_features, events_per_read = self.__calc_read_features_from_pileup()
                     self.__add_features_to_featuremap(chrom, start_, end_, read_features, events_per_read)
@@ -211,9 +221,11 @@ class PileupBasedReadFeatures:
         """
         eliminate overlaps and load non-overlapping regions to memory as list of tuples
         """
-        self.sp.print_and_run(f"bedtools merge -i {self.args.input_bed} > {self.no_overlap_bed}")
+        no_overlap_bed = self.tmp_region_bed
+
+        self.sp.print_and_run(f"bedtools merge -i {self.input_bed} > {no_overlap_bed}")
         regions = []
-        with open(self.no_overlap_bed, encoding="utf-8") as bed:
+        with open(no_overlap_bed, encoding="utf-8") as bed:
             for line in bed:
                 chrom, start, end = line.split()
                 regions.append((chrom, int(start), int(end)))
@@ -284,11 +296,11 @@ class PileupBasedReadFeatures:
         write the finalized feature counts as info feilds in the output vcf featuremap
         """
         for record in self.featuremap.fetch(chrom, start, end):
-            if record.chrom == self.LAST_CHR and record.pos < self.LAST_POSITION:
+            if record.chrom == self.last_chr and record.pos < self.last_position:
                 continue
-            if record.chrom != self.LAST_CHR:
-                self.LAST_CHR = record.chrom
-            self.LAST_POSITION = record.pos
+            if record.chrom != self.last_chr:
+                self.last_chr = record.chrom
+            self.last_position = record.pos
 
             read_name = record.info["X_RN"]
             if read_name in read_features:
@@ -325,7 +337,13 @@ def run(argv):
     parser = get_parser()
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
-    PileupBasedReadFeatures(args).process()
+    PileupBasedReadFeatures(
+        input_bam=args.input_bam,
+        input_featuremap=args.input_featuremap,
+        input_bed=args.input_bed,
+        reference_fasta=args.ref,
+        output_pref=args.output_pref,
+    ).process()
 
 
 if __name__ == "__main__":
