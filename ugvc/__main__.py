@@ -12,16 +12,23 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 from ugvc.cnv import filter_sample_cnvs
-
+from ugvc.joint import compress_gvcf
+from ugvc.methylation import (
+    concat_methyldackel_csvs,
+    process_Mbias,
+    process_mergeContext,
+    process_mergeContextNoCpG,
+    process_perRead,
+)
 from ugvc.pipelines import (
+    convert_haploid_regions,
+    correct_genotypes_by_imputation,
     coverage_analysis,
     evaluate_concordance,
     filter_variants_pipeline,
     run_comparison_pipeline,
     train_models_pipeline,
-    convert_haploid_regions,
-    correct_genotypes_by_imputation,
-    vcfeval_flavors
+    vcfeval_flavors,
 )
 from ugvc.pipelines.mrd import (
     collect_coverage_per_motif,
@@ -29,6 +36,7 @@ from ugvc.pipelines.mrd import (
     create_control_signature,
     featuremap_to_dataframe,
     intersect_featuremap_with_signature,
+    pileup_based_read_features,
     positional_error_rate_profile,
     prepare_data_from_mrd_pipeline,
     substitution_error_rate,
@@ -37,19 +45,6 @@ from ugvc.pipelines.mrd import (
 # import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.utils import cloud_sync
-
-from ugvc.methylation import (
-    concat_methyldackel_csvs,
-    process_Mbias,
-    process_mergeContext,
-    process_mergeContextNoCpG,
-    process_perRead,
-)
-
-from ugvc.joint import (
-    compress_gvcf
-)
-
 
 # create a list of imported pipeline modules
 modules = [
@@ -62,7 +57,7 @@ modules = [
     filter_sample_cnvs,
     convert_haploid_regions,
     correct_genotypes_by_imputation,
-    vcfeval_flavors
+    vcfeval_flavors,
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
@@ -76,6 +71,7 @@ mrd_modules = [
     featuremap_to_dataframe,
     intersect_featuremap_with_signature,
     prepare_data_from_mrd_pipeline,
+    pileup_based_read_features,
 ]
 
 methylation_modules = [
