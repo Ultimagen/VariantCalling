@@ -17,7 +17,10 @@ from os.path import join as pjoin
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from ugvc.mrd.balanced_epcr_utils import read_balanced_epcr_trimmer_histogram
+from ugvc.mrd.balanced_epcr_utils import (
+    add_strand_ratios_and_categories_to_featuremap,
+    read_balanced_epcr_trimmer_histogram,
+)
 
 # from test import get_resource_dir, test_dir
 
@@ -31,6 +34,16 @@ input_histogram_LAv5and6_csv = pjoin(
 parsed_histogram_LAv5and6_parquet = pjoin(inputs_dir, "130713_UGAv3-51.parsed_histogram.parquet")
 input_histogram_LAv5_csv = pjoin(inputs_dir, "130715_UGAv3-132.trimming.A_hmer.T_hmer.histogram.csv")
 parsed_histogram_LAv5_parquet = pjoin(inputs_dir, "130715_UGAv3-132.parsed_histogram.parquet")
+input_featuremap_LAv5and6 = pjoin(inputs_dir, "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz")
+expected_output_featuremap_LAv5and6 = pjoin(
+    inputs_dir,
+    "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.with_strand_ratios.vcf.gz",
+)
+
+
+def _assert_files_are_identical(file1, file2):
+    with open(file1, "rb") as f1, open(file2, "rb") as f2:
+        assert f1.read() == f2.read()
 
 
 def test_read_balanced_epcr_LAv5and6_trimmer_histogram():
@@ -69,9 +82,23 @@ def test_read_balanced_epcr_LAv5_trimmer_histogram():
         )
 
 
+def test_add_strand_ratios_and_categories_to_featuremap():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmp_out_path = pjoin(tmpdirname, "tmp_out.vcf.gz")
+        add_strand_ratios_and_categories_to_featuremap(
+            input_featuremap_vcf=input_featuremap_LAv5and6,
+            output_featuremap_vcf=tmp_out_path,
+        )
+        _assert_files_are_identical(
+            expected_output_featuremap_LAv5and6,
+            tmp_out_path,
+        )
+
+
 # %%
 test_read_balanced_epcr_LAv5and6_trimmer_histogram()
 test_read_balanced_epcr_LAv5_trimmer_histogram()
+test_add_strand_ratios_and_categories_to_featuremap()
 # df_trimmer_histogram1 = test_read_balanced_epcr_LAv5and6_trimmer_histogram()
 # df_trimmer_histogram1.to_parquet(parsed_histogram_LAv5and6_parquet)
 # df_trimmer_histogram2 = test_read_balanced_epcr_LAv5_trimmer_histogram()
