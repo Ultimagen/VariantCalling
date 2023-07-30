@@ -3,11 +3,14 @@ from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 
 from ugvc.mrd.balanced_strand_utils import (
     add_strand_ratios_and_categories_to_featuremap,
     plot_balanced_strand_ratio,
+    plot_strand_ratio_category,
+    plot_strand_ratio_category_concordnace,
     read_balanced_strand_trimmer_histogram,
 )
 
@@ -85,6 +88,25 @@ def test_plot_balanced_strand_ratio():
         )
 
 
+def test_plot_strand_ratio_category():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmp_out_path = pjoin(tmpdirname, "tmp_out.png")
+        df_trimmer_histogram_LAv5and6_expected = pd.read_parquet(parsed_histogram_LAv5and6_parquet)
+        plot_strand_ratio_category(
+            df_trimmer_histogram_LAv5and6_expected,
+            title="test",
+            output_filename=tmp_out_path,
+            ax=None,
+        )
+        df_trimmer_histogram_LAv5_expected = pd.read_parquet(parsed_histogram_LAv5_parquet)
+        plot_strand_ratio_category(
+            df_trimmer_histogram_LAv5_expected,
+            title="test",
+            output_filename=tmp_out_path,
+            ax=None,
+        )
+
+
 def test_add_strand_ratios_and_categories_to_featuremap():
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmp_out_path = pjoin(tmpdirname, "tmp_out.vcf.gz")
@@ -96,3 +118,23 @@ def test_add_strand_ratios_and_categories_to_featuremap():
             expected_output_featuremap_LAv5and6,
             tmp_out_path,
         )
+
+
+def test_plot_strand_ratio_category_concordnace():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmp_out_path = pjoin(tmpdirname, "tmp_out.png")
+        df_trimmer_histogram_LAv5and6_expected = pd.read_parquet(parsed_histogram_LAv5and6_parquet)
+        plot_strand_ratio_category_concordnace(
+            df_trimmer_histogram_LAv5and6_expected,
+            title="test",
+            output_filename=tmp_out_path,
+            axs=None,
+        )
+        df_trimmer_histogram_LAv5_expected = pd.read_parquet(parsed_histogram_LAv5_parquet)
+        with pytest.raises(ValueError):
+            plot_strand_ratio_category_concordnace(
+                df_trimmer_histogram_LAv5_expected,
+                title="test",
+                output_filename=tmp_out_path,
+                axs=None,
+            )

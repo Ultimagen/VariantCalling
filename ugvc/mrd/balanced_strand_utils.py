@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import itertools
 from collections import defaultdict
 from enum import Enum
 
@@ -58,6 +61,7 @@ MIN_STEM_END_MATCHED_LENGTH = 11  # the stem is 12bp, 1 indel allowed as toleran
 
 # Display defaults
 STRAND_RATIO_AXIS_LABEL = "LIG/HYB strands ratio"
+balanced_category_list = [v.value for v in BalancedCategories.__members__.values()]
 
 
 def get_annotation(x, sr_lower, sr_upper):
@@ -263,7 +267,7 @@ def group_trimmer_histogram_by_strand_ratio_category(
             ),
             axis=1,
         )
-        .reindex([v.value for v in BalancedCategories.__members__.values()])
+        .reindex(balanced_category_list)
         .dropna(how="all", axis=1)
         .fillna(0)
         .astype(int)
@@ -278,6 +282,34 @@ def group_trimmer_histogram_by_strand_ratio_category(
             axis=1,
         )
     return df_trimmer_histogram_by_category
+
+
+def get_strand_ratio_category_concordance(
+    df_trimmer_histogram: pd.DataFrame,
+) -> pd.DataFrame:
+    if HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value not in df_trimmer_histogram:
+        raise ValueError(
+            f"Missing expected column {HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value}."
+            "Cannot calculate strand tag category concordance."
+        )
+    df_category_concordance = (
+        df_trimmer_histogram.groupby(
+            [
+                HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+                HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+            ]
+        )
+        .agg({HistogramColumnNames.COUNT.value: "sum"})
+        .reindex(
+            itertools.product(
+                [v for v in balanced_category_list if v != BalancedCategories.END_UNREACHED.value],
+                balanced_category_list,
+            )
+        )
+        .fillna(0)
+    )
+    df_category_concordance = df_category_concordance / df_category_concordance.sum().sum()
+    return df_category_concordance
 
 
 def add_strand_ratios_and_categories_to_featuremap(
@@ -332,13 +364,13 @@ def add_strand_ratios_and_categories_to_featuremap(
             f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value},"
             'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
             "measured from the tag in the start of the read, options: "
-            f'{", ".join([v.value for v in BalancedCategories.__members__.values()])}">'
+            f'{", ".join(balanced_category_list)}">'
         )
         header.add_line(
             f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value},"
             'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
             "measured from the tag in the end of the read, options: "
-            f'{", ".join([v.value for v in BalancedCategories.__members__.values()])}">'
+            f'{", ".join(balanced_category_list)}">'
         )
         with pysam.VariantFile(output_featuremap_vcf, "w", header=header) as output_vcf:
             for record in input_vcf:
@@ -410,7 +442,7 @@ def plot_balanced_strand_ratio(
     title: str = "",
     output_filename: str = None,
     ax: plt.Axes = None,
-):
+) -> plt.Axes:
     """
     Plot the strand ratio histogram
 
@@ -488,23 +520,30 @@ def plot_balanced_strand_ratio(
                 label=f"{label}: {mixed_reads_ratio:.1%}" " mixed reads",
             )
             ylim_max = max(ylim_max, y.max() + 0.07)
-    plt.legend(loc="upper left", fontsize=14, fancybox=True, framealpha=0.95)
+    legend_handle = plt.legend(loc="upper left", fontsize=14, fancybox=True, framealpha=0.95)
     title_handle = plt.title(title, fontsize=24)
 
     plt.xlabel(STRAND_RATIO_AXIS_LABEL)
     plt.ylabel("Relative abundance", fontsize=20)
     plt.ylim(0, ylim_max)
     if output_filename is not None:
+        if not output_filename.endswith(".png"):
+            output_filename += ".png"
         plt.savefig(
             output_filename,
             dpi=300,
             bbox_inches="tight",
-            bbox_extra_artists=[title_handle],
+            bbox_extra_artists=[title_handle, legend_handle],
         )
     return ax
 
 
-def plot_strand_ratio_category(df_trimmer_histogram, title="", output_filename=None, ax=None):
+def plot_strand_ratio_category(
+    df_trimmer_histogram: pd.DataFrame,
+    title: str = "",
+    output_filename: str = None,
+    ax: plt.Axes = None,
+) -> plt.Axes:
     """
     Plot the strand ratio category histogram
 
@@ -560,6 +599,8 @@ def plot_strand_ratio_category(df_trimmer_histogram, title="", output_filename=N
     legend_handle = plt.legend(bbox_to_anchor=(1.01, 1), fontsize=14, framealpha=0.95)
     title_handle = plt.title(title)
     if output_filename is not None:
+        if not output_filename.endswith(".png"):
+            output_filename += ".png"
         plt.savefig(
             output_filename,
             dpi=300,
@@ -567,3 +608,89 @@ def plot_strand_ratio_category(df_trimmer_histogram, title="", output_filename=N
             bbox_extra_artists=[title_handle, legend_handle],
         )
     return ax
+
+
+def plot_strand_ratio_category_concordnace(
+    df_trimmer_histogram: pd.DataFrame,
+    title: str = "",
+    output_filename: str = None,
+    axs: list[plt.Axes] = None,
+) -> list[plt.Axes]:
+    """
+    Plot the strand ratio category concordance heatmap
+
+    Parameters
+    ----------
+    df_trimmer_histogram : pd.DataFrame
+        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+    title : str, optional
+        plot title, by default ""
+    output_filename : str, optional
+        path to save the plot to, by default None (not saved)
+    axs : matplotlib.axes.Axes, optional
+        axes to plot on, by default None (new figure created)
+
+    Returns
+    -------
+    list of axes objects to which the output was plotted
+
+    """
+
+    # get concordance
+    df_category_concordance = get_strand_ratio_category_concordance(df_trimmer_histogram)
+
+    df_category_concordance_no_end_unreached = df_category_concordance.drop(
+        BalancedCategories.END_UNREACHED.value,
+        level=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+        errors="ignore",
+    )
+    df_category_concordance_no_end_unreached = (
+        df_category_concordance_no_end_unreached / df_category_concordance_no_end_unreached.sum().sum()
+    )
+    # display settings
+    set_pyplot_defaults()
+    if axs is None:
+        fig, axs = plt.subplots(2, 1, figsize=(10, 12))
+        fig.subplots_adjust(hspace=0.7)
+    plt.suptitle(title)
+    # plot
+    for ax, subtitle, df_plot in zip(
+        axs,
+        ("All reads", "Only reads where end was reached"),
+        (df_category_concordance, df_category_concordance_no_end_unreached),
+    ):
+        df_plot = df_plot.unstack().droplevel(0, axis=1)
+        df_plot = df_plot.loc[
+            [v for v in balanced_category_list if v != BalancedCategories.END_UNREACHED.value],
+            [v for v in balanced_category_list if v in df_plot.columns],
+        ].fillna(0)
+        df_plot.index.name = "Start tag catergory"
+        df_plot.columns.name = "End tag catergory"
+
+        if df_plot.shape[0] == 0:
+            continue
+
+        sns.heatmap(
+            df_plot,
+            annot=True,
+            fmt=".1%",
+            cmap="rocket",
+            linewidths=4,
+            linecolor="white",
+            cbar=False,
+            ax=ax,
+            annot_kws={"size": 18},
+        )
+        ax.grid(False)
+        plt.sca(ax)
+        plt.xticks(rotation=20)
+        title_handle = ax.set_title(subtitle, fontsize=20)
+    if output_filename is not None:
+        if not output_filename.endswith(".png"):
+            output_filename += ".png"
+        plt.savefig(
+            output_filename,
+            dpi=300,
+            bbox_inches="tight",
+            bbox_extra_artists=[title_handle],
+        )
