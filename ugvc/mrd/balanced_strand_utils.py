@@ -1,9 +1,12 @@
 from collections import defaultdict
 from enum import Enum
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pysam
+
+from ugvc.utils.misc_utils import set_pyplot_defaults
 
 
 # Trimmer segment labels and tags
@@ -37,6 +40,7 @@ class BalancedCategories(Enum):
 class HistogramColumnNames(Enum):
     # Internal names
     COUNT = "count"
+    COUNT_NORM = "count_norm"
     STRAND_RATIO_START = "strand_ratio_start"
     STRAND_RATIO_END = "strand_ratio_end"
     STRAND_RATIO_CATEGORY_START = "strand_ratio_category_start"
@@ -50,6 +54,9 @@ MIN_TOTAL_HMER_LENGTHS_IN_TAGS = 4
 MAX_TOTAL_HMER_LENGTHS_IN_TAGS = 8
 MIN_STEM_END_MATCHED_LENGTH = 11  # the stem is 12bp, 1 indel allowed as tolerance
 
+# Display defaults
+STRAND_RATIO_AXIS_LABEL = "LIG/HYB strands ratio"
+
 
 def get_annotation(x, sr_lower, sr_upper):
     if x == 0:
@@ -61,7 +68,7 @@ def get_annotation(x, sr_lower, sr_upper):
     return BalancedCategories.UNDETERMINED.value
 
 
-def read_balanced_epcr_trimmer_histogram(
+def read_balanced_strand_trimmer_histogram(
     trimmer_histogram,
     sr_lower=STRAND_RATIO_LOWER_THRESH,
     sr_upper=STRAND_RATIO_UPPER_THRESH,
@@ -202,6 +209,14 @@ def read_balanced_epcr_trimmer_histogram(
             .where(is_end_reached, BalancedCategories.END_UNREACHED.value)
         )
 
+    # assign normalized column
+    df_trimmer_histogram = df_trimmer_histogram.assign(
+        **{
+            HistogramColumnNames.COUNT_NORM.value: df_trimmer_histogram[HistogramColumnNames.COUNT.value]
+            / df_trimmer_histogram[HistogramColumnNames.COUNT.value].sum()
+        }
+    )
+
     # save to parquet
     if output_filename is not None:
         df_trimmer_histogram.to_parquet(output_filename)
@@ -332,3 +347,98 @@ def add_strand_ratios_and_categories_to_featuremap(
                     )  # this works for nan values as well - returns UNDETERMINED
                 # write the updated VCF record to the output VCF file
                 output_vcf.write(record)
+
+
+def plot_balanced_strand_ratio(
+    df_trimmer_histogram: pd.DataFrame,
+    title: str = "",
+    output_filename: str = None,
+    ax: plt.Axes = None,
+):
+    """
+    Plot the strand ratio histogram
+
+    Parameters
+    ----------
+    df_trimmer_histogram : pd.DataFrame
+        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+    title : str, optional
+        plot title, by default ""
+    output_filename : str, optional
+        path to save the plot to, by default None (not saved)
+    ax : matplotlib.axes.Axes, optional
+        axes to plot on, by default None (new figure created)
+
+    """
+    set_pyplot_defaults()
+    if ax is None:
+        plt.figure(figsize=(12, 4))
+        ax = plt.gca()
+    else:
+        plt.sca(ax)
+
+    ylim_max = 0
+    colors = {
+        HistogramColumnNames.STRAND_RATIO_START.value: "xkcd:royal blue",
+        HistogramColumnNames.STRAND_RATIO_END.value: "xkcd:red orange",
+    }
+    markers = {
+        HistogramColumnNames.STRAND_RATIO_START.value: "o",
+        HistogramColumnNames.STRAND_RATIO_END.value: "s",
+    }
+    for sr, sr_category, label in zip(
+        (
+            HistogramColumnNames.STRAND_RATIO_START.value,
+            HistogramColumnNames.STRAND_RATIO_END.value,
+        ),
+        (
+            HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+            HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+        ),
+        ("Start tag", "End tag"),
+    ):
+        if sr in df_trimmer_histogram.columns:
+            # group by strand ratio and strand ratio category for non-undetermined reads
+            df_plot = (
+                df_trimmer_histogram.query(f"{sr_category} != '{BalancedCategories.UNDETERMINED}'")
+                .dropna(subset=[sr])
+                .groupby(sr)
+                .agg({HistogramColumnNames.COUNT_NORM.value: "sum", sr_category: "first"})
+                .reset_index()
+            )
+            # normalize by the total number of reads where the end was reached
+            total_reads_norm_count_with_end_reached = df_plot.query(
+                f"({sr_category} != '{BalancedCategories.END_UNREACHED}') and "
+                f"({sr_category} != '{BalancedCategories.UNDETERMINED}')"
+            )[HistogramColumnNames.COUNT_NORM.value].sum()
+            y = df_plot[HistogramColumnNames.COUNT_NORM.value] / total_reads_norm_count_with_end_reached
+            mixed_reads_ratio = (
+                df_plot.query(f"{sr_category} == '{BalancedCategories.MIXED.value}'")[
+                    HistogramColumnNames.COUNT_NORM.value
+                ].sum()
+                / total_reads_norm_count_with_end_reached
+            )
+            # plot
+            plt.plot(
+                df_plot[sr],
+                y,
+                "-",
+                c=colors[sr],
+                marker=markers[sr],
+                label=f"{label}: {mixed_reads_ratio:.1%} mixed reads",
+            )
+            ylim_max = max(ylim_max, y.max() + 0.07)
+    plt.legend(loc="upper left", fontsize=14, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=24)
+
+    plt.xlabel(STRAND_RATIO_AXIS_LABEL)
+    plt.ylabel("Relative abundance", fontsize=20)
+    plt.ylim(0, ylim_max)
+    if output_filename is not None:
+        plt.savefig(
+            output_filename,
+            dpi=300,
+            bbox_inches="tight",
+            bbox_extra_artists=[title_handle],
+        )
+    return ax
