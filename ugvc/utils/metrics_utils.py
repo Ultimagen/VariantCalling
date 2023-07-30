@@ -135,3 +135,34 @@ def parse_alignment_metrics(alignment_file):
         res1 = pd.read_csv(infile, sep="\t", nrows=1)
 
     return res1
+
+
+def read_sorter_statistics_csv(sorter_stats_csv: str) -> pd.DataFrame:
+    """
+    Collect sorter statistics from csv
+
+    Parameters
+    ----------
+    sorter_stats_csv : str
+        path to a Sorter stats file
+    """
+
+    # read Sorter stats
+    df_sorter_stats = pd.read_csv(sorter_stats_csv, header=None, names=["metric", "value"]).set_index("metric")
+    # replace '(' and ')' in values (legacy format for F95)
+    df_sorter_stats = df_sorter_stats.assign(
+        value=df_sorter_stats["value"]
+        .astype(str)
+        .str.replace("(", "", regex=False)
+        .str.replace(")", "", regex=False)
+        .astype(float)
+        .values
+    )
+    # add convenient metric
+    if "Failed_QC_reads" in df_sorter_stats.index and "PF_Barcode_reads" in df_sorter_stats.index:
+        df_sorter_stats.loc["PCT_Failed_QC_reads"] = df_sorter_stats.loc["Failed_QC_reads"] / (
+            df_sorter_stats.loc["Failed_QC_reads"] + df_sorter_stats.loc["PF_Barcode_reads"]
+        )
+    # rename metrics to uniform convention
+    df_sorter_stats = df_sorter_stats.rename({c: c.replace("PCT_", "% ") for c in df_sorter_stats.index})
+    return df_sorter_stats

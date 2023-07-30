@@ -1,0 +1,31 @@
+PF_Barcode_reads,698015531
+PCT_PF_aligned,97.58
+PCT_PF_Reads_aligned,99.93
+PCT_PF_HQ_aligned,89.96
+PCT_PF_Q20_bases,94.04
+PCT_PF_Q30_bases,81.03
+Mean_quality,35.44
+Mismatch_Rate,0.43
+Indel_Rate,0.39
+Mean_Read_Length,168.55
+Median_Read_Length,169
+Mean_Aligned_Read_Length,179.48
+Failed_QC_reads,54969562
+MAPQ >= 1,655887002
+MAPQ >= 10,651346034
+MAPQ >= 20,642034560
+MAPQ >= 30,637959009
+PCT_Chimeras,0.8
+Mean_cvg,33.99
+median_cvg,35
+%>=1x,96.36
+%>=10x,94.69
+%>=20x,85.91
+%>=50x,8.44
+%>=100x,0.3
+%>=500x,0.03
+%>=1000x,0.01
+% duplicates,14.71
+F80@30x,1.5
+F90@30x,2.31
+F95@30x,5.0

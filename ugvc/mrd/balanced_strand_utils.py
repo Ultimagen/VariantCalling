@@ -10,7 +10,15 @@ import pandas as pd
 import pysam
 import seaborn as sns
 
+from ugvc.utils.metrics_utils import read_sorter_statistics_csv
 from ugvc.utils.misc_utils import set_pyplot_defaults
+
+
+# Supported adapter versions
+class BalancedStrandAdapterVersions(Enum):
+    LA_v5 = "LA_v5"
+    LA_v5and6 = "LA_v5and6"
+    LA_v6 = "LA_v6"
 
 
 # Trimmer segment labels and tags
@@ -41,6 +49,15 @@ class BalancedCategories(Enum):
     UNDETERMINED = "UNDETERMINED"
 
 
+class BalancedCategoriesConsensus(Enum):
+    # Category names
+    MIXED = "MIXED"
+    LIG = "LIG"
+    HYB = "HYB"
+    DISCORDANT = "DISCORDANT"
+    UNDETERMINED = "UNDETERMINED"
+
+
 class HistogramColumnNames(Enum):
     # Internal names
     COUNT = "count"
@@ -50,9 +67,10 @@ class HistogramColumnNames(Enum):
     STRAND_RATIO_CATEGORY_START = "strand_ratio_category_start"
     STRAND_RATIO_CATEGORY_END = "strand_ratio_category_end"
     STRAND_RATIO_CATEGORY_END_NO_UNREACHED = "strand_ratio_category_end_no_unreached"
+    STRAND_RATIO_CATEGORY_CONSENSUS = "strand_ratio_category_consensus"
 
 
-# Input parameter defaults
+# Input parameter defaults for LAv5+6, LAv5 and LAv6
 STRAND_RATIO_LOWER_THRESH = 0.27
 STRAND_RATIO_UPPER_THRESH = 0.73
 MIN_TOTAL_HMER_LENGTHS_IN_TAGS = 4
@@ -61,7 +79,36 @@ MIN_STEM_END_MATCHED_LENGTH = 11  # the stem is 12bp, 1 indel allowed as toleran
 
 # Display defaults
 STRAND_RATIO_AXIS_LABEL = "LIG/HYB strands ratio"
+
+# Misc
 balanced_category_list = [v.value for v in BalancedCategories.__members__.values()]
+supported_adapter_versions = BalancedStrandAdapterVersions.__members__.values()
+
+
+def _assert_adapter_version_supported(adapter_version: [str, BalancedStrandAdapterVersions]):
+    """
+    Assert that the adapter version is supported
+
+    Parameters
+    ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
+
+    Raises
+    ------
+    AssertionError
+        If the adapter version is not supported
+    """
+    if isinstance(adapter_version, BalancedStrandAdapterVersions):
+        assert adapter_version in supported_adapter_versions, (
+            f"Unsupported adapter version {adapter_version.value}, "
+            + f"supprted values are {', '.join(supported_adapter_versions)}"
+        )
+    if isinstance(adapter_version, str):
+        assert adapter_version in [v.value for v in adapter_version], (
+            f"Unsupported adapter version {adapter_version}, "
+            + f"supprted values are {', '.join(supported_adapter_versions)}"
+        )
 
 
 def get_annotation(x, sr_lower, sr_upper):
@@ -75,7 +122,8 @@ def get_annotation(x, sr_lower, sr_upper):
 
 
 def read_balanced_strand_trimmer_histogram(
-    trimmer_histogram,
+    adapter_version: [str, BalancedStrandAdapterVersions],
+    trimmer_histogram_csv: str,
     sr_lower=STRAND_RATIO_LOWER_THRESH,
     sr_upper=STRAND_RATIO_UPPER_THRESH,
     min_total_hmer_lengths_in_tags=MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
@@ -89,7 +137,9 @@ def read_balanced_strand_trimmer_histogram(
 
     Parameters
     ----------
-    trimmer_histogram : str
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
+    trimmer_histogram_csv : str
         path to a balanced ePCR trimmer histogram file
     sr_lower : float, optional
         lower strand ratio threshold for determining strand ratio category
@@ -120,8 +170,9 @@ def read_balanced_strand_trimmer_histogram(
     ValueError
         If required columns are missing ("count", "T_hmer_start", "A_hmer_start")
     """
+    _assert_adapter_version_supported(adapter_version)
     # read histogram
-    df_trimmer_histogram = pd.read_csv(trimmer_histogram)
+    df_trimmer_histogram = pd.read_csv(trimmer_histogram_csv)
     # change legacy segment names
     df_trimmer_histogram = df_trimmer_histogram.rename(
         columns={
@@ -140,7 +191,7 @@ def read_balanced_strand_trimmer_histogram(
         TrimmerSegmentLabels.A_HMER_START.value,
     ):
         if col not in df_trimmer_histogram.columns:
-            raise ValueError(f"Missing expected column {col} in {trimmer_histogram}")
+            raise ValueError(f"Missing expected column {col} in {trimmer_histogram_csv}")
     if (
         TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
         or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
@@ -151,7 +202,7 @@ def read_balanced_strand_trimmer_histogram(
         # If an end tag exists (LA-v6)
         raise ValueError(
             f"Missing expected column {TrimmerSegmentLabels.NATIVE_ADAPTER.value} "
-            f"or {TrimmerSegmentLabels.STEM_END.value} in {trimmer_histogram}"
+            f"or {TrimmerSegmentLabels.STEM_END.value} in {trimmer_histogram_csv}"
         )
 
     df_trimmer_histogram.index.name = sample_name
@@ -231,6 +282,7 @@ def read_balanced_strand_trimmer_histogram(
 
 
 def group_trimmer_histogram_by_strand_ratio_category(
+    adapter_version: [str, BalancedStrandAdapterVersions],
     df_trimmer_histogram: pd.DataFrame,
 ) -> pd.DataFrame:
     """
@@ -238,6 +290,8 @@ def group_trimmer_histogram_by_strand_ratio_category(
 
     Parameters
     ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
 
@@ -247,6 +301,7 @@ def group_trimmer_histogram_by_strand_ratio_category(
         dataframe with strand ratio category columns as index and strand ratio category columns as columns
     """
     # fill end tag with dummy column if it does not exist
+    _assert_adapter_version_supported(adapter_version)
     if HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value not in df_trimmer_histogram.columns:
         df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = np.nan
     # Group by strand ratio category
@@ -259,10 +314,10 @@ def group_trimmer_histogram_by_strand_ratio_category(
                 .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value}),
                 df_trimmer_histogram.groupby(HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value)
                 .agg({count: "sum"})
-                .drop(BalancedCategories.END_UNREACHED.value, errors="ignore")
                 .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value}),
                 df_trimmer_histogram.groupby(HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value)
                 .agg({count: "sum"})
+                .drop(BalancedCategories.END_UNREACHED.value, errors="ignore")
                 .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_END_NO_UNREACHED.value}),
             ),
             axis=1,
@@ -285,11 +340,39 @@ def group_trimmer_histogram_by_strand_ratio_category(
 
 
 def get_strand_ratio_category_concordance(
+    adapter_version: [str, BalancedStrandAdapterVersions],
     df_trimmer_histogram: pd.DataFrame,
 ) -> pd.DataFrame:
-    if HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value not in df_trimmer_histogram:
+    """
+    Get the concordance between the strand ratio categories at the start and end of the read
+
+    Parameters
+    ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
+    df_trimmer_histogram : pd.DataFrame
+        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with strand ratio category columns as index and strand ratio category columns as columns
+
+    Raises
+    ------
+    ValueError
+        If the adapter version is LA_v5 or LA_v6 and the end tag is missing
+
+    """
+    _assert_adapter_version_supported(adapter_version)
+    if (
+        adapter_version == BalancedStrandAdapterVersions.LA_v5
+        or adapter_version == BalancedStrandAdapterVersions.LA_v5.value
+        or adapter_version == BalancedStrandAdapterVersions.LA_v6
+        or adapter_version == BalancedStrandAdapterVersions.LA_v6.value
+    ):
         raise ValueError(
-            f"Missing expected column {HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value}."
+            f"Adapter version {adapter_version} does not have tags on both ends. "
             "Cannot calculate strand tag category concordance."
         )
     df_category_concordance = (
@@ -312,7 +395,111 @@ def get_strand_ratio_category_concordance(
     return df_category_concordance
 
 
+def collect_statistics(
+    adapter_version: [str, BalancedStrandAdapterVersions],
+    trimmer_histogram_csv: str,
+    sorter_stats_csv: str,
+    output_filename: str,
+    input_material_ng: float = None,
+) -> pd.DataFrame:
+    """
+    Collect statistics from a balanced ePCR trimmer histogram file and a sorter stats file
+
+    Parameters
+    ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
+    trimmer_histogram_csv : str
+        path to a balanced strand Trimmer histogram file
+    sorter_stats_csv : str
+        path to a Sorter stats file
+    output_filename : str
+        path to save dataframe to in hdf format (should end with .h5)
+    input_material_ng : float, optional
+        input material in ng, by default None
+    """
+    _assert_adapter_version_supported(adapter_version)
+    # read Trimmer histogram
+    df_trimmer_histogram = read_balanced_strand_trimmer_histogram(adapter_version, trimmer_histogram_csv)
+    df_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram)
+    adapter_in_both_ends = (
+        adapter_version == BalancedStrandAdapterVersions.LA_v5and6
+        or adapter_version == BalancedStrandAdapterVersions.LA_v5and6.value
+    )
+    if adapter_in_both_ends:
+        df_category_concordance = get_strand_ratio_category_concordance(adapter_version, df_trimmer_histogram)
+        df_category_concordance_no_end_unreached = df_category_concordance.drop(
+            BalancedCategories.END_UNREACHED.value,
+            level=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+            errors="ignore",
+        )
+        df_category_concordance_no_end_unreached = (
+            df_category_concordance_no_end_unreached / df_category_concordance_no_end_unreached.sum().sum()
+        )
+        df_category_concordance_no_end_unreached = df_category_concordance_no_end_unreached.rename(
+            columns={HistogramColumnNames.COUNT.value: HistogramColumnNames.COUNT_NORM.value}
+        ).reset_index()
+        df_category_concordance_no_end_unreached.query(
+            f"{HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value} == '{BalancedCategories.MIXED.value}' "
+            f"and {HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value} == '{BalancedCategories.MIXED.value}'"
+        ).loc[0, HistogramColumnNames.COUNT_NORM.value]
+        x = HistogramColumnNames.STRAND_RATIO_CATEGORY_CONSENSUS.value  # otherwise flake8 fails on line length
+        df_category_consensus = (
+            df_category_concordance_no_end_unreached[
+                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
+                == df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+            ]
+            .drop(columns=[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value])
+            .rename(columns={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value: x})
+            .set_index(x)
+        )
+        df_category_consensus.loc[
+            BalancedCategoriesConsensus.DISCORDANT.value,
+            HistogramColumnNames.COUNT_NORM.value,
+        ] = (
+            1 - df_category_consensus[HistogramColumnNames.COUNT_NORM.value].sum()
+        )
+
+    # read Sorter stats
+    df_sorter_stats = read_sorter_statistics_csv(sorter_stats_csv)
+    if input_material_ng is not None:
+        if "Mean_cvg" in df_sorter_stats.index:
+            df_sorter_stats.loc["coverage_GE/ng", "value"] = (
+                df_sorter_stats.loc["Mean_cvg", "value"] / input_material_ng
+            )
+        if "PF_Barcode_reads" in df_sorter_stats.index:
+            df_sorter_stats.loc["PF_reads/ng", "value"] = (
+                df_sorter_stats.loc["PF_Barcode_reads", "value"] / input_material_ng
+            )
+    df_sorter_stats_shortlist = df_sorter_stats.reindex(
+        [
+            "Mean_cvg",
+            "coverage_GE/ng",
+            "Indel_Rate",
+            "Mean_Read_Length",
+            "PF_Barcode_reads",
+            "PF_reads/ng",
+            "% PF_Reads_aligned",
+            "% Failed_QC_reads",
+            "% Chimeras",
+            "% duplicates",
+        ]
+    )
+
+    if not output_filename.endswith(".h5"):
+        output_filename += ".h5"
+    with pd.HDFStore(output_filename, "w") as store:
+        store["sorter_stats_shortlist"] = df_sorter_stats_shortlist
+        store["trimmer_histogram"] = df_trimmer_histogram
+        store["strand_ratio_category_counts"] = df_strand_ratio_category
+        store["strand_ratio_category_norm"] = df_strand_ratio_category / df_strand_ratio_category.sum()
+        if adapter_in_both_ends:
+            store["df_category_concordance"] = df_category_concordance
+            store["df_category_consensus"] = df_category_consensus
+
+
 def add_strand_ratios_and_categories_to_featuremap(
+    adapter_version: [str, BalancedStrandAdapterVersions],
     input_featuremap_vcf: str,
     output_featuremap_vcf: str,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
@@ -326,6 +513,8 @@ def add_strand_ratios_and_categories_to_featuremap(
 
     Parameters
     ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
     input_featuremap_vcf : str
         path to input featuremap VCF file
     output_featuremap_vcf : str
@@ -345,7 +534,7 @@ def add_strand_ratios_and_categories_to_featuremap(
     min_stem_end_matched_length : int, optional
         minimum length of stem end matched to determine the read end was reached
     """
-
+    _assert_adapter_version_supported(adapter_version)
     # iterate over the VCF file and add the strand ratio and strand ratio category columns
     with pysam.VariantFile(input_featuremap_vcf) as input_vcf:
         header = input_vcf.header
@@ -438,6 +627,7 @@ def add_strand_ratios_and_categories_to_featuremap(
 
 
 def plot_balanced_strand_ratio(
+    adapter_version: [str, BalancedStrandAdapterVersions],
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -448,6 +638,8 @@ def plot_balanced_strand_ratio(
 
     Parameters
     ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
     title : str, optional
@@ -458,6 +650,7 @@ def plot_balanced_strand_ratio(
         axes to plot on, by default None (new figure created)
 
     """
+    _assert_adapter_version_supported(adapter_version)
     # display settings
     set_pyplot_defaults()
     if ax is None:
@@ -504,7 +697,7 @@ def plot_balanced_strand_ratio(
             y = df_plot[HistogramColumnNames.COUNT_NORM.value] / total_reads_norm_count_with_end_reached
             # get category counts
             df_trimmer_histogram_by_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(
-                df_trimmer_histogram
+                adapter_version, df_trimmer_histogram
             )
             mixed_reads_ratio = (
                 df_trimmer_histogram_by_strand_ratio_category.loc[BalancedCategories.MIXED.value, sr_category]
@@ -539,6 +732,7 @@ def plot_balanced_strand_ratio(
 
 
 def plot_strand_ratio_category(
+    adapter_version: [str, BalancedStrandAdapterVersions],
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -549,8 +743,10 @@ def plot_strand_ratio_category(
 
     Parameters
     ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
     df_trimmer_histogram : pd.DataFrame
-            dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
     title : str, optional
         plot title, by default ""
     output_filename : str, optional
@@ -563,6 +759,7 @@ def plot_strand_ratio_category(
         matplotlib.axes.Axes
 
     """
+    _assert_adapter_version_supported(adapter_version)
     # display settings
     set_pyplot_defaults()
     if ax is None:
@@ -574,7 +771,7 @@ def plot_strand_ratio_category(
     # group by category
 
     df_trimmer_histogram_by_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(
-        df_trimmer_histogram
+        adapter_version, df_trimmer_histogram
     )
     df_plot = (
         (df_trimmer_histogram_by_strand_ratio_category / df_trimmer_histogram_by_strand_ratio_category.sum())
@@ -611,6 +808,7 @@ def plot_strand_ratio_category(
 
 
 def plot_strand_ratio_category_concordnace(
+    adapter_version: [str, BalancedStrandAdapterVersions],
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -621,6 +819,8 @@ def plot_strand_ratio_category_concordnace(
 
     Parameters
     ----------
+    adapter_version : [str, BalancedStrandAdapterVersions]
+        adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
     title : str, optional
@@ -635,9 +835,9 @@ def plot_strand_ratio_category_concordnace(
     list of axes objects to which the output was plotted
 
     """
-
+    _assert_adapter_version_supported(adapter_version)
     # get concordance
-    df_category_concordance = get_strand_ratio_category_concordance(df_trimmer_histogram)
+    df_category_concordance = get_strand_ratio_category_concordance(adapter_version, df_trimmer_histogram)
 
     df_category_concordance_no_end_unreached = df_category_concordance.drop(
         BalancedCategories.END_UNREACHED.value,
