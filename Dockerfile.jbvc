@@ -2,6 +2,18 @@ FROM continuumio/anaconda3:2022.10
 
 SHELL ["/bin/bash", "-c"]
 
+#enable (controlFRECC) compilation
+RUN apt-get update \
+  && apt-get install -y ssh \
+    build-essential \
+    gcc \
+    g++ \
+    gdb \
+    clang \
+    cmake \
+    rsync \
+  && apt-get clean
+
 COPY setup/environment.yml /VariantCalling/setup/
 COPY setup/other_envs/cutadaptenv.yml /VariantCalling/setup/other_envs/
 COPY setup/other_envs/ucsc.yml /VariantCalling/setup/other_envs/
@@ -18,6 +30,11 @@ RUN cd /opt && \
    git clone --branch ilyasoifer/test.1.40 https://github.com/Ultimagen/cn.mops.git cn.mops && \
    cd cn.mops && \
    git checkout 491a3580c1e6f557df860d2055d2b8c5c98f4063
+
+## install controlFRECC
+RUN cd /opt && wget -O v11.6b.tar.gz https://github.com/BoevaLab/FREEC/archive/refs/tags/v11.6b.tar.gz && \
+    tar -zxvf v11.6b.tar.gz && \
+    cd FREEC-11.6b/src/ && make
 
 RUN source ~/.bashrc && \
    conda activate cn.mops && \
