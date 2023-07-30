@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pysam
+import seaborn as sns
 
 from ugvc.utils.misc_utils import set_pyplot_defaults
 
@@ -30,10 +31,10 @@ class TrimmerSegmentTags(Enum):
 
 class BalancedCategories(Enum):
     # Category names
-    END_UNREACHED = "END_UNREACHED"
-    HYB = "HYB"
-    LIG = "LIG"
     MIXED = "MIXED"
+    LIG = "LIG"
+    HYB = "HYB"
+    END_UNREACHED = "END_UNREACHED"
     UNDETERMINED = "UNDETERMINED"
 
 
@@ -45,6 +46,7 @@ class HistogramColumnNames(Enum):
     STRAND_RATIO_END = "strand_ratio_end"
     STRAND_RATIO_CATEGORY_START = "strand_ratio_category_start"
     STRAND_RATIO_CATEGORY_END = "strand_ratio_category_end"
+    STRAND_RATIO_CATEGORY_END_NO_UNREACHED = "strand_ratio_category_end_no_unreached"
 
 
 # Input parameter defaults
@@ -224,6 +226,60 @@ def read_balanced_strand_trimmer_histogram(
     return df_trimmer_histogram
 
 
+def group_trimmer_histogram_by_strand_ratio_category(
+    df_trimmer_histogram: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Group the trimmer histogram by strand ratio category
+
+    Parameters
+    ----------
+    df_trimmer_histogram : pd.DataFrame
+        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with strand ratio category columns as index and strand ratio category columns as columns
+    """
+    # fill end tag with dummy column if it does not exist
+    if HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value not in df_trimmer_histogram.columns:
+        df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = np.nan
+    # Group by strand ratio category
+    count = HistogramColumnNames.COUNT.value
+    df_trimmer_histogram_by_category = (
+        pd.concat(
+            (
+                df_trimmer_histogram.groupby(HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value)
+                .agg({count: "sum"})
+                .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value}),
+                df_trimmer_histogram.groupby(HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value)
+                .agg({count: "sum"})
+                .drop(BalancedCategories.END_UNREACHED.value, errors="ignore")
+                .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value}),
+                df_trimmer_histogram.groupby(HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value)
+                .agg({count: "sum"})
+                .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_END_NO_UNREACHED.value}),
+            ),
+            axis=1,
+        )
+        .reindex([v.value for v in BalancedCategories.__members__.values()])
+        .dropna(how="all", axis=1)
+        .fillna(0)
+        .astype(int)
+    )
+    # drop dummy column
+    if HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value not in df_trimmer_histogram.columns:
+        df_trimmer_histogram_by_category = df_trimmer_histogram_by_category.drop(
+            [
+                HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+                HistogramColumnNames.STRAND_RATIO_CATEGORY_END_NO_UNREACHED.value,
+            ],
+            axis=1,
+        )
+    return df_trimmer_histogram_by_category
+
+
 def add_strand_ratios_and_categories_to_featuremap(
     input_featuremap_vcf: str,
     output_featuremap_vcf: str,
@@ -370,6 +426,7 @@ def plot_balanced_strand_ratio(
         axes to plot on, by default None (new figure created)
 
     """
+    # display settings
     set_pyplot_defaults()
     if ax is None:
         plt.figure(figsize=(12, 4))
@@ -386,6 +443,7 @@ def plot_balanced_strand_ratio(
         HistogramColumnNames.STRAND_RATIO_START.value: "o",
         HistogramColumnNames.STRAND_RATIO_END.value: "s",
     }
+    # plot strand ratio histograms for both start and end tags
     for sr, sr_category, label in zip(
         (
             HistogramColumnNames.STRAND_RATIO_START.value,
@@ -400,7 +458,7 @@ def plot_balanced_strand_ratio(
         if sr in df_trimmer_histogram.columns:
             # group by strand ratio and strand ratio category for non-undetermined reads
             df_plot = (
-                df_trimmer_histogram.query(f"{sr_category} != '{BalancedCategories.UNDETERMINED}'")
+                df_trimmer_histogram.sort_values(HistogramColumnNames.COUNT.value, ascending=False)
                 .dropna(subset=[sr])
                 .groupby(sr)
                 .agg({HistogramColumnNames.COUNT_NORM.value: "sum", sr_category: "first"})
@@ -412,11 +470,13 @@ def plot_balanced_strand_ratio(
                 f"({sr_category} != '{BalancedCategories.UNDETERMINED}')"
             )[HistogramColumnNames.COUNT_NORM.value].sum()
             y = df_plot[HistogramColumnNames.COUNT_NORM.value] / total_reads_norm_count_with_end_reached
+            # get category counts
+            df_trimmer_histogram_by_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(
+                df_trimmer_histogram
+            )
             mixed_reads_ratio = (
-                df_plot.query(f"{sr_category} == '{BalancedCategories.MIXED.value}'")[
-                    HistogramColumnNames.COUNT_NORM.value
-                ].sum()
-                / total_reads_norm_count_with_end_reached
+                df_trimmer_histogram_by_strand_ratio_category.loc[BalancedCategories.MIXED.value, sr_category]
+                / df_trimmer_histogram_by_strand_ratio_category[sr_category].sum()
             )
             # plot
             plt.plot(
@@ -425,7 +485,7 @@ def plot_balanced_strand_ratio(
                 "-",
                 c=colors[sr],
                 marker=markers[sr],
-                label=f"{label}: {mixed_reads_ratio:.1%} mixed reads",
+                label=f"{label}: {mixed_reads_ratio:.1%}" " mixed reads",
             )
             ylim_max = max(ylim_max, y.max() + 0.07)
     plt.legend(loc="upper left", fontsize=14, fancybox=True, framealpha=0.95)
@@ -440,5 +500,70 @@ def plot_balanced_strand_ratio(
             dpi=300,
             bbox_inches="tight",
             bbox_extra_artists=[title_handle],
+        )
+    return ax
+
+
+def plot_strand_ratio_category(df_trimmer_histogram, title="", output_filename=None, ax=None):
+    """
+    Plot the strand ratio category histogram
+
+    Parameters
+    ----------
+    df_trimmer_histogram : pd.DataFrame
+            dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+    title : str, optional
+        plot title, by default ""
+    output_filename : str, optional
+        path to save the plot to, by default None (not saved)
+    ax : matplotlib.axes.Axes, optional
+        axes to plot on, by default None (new figure created)
+
+    Returns
+    -------
+        matplotlib.axes.Axes
+
+    """
+    # display settings
+    set_pyplot_defaults()
+    if ax is None:
+        plt.figure(figsize=(14, 4))
+        ax = plt.gca()
+    else:
+        plt.sca(ax)
+
+    # group by category
+
+    df_trimmer_histogram_by_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(
+        df_trimmer_histogram
+    )
+    df_plot = (
+        (df_trimmer_histogram_by_strand_ratio_category / df_trimmer_histogram_by_strand_ratio_category.sum())
+        .reset_index()
+        .melt(id_vars="index", var_name="")
+    )
+    # plot
+    sns.barplot(
+        data=df_plot,
+        x="index",
+        y="value",
+        hue="",
+        ax=ax,
+    )
+    for cont in ax.containers:
+        ax.bar_label(cont, fmt="{:.1%}", label_type="edge")
+    plt.xticks(rotation=10, ha="center")
+    plt.xlabel("")
+    plt.ylabel("Relative abundance", fontsize=22)
+    ylim = ax.get_ylim()
+    ax.set_ylim(ylim[0], ylim[1] + 0.04)
+    legend_handle = plt.legend(bbox_to_anchor=(1.01, 1), fontsize=14, framealpha=0.95)
+    title_handle = plt.title(title)
+    if output_filename is not None:
+        plt.savefig(
+            output_filename,
+            dpi=300,
+            bbox_inches="tight",
+            bbox_extra_artists=[title_handle, legend_handle],
         )
     return ax
