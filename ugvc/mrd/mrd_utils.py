@@ -479,9 +479,7 @@ def intersect_featuremap_with_signature(
     # make sure vcf is indexed
     signature_file = _safe_tabix_index(signature_file)
 
-    with tempfile.TemporaryDirectory(
-        dir=os.path.dirname(output_intersection_file)
-    ) as temp_dir:
+    with tempfile.TemporaryDirectory(dir=os.path.dirname(output_intersection_file)) as temp_dir:
         isec_file = os.path.join(temp_dir, "isec.vcf.gz")
         header_file = os.path.join(temp_dir, "header.txt")
         headerless_featuremap = os.path.join(temp_dir, "headerless_featuremap.vcf.gz")
@@ -491,7 +489,7 @@ def intersect_featuremap_with_signature(
         if complement:
             cmd = f"bcftools isec -C -w1 -Oz -o {isec_file} {featuremap_file} {signature_file} "
         logger.debug(cmd)
-        subprocess.check_call(cmd, shell = True)
+        subprocess.check_call(cmd, shell=True)
 
         # Extract the header from featuremap_file and write to a new file
         cmd = f"bcftools view -h {featuremap_file} | head -n-1 - > {header_file}"
@@ -500,7 +498,9 @@ def intersect_featuremap_with_signature(
 
         # Add comment lines to the header
         with open(header_file, "a") as f:
-            f.write("##File:Description=This file is an intersection of a featuremap with a somatic mutation signature\n")
+            f.write(
+                "##File:Description=This file is an intersection of a featuremap with a somatic mutation signature\n"
+            )
             f.write(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}\n")
             if is_matched:
                 f.write("##Intersection:type=matched (signature and featuremap from the same patient)\n")
