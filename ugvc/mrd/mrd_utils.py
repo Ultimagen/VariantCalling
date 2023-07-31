@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import subprocess
 import logging
 import os
 import re
@@ -476,40 +477,46 @@ def intersect_featuremap_with_signature(
         raise OSError(f"Output file {output_intersection_file} already exists and overwrite flag set to False")
     # make sure vcf is indexed
     signature_file = _safe_tabix_index(signature_file)
-    # build a set of all signature entries, including alts and ref
-    signature_entries = set()
-    with pysam.VariantFile(signature_file) as f_sig:
-        for rec in f_sig:
-            signature_entries.add((rec.chrom, rec.pos, rec.ref, rec.alts))
-    # Only write entries from featuremap to intersection file if they appear in the signature with the same ref&alts
-    try:
-        with pysam.VariantFile(featuremap_file) as f_feat:
-            header = f_feat.header
-            if add_info_to_header is not None:
-                header.add_line(
-                    "##File:Description=This file is an intersection of a featuremap with a somatic mutation signature"
-                )
-                header.add_line(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}")
-                if is_matched is not None:
-                    if is_matched:
-                        header.add_line("##Intersection:type=matched (signature and featuremap from the same patient)")
-                    else:
-                        header.add_line(
-                            "##Intersection:type=control (signature and featuremap not from the same patient)"
-                        )
-            with pysam.VariantFile(output_intersection_file_vcf + ".tmp", "w", header=header) as f_int:
-                for rec in f_feat:
-                    if ((not complement) and ((rec.chrom, rec.pos, rec.ref, rec.alts) in signature_entries)) or (
-                        complement and ((rec.chrom, rec.pos, rec.ref, rec.alts) not in signature_entries)
-                    ):
-                        f_int.write(rec)
-        os.rename(output_intersection_file_vcf + ".tmp", output_intersection_file_vcf)
-    finally:
-        if "output_intersection_file_vcf" in locals() and os.path.isfile(output_intersection_file_vcf + ".tmp"):
-            os.remove(output_intersection_file_vcf + ".tmp")
-    # index output
-    pysam.tabix_index(output_intersection_file_vcf, preset="vcf", force=True)  # this also compressed the vcf to vcf.gz
-    assert os.path.isfile(output_intersection_file_vcf + ".gz")
+    
+    # Use bcftools isec to intersect the two VCF files by position and compress the output
+    cmd = f"bcftools isec -n=2 -w1 -Oz -o isec.vcf.gz {signature_file} {featuremap_file}"
+    if complement:
+        cmd = f"bcftools isec -C -w1 -Oz -o isec.vcf.gz {featuremap_file} {signature_file} "
+    logger.debug(cmd)
+    subprocess.run(cmd, shell=True, check=True)
+
+    # Extract the header from featuremap_file and write to a new file
+    cmd = f"bcftools view -h {featuremap_file} | head -n-1 - > header.txt"
+    logger.debug(cmd)
+    subprocess.run(cmd, shell=True, check=True)
+
+    # Add comment lines to the header
+    with open('header.txt', 'a') as f:
+        f.write("##File:Description=This file is an intersection of a featuremap with a somatic mutation signature\n")
+        f.write(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}\n")
+        if is_matched:
+            f.write("##Intersection:type=matched (signature and featuremap from the same patient)\n")
+        else:
+            f.write("##Intersection:type=control (signature and featuremap not from the same patient)\n")
+        f.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n')
+
+    featuremap_file_no_header = featuremap_file.replace('.vcf.gz', '.no_header.vcf')
+    cmd = f'bcftools view -H {featuremap_file} > {featuremap_file_no_header}'
+    logger.debug(cmd)
+    subprocess.run(cmd, shell=True, check=True)
+
+    # Use AWK to filter the intersected file for records with matching ALT alleles and compress the output
+    awk_part = "awk 'NR==FNR{a[$1,$2,$4,$5];next} ($1,$2,$4,$5) in a'"
+    cmd = f'bcftools view isec.vcf.gz | {awk_part} - {featuremap_file_no_header} | cat header.txt - | bcftools view - -Oz -o {output_intersection_file} && bcftools index -t {output_intersection_file}'
+    logger.debug(cmd)
+    subprocess.run(cmd, shell=True, check=True)
+
+    # Remove temporary files
+    os.remove('isec.vcf.gz')
+    os.remove('header.txt')
+
+    # Assert output
+    assert os.path.isfile(output_intersection_file)
 
 
 def featuremap_to_dataframe(
