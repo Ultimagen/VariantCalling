@@ -12,6 +12,7 @@ import seaborn as sns
 
 from ugvc.utils.metrics_utils import read_sorter_statistics_csv
 from ugvc.utils.misc_utils import set_pyplot_defaults
+from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 
 # Supported adapter versions
@@ -35,7 +36,7 @@ class TrimmerSegmentTags(Enum):
     T_HMER_START = "ts"
     T_HMER_END = "te"
     A_HMER_START = "as"
-    A_HMER_END = "te"
+    A_HMER_END = "ae"
     NATIVE_ADAPTER = "a3"
     STEM_END = "s2"  # when native adapter trimming was done on-tool a modified format is used
 
@@ -77,6 +78,155 @@ MIN_TOTAL_HMER_LENGTHS_IN_TAGS = 4
 MAX_TOTAL_HMER_LENGTHS_IN_TAGS = 8
 MIN_STEM_END_MATCHED_LENGTH = 11  # the stem is 12bp, 1 indel allowed as tolerance
 
+
+class BalancedStrandVcfAnnotator(VcfAnnotator):
+    def __init__(
+        self,
+        adapter_version: str | BalancedStrandAdapterVersions,
+        sr_lower: float = STRAND_RATIO_LOWER_THRESH,
+        sr_upper: float = STRAND_RATIO_UPPER_THRESH,
+        min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
+        max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+        min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
+    ):
+        _assert_adapter_version_supported(adapter_version)
+        self.adapter_version = (
+            adapter_version.value if isinstance(adapter_version, BalancedStrandAdapterVersions) else adapter_version
+        )
+        self.sr_lower = sr_lower
+        self.sr_upper = sr_upper
+        self.min_total_hmer_lengths_in_tags = min_total_hmer_lengths_in_tags
+        self.max_total_hmer_lengths_in_tags = max_total_hmer_lengths_in_tags
+        self.min_stem_end_matched_length = min_stem_end_matched_length
+
+    def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
+        """
+        Edit the VCF header to add strand ratio and strand ratio category INFO fields
+
+        Parameters
+        ----------
+        header : pysam.VariantHeader
+            VCF header
+
+        Returns
+        -------
+        pysam.VariantHeader
+            VCF header with strand ratio and strand ratio category INFO fields
+
+        """
+        header.add_line(f"##balanced_strand_adapter_version={self.adapter_version}")
+        header.add_line(
+            f"##python_cmd:add_strand_ratios_and_categories_to_featuremap=MIXED is {self.sr_lower}-{self.sr_upper}"
+        )
+        header.add_line(
+            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_START.value},"
+            'Number=1,Type=Float,Description="Ratio of LIG and HYB strands '
+            'measured from the tag in the start of the read">'
+        )
+        header.add_line(
+            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_END.value},"
+            'Number=1,Type=Float,Description="Ratio of LIG and HYB strands '
+            'measured from the tag in the end of the read">'
+        )
+        header.add_line(
+            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value},"
+            'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
+            "measured from the tag in the start of the read, options: "
+            f'{", ".join(balanced_category_list)}">'
+        )
+        header.add_line(
+            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value},"
+            'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
+            "measured from the tag in the end of the read, options: "
+            f'{", ".join(balanced_category_list)}">'
+        )
+        return header
+
+    def process_records(self, records: list[pysam.VariantRecord]) -> list[pysam.VariantRecord]:
+        """
+        Add strand ratio and strand ratio category INFO fields to the VCF records
+
+        Parameters
+        ----------
+        records : list[pysam.VariantRecord]
+            list of VCF records
+
+        Returns
+        -------
+        list[pysam.VariantRecord]
+            list of VCF records with strand ratio and strand ratio category INFO fields
+        """
+        records_out = [None] * len(records)
+        for j, record in enumerate(records):
+            # get the balanced tags from the VCF record
+            balanced_tags = defaultdict(int)
+            for x in [v.value for v in TrimmerSegmentTags.__members__.values()]:
+                if x in record.info:
+                    balanced_tags[x] = int(record.info.get(x))
+            # add the start strand ratio and strand ratio category columns to the VCF record
+            if self.adapter_version in (
+                BalancedStrandAdapterVersions.LA_v5and6.value,
+                BalancedStrandAdapterVersions.LA_v5.value,
+            ):  # LA_v5 has start tags
+                # assign to simple variables for readability
+                T_hmer_start = balanced_tags[TrimmerSegmentTags.T_HMER_START.value]
+                A_hmer_start = balanced_tags[TrimmerSegmentTags.A_HMER_START.value]
+                # determine ratio and category
+                tags_sum_start = T_hmer_start + A_hmer_start
+                if self.min_total_hmer_lengths_in_tags <= tags_sum_start <= self.max_total_hmer_lengths_in_tags:
+                    record.info[HistogramColumnNames.STRAND_RATIO_START.value] = T_hmer_start / (
+                        T_hmer_start + A_hmer_start
+                    )
+                else:
+                    record.info[HistogramColumnNames.STRAND_RATIO_START.value] = np.nan
+                record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value] = get_annotation(
+                    record.info[HistogramColumnNames.STRAND_RATIO_START.value],
+                    self.sr_lower,
+                    self.sr_upper,
+                )
+            if self.adapter_version in (
+                BalancedStrandAdapterVersions.LA_v5and6.value,
+                BalancedStrandAdapterVersions.LA_v6.value,
+            ):  # LA_v6 has end tags
+                # assign to simple variables for readability
+                T_hmer_end = balanced_tags[TrimmerSegmentTags.T_HMER_END.value]
+                A_hmer_end = balanced_tags[TrimmerSegmentTags.A_HMER_END.value]
+                # determine ratio and category
+                tags_sum_end = T_hmer_end + A_hmer_end
+                # determine if read end was reached
+                is_end_reached = (
+                    balanced_tags[TrimmerSegmentTags.NATIVE_ADAPTER.value] >= 1
+                    or balanced_tags[TrimmerSegmentTags.STEM_END.value] >= self.min_stem_end_matched_length
+                )
+                record.info[HistogramColumnNames.STRAND_RATIO_END.value] = np.nan
+                if not is_end_reached:
+                    record.info[
+                        HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value
+                    ] = BalancedCategories.END_UNREACHED.value
+                else:
+                    if self.min_total_hmer_lengths_in_tags <= tags_sum_end <= self.max_total_hmer_lengths_in_tags:
+                        record.info[HistogramColumnNames.STRAND_RATIO_END.value] = T_hmer_end / (
+                            T_hmer_end + A_hmer_end
+                        )
+                    record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = get_annotation(
+                        record.info[HistogramColumnNames.STRAND_RATIO_END.value],
+                        self.sr_lower,
+                        self.sr_upper,
+                    )  # this works for nan values as well - returns UNDETERMINED
+                print(
+                    is_end_reached,
+                    balanced_tags[TrimmerSegmentTags.NATIVE_ADAPTER.value],
+                    balanced_tags[TrimmerSegmentTags.STEM_END.value],
+                    tags_sum_end,
+                    (self.min_total_hmer_lengths_in_tags <= tags_sum_end <= self.max_total_hmer_lengths_in_tags),
+                    balanced_tags,
+                )
+                print(record)
+            records_out[j] = record
+
+        return records_out
+
+
 # Display defaults
 STRAND_RATIO_AXIS_LABEL = "LIG/HYB strands ratio"
 
@@ -85,13 +235,14 @@ balanced_category_list = [v.value for v in BalancedCategories.__members__.values
 supported_adapter_versions = BalancedStrandAdapterVersions.__members__.values()
 
 
-def _assert_adapter_version_supported(adapter_version: [str, BalancedStrandAdapterVersions]):
+# pylint: disable=missing-param-doc
+def _assert_adapter_version_supported(adapter_version: str | BalancedStrandAdapterVersions):
     """
     Assert that the adapter version is supported
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
 
     Raises
@@ -112,6 +263,23 @@ def _assert_adapter_version_supported(adapter_version: [str, BalancedStrandAdapt
 
 
 def get_annotation(x, sr_lower, sr_upper):
+    """
+    Determine the strand ratio category
+
+    Parameters
+    ----------
+    x : float
+        strand ratio
+    sr_lower : float
+        lower strand ratio threshold for determining strand ratio category MIXED
+    sr_upper : float
+        upper strand ratio threshold for determining strand ratio category MIXED
+
+    Returns
+    -------
+    str
+        strand ratio category
+    """
     if x == 0:
         return BalancedCategories.HYB.value
     if x == 1:
@@ -122,7 +290,7 @@ def get_annotation(x, sr_lower, sr_upper):
 
 
 def read_balanced_strand_trimmer_histogram(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     trimmer_histogram_csv: str,
     sr_lower=STRAND_RATIO_LOWER_THRESH,
     sr_upper=STRAND_RATIO_UPPER_THRESH,
@@ -282,7 +450,7 @@ def read_balanced_strand_trimmer_histogram(
 
 
 def group_trimmer_histogram_by_strand_ratio_category(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
 ) -> pd.DataFrame:
     """
@@ -290,7 +458,7 @@ def group_trimmer_histogram_by_strand_ratio_category(
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
@@ -340,7 +508,7 @@ def group_trimmer_histogram_by_strand_ratio_category(
 
 
 def get_strand_ratio_category_concordance(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
 ) -> pd.DataFrame:
     """
@@ -348,7 +516,7 @@ def get_strand_ratio_category_concordance(
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
@@ -365,11 +533,11 @@ def get_strand_ratio_category_concordance(
 
     """
     _assert_adapter_version_supported(adapter_version)
-    if (
-        adapter_version == BalancedStrandAdapterVersions.LA_v5
-        or adapter_version == BalancedStrandAdapterVersions.LA_v5.value
-        or adapter_version == BalancedStrandAdapterVersions.LA_v6
-        or adapter_version == BalancedStrandAdapterVersions.LA_v6.value
+    if adapter_version in (
+        BalancedStrandAdapterVersions.LA_v5,
+        BalancedStrandAdapterVersions.LA_v5.value,
+        BalancedStrandAdapterVersions.LA_v6,
+        BalancedStrandAdapterVersions.LA_v6.value,
     ):
         raise ValueError(
             f"Adapter version {adapter_version} does not have tags on both ends. "
@@ -396,7 +564,7 @@ def get_strand_ratio_category_concordance(
 
 
 def collect_statistics(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     trimmer_histogram_csv: str,
     sorter_stats_csv: str,
     output_filename: str,
@@ -407,7 +575,7 @@ def collect_statistics(
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
     trimmer_histogram_csv : str
         path to a balanced strand Trimmer histogram file
@@ -422,9 +590,9 @@ def collect_statistics(
     # read Trimmer histogram
     df_trimmer_histogram = read_balanced_strand_trimmer_histogram(adapter_version, trimmer_histogram_csv)
     df_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram)
-    adapter_in_both_ends = (
-        adapter_version == BalancedStrandAdapterVersions.LA_v5and6
-        or adapter_version == BalancedStrandAdapterVersions.LA_v5and6.value
+    adapter_in_both_ends = adapter_version in (
+        BalancedStrandAdapterVersions.LA_v5and6,
+        BalancedStrandAdapterVersions.LA_v5and6.value,
     )
     if adapter_in_both_ends:
         df_category_concordance = get_strand_ratio_category_concordance(adapter_version, df_trimmer_histogram)
@@ -439,10 +607,6 @@ def collect_statistics(
         df_category_concordance_no_end_unreached = df_category_concordance_no_end_unreached.rename(
             columns={HistogramColumnNames.COUNT.value: HistogramColumnNames.COUNT_NORM.value}
         ).reset_index()
-        df_category_concordance_no_end_unreached.query(
-            f"{HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value} == '{BalancedCategories.MIXED.value}' "
-            f"and {HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value} == '{BalancedCategories.MIXED.value}'"
-        ).loc[0, HistogramColumnNames.COUNT_NORM.value]
         x = HistogramColumnNames.STRAND_RATIO_CATEGORY_CONSENSUS.value  # otherwise flake8 fails on line length
         df_category_consensus = (
             df_category_concordance_no_end_unreached[
@@ -499,7 +663,7 @@ def collect_statistics(
 
 
 def add_strand_ratios_and_categories_to_featuremap(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     input_featuremap_vcf: str,
     output_featuremap_vcf: str,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
@@ -507,13 +671,15 @@ def add_strand_ratios_and_categories_to_featuremap(
     min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
     max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
+    chunk_size: int = 10000,
+    multiprocess_contigs: bool = False,
 ):
     """
     Add strand ratio and strand ratio category columns to a featuremap VCF file
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
     input_featuremap_vcf : str
         path to input featuremap VCF file
@@ -533,101 +699,31 @@ def add_strand_ratios_and_categories_to_featuremap(
         default 8
     min_stem_end_matched_length : int, optional
         minimum length of stem end matched to determine the read end was reached
+    chunk_size : int, optional
+            The chunk size. Defaults to 10000.
+    multiprocess_contigs : bool, optional
+        If True, runs in parallel over different contigs. Defaults to False.
     """
     _assert_adapter_version_supported(adapter_version)
-    # iterate over the VCF file and add the strand ratio and strand ratio category columns
-    with pysam.VariantFile(input_featuremap_vcf) as input_vcf:
-        header = input_vcf.header
-        header.add_line(f"##python_cmd:add_strand_ratios_and_categories_to_featuremap=MIXED is {sr_lower}-{sr_upper}")
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_START.value},"
-            'Number=1,Type=Float,Description="Ratio of LIG and HYB strands '
-            'measured from the tag in the start of the read">'
-        )
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_END.value},"
-            'Number=1,Type=Float,Description="Ratio of LIG and HYB strands '
-            'measured from the tag in the end of the read">'
-        )
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value},"
-            'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
-            "measured from the tag in the start of the read, options: "
-            f'{", ".join(balanced_category_list)}">'
-        )
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value},"
-            'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
-            "measured from the tag in the end of the read, options: "
-            f'{", ".join(balanced_category_list)}">'
-        )
-        with pysam.VariantFile(output_featuremap_vcf, "w", header=header) as output_vcf:
-            for record in input_vcf:
-                # get the balanced tags from the VCF record
-                balanced_tags = defaultdict(int)
-                for x in [v.value for v in TrimmerSegmentTags.__members__.values()]:
-                    if x in record.info:
-                        balanced_tags[x] = int(record.info.get(x))
-                # add the start strand ratio and strand ratio category columns to the VCF record
-                if (
-                    TrimmerSegmentTags.A_HMER_START.value in balanced_tags
-                    or TrimmerSegmentTags.T_HMER_START.value in balanced_tags
-                ):
-                    # assign to simple variables for readability
-                    T_hmer_start = balanced_tags[TrimmerSegmentTags.T_HMER_START.value]
-                    A_hmer_start = balanced_tags[TrimmerSegmentTags.A_HMER_START.value]
-                    # determine ratio and category
-                    tags_sum_start = T_hmer_start + A_hmer_start
-                    if min_total_hmer_lengths_in_tags <= tags_sum_start <= max_total_hmer_lengths_in_tags:
-                        record.info[HistogramColumnNames.STRAND_RATIO_START.value] = T_hmer_start / (
-                            T_hmer_start + A_hmer_start
-                        )
-                    else:
-                        record.info[HistogramColumnNames.STRAND_RATIO_START.value] = np.nan
-                    record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value] = get_annotation(
-                        record.info[HistogramColumnNames.STRAND_RATIO_START.value],
-                        sr_lower,
-                        sr_upper,
-                    )
-                if (
-                    TrimmerSegmentTags.A_HMER_END.value in balanced_tags
-                    or TrimmerSegmentTags.T_HMER_END.value in balanced_tags
-                ):
-                    # assign to simple variables for readability
-                    T_hmer_end = balanced_tags[TrimmerSegmentTags.T_HMER_END.value]
-                    A_hmer_end = balanced_tags[TrimmerSegmentTags.A_HMER_END.value]
-                    # determine ratio and category
-                    tags_sum_end = T_hmer_end + A_hmer_end
-                    # determine if read end was reached
-                    is_end_reached = (
-                        balanced_tags[TrimmerSegmentTags.NATIVE_ADAPTER.value] >= 1
-                        if TrimmerSegmentTags.NATIVE_ADAPTER.value in balanced_tags
-                        else balanced_tags[TrimmerSegmentTags.STEM_END.value] >= min_stem_end_matched_length
-                    )
-                    if not is_end_reached:
-                        record.info[HistogramColumnNames.STRAND_RATIO_END.value] = np.nan
-                        record.info[
-                            HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value
-                        ] = BalancedCategories.END_UNREACHED.value
-                    elif (
-                        min_total_hmer_lengths_in_tags <= tags_sum_end <= max_total_hmer_lengths_in_tags
-                    ) and is_end_reached:
-                        record.info[HistogramColumnNames.STRAND_RATIO_END.value] = T_hmer_end / (
-                            T_hmer_end + A_hmer_end
-                        )
-                    else:
-                        record.info[HistogramColumnNames.STRAND_RATIO_END.value] = np.nan
-                    record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = get_annotation(
-                        record.info[HistogramColumnNames.STRAND_RATIO_END.value],
-                        sr_lower,
-                        sr_upper,
-                    )  # this works for nan values as well - returns UNDETERMINED
-                # write the updated VCF record to the output VCF file
-                output_vcf.write(record)
+    balanced_strand_variant_annotator = BalancedStrandVcfAnnotator(
+        adapter_version=adapter_version,
+        sr_lower=sr_lower,
+        sr_upper=sr_upper,
+        min_total_hmer_lengths_in_tags=min_total_hmer_lengths_in_tags,
+        max_total_hmer_lengths_in_tags=max_total_hmer_lengths_in_tags,
+        min_stem_end_matched_length=min_stem_end_matched_length,
+    )
+    BalancedStrandVcfAnnotator.process_vcf(
+        annotators=[balanced_strand_variant_annotator],
+        input_path=input_featuremap_vcf,
+        output_path=output_featuremap_vcf,
+        chunk_size=chunk_size,
+        multiprocess_contigs=multiprocess_contigs,
+    )
 
 
 def plot_balanced_strand_ratio(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -638,7 +734,7 @@ def plot_balanced_strand_ratio(
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
@@ -732,7 +828,7 @@ def plot_balanced_strand_ratio(
 
 
 def plot_strand_ratio_category(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -743,7 +839,7 @@ def plot_strand_ratio_category(
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
@@ -808,7 +904,7 @@ def plot_strand_ratio_category(
 
 
 def plot_strand_ratio_category_concordnace(
-    adapter_version: [str, BalancedStrandAdapterVersions],
+    adapter_version: str | BalancedStrandAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -819,7 +915,7 @@ def plot_strand_ratio_category_concordnace(
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
         dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram

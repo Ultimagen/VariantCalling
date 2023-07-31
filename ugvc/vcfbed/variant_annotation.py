@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import itertools
+import os
+import tempfile
+from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
 import pyBigWig as pbw
 import pyfaidx
+import pysam
+from joblib import Parallel, delayed
 
 import ugvc.dna.utils as dnautils
 import ugvc.flow_format.flow_based_read as flowBasedRead
@@ -21,6 +26,200 @@ from ugvc.dna.format import (
 from ugvc.vcfbed import bed_writer
 
 UNDETERMINED = "NA"
+
+
+class VcfAnnotator(ABC):
+    """
+    An abstract base class for annotating VCF files.
+    """
+
+    @abstractmethod
+    def __init__(self):
+        """
+        Initializer of the base class.
+        Derived classes should override this method if they require additional parameters.
+        """
+        pass
+
+    @abstractmethod
+    def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
+        """
+        Method to edit VCF header, accepts a pysam header, modifies and returns it.
+        Derived classes should override this method to provide specific functionality.
+
+        Parameters
+        ----------
+        header : pysam.VariantHeader
+            VCF file header to be edited.
+
+        Returns
+        -------
+        pysam.VariantHeader
+            Edited VCF file header.
+        """
+        pass
+
+    @abstractmethod
+    def process_records(self, records: list[pysam.VariantRecord]) -> list[pysam.VariantRecord]:
+        """
+        Method to process VCF records. Accepts a list of pysam VariantRecords, modifies each and returns the list
+        Derived classes should override this method to provide specific functionality.
+
+        Parameters
+        ----------
+        records : list[pysam.VariantRecord]
+            List of VCF records to be processed.
+
+        Returns
+        -------
+        list[pysam.VariantRecord]
+            Processed VCF records.
+        """
+        pass
+
+    @staticmethod
+    def merge_temp_files(contig_output_vcfs: list[str], output_path: str, header: pysam.VariantHeader):
+        """
+        Static method to merge temporary output files and write to the final output file.
+
+        Args:
+        contigs : list[str]
+            List of contig names.
+        output_path : str
+            Path to the final output file.
+        header : pysam.VariantHeader
+            VCF file header.
+        """
+        try:
+            # Open the final output file
+            with pysam.VariantFile(output_path, "w", header=header) as vcf_out:
+                # Loop over each contig
+                for temp_file_path in contig_output_vcfs:
+                    # Open the temp file
+                    with pysam.VariantFile(temp_file_path, "r") as vcf_contig:
+                        # Write each record from the temp file to the final output file
+                        for record in vcf_contig:
+                            vcf_out.write(record)
+        finally:
+            # Loop over each contig again
+            for temp_file_path in contig_output_vcfs:
+                # If the temp file exists, remove it
+                if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+
+    @staticmethod
+    def process_vcf(
+        annotators: list[VcfAnnotator],
+        input_path: str,
+        output_path: str,
+        chunk_size: int = 10000,
+        multiprocess_contigs: bool = False,
+    ):
+        """
+        Static method to process a VCF file in chunks with multiple VcfAnnotator objects.
+        Optionally runs in parallel over different contigs.
+
+        Parameters
+        ----------
+        annotators : list[VcfAnnotator]
+            List of VcfAnnotator objects.
+        input_path : str
+            Path to the input VCF file.
+        output_path : str or pysam.VariantFile
+            Path to the output file. If provided, a separate output file is created for each contig.
+        chunk_size : int, optional
+            The chunk size. Defaults to 10000.
+        multiprocess_contigs : bool, optional
+            If True, runs in parallel over different contigs. Defaults to False.
+
+
+        """
+        # Open the input VCF file
+        with pysam.VariantFile(input_path) as vcf_in:
+            # Edit the header
+            new_header = vcf_in.header
+            for annotator in annotators:
+                new_header = annotator.edit_vcf_header(new_header)
+
+            # Get the contigs
+            contigs = list(vcf_in.header.contigs)
+
+            if multiprocess_contigs:
+                with tempfile.TemporaryDirectory(dir=os.path.dirname(output_path)) as temp_dir:
+                    # determine output paths
+                    tmp_output_paths = {c: os.path.join(temp_dir, c) for c in contigs}
+                    # Process the contigs in parallel
+                    Parallel(n_jobs=-1)(
+                        delayed(VcfAnnotator._process_contig)(
+                            vcf_in,
+                            tmp_output_paths[contig],
+                            annotators,
+                            contig,
+                            chunk_size,
+                        )
+                        for contig in contigs
+                    )
+
+                    # Merge the temporary output files into the final output file and remove them
+                    VcfAnnotator.merge_temp_files(tmp_output_paths.values(), output_path, new_header)
+            else:
+                # Process the contigs one at a time
+                with pysam.VariantFile(output_path, "w", header=new_header) as vcf_out:
+                    for contig in contigs:
+                        VcfAnnotator._process_contig(vcf_in, vcf_out, annotators, contig, chunk_size)
+            # Create a tabix index for the final output file
+            pysam.tabix_index(output_path, preset="vcf", force=True)
+
+    @staticmethod
+    def _process_contig(
+        vcf_in: pysam.VariantFile,
+        vcf_out: [pysam.VariantFile | str],
+        annotators: list[VcfAnnotator],
+        contig: str,
+        chunk_size: int,
+        header: pysam.VariantHeader = None,
+    ):
+        """
+        Static helper method to process a single contig in chunks.
+
+        Args:
+        vcf_in : pysam.VariantFile)
+            The input VCF file.
+        annotators : list[VcfAnnotator]
+            List of VcfAnnotator objects.
+        contig : str
+            The contig to process.
+        chunk_size : int
+            The chunk size.
+        output_path : str, optional
+            Path to the output file. If provided, a separate output file is created for each contig.
+        """
+        try:
+            if isinstance(vcf_out, str):
+                vcf_out = pysam.VariantFile(vcf_out, "w", header=header)
+            records = []
+            for record in vcf_in.fetch(contig):
+                records.append(record)
+
+                if len(records) == chunk_size:
+                    for annotator in annotators:
+                        records = annotator.process_records(records)
+
+                    for record in records:
+                        vcf_out.write(record)
+
+                    records = []
+
+            # Process the remaining records
+            if records:
+                for annotator in annotators:
+                    records = annotator.process_records(records)
+
+                for record in records:
+                    vcf_out.write(record)
+        finally:
+            if isinstance(vcf_out, pysam.VariantFile):
+                vcf_out.close()
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
@@ -73,7 +272,6 @@ def is_hmer_indel(concordance: pd.DataFrame, fasta_file: str) -> pd.DataFrame:
     fasta_idx = pyfaidx.Fasta(fasta_file, build_index=False, rebuild=False)
 
     def _is_hmer(rec, fasta_idx):
-
         if not rec["indel"]:
             return (0, None)
 
