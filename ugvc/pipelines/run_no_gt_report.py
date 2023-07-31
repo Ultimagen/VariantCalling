@@ -257,14 +257,127 @@ def run_eval_tables_only(arg_values):
         eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 
-def run_full_analysis(arg_values):
-    eval_tables = variant_eval_statistics(
-        arg_values.input_file,
-        arg_values.reference,
-        arg_values.dbsnp,
-        arg_values.output_prefix,
-        [],
+def bcftools_stats_statistics(
+        vcf_input,
+        output_prefix
+):
+    # novel only vcf
+    cmd = (
+        [
+            "bcftools", "view", "-n", f"{vcf_input}", "-Oz", f"-o {output_prefix}_novel.vcf.gz"
+        ]
     )
+
+    logger.info(" ".join(cmd))
+    subprocess.check_call(" ".join(cmd).split())
+
+    cmd = f"bcftools stats {output_prefix}_novel.vcf.gz > {output_prefix}_novel.txt"
+
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
+    # homozygous
+    cmd = f"bcftools query -f '[%GT]\n' {output_prefix}_novel.vcf.gz | grep -E '1/1' | wc -l"
+
+    logger.info(cmd)
+    novel_hom_vars = int(subprocess.check_output(cmd, shell=True))
+
+    cmd = f"bcftools view -i \'ID!=\".\"\' {vcf_input} -Oz -o {output_prefix}_known.vcf.gz"
+
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
+
+    cmd = f"bcftools stats {output_prefix}_known.vcf.gz > {output_prefix}_known.txt"
+
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
+
+    cmd = f"bcftools query -f '[%GT]\n' {output_prefix}_known.vcf.gz | grep -E '1/1' | wc -l"
+
+    logger.info(cmd)
+    known_hom_vars = int(subprocess.check_output(cmd, shell=True))
+
+    data_novel = _parse_stats_report(f"{output_prefix}_novel.txt", novel_hom_vars)
+
+    data_known = _parse_stats_report(f"{output_prefix}_known.txt", known_hom_vars)
+    data_novel.loc['indel_novelty_rate', 'values'] = 100
+    data_known.loc['indel_novelty_rate', 'values'] = 0
+
+    data_all = data_novel+data_known
+    data_all.loc['SNP_to_indel_ratio', 'values'] = data_all.loc['nSnps', 'values'] / data_all.loc['nIndels', 'values']
+    data_all.loc['ti_tv_ratio','values'] = data_all.loc['nTi', 'values'] / data_all.loc['nTv', 'values']
+    data_all.loc['insertion_to_deletion_ratio', 'values'] = data_all.loc['nInsertions', 'values'] / data_all.loc['nDeletions', 'values']
+    data_all.loc['indel_novelty_rate', 'values'] = data_novel.loc['nIndels', 'values']/(data_novel.loc['nIndels', 'values'] + data_known.loc['nIndels', 'values'])
+    # group them tog
+    data = {}
+    data['novel'] = data_novel
+    data['known'] = data_known
+    data['all'] = data_all
+    return data
+
+
+
+def _parse_stats_report(report,hom_vars):
+    df_sn = _parse_stats_section_report(report, "SN")
+    df_tstv = _parse_stats_section_report(report, "TSTV")
+    df_idd = _parse_stats_section_report(report, "IDD")
+    # arrange the relevant results in one dataframe
+    n_records = int(df_sn.loc[df_sn['[3]key']=='number of records:','[4]value'])
+    n_snps = int(df_sn.loc[df_sn['[3]key'] == 'number of SNPs:', '[4]value'])
+    n_indels = int(df_sn.loc[df_sn['[3]key'] == 'number of indels:', '[4]value'])
+    nti = int(df_tstv['[3]ts'])
+    ntv = int(df_tstv['[4]tv'])
+    ti_tv_ratio = float(df_tstv['[5]ts/tv'])
+    multiallelic_snps = int(df_sn.loc[df_sn['[3]key'] == 'number of multiallelic SNP sites:', '[4]value'])
+    multiallelic = int(df_sn.loc[df_sn['[3]key'] == 'number of multiallelic sites:', '[4]value'])
+
+    n_deletions = np.sum(df_idd.loc[(df_idd['[3]length (deletions negative)']).astype(int) < 0,'[4]number of sites'].astype(int))
+    n_insertions = np.sum(df_idd.loc[(df_idd['[3]length (deletions negative)']).astype(int) > 0, '[4]number of sites'].astype(int))
+
+    index_values = ['nRecords','nDeletions','nInsertions','nSnps','nIndels','nTi','nTv','ti_tv_ratio',
+             'SNP_to_indel_ratio','indel_novelty_rate','insertion_to_deletion_ratio','nHets','nHomVar',
+             'nMultiSNPs','nMultiSNPs','nBiallelicSNPs','nBiallelicIndels'
+             ]
+    data = [n_records,
+            n_deletions,
+            n_insertions,
+            n_snps,
+            n_indels,
+            nti,
+            ntv,
+            ti_tv_ratio,
+            n_snps/n_indels,
+            0,
+            n_insertions/n_deletions,
+            n_records - hom_vars,
+            hom_vars,
+            multiallelic_snps,
+            multiallelic - multiallelic_snps,
+            n_snps - multiallelic_snps,
+            n_indels - (multiallelic - multiallelic_snps)
+            ]
+
+    df = pd.DataFrame(data, columns=["values"], index=index_values)
+    return df
+
+
+def _parse_stats_section_report(filename, section):
+    # Read file into memory
+    with open(filename, 'r') as file:
+        line = file.readline()
+        while f"# {section}\t" not in line:
+            line = file.readline()
+        headers = (line.strip().split('\t'))
+        sec_table = []
+        for line in file:
+            if line.startswith(f"{section}"):
+                sec_table.append(line.strip().split('\t'))
+    df = pd.DataFrame(sec_table, columns=headers)
+    return df
+
+
+def run_full_analysis(arg_values):
+    stats_tables = bcftools_stats_statistics(arg_values.input_file,arg_values.output_prefix)
+
 
     FIELDS_TO_IGNORE = [
         "GNOMAD_AF",
@@ -304,8 +417,8 @@ def run_full_analysis(arg_values):
     ins_del_df["homo"].to_hdf(f"{arg_values.output_prefix}.h5", key="ins_del_homo")
     af_df.to_hdf(f"{arg_values.output_prefix}.h5", key="af_hist")
     snp_motifs.to_hdf(f"{arg_values.output_prefix}.h5", key="snp_motifs")
-    for eval_table_name, eval_table in eval_tables.items():
-        eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
+    for stats_table_name, stats_table in stats_tables.items():
+        stats_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{stats_table_name}")
 
 
 
