@@ -514,6 +514,7 @@ def intersect_featuremap_with_signature(
     # Remove temporary files
     os.remove('isec.vcf.gz')
     os.remove('header.txt')
+    os.remove(featuremap_file_no_header)
 
     # Assert output
     assert os.path.isfile(output_intersection_file)
