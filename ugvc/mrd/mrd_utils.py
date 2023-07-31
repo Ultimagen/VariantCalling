@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import itertools
-import subprocess
 import logging
 import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from collections.abc import Iterable
@@ -477,7 +477,7 @@ def intersect_featuremap_with_signature(
         raise OSError(f"Output file {output_intersection_file} already exists and overwrite flag set to False")
     # make sure vcf is indexed
     signature_file = _safe_tabix_index(signature_file)
-    
+
     # Use bcftools isec to intersect the two VCF files by position and compress the output
     cmd = f"bcftools isec -n=2 -w1 -Oz -o isec.vcf.gz {signature_file} {featuremap_file}"
     if complement:
@@ -491,29 +491,29 @@ def intersect_featuremap_with_signature(
     subprocess.run(cmd, shell=True, check=True)
 
     # Add comment lines to the header
-    with open('header.txt', 'a') as f:
+    with open("header.txt", "a") as f:
         f.write("##File:Description=This file is an intersection of a featuremap with a somatic mutation signature\n")
         f.write(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}\n")
         if is_matched:
             f.write("##Intersection:type=matched (signature and featuremap from the same patient)\n")
         else:
             f.write("##Intersection:type=control (signature and featuremap not from the same patient)\n")
-        f.write('#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n')
+        f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
 
-    featuremap_file_no_header = featuremap_file.replace('.vcf.gz', '.no_header.vcf')
-    cmd = f'bcftools view -H {featuremap_file} > {featuremap_file_no_header}'
+    featuremap_file_no_header = featuremap_file.replace(".vcf.gz", ".no_header.vcf")
+    cmd = f"bcftools view -H {featuremap_file} > {featuremap_file_no_header}"
     logger.debug(cmd)
     subprocess.run(cmd, shell=True, check=True)
 
     # Use AWK to filter the intersected file for records with matching ALT alleles and compress the output
     awk_part = "awk 'NR==FNR{a[$1,$2,$4,$5];next} ($1,$2,$4,$5) in a'"
-    cmd = f'bcftools view isec.vcf.gz | {awk_part} - {featuremap_file_no_header} | cat header.txt - | bcftools view - -Oz -o {output_intersection_file} && bcftools index -t {output_intersection_file}'
+    cmd = f"bcftools view isec.vcf.gz | {awk_part} - {featuremap_file_no_header} | cat header.txt - | bcftools view - -Oz -o {output_intersection_file} && bcftools index -t {output_intersection_file}"
     logger.debug(cmd)
     subprocess.run(cmd, shell=True, check=True)
 
     # Remove temporary files
-    os.remove('isec.vcf.gz')
-    os.remove('header.txt')
+    os.remove("isec.vcf.gz")
+    os.remove("header.txt")
     os.remove(featuremap_file_no_header)
 
     # Assert output
