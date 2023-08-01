@@ -483,14 +483,8 @@ def intersect_featuremap_with_signature(
         isec_file = os.path.join(temp_dir, "isec.vcf.gz")
         header_file = os.path.join(temp_dir, "header.txt")
         headerless_featuremap = os.path.join(temp_dir, "headerless_featuremap.vcf.gz")
-
-        # Use bcftools isec to intersect the two VCF files by position and compress the output
-        cmd = f"bcftools isec -n=2 -w1 -Oz -o {isec_file} {signature_file} {featuremap_file}"
-        if complement:
-            cmd = f"bcftools isec -C -w1 -Oz -o {isec_file} {featuremap_file} {signature_file} "
-        logger.debug(cmd)
-        subprocess.check_call(cmd, shell=True)
-
+        featuremap_isec_by_pos = os.path.join(temp_dir, "featuremap_isec_by_pos.vcf.gz")
+        
         # Extract the header from featuremap_file and write to a new file
         cmd = f"bcftools view -h {featuremap_file} | head -n-1 - > {header_file}"
         logger.debug(cmd)
@@ -508,7 +502,19 @@ def intersect_featuremap_with_signature(
                 f.write("##Intersection:type=control (signature and featuremap not from the same patient)\n")
             f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
 
-        cmd = f"bcftools view -H {featuremap_file} > {headerless_featuremap}"
+        # use bedtools intersect
+        cmd = f'bedtools intersect -a {featuremap_file} -b {signature_file} -wa | cat {header_file} - | bgzip > {featuremap_isec_by_pos} && bcftools index -t {featuremap_isec_by_pos}'
+        logger.debug(cmd)
+        subprocess.check_call(cmd, shell=True)
+
+        # Use bcftools isec to intersect the two VCF files by position and compress the output
+        cmd = f"bcftools isec -n=2 -w1 -Oz -o {isec_file} {signature_file} {featuremap_isec_by_pos}"
+        if complement:
+            cmd = f"bcftools isec -C -w1 -Oz -o {isec_file} {featuremap_isec_by_pos} {signature_file} "
+        logger.debug(cmd)
+        subprocess.check_call(cmd, shell=True)
+
+        cmd = f"bcftools view -H {featuremap_isec_by_pos} > {headerless_featuremap}"
         logger.debug(cmd)
         subprocess.check_call(cmd, shell=True)
 
