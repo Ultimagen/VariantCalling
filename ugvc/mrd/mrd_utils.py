@@ -424,7 +424,6 @@ def intersect_featuremap_with_signature(
     is_matched=None,
     add_info_to_header=True,
     overwrite=True,
-    complement=False,
 ):
     """
     Intersect featuremap and signature vcf files on chrom, position, ref and alts (require same alts), keeping all the
@@ -444,9 +443,6 @@ def intersect_featuremap_with_signature(
         Add line to header to indicate this function ran (default True)
     overwrite: bool, optional
         Force rewrite of output (if false and output file exists an OSError will be raised). Default True.
-    complement: bool, optional
-        If True, only retain features that do not intersect with signature file - meant for removing germline variants
-        from featuremap (default False)
 
 
     Raises
@@ -484,33 +480,35 @@ def intersect_featuremap_with_signature(
         header_file = os.path.join(temp_dir, "header.txt")
         headerless_featuremap = os.path.join(temp_dir, "headerless_featuremap.vcf.gz")
         featuremap_isec_by_pos = os.path.join(temp_dir, "featuremap_isec_by_pos.vcf.gz")
-        
+
         # Extract the header from featuremap_file and write to a new file
         cmd = f"bcftools view -h {featuremap_file} | head -n-1 - > {header_file}"
         logger.debug(cmd)
         subprocess.check_call(cmd, shell=True)
 
         # Add comment lines to the header
-        with open(header_file, "a") as f:
-            f.write(
-                "##File:Description=This file is an intersection of a featuremap with a somatic mutation signature\n"
-            )
-            f.write(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}\n")
-            if is_matched:
-                f.write("##Intersection:type=matched (signature and featuremap from the same patient)\n")
-            else:
-                f.write("##Intersection:type=control (signature and featuremap not from the same patient)\n")
+        with open(header_file, "a", encoding="utf-8") as f:
+            if add_info_to_header:
+                f.write(
+                    "##File:Description=This file is an intersection "
+                    "of a featuremap with a somatic mutation signature\n"
+                )
+                f.write(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}\n")
+                if is_matched:
+                    f.write("##Intersection:type=matched (signature and featuremap from the same patient)\n")
+                else:
+                    f.write("##Intersection:type=control (signature and featuremap not from the same patient)\n")
             f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
 
         # use bedtools intersect
-        cmd = f'bedtools intersect -a {featuremap_file} -b {signature_file} -wa | cat {header_file} - | bgzip > {featuremap_isec_by_pos} && bcftools index -t {featuremap_isec_by_pos}'
+        cmd = f"bedtools intersect -a {featuremap_file} -b {signature_file} -wa | \
+            cat {header_file} - | \
+            bgzip > {featuremap_isec_by_pos} && bcftools index -t {featuremap_isec_by_pos}"
         logger.debug(cmd)
         subprocess.check_call(cmd, shell=True)
 
         # Use bcftools isec to intersect the two VCF files by position and compress the output
         cmd = f"bcftools isec -n=2 -w1 -Oz -o {isec_file} {signature_file} {featuremap_isec_by_pos}"
-        if complement:
-            cmd = f"bcftools isec -C -w1 -Oz -o {isec_file} {featuremap_isec_by_pos} {signature_file} "
         logger.debug(cmd)
         subprocess.check_call(cmd, shell=True)
 
@@ -519,10 +517,14 @@ def intersect_featuremap_with_signature(
         subprocess.check_call(cmd, shell=True)
 
         # Use awk to filter the intersected file for records with matching alt alleles and compress the output
-        # this awk line matches the first, second, fourth and fifth columns of two files and prints the matched line from file2
-        # for the first file, it creates an associative array 'a'. if the same array appears in the second file, it prints the line of the second file
+        # this awk line matches the first, second, fourth and fifth columns of two files and prints the matched
+        # line from file2 for the first file, it creates an associative array 'a'. if the same array appears in
+        # the second file, it prints the line of the second file
         awk_part = "awk 'NR==FNR{a[$1,$2,$4,$5];next} ($1,$2,$4,$5) in a'"
-        cmd = f"bcftools view {isec_file} | {awk_part} - {headerless_featuremap} | cat {header_file} - | bcftools view - -Oz -o {output_intersection_file} && bcftools index -t {output_intersection_file}"
+        cmd = f"bcftools view {isec_file} | \
+            {awk_part} - {headerless_featuremap} | \
+            cat {header_file} - | \
+            bcftools view - -Oz -o {output_intersection_file} && bcftools index -t {output_intersection_file}"
         logger.debug(cmd)
         subprocess.check_call(cmd, shell=True)
 
