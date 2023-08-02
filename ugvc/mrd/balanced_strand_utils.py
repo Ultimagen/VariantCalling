@@ -14,6 +14,9 @@ from ugvc.utils.metrics_utils import read_sorter_statistics_csv
 from ugvc.utils.misc_utils import set_pyplot_defaults
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
+# Display defaults
+STRAND_RATIO_AXIS_LABEL = "LIG/HYB strands ratio"
+
 
 # Supported adapter versions
 class BalancedStrandAdapterVersions(Enum):
@@ -179,7 +182,7 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
                     )
                 else:
                     record.info[HistogramColumnNames.STRAND_RATIO_START.value] = np.nan
-                record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value] = get_annotation(
+                record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value] = get_strand_ratio_category(
                     record.info[HistogramColumnNames.STRAND_RATIO_START.value],
                     self.sr_lower,
                     self.sr_upper,
@@ -208,27 +211,15 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
                         record.info[HistogramColumnNames.STRAND_RATIO_END.value] = T_hmer_end / (
                             T_hmer_end + A_hmer_end
                         )
-                    record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = get_annotation(
+                    record.info[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = get_strand_ratio_category(
                         record.info[HistogramColumnNames.STRAND_RATIO_END.value],
                         self.sr_lower,
                         self.sr_upper,
                     )  # this works for nan values as well - returns UNDETERMINED
-                print(
-                    is_end_reached,
-                    balanced_tags[TrimmerSegmentTags.NATIVE_ADAPTER.value],
-                    balanced_tags[TrimmerSegmentTags.STEM_END.value],
-                    tags_sum_end,
-                    (self.min_total_hmer_lengths_in_tags <= tags_sum_end <= self.max_total_hmer_lengths_in_tags),
-                    balanced_tags,
-                )
-                print(record)
             records_out[j] = record
 
         return records_out
 
-
-# Display defaults
-STRAND_RATIO_AXIS_LABEL = "LIG/HYB strands ratio"
 
 # Misc
 balanced_category_list = [v.value for v in BalancedCategories.__members__.values()]
@@ -262,13 +253,13 @@ def _assert_adapter_version_supported(adapter_version: str | BalancedStrandAdapt
         )
 
 
-def get_annotation(x, sr_lower, sr_upper):
+def get_strand_ratio_category(strand_ratio, sr_lower, sr_upper):
     """
     Determine the strand ratio category
 
     Parameters
     ----------
-    x : float
+    strand_ratio : float
         strand ratio
     sr_lower : float
         lower strand ratio threshold for determining strand ratio category MIXED
@@ -280,11 +271,11 @@ def get_annotation(x, sr_lower, sr_upper):
     str
         strand ratio category
     """
-    if x == 0:
+    if strand_ratio == 0:
         return BalancedCategories.HYB.value
-    if x == 1:
+    if strand_ratio == 1:
         return BalancedCategories.LIG.value
-    if sr_lower <= x <= sr_upper:
+    if sr_lower <= strand_ratio <= sr_upper:
         return BalancedCategories.MIXED.value
     return BalancedCategories.UNDETERMINED.value
 
@@ -393,7 +384,7 @@ def read_balanced_strand_trimmer_histogram(
     # determine strand ratio category
     df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value] = df_trimmer_histogram[
         HistogramColumnNames.STRAND_RATIO_START.value
-    ].apply(lambda x: get_annotation(x, sr_lower, sr_upper))
+    ].apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
     if (
         TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
         or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
@@ -430,7 +421,7 @@ def read_balanced_strand_trimmer_histogram(
         # determine strand ratio category
         df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = (
             df_trimmer_histogram[HistogramColumnNames.STRAND_RATIO_END.value]
-            .apply(lambda x: get_annotation(x, sr_lower, sr_upper))
+            .apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
             .where(is_end_reached, BalancedCategories.END_UNREACHED.value)
         )
 
@@ -569,7 +560,7 @@ def collect_statistics(
     sorter_stats_csv: str,
     output_filename: str,
     input_material_ng: float = None,
-) -> pd.DataFrame:
+):
     """
     Collect statistics from a balanced ePCR trimmer histogram file and a sorter stats file
 
@@ -990,3 +981,4 @@ def plot_strand_ratio_category_concordnace(
             bbox_inches="tight",
             bbox_extra_artists=[title_handle],
         )
+    return axs
