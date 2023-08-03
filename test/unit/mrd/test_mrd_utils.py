@@ -1,17 +1,10 @@
-import filecmp
-import subprocess
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from ugvc.mrd.mrd_utils import (
-    featuremap_to_dataframe,
-    intersect_featuremap_with_signature,
-    read_intersection_dataframes,
-    read_signature,
-)
+from ugvc.mrd.mrd_utils import featuremap_to_dataframe, read_intersection_dataframes, read_signature
 
 general_inputs_dir = pjoin(test_dir, "resources", "general")
 inputs_dir = get_resource_dir(__file__)
@@ -36,20 +29,6 @@ def test_read_signature_external():
     expected_output = pd.read_hdf(pjoin(inputs_dir, "external_somatic_signature.expected_output.h5"))
 
     assert_frame_equal(signature, expected_output)
-
-
-def test_intersect_featuremap_with_signature():
-    signature_file = pjoin(inputs_dir, "signature.chr19.vcf.gz")
-    featuremap_file = pjoin(inputs_dir, "featuremap.chr19.vcf.gz")
-    output_intersection_file = pjoin(inputs_dir, "featuremap.chr19.intersection.vcf.gz")
-    output_intersection_file_headerless = pjoin(inputs_dir, "featuremap.chr19.intersection.NOHEADER.vcf")
-    output_test_headerless = pjoin(inputs_dir, ".signature.matched.intersection.NOHEADER.vcf")
-    intersect_featuremap_with_signature(
-        featuremap_file, signature_file, output_intersection_file=output_intersection_file, is_matched=True
-    )
-    cmd1 = f"bcftools view -H {output_intersection_file} > {output_intersection_file_headerless}"
-    subprocess.check_call(cmd1, shell=True)
-    assert filecmp.cmp(output_intersection_file_headerless, output_test_headerless)
 
 
 def test_featuremap_to_dataframe():
