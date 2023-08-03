@@ -35,6 +35,7 @@ from ugvc.pipelines.mrd import (
     concat_dataframes,
     create_control_signature,
     featuremap_to_dataframe,
+    generate_synthetic_signatures,
     intersect_featuremap_with_signature,
     pileup_based_read_features,
     positional_error_rate_profile,
@@ -72,6 +73,7 @@ mrd_modules = [
     intersect_featuremap_with_signature,
     prepare_data_from_mrd_pipeline,
     pileup_based_read_features,
+    generate_synthetic_signatures,
 ]
 
 methylation_modules = [

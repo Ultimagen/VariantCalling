@@ -23,7 +23,12 @@ from ugvc import logger
 from ugvc.dna.format import CHROM_DTYPE, DEFAULT_FLOW_ORDER
 from ugvc.dna.utils import get_max_softclip_len, revcomp
 from ugvc.utils.consts import FileExtension
-from ugvc.vcfbed.variant_annotation import get_cycle_skip_dataframe, get_motif_around
+from ugvc.vcfbed.variant_annotation import (
+    get_cycle_skip_dataframe,
+    get_motif_around,
+    get_trinuc_substitution_dist,
+    parse_trinuc_sub,
+)
 
 
 def _get_sample_name_from_file_name(file_name, split_position=0):
@@ -772,3 +777,80 @@ def concat_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
         df = df.reset_index()
     df.to_parquet(outfile)
     return df
+
+
+def generate_synthetic_signatures(
+    signature_vcf: str, db_vcf: str, n_synthetic_signatures: int, output_dir: str
+) -> list[str]:
+    """
+    Generate synthetic signatures from a signature vcf file and a db vcf file
+
+    Parameters
+    ----------
+    signature_vcf: str
+        signature vcf file
+    db_vcf: str
+        db vcf file
+    n_synthetic_signatures: int
+        number of synthetic signatures to generate
+    output_dir: str
+        output directory
+
+    Returns
+    -------
+    synthetic_signatures: list[str]
+        list of synthetic control vcf files
+
+    """
+    # parse trinuc substitution distribution from signature vcf and db vcf
+    trinuc_signature = get_trinuc_substitution_dist(signature_vcf)
+    trinuc_db = get_trinuc_substitution_dist(db_vcf)
+
+    # allocate index and counter per synthetic signature
+    trinuc_dict = {}
+    # fix a seed for random.choice
+    random_seed: int = 0
+    np.random.seed(random_seed)
+    for trinucsub in trinuc_signature.keys():
+        n_subs_signature = trinuc_signature[trinucsub]
+        n_subs_db = trinuc_db[trinucsub]
+        trinuc_dict[trinucsub] = {}
+        trinuc_dict[trinucsub]["index_to_sample"] = {}
+        trinuc_dict[trinucsub]["trinuc_counter"] = {}
+        for i in range(n_synthetic_signatures):
+            trinuc_dict[trinucsub]["index_to_sample"][i] = np.random.choice(
+                range(0, n_subs_db), n_subs_signature, replace=False
+            )
+            trinuc_dict[trinucsub]["trinuc_counter"][i] = 0
+
+    # make output directory
+    os.makedirs(output_dir, exist_ok=True)
+    # db and signautre basename for output files
+    db_basename = os.path.splitext(os.path.splitext(os.path.basename(db_vcf))[0])[0]
+    signature_basename = os.path.splitext(os.path.splitext(os.path.basename(signature_vcf))[0])[0]
+    # read db vcf file and allocate output files and file handles
+    db_fh = pysam.VariantFile(db_vcf, "rb")
+    synthetic_signatures = []
+    file_handle_list = []
+    for i in range(n_synthetic_signatures):
+        output_vcf = pjoin(output_dir, f"{signature_basename}_{db_basename}_syn{i}.vcf.gz")
+        synthetic_signatures.append(output_vcf)
+        outfh = pysam.VariantFile(output_vcf, "wb", header=db_fh.header)
+        file_handle_list.append(outfh)
+
+    # read db file, parse trinuc substiution and write to output files
+    for rec in db_fh.fetch():
+        db_trinucsub = parse_trinuc_sub(rec)
+        for i in range(n_synthetic_signatures):
+            if trinuc_dict[db_trinucsub]["trinuc_counter"][i] in trinuc_dict[db_trinucsub]["index_to_sample"][i]:
+                file_handle_list[i].write(rec)
+            trinuc_dict[db_trinucsub]["trinuc_counter"][i] += 1
+
+    db_fh.close()
+
+    for i in range(n_synthetic_signatures):
+        file_handle_list[i].close()
+        output_vcf = synthetic_signatures[i]
+        pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
+
+    return synthetic_signatures

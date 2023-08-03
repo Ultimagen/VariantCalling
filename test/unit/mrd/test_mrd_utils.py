@@ -8,6 +8,7 @@ from pandas.testing import assert_frame_equal
 
 from ugvc.mrd.mrd_utils import (
     featuremap_to_dataframe,
+    generate_synthetic_signatures,
     intersect_featuremap_with_signature,
     read_intersection_dataframes,
     read_signature,
@@ -77,3 +78,21 @@ def test_read_intersection_dataframes():
     )
     assert_frame_equal(parsed_intersection_dataframe.reset_index(), parsed_intersection_dataframe_expected)
     assert_frame_equal(parsed_intersection_dataframe2.reset_index(), parsed_intersection_dataframe_expected)
+
+
+def test_generate_synthetic_signatures():
+    signature_file = pjoin(inputs_dir, "mutect_mrd_signature_test.vcf.gz")
+    db_file = pjoin(
+        inputs_dir, "pancan_pcawg_2020.mutations_hg38_GNOMAD_dbsnp_beds.sorted.Annotated.HMER_LEN.edited.chr19.vcf.gz"
+    )
+    n_synthetic_signatures = 1
+    output_dir = inputs_dir
+    synthetic_signature_list = generate_synthetic_signatures(
+        signature_file, db_file, n_synthetic_signatures, output_dir
+    )
+    output_file = synthetic_signature_list[0]
+    test_signautre = pjoin(inputs_dir, "synthetic_signature_test.vcf.gz")
+    # assert similar number of lines in output file as in input file
+    cmd1 = f"bcftools view -H {output_file}"
+    cmd2 = f"bcftools view -H {test_signautre}"
+    assert subprocess.check_output(cmd1, shell=True) == subprocess.check_output(cmd2, shell=True)
