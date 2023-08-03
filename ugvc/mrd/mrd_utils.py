@@ -418,13 +418,13 @@ def read_intersection_dataframes(
 
 
 def intersect_featuremap_with_signature(
-    featuremap_file,
-    signature_file,
-    output_intersection_file=None,
-    is_matched=None,
-    add_info_to_header=True,
-    overwrite=True,
-):
+    featuremap_file: str,
+    signature_file: str,
+    output_intersection_file: str = None,
+    is_matched: bool = None,
+    add_info_to_header: bool = True,
+    overwrite: bool = True,
+) -> str:
     """
     Intersect featuremap and signature vcf files on chrom, position, ref and alts (require same alts), keeping all the
     entries in featuremap. Lines from featuremap propagated to output
@@ -444,6 +444,10 @@ def intersect_featuremap_with_signature(
     overwrite: bool, optional
         Force rewrite of output (if false and output file exists an OSError will be raised). Default True.
 
+    Returns
+    -------
+    output_intersection_file: str
+        Output vcf file, either identical to input or automatically determined from input file names
 
     Raises
     ------
@@ -530,6 +534,7 @@ def intersect_featuremap_with_signature(
 
         # Assert output
         assert os.path.isfile(output_intersection_file)
+    return output_intersection_file
 
 
 def featuremap_to_dataframe(
