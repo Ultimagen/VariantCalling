@@ -225,7 +225,8 @@ class FlowBasedRead:
         max_hmer_size: int = 12,
         filler=DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
-        _fmt: str = "ilya",
+        _fmt: str = "cram",
+        spread_edge_probs=True,
     ):
         # pylint: disable=pointless-statement
         """Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`,
@@ -252,6 +253,7 @@ class FlowBasedRead:
             The minimal probability to be placed on the call (default: %f)
         _fmt: str
             Can be 'matt', 'ilya' or 'cram' (the current BARC output format)
+        spread_edge_probs:
         Returns
         -------
         Object
@@ -321,6 +323,7 @@ class FlowBasedRead:
                 filler=filler,
                 min_call_prob=min_call_prob,
                 max_hmer_size=max_hmer_size,
+                spread_edge_probs=spread_edge_probs,
             )
             dct["_flow_matrix"] = flow_matrix
 
@@ -343,6 +346,7 @@ class FlowBasedRead:
         filler: float = DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
         max_hmer_size: int = 12,
+        spread_edge_probs: bool = True,
     ) -> np.ndarray:
         """Fill flow matrix from the CRAM format data. Here is the description
 
@@ -387,8 +391,10 @@ class FlowBasedRead:
             The minimal value to place as the probability of the actual call
         max_hmer_size : int, optional
             Maximum hmer probability to report
+        spread_edge_probs: bool, optional
+            Should the error probabilities of the edge bases be smoothed (e.g. after trimming). Default - true
 
-        Returns
+                    Returns
         -------
         np.ndarray
             max_hmer+1 x n_flows flow matrix
@@ -414,6 +420,12 @@ class FlowBasedRead:
 
         place_to_locate = tp_tag + np.repeat(key, key.astype(int))
         place_to_locate = np.clip(place_to_locate, None, max_hmer_size)
+        if spread_edge_probs:
+            first_call = np.nonzero(key)[0][0]
+            place_to_locate[:first_call] = np.clip(place_to_locate[:first_call], 0, None)
+            last_call = np.nonzero(key)[0][-1]
+            place_to_locate[last_call - 1 :] = np.clip(place_to_locate[last_call - 1 :], 0, None)
+
         assert np.all(place_to_locate >= 0), "Wrong position to place"
         flat_loc = np.ravel_multi_index((place_to_locate, flow_to_place), flow_matrix.shape)
         out = np.bincount(flat_loc, probs)
@@ -424,6 +436,12 @@ class FlowBasedRead:
 
         diff = np.clip(1 - total, min_call_prob, None)
         flow_matrix[np.clip(key, None, max_hmer_size), np.arange(flow_matrix.shape[1])] = diff
+        if spread_edge_probs:
+            first_call = np.nonzero(key)[0][0]
+            flow_matrix[:, first_call] = 1 / (max_hmer_size + 1)
+            last_call = np.nonzero(key)[0][-1]
+            flow_matrix[:, last_call] = 1 / (max_hmer_size + 1)
+
         return flow_matrix
 
     @classmethod
@@ -551,7 +569,7 @@ class FlowBasedRead:
         flow2base: np.ndarray,
         seq: str,
     ) -> np.ndarray:
-        """Returns matrix flow matrix for a given flow key. Note that if the error model is None
+        """Returns flow matrix column for a given flow key. Note that if the error model is None
         it is assumed that there are no errors (useful for getting flow matrix of a haplotype)
 
         Parameters
