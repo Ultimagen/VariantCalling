@@ -486,8 +486,8 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     def tuple_encode_doublet_df(s):
         return pd.DataFrame(np.array([y[:2] for y in s]).reshape((-1, 2)), index=s.index)
 
-    def tuple_encode_triplet_df(s):
-        return pd.DataFrame(np.array([y[:3] for y in s]).reshape((-1, 3)), index=s.index)
+    def tuple_uniform_encode(s):
+        return pd.DataFrame(list(s), index=s.index)
 
     def motif_encode_left_df(s):
         return pd.DataFrame(np.array([motif_encode_left(y) for y in s]).reshape((-1, 1)), index=s.index)
@@ -495,10 +495,17 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     def motif_encode_right_df(s):
         return pd.DataFrame(np.array([motif_encode_right(y) for y in s]).reshape((-1, 1)), index=s.index)
 
-    tuple_filter = preprocessing.FunctionTransformer(tuple_encode_df)
-    tuple_encode_doublet_df_transformer = preprocessing.FunctionTransformer(tuple_encode_doublet_df)
-    tuple_encode_triplet_df_transformer = preprocessing.FunctionTransformer(tuple_encode_triplet_df)
+    def density_calculation(df):
+        snvs = df.query('variant_type=="snp"')
+        pos_start = snvs.index.searchsorted(df.apply(lambda x: (x["chrom"], x["pos"] - 5000), axis=1))
+        pos_end = snvs.index.searchsorted(df.apply(lambda x: (x["chrom"], x["pos"] + 5000), axis=1))
+        return pd.DataFrame(pos_end - pos_start, index=df.index)
 
+    tuple_filter = preprocessing.FunctionTransformer(tuple_encode_df)
+    tuple_encode_df_transformer = preprocessing.FunctionTransformer(tuple_encode_df)
+    tuple_encode_doublet_df_transformer = preprocessing.FunctionTransformer(tuple_encode_doublet_df)
+    tuple_uniform_encode_df_transformer = preprocessing.FunctionTransformer(tuple_uniform_encode)
+    density_addition_transformer = preprocessing.FunctionTransformer(density_calculation)
     left_motif_filter = preprocessing.FunctionTransformer(motif_encode_left_df)
 
     right_motif_filter = preprocessing.FunctionTransformer(motif_encode_right_df)
@@ -551,6 +558,7 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
         ("x_rm", right_motif_filter, "x_rm"),
         ("x_css", make_pipeline(tuple_filter, preprocessing.OrdinalEncoder()), "x_css"),
         ("x_gcc", default_filler, ["x_gcc"]),
+        ("density", density_addition_transformer, ["chrom", "pos", "variant_type"]),
     ]
 
     if vtype == "dv":
@@ -594,17 +602,16 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
                 ("excesshet", default_filler, ["excesshet"]),
                 ("mqranksum", default_filler, ["mqranksum"]),
                 ("readposranksum", default_filler, ["readposranksum"]),
-                ("ps", default_filler, ["ps"]),
-                ("ac", tuple_filter, ["ac"]),
-                ("ad", tuple_filter, ["ad"]),
-                ("gt", gt_filter, ["gt"]),
+                ("ac", tuple_encode_df_transformer, "ac"),
+                ("ad", tuple_encode_doublet_df_transformer, "ad"),
+                ("gt", gt_filter, "gt"),
                 ("xc", default_filler, ["xc"]),
                 ("gq", default_filler, ["gq"]),
-                ("pl", tuple_encode_triplet_df_transformer, ["pl"]),
-                ("af", tuple_filter, ["af"]),
-                ("mleac", tuple_filter, ["mleac"]),
-                ("mleaf", tuple_filter, ["mleaf"]),
-                ("hapcomp", tuple_filter, ["hapcomp"]),
+                ("pl", tuple_uniform_encode_df_transformer, "pl"),
+                ("af", tuple_encode_df_transformer, "af"),
+                ("mleac", tuple_encode_df_transformer, "mleac"),
+                ("mleaf", tuple_encode_df_transformer, "mleaf"),
+                ("hapcomp", tuple_encode_df_transformer, "hapcomp"),
                 ("mq0c", tuple_encode_doublet_df_transformer, "mq0c"),
                 ("scl", tuple_encode_doublet_df_transformer, "scl"),
                 ("scr", tuple_encode_doublet_df_transformer, "scr"),
@@ -642,11 +649,6 @@ def feature_prepare(vtype: VcfType, output_df: bool = False, annots: list = None
     _, transform_list, _ = modify_features_based_on_vcf_type(vtype)
 
     for annot in annots:
-        transform_list.append((annot, "passthrough", [annot]))
-    if output_df:
-        transformer = compose.ColumnTransformer(transform_list).set_output(transform="pandas")
-    else:
-        transformer = compose.ColumnTransformer(transform_list)
         transform_list.append((annot, "passthrough", [annot]))
     if output_df:
         transformer = compose.ColumnTransformer(transform_list).set_output(transform="pandas")

@@ -67,7 +67,7 @@ def calculate_labels(labeled_df: pd.DataFrame) -> pd.Series:
 
         # this is to fix the cases where gt genotype is (None,1) or (None,) or something else
         fp_ca_df["gt_vcfeval"].where(
-            fp_ca_df["gt_vcfeval"].apply(lambda x: None not in x),
+            fp_ca_df["gt_vcfeval"].apply(lambda x: None not in x and len(x) == 2),
             pd.Series([(0, 0)] * len(fp_ca_df["gt_vcfeval"]), index=fp_ca_df.index),
             inplace=True,
         )
