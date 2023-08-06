@@ -29,7 +29,7 @@ def test_matrix_from_qual_tp_no_trim():
     expected = pickle.load(open(pjoin(input_dir, "matrices.pkl"), "rb"))
     fbrs = [
         fbr.FlowBasedRead.from_sam_record(
-            x, flow_order=DEFAULT_FLOW_ORDER, _fmt="cram", max_hmer_size=12, spread_edge_prob=False
+            x, flow_order=DEFAULT_FLOW_ORDER, _fmt="cram", max_hmer_size=12, spread_edge_probs=False
         )
         for x in data
     ]
