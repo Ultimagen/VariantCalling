@@ -9,10 +9,12 @@ from pandas.testing import assert_frame_equal
 from ugvc.mrd.balanced_strand_utils import (
     BalancedStrandAdapterVersions,
     add_strand_ratios_and_categories_to_featuremap,
+    balanced_strand_analysis,
     collect_statistics,
     plot_balanced_strand_ratio,
     plot_strand_ratio_category,
     plot_strand_ratio_category_concordnace,
+    plot_trimmer_histogram,
     read_balanced_strand_trimmer_histogram,
 )
 
@@ -79,6 +81,17 @@ def test_read_balanced_strand_LAv5_trimmer_histogram():
             df_trimmer_histogram_from_parquet,
             df_trimmer_histogram_expected,
         )
+
+
+def test_plot_trimmer_histogram():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmp_out_path = pjoin(tmpdirname, "tmp_out.png")
+        df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
+            BalancedStrandAdapterVersions.LA_v5and6,
+            input_histogram_LAv5_csv,
+            output_filename=tmp_out_path,
+        )
+        plot_trimmer_histogram(df_trimmer_histogram, output_filename=tmp_out_path)
 
 
 def test_collect_statistics():
@@ -193,3 +206,26 @@ def test_plot_strand_ratio_category_concordnace():
                 output_filename=tmp_out_path,
                 axs=None,
             )
+
+
+def test_balanced_strand_analysis():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmpdirname = "/data/tmp/test_balanced_strand_utils2/"
+
+        balanced_strand_analysis(
+            BalancedStrandAdapterVersions.LA_v5and6,
+            trimmer_histogram_csv=input_histogram_LAv5and6_csv,
+            sorter_stats_csv=sorter_stats_LAv5and6_csv,
+            output_path=tmpdirname,
+            output_basename="TEST_LAv56",
+            collect_statistics_kwargs={"input_material_ng": 10},
+        )
+
+        balanced_strand_analysis(
+            BalancedStrandAdapterVersions.LA_v5,
+            trimmer_histogram_csv=input_histogram_LAv5_csv,
+            sorter_stats_csv=sorter_stats_LAv5_csv,
+            output_path=tmpdirname,
+            output_basename="TEST_LAv5",
+            collect_statistics_kwargs={"input_material_ng": 10},
+        )
