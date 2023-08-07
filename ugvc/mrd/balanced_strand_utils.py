@@ -688,6 +688,7 @@ def collect_statistics(
             * 100
             / df_strand_ratio_category[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value].sum()
         ).T.to_frame()
+        df_strand_ratio_category_norm.index = ["% end tag not reached"]
         df_strand_ratio_category_norm.columns = ["value"]
         df_tags = pd.concat((df_tags, df_strand_ratio_category_norm)).rename(
             {

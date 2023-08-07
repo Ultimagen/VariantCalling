@@ -61,20 +61,20 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--input-material-ng",
-        type=str,
+        type=float,
         required=False,
         default=None,
         help="Optional - input material in ng, will be included in statistics and report",
     )
     parser.add_argument(
         "--sr-lower",
-        type=int,
+        type=float,
         default=STRAND_RATIO_LOWER_THRESH,
         help="lower strand ratio threshold for determining strand ratio category",
     )
     parser.add_argument(
         "--sr-upper",
-        type=int,
+        type=float,
         default=STRAND_RATIO_UPPER_THRESH,
         help="upper strand ratio threshold for determining strand ratio category",
     )
@@ -122,7 +122,7 @@ def run(argv: list[str]):
         generate_report=args_in.generate_report,
         sr_lower=args_in.sr_lower,
         sr_upper=args_in.sr_upper,
-        min_total_hmer_lengths_in_tags=args_in.min_total_hmer_lengths_in_tags,
-        max_total_hmer_lengths_in_tags=args_in.max_total_hmer_lengths_in_tags,
-        min_stem_end_matched_length=args_in.min_stem_end_matched_length,
+        min_total_hmer_lengths_in_tags=args_in.min_tot_hmer,
+        max_total_hmer_lengths_in_tags=args_in.max_tot_hmer,
+        min_stem_end_matched_length=args_in.min_stem_length,
     )

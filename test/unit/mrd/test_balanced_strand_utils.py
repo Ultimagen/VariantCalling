@@ -210,8 +210,6 @@ def test_plot_strand_ratio_category_concordnace():
 
 def test_balanced_strand_analysis():
     with tempfile.TemporaryDirectory() as tmpdirname:
-        tmpdirname = "/data/tmp/test_balanced_strand_utils2/"
-
         balanced_strand_analysis(
             BalancedStrandAdapterVersions.LA_v5and6,
             trimmer_histogram_csv=input_histogram_LAv5and6_csv,
