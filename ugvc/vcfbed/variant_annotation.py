@@ -734,3 +734,31 @@ expecting input of ref and alt sequences composed of 3 bases where only the 2nd 
         return NON_CYCLE_SKIP
     except ValueError:
         return UNDETERMINED_CYCLE_SKIP
+
+
+def get_trinuc_sub_list():
+    trinuc_list = ["".join([a, b, c]) for a in "ACGT" for b in "ACGT" for c in "ACGT"]
+    trinuc_sub = [
+        ">".join([a, b]) for a in trinuc_list for b in trinuc_list if (a[0] == b[0]) & (a[2] == b[2]) & (a[1] != b[1])
+    ]
+    return trinuc_sub
+
+
+def parse_trinuc_sub(rec):
+    # X_LM and X_RM are the left and right motif sequences, respectively
+    # obtained from AnnotateVcf.wdl pipeline
+    motif_ref = rec.info["X_LM"][0][-1] + rec.ref + rec.info["X_RM"][0][0]
+    motif_alt = rec.info["X_LM"][0][-1] + rec.alts[0] + rec.info["X_RM"][0][0]
+    return motif_ref + ">" + motif_alt
+
+
+def get_trinuc_substitution_dist(vcf_file):
+    trinuc_sub = get_trinuc_sub_list()
+    trinuc_dict = {k: 0 for k in trinuc_sub}
+    with pysam.VariantFile(vcf_file, "rb") as infh:
+        for rec in infh.fetch():
+            # check if rec is a SNP
+            if len(rec.ref) == 1 and len(rec.alts) == 1 and len(rec.alts[0]) == 1:
+                trinuc_sub = parse_trinuc_sub(rec)
+                trinuc_dict[trinuc_sub] += 1
+    return trinuc_dict
