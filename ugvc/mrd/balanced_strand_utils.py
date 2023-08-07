@@ -1214,7 +1214,7 @@ def balanced_strand_analysis(
     sorter_stats_csv : str
         path to a Sorter stats file
     output_path : str
-        path to save data and report to
+        path (folder) to which data and report will be written to
     output_basename : str, optional
         basename for output files, by default None (basename of trimmer_histogram_csv)
     collect_statistics_kwargs : dict, optional

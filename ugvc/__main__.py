@@ -31,6 +31,7 @@ from ugvc.pipelines import (
     vcfeval_flavors,
 )
 from ugvc.pipelines.mrd import (
+    balanced_strand_analysis,
     collect_coverage_per_motif,
     concat_dataframes,
     create_control_signature,
@@ -64,6 +65,7 @@ modules = [
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
 
 mrd_modules = [
+    balanced_strand_analysis,
     substitution_error_rate,
     positional_error_rate_profile,
     collect_coverage_per_motif,
