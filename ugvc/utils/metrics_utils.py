@@ -166,3 +166,61 @@ def read_sorter_statistics_csv(sorter_stats_csv: str) -> pd.DataFrame:
     # rename metrics to uniform convention
     df_sorter_stats = df_sorter_stats.rename({c: c.replace("PCT_", "% ") for c in df_sorter_stats.index})
     return df_sorter_stats
+
+def read_effective_coverage_from_sorter_json(
+    sorter_stats_json, min_coverage_for_fp=20, max_coverage_percentile=0.95, min_mapq=60
+):
+    """
+    Read effective coverage metrics from sorter JSON file.
+
+    Parameters
+    ----------
+    sorter_stats_json : str
+        Path to Sorter statistics JSON file.
+    min_coverage_for_fp : int
+        Minimum coverage to consider for FP calculation.
+    max_coverage_percentile : float
+        Maximum coverage percentile to consider for FP calculation.
+    min_mapq : int
+        Minimum MAPQ for reads to be included
+
+    Returns
+    -------
+    tuple
+        (mean_coverage, ratio_of_reads_over_mapq, ratio_of_bases_in_coverage_range,
+         min_coverage_for_fp, coverage_of_max_percentile)
+
+    """
+    with open(sorter_stats_json) as fh:
+        sorter_stats = json.load(fh)
+
+    ## Calculate ratio_of_bases_in_coverage_range
+    cvg = pd.Series(sorter_stats["cvg"])
+    cvg_cdf = cvg.cumsum() / cvg.sum()
+    ratio_below_min_coverage = cvg_cdf.loc[min_coverage_for_fp]
+
+    if ratio_below_min_coverage > 0.5:
+        min_coverage_for_fp = (cvg_cdf >= 0.5).argmax()
+    coverage_of_max_percentile = (cvg_cdf >= max_coverage_percentile).argmax()
+
+    ratio_of_bases_in_coverage_range = (
+        cvg_cdf[coverage_of_max_percentile] - cvg_cdf[min_coverage_for_fp]
+    )
+
+    ## Calculate ratio_of_reads_over_mapq
+    reads_by_mapq = pd.Series(sorter_stats["mapq"])
+    ratio_of_reads_over_mapq = (
+        reads_by_mapq[reads_by_mapq.index >= min_mapq].sum() / reads_by_mapq.sum()
+    )
+
+    ## Calculate mean coverage
+    cvg = pd.Series(sorter_stats["base_coverage"].get("Genome", sorter_stats["cvg"]))
+    mean_coverage = (cvg.index.values * cvg.values).sum() / cvg.sum()
+
+    return (
+        mean_coverage,
+        ratio_of_reads_over_mapq,
+        ratio_of_bases_in_coverage_range,
+        min_coverage_for_fp,
+        coverage_of_max_percentile,
+    )
