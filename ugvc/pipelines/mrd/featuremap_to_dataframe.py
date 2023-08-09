@@ -40,59 +40,25 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
 ".parquet" extension will be created""",
     )
     parser.add_argument(
-        "-r",
-        "--reference_fasta",
+        "-if",
+        "--info_fields",
         type=str,
-        help="""reference fasta, only required for motif annotation
-most likely gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta but it must be localized""",
-    )
-    parser.add_argument(
-        "-f",
-        "--flow_order",
-        type=str,
+        nargs="+",
         required=False,
-        default=None,
-        help="""flow order - required for cycle skip annotation but not mandatory""",
+        default="all",
+        help="""List of input info fields to include in dataframe, by default 'all''
+        If 'all' then all the info fields are read to columns
+        If None then no info fields are read to columns""",
     )
-    parser.add_argument(
-        "-m",
-        "--motif_length",
-        type=int,
-        default=4,
-        help="motif length to annotate the vcf with",
-    )
-    parser.add_argument(
-        "--report_sense_strand_bases",
-        default=False,
-        action="store_true",
-        help="if True, the ref, alt, and motifs will be reported according to the sense strand "
-        "and not according to the read orientation",
-    )
-    parser.add_argument(
-        "--show_progress_bar",
-        default=False,
-        action="store_true",
-        help="show progress bar (tqdm)",
-    )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--matched", action="store_true")
-    group.add_argument("--control", action="store_true")
     return parser.parse_args(argv[1:])
 
 
 def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
-    is_matched = None if args_in.matched is None else bool(args_in.matched)
 
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,
-        reference_fasta=args_in.reference_fasta,
-        motif_length=args_in.motif_length,
-        report_read_strand=not args_in.report_sense_strand_bases,
-        show_progress_bar=args_in.show_progress_bar,
-        flow_order=args_in.flow_order,
-        is_matched=is_matched,
+        input_info_fields=args_in.info_fields,
     )
-    print("DONE")

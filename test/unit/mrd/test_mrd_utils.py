@@ -33,6 +33,13 @@ def test_read_signature_ug_mutect():
     )  # make sure we can read the dataframe even if the sample name could not be deduced from the header
 
 
+def test_read_signature_ug_dv():
+    signature = read_signature(pjoin(inputs_dir, "dv_mrd_signature_test.vcf.gz"))
+    expected_output = pd.read_hdf(pjoin(inputs_dir, "dv_mrd_signature_test.expected_output.h5"))
+
+    assert_frame_equal(signature, expected_output)
+
+
 def test_read_signature_external():
     signature = read_signature(pjoin(inputs_dir, "external_somatic_signature.vcf.gz"))
     expected_output = pd.read_hdf(pjoin(inputs_dir, "external_somatic_signature.expected_output.h5"))
@@ -78,11 +85,11 @@ def test_read_intersection_dataframes():
         [pjoin(inputs_dir, f"{intersection_file_basename}.expected_output.parquet")]
     )
     assert_frame_equal(
-        parsed_intersection_dataframe.reset_index(),
+        parsed_intersection_dataframe,
         parsed_intersection_dataframe_expected,
     )
     assert_frame_equal(
-        parsed_intersection_dataframe2.reset_index(),
+        parsed_intersection_dataframe2,
         parsed_intersection_dataframe_expected,
     )
 
