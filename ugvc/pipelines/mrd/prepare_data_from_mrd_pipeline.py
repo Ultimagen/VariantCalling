@@ -49,12 +49,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Input signature vcf file/s (control)",
     )
     parser.add_argument(
-        "-e",
-        "--substitution-error-rate",
+        "--db-control-signatures-vcf",
+        nargs="+",
         type=str,
         default=None,
-        required=False,
-        help="Substitution error rate hdf produced by mrd.snp_error_rate",
+        help="Input signature vcf file/s (db control)",
     )
     parser.add_argument(
         "-c",
@@ -97,7 +96,7 @@ def run(argv: list[str]):
         intersected_featuremaps_parquet=args_in.intersected_featuremaps,
         matched_signatures_vcf_files=args_in.matched_signatures_vcf,
         control_signatures_vcf_files=args_in.control_signatures_vcf,
-        substitution_error_rate_hdf=args_in.substitution_error_rate,
+        db_control_signatures_vcf_files=args_in.db_control_signatures_vcf,
         coverage_bw_files=args_in.coverage_bw,
         tumor_sample=args_in.tumor_sample,
         output_dir=args_in.output_dir,

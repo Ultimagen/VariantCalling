@@ -92,6 +92,28 @@ def _safe_tabix_index(vcf_file: str):
     return vcf_file
 
 
+def _validate_info(x):
+    """
+    Validate INFO field in a VCF record.
+    In some cases it is a string of boolean ("TRUE"/"FALSE")
+    In the case of long hmers it's numeric: if the hmer >= 7
+    it appears in the INFO field as a tuple of (hmer, hmer_length),
+    then the function should return True
+    """
+    MAX_HMER_LENGTH = 7
+    if isinstance(x, bool):
+        return x
+    if isinstance(x, str):
+        if x.lower() == "true":
+            return True
+        if x.lower() == "false":
+            return False
+        if x.isnumeric():
+            return bool(float(x) >= MAX_HMER_LENGTH)
+        raise ValueError(f"Cannot convert {x} to bool")
+    return None
+
+
 def read_signature(  # pylint: disable=too-many-branches
     signature_vcf_files: list[str],
     output_parquet: str = None,
@@ -101,7 +123,7 @@ def read_signature(  # pylint: disable=too-many-branches
     columns_to_drop: list = None,
     verbose: bool = True,
     raise_exception_on_sample_not_found: bool = False,
-    is_matched: bool = None,
+    signature_type: str = None,
 ):
     """
     Read signature (variant calling output, generally mutect) results to dataframe.
@@ -125,8 +147,8 @@ def read_signature(  # pylint: disable=too-many-branches
         show verbose debug messages
     raise_exception_on_sample_not_found: bool, optional
         if True (default False) and the sample name could not be found to determine AF, raise a ValueError
-    is_matched: bool, optional
-        Set is_matched column in the dataframe to be equal to the input value, if it is not None
+    signature_type: str, optional
+        Set signature_type column in the dataframe to be equal to the input value, if it is not None
 
 
     Raises
@@ -184,12 +206,22 @@ def read_signature(  # pylint: disable=too-many-branches
             # get tumor sample name
             header = variant_file.header
             if tumor_sample is None:
-                for x in str(header).split("\n"):
-                    m = re.match(r"##tumor_sample=(.+)", x)
-                    if m is not None:
-                        tumor_sample = m.groups()[0]
-                        logger.debug(f"Tumor sample name is {tumor_sample}")
-                        break
+                number_of_samples = len(list(header.samples))
+                if number_of_samples >= 2:
+                    # mutect2 vcf
+                    for x in str(header).split("\n"):
+                        m = re.match(r"##tumor_sample=(.+)", x)  # good for mutect2
+                        if m is not None:
+                            tumor_sample = m.groups()[0]
+                            logger.debug(f"Tumor sample name is {tumor_sample}")
+                            break
+                elif number_of_samples == 1:
+                    # DV vcf
+                    tumor_sample = list(header.samples)[0]
+                    logger.debug(f"Tumor sample name is {tumor_sample}")
+                elif number_of_samples == 0:
+                    # synthetic signature
+                    logger.debug("No samples found in vcf file")
             if tumor_sample is not None and tumor_sample not in header.samples:
                 if raise_exception_on_sample_not_found:
                     raise ValueError(
@@ -205,7 +237,18 @@ def read_signature(  # pylint: disable=too-many-branches
             ]
             x_columns = [k for k in info_keys if k.startswith("X_") and k not in columns_to_drop]
             x_columns_name_dict = {k: x_columns_name_dict.get(k, k) for k in x_columns}
-
+            format_fields = [x.name for x in header.formats.values()]
+            if "AF" in format_fields:
+                # mutect2 vcf
+                af_field = "AF"
+            elif "VAF" in format_fields:
+                # DV vcf
+                af_field = "VAF"
+            elif "DNA_VAF" in info_keys:
+                # synthetic signature
+                af_field = "DNA_VAF"
+            else:
+                af_field = None
             logger.debug(f"Reading x_columns: {x_columns}")
 
             for j, rec in enumerate(variant_file):
@@ -218,10 +261,12 @@ def read_signature(  # pylint: disable=too-many-branches
                             rec.alts[0],
                             rec.id,
                             (
-                                rec.samples[tumor_sample]["AF"][0]
+                                rec.samples[tumor_sample][af_field][0]
                                 if tumor_sample
-                                and "AF" in rec.samples[tumor_sample]
+                                and af_field in rec.samples[tumor_sample]
                                 and len(rec.samples[tumor_sample]) > 0
+                                else rec.info[af_field]
+                                if af_field in rec.info
                                 else np.nan
                             ),
                             (
@@ -235,7 +280,7 @@ def read_signature(  # pylint: disable=too-many-branches
                             else np.nan,
                             rec.info["SOR"] if "SOR" in rec.info else np.nan,
                         ]
-                        + [c in rec.info for c in genomic_region_annotations]
+                        + [_validate_info(rec.info.get(c, "False")) for c in genomic_region_annotations]
                         + [rec.info[c][0] if isinstance(rec.info[c], tuple) else rec.info[c] for c in x_columns]
                     )
                 )
@@ -301,7 +346,7 @@ def read_signature(  # pylint: disable=too-many-branches
                 for variant_file in f_bw:
                     variant_file.close()
         df_sig = pd.concat(df_list).astype({"coverage": int})
-
+    df_sig["hmer"] = pd.to_numeric(df_sig["hmer"], errors="coerce")
     logger.debug("Calculating reference hmer")
     try:
         df_sig.loc[:, "hmer"] = (
@@ -328,8 +373,8 @@ def read_signature(  # pylint: disable=too-many-branches
 
     df_sig.columns = [x.replace("-", "_").lower() for x in df_sig.columns]
 
-    if is_matched is not None and isinstance(is_matched, bool):
-        df_sig = df_sig.assign(is_matched=is_matched)
+    if signature_type is not None and isinstance(signature_type, str):
+        df_sig = df_sig.assign(signature_type=signature_type)
 
     if output_parquet:
         if df_existing is not None:
@@ -342,20 +387,17 @@ def read_signature(  # pylint: disable=too-many-branches
 
 def read_intersection_dataframes(
     intersected_featuremaps_parquet,
-    substitution_error_rate=None,
     output_parquet=None,
 ):
     """
     Read featuremap dataframes from several intersections of one featuremaps with several signatures, each is annotated
     with the signature name. Assumed to be the output of featuremap.intersect_featuremap_with_signature
-
+    Return a concatenated dataframe with the signature name as a column
 
     Parameters
     ----------
     intersected_featuremaps_parquet: list[str] or str
         list of featuremaps intesected with various signatures
-    substitution_error_rate: str
-        substitution error rate result generated from mrd.substitution_error_rate
     output_parquet: str
         File name to save result to, default None
 
@@ -375,42 +417,14 @@ def read_intersection_dataframes(
     logger.debug(f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps")
     df_int = pd.concat(
         (
-            pd.read_parquet(f)
-            .assign(
+            pd.read_parquet(f).assign(
                 cfdna=_get_sample_name_from_file_name(f, split_position=0),
                 signature=_get_sample_name_from_file_name(f, split_position=1),
+                signature_type=_get_sample_name_from_file_name(f, split_position=2),
             )
-            .reset_index()
-            .astype({"chrom": str, "pos": int, "ref": str, "alt": str, "left_motif": str, "right_motif": str})
-            .set_index(["signature", "chrom", "pos"])
             for f in intersected_featuremaps_parquet
         )
     )
-
-    if substitution_error_rate is not None:
-        logger.debug("Merging with SNP error rate")
-        df_sub_error_rate = (
-            pd.read_hdf(substitution_error_rate, "/motif_1").set_index(["ref_motif", "alt"]).filter(regex="error_rate_")
-        )
-        df_int = df_int.merge(
-            df_sub_error_rate,
-            left_on=["ref_motif", "alt"],
-            right_index=True,
-        )
-
-    logger.debug("Setting ref/alt direction to match reference and not read")
-    if "X_FLAGS" not in df_int.columns:
-        raise ValueError("X_FLAGS not found in dataframe - cannot determine read strand")
-    is_reverse = (df_int["X_FLAGS"] & 16).astype(bool)
-    for column in ("ref", "alt", "ref_motif", "alt_motif"):
-        df_int.loc[:, column] = df_int[column].where(is_reverse, df_int[column].apply(revcomp))
-
-    left_motif_reverse = df_int["left_motif"].apply(revcomp)
-    right_motif_reverse = df_int["right_motif"].apply(revcomp)
-    df_int.loc[:, "left_motif"] = df_int["left_motif"].where(is_reverse, right_motif_reverse)
-    df_int.loc[:, "right_motif"] = df_int["right_motif"].where(is_reverse, left_motif_reverse)
-    df_int = df_int.sort_index()
-    df_int.columns = [x.replace("-", "_") for x in df_int.columns]
     if output_parquet is not None:
         df_int.reset_index().to_parquet(output_parquet)
     return df_int
@@ -420,7 +434,7 @@ def intersect_featuremap_with_signature(
     featuremap_file: str,
     signature_file: str,
     output_intersection_file: str = None,
-    is_matched: bool = None,
+    signature_type: str = None,
     add_info_to_header: bool = True,
     overwrite: bool = True,
 ) -> str:
@@ -436,8 +450,8 @@ def intersect_featuremap_with_signature(
         VCF file, tumor variant calling results
     output_intersection_file: str, optional
         Output vcf file, .vcf.gz or .vcf extension, if None (default) determined automatically from file names
-    is_matched: bool, optional
-        If defined and tag the file name accordingly as "*.matched.vcf.gz" or "*.control.vcf.gz"
+    signature_type: str, optional
+        If defined and tag the file name accordingly as "*.matched.vcf.gz", "*.control.vcf.gz" or "*.db_control.vcf.gz"
     add_info_to_header: bool, optional
         Add line to header to indicate this function ran (default True)
     overwrite: bool, optional
@@ -460,12 +474,10 @@ def intersect_featuremap_with_signature(
     if output_intersection_file is None:
         featuremap_name = _get_sample_name_from_file_name(featuremap_file, split_position=0)
         signature_name = _get_sample_name_from_file_name(signature_file, split_position=0)
-        if is_matched is None:
+        if signature_type is None:
             type_name = ""
-        elif is_matched:
-            type_name = ".matched"
         else:
-            type_name = ".control"
+            type_name = f".{signature_type}"
         output_intersection_file = f"{featuremap_name}.{signature_name}{type_name}.intersection.vcf.gz"
         logger.debug(f"Output file name will be: {output_intersection_file}")
     if not (output_intersection_file.endswith(".vcf.gz") or output_intersection_file.endswith(".vcf")):
@@ -497,7 +509,7 @@ def intersect_featuremap_with_signature(
                     "of a featuremap with a somatic mutation signature\n"
                 )
                 f.write(f"##python_cmd:intersect_featuremap_with_signature=python {' '.join(sys.argv)}\n")
-                if is_matched:
+                if signature_type == "matched":
                     f.write("##Intersection:type=matched (signature and featuremap from the same patient)\n")
                 else:
                     f.write("##Intersection:type=control (signature and featuremap not from the same patient)\n")
@@ -735,7 +747,7 @@ def featuremap_to_dataframe(
     )
     # Determine output file name
     if output_file is None:
-        if output_file.endswith(FileExtension.VCF_GZ.value):
+        if featuremap_vcf.endswith(FileExtension.VCF_GZ.value):
             output_file = pjoin(
                 dirname(featuremap_vcf),
                 splitext(splitext(basename(featuremap_vcf))[0])[0] + FileExtension.PARQUET.value,
@@ -755,7 +767,7 @@ def prepare_data_from_mrd_pipeline(
     intersected_featuremaps_parquet,
     matched_signatures_vcf_files=None,
     control_signatures_vcf_files=None,
-    substitution_error_rate_hdf=None,
+    db_control_signatures_vcf_files=None,
     coverage_bw_files=None,
     tumor_sample=None,
     output_dir=None,
@@ -769,8 +781,8 @@ def prepare_data_from_mrd_pipeline(
         File name or a list of file names, signature vcf files of matched signature/s
     control_signatures_vcf_files: list[str]
         File name or a list of file names, signature vcf files of control signature/s
-    substitution_error_rate_hdf: str
-        snp error rate result generated from mrd.snp_error_rate, disabled (None) by default
+    db_control_signatures_vcf_files: list[str]
+        File name or a list of file names, signature vcf files of db (synthetic) control signature/s
     coverage_bw_files: list[str]
         Coverage bigwig files generated with "coverage_analysis full_analysis", disabled (None) by default
     tumor_sample: str
@@ -796,6 +808,10 @@ def prepare_data_from_mrd_pipeline(
         raise ValueError(f"output_dir is not None ({output_dir}) but output_basename is")
     if output_dir is not None:
         os.makedirs(output_dir, exist_ok=True)
+    if matched_signatures_vcf_files is None:
+        raise ValueError("matched_signatures_vcf_files must be defined")
+    if control_signatures_vcf_files is None and db_control_signatures_vcf_files is None:
+        raise ValueError("Either control_signatures_vcf_files or db_control_signatures_vcf_files must be defined")
 
     intersection_dataframe_fname = (
         pjoin(output_dir, f"{output_basename}.features{FileExtension.PARQUET.value}")
@@ -810,22 +826,28 @@ def prepare_data_from_mrd_pipeline(
 
     intersection_dataframe = read_intersection_dataframes(
         intersected_featuremaps_parquet,
-        substitution_error_rate=substitution_error_rate_hdf,
         output_parquet=intersection_dataframe_fname,
     )
-    read_signature(
+    signature_dataframe = read_signature(
         matched_signatures_vcf_files,
         coverage_bw_files=coverage_bw_files,
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
-        is_matched=True,
+        signature_type="matched",
     )
     signature_dataframe = read_signature(
         control_signatures_vcf_files,
         coverage_bw_files=coverage_bw_files,
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
-        is_matched=False,
+        signature_type="control",
+    )
+    signature_dataframe = read_signature(
+        db_control_signatures_vcf_files,
+        coverage_bw_files=coverage_bw_files,
+        output_parquet=signatures_dataframe_fname,
+        tumor_sample=tumor_sample,
+        signature_type="db_control",
     )
     return signature_dataframe, intersection_dataframe
 
@@ -893,9 +915,9 @@ def generate_synthetic_signatures(
     synthetic_signatures = []
     file_handle_list = []
     for i in range(n_synthetic_signatures):
-        output_vcf = pjoin(output_dir, f"{signature_basename}_{db_basename}_syn{i}.vcf.gz")
+        output_vcf = pjoin(output_dir, f"syn{i}_{signature_basename}_{db_basename}.vcf.gz")
         synthetic_signatures.append(output_vcf)
-        outfh = pysam.VariantFile(output_vcf, "wb", header=db_fh.header)
+        outfh = pysam.VariantFile(output_vcf, "w", header=db_fh.header)
         file_handle_list.append(outfh)
 
     # read db file, parse trinuc substiution and write to output files
