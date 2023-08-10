@@ -43,15 +43,17 @@ def test_read_signature_external():
 def test_intersect_featuremap_with_signature():
     signature_file = pjoin(inputs_dir, "signature.chr19.vcf.gz")
     featuremap_file = pjoin(inputs_dir, "featuremap.chr19.vcf.gz")
-    output_intersection_file = pjoin(inputs_dir, "featuremap.chr19.intersection.vcf.gz")
-    output_intersection_file_headerless = pjoin(inputs_dir, "featuremap.chr19.intersection.NOHEADER.vcf")
-    output_test_headerless = pjoin(inputs_dir, ".signature.matched.intersection.NOHEADER.vcf")
-    intersect_featuremap_with_signature(
-        featuremap_file, signature_file, output_intersection_file=output_intersection_file, is_matched=True
-    )
-    cmd1 = f"bcftools view -H {output_intersection_file} > {output_intersection_file_headerless}"
-    subprocess.check_call(cmd1, shell=True)
-    assert filecmp.cmp(output_intersection_file_headerless, output_test_headerless)
+    output_test_headerless = pjoin(inputs_dir, "signature.matched.intersection.NOHEADER.vcf")
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_intersection_file = pjoin(tmpdirname, "featuremap.chr19.intersection.vcf.gz")
+        output_intersection_file_headerless = pjoin(tmpdirname, "featuremap.chr19.intersection.NOHEADER.vcf")
+        intersect_featuremap_with_signature(
+            featuremap_file, signature_file, output_intersection_file=output_intersection_file, is_matched=True
+        )
+        cmd1 = f"bcftools view -H {output_intersection_file} > {output_intersection_file_headerless}"
+        subprocess.check_call(cmd1, shell=True)
+        assert filecmp.cmp(output_intersection_file_headerless, output_test_headerless)
 
 
 def test_featuremap_to_dataframe():
