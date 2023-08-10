@@ -41,6 +41,7 @@ logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
 
 
+
 def insertion_deletion_statistics(df):
     """
     statistics for indel deletions and insertions.
@@ -262,64 +263,41 @@ def bcftools_stats_statistics(
         output_prefix
 ):
     # novel only vcf
-    cmd = (
-        [
-            "bcftools", "view", "-n", f"{vcf_input}", "-Oz", f"-o {output_prefix}_novel.vcf.gz"
-        ]
-    )
-
-    logger.info(" ".join(cmd))
-    subprocess.check_call(" ".join(cmd).split())
-
-    cmd = f"bcftools stats {output_prefix}_novel.vcf.gz > {output_prefix}_novel.txt"
-
-    logger.info(cmd)
-    subprocess.check_call(cmd, shell=True)
-    # homozygous
-    cmd = f"bcftools query -f '[%GT]\n' {output_prefix}_novel.vcf.gz | grep -E '1/1' | wc -l"
-
-    logger.info(cmd)
-    novel_hom_vars = int(subprocess.check_output(cmd, shell=True))
-
-    cmd = f"bcftools view -i \'ID!=\".\"\' {vcf_input} -Oz -o {output_prefix}_known.vcf.gz"
+    cmd = f"bcftools view -n {vcf_input} | bcftools stats --af-bins 0,0.25,0.75,1 --af-tag AF > {output_prefix}_novel.txt"
 
     logger.info(cmd)
     subprocess.check_call(cmd, shell=True)
 
-    cmd = f"bcftools stats {output_prefix}_known.vcf.gz > {output_prefix}_known.txt"
+    cmd = f"bcftools view -k {vcf_input} | bcftools stats --af-bins 0,0.25,0.75,1 --af-tag AF > {output_prefix}_known.txt"
 
     logger.info(cmd)
     subprocess.check_call(cmd, shell=True)
 
-    cmd = f"bcftools query -f '[%GT]\n' {output_prefix}_known.vcf.gz | grep -E '1/1' | wc -l"
+    data_novel,_ ,_,df_novel_idd = _parse_stats_report(f"{output_prefix}_novel.txt")
 
-    logger.info(cmd)
-    known_hom_vars = int(subprocess.check_output(cmd, shell=True))
-
-    data_novel = _parse_stats_report(f"{output_prefix}_novel.txt", novel_hom_vars)
-
-    data_known = _parse_stats_report(f"{output_prefix}_known.txt", known_hom_vars)
+    data_known,_ ,_,df_known_idd = _parse_stats_report(f"{output_prefix}_known.txt")
     data_novel.loc['indel_novelty_rate', 'values'] = 100
     data_known.loc['indel_novelty_rate', 'values'] = 0
 
     data_all = data_novel+data_known
     data_all.loc['SNP_to_indel_ratio', 'values'] = data_all.loc['nSnps', 'values'] / data_all.loc['nIndels', 'values']
-    data_all.loc['ti_tv_ratio','values'] = data_all.loc['nTi', 'values'] / data_all.loc['nTv', 'values']
+    data_all.loc['tiTvRatio','values'] = data_all.loc['nTi', 'values'] / data_all.loc['nTv', 'values']
     data_all.loc['insertion_to_deletion_ratio', 'values'] = data_all.loc['nInsertions', 'values'] / data_all.loc['nDeletions', 'values']
-    data_all.loc['indel_novelty_rate', 'values'] = data_novel.loc['nIndels', 'values']/(data_novel.loc['nIndels', 'values'] + data_known.loc['nIndels', 'values'])
-    # group them tog
+    data_all.loc['indel_novelty_rate', 'values'] = data_novel.loc['nIndels', 'values']/(data_novel.loc['nIndels', 'values'] + data_known.loc['nIndels', 'values'])*100
+    # group them together
     data = {}
     data['novel'] = data_novel
     data['known'] = data_known
     data['all'] = data_all
-    return data
+    return data, df_novel_idd, df_known_idd
 
 
 
-def _parse_stats_report(report,hom_vars):
+def _parse_stats_report(report):
     df_sn = _parse_stats_section_report(report, "SN")
     df_tstv = _parse_stats_section_report(report, "TSTV")
     df_idd = _parse_stats_section_report(report, "IDD")
+    df_af = _parse_stats_section_report(report, "AF")
     # arrange the relevant results in one dataframe
     n_records = int(df_sn.loc[df_sn['[3]key']=='number of records:','[4]value'])
     n_snps = int(df_sn.loc[df_sn['[3]key'] == 'number of SNPs:', '[4]value'])
@@ -329,13 +307,16 @@ def _parse_stats_report(report,hom_vars):
     ti_tv_ratio = float(df_tstv['[5]ts/tv'])
     multiallelic_snps = int(df_sn.loc[df_sn['[3]key'] == 'number of multiallelic SNP sites:', '[4]value'])
     multiallelic = int(df_sn.loc[df_sn['[3]key'] == 'number of multiallelic sites:', '[4]value'])
-
+    try:
+        hom_vars = int(df_af.loc[df_af['[3]allele frequency']=='0.875000','[4]number of SNPs']) + int(df_af.loc[df_af['[3]allele frequency']=='0.875000','[7]number of indels'])
+    except(IndexError, TypeError):
+        hom_vars = 0
     n_deletions = np.sum(df_idd.loc[(df_idd['[3]length (deletions negative)']).astype(int) < 0,'[4]number of sites'].astype(int))
     n_insertions = np.sum(df_idd.loc[(df_idd['[3]length (deletions negative)']).astype(int) > 0, '[4]number of sites'].astype(int))
 
-    index_values = ['nRecords','nDeletions','nInsertions','nSnps','nIndels','nTi','nTv','ti_tv_ratio',
+    index_values = ['nRecords','nDeletions','nInsertions','nSnps','nIndels','nTi','nTv','tiTvRatio',
              'SNP_to_indel_ratio','indel_novelty_rate','insertion_to_deletion_ratio','nHets','nHomVar',
-             'nMultiSNPs','nMultiSNPs','nBiallelicSNPs','nBiallelicIndels'
+             'nMultiSNPs','nMultiIndels','nBiallelicSNPs','nBiallelicIndels'
              ]
     data = [n_records,
             n_deletions,
@@ -357,7 +338,7 @@ def _parse_stats_report(report,hom_vars):
             ]
 
     df = pd.DataFrame(data, columns=["values"], index=index_values)
-    return df
+    return df, df_sn, df_tstv, df_idd
 
 
 def _parse_stats_section_report(filename, section):
@@ -375,50 +356,74 @@ def _parse_stats_section_report(filename, section):
     return df
 
 
+
+def insertion_deletion_statistics(vcf_input, output_prefix):
+    # extract info
+    # heterozygous
+    cmd = f"bcftools query -i \'INFO/VARIANT_TYPE=\"h-indel\" && GT=\"0/1\"\' -f \'%INFO/X_HIL;%INFO/X_HIN;%INFO/X_IC\\n\' {vcf_input} > {output_prefix}_info_hete.txt"
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
+
+    # homozygous
+    cmd = f"bcftools query -i \'INFO/VARIANT_TYPE=\"h-indel\" && GT=\"1/1\"\' -f \'%INFO/X_HIL;%INFO/X_HIN;%INFO/X_IC\\n\' {vcf_input} > {output_prefix}_info_homo.txt"
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
+
+    def _create_ins_del_summary_table(filename):
+        logger.info("Reading csv to df")
+        filename = filename
+        column_names = ['X_HIL', 'X_HIN', 'X_IC']
+        df = pd.read_csv(filename, delimiter=";", names=column_names)
+
+        logger.info("Creating a summary table of insertion and deletions by base")
+        # remove multi-allelic
+        df = df.loc[df["X_HIL"].str.split(',').apply(lambda x: (len(x) == 1) and int(x[0]) != 0)]
+        # make it as a summary table
+        summary = df.groupby(['X_HIN', 'X_HIL', 'X_IC']).size().reset_index(name='Counts')
+        summary.loc[summary['X_HIN'] == 'T', 'X_HIN'] = 'A'
+        summary.loc[summary['X_HIN'] == 'C', 'X_HIN'] = 'G'
+        summary['index_name'] = summary['X_IC'] + ' ' + summary['X_HIN']
+        summary = summary.groupby(['index_name', 'X_HIL'])['Counts'].sum().reset_index(name='Counts')
+        summary_table = summary.pivot(index='index_name', columns='X_HIL', values='Counts').fillna(0)
+        summary_table = summary_table[pd.Series(np.arange(1, 13)).apply(str)]
+        summary_table = summary_table.astype(int)
+        return summary_table
+
+    summary_table_hete = _create_ins_del_summary_table(f"{output_prefix}_info_hete.txt")
+    summary_table_homo = _create_ins_del_summary_table(f"{output_prefix}_info_homo.txt")
+
+    return summary_table_hete, summary_table_homo
+
+
+
+
 def run_full_analysis(arg_values):
-    stats_tables = bcftools_stats_statistics(arg_values.input_file,arg_values.output_prefix)
+    stats_tables, df_novel_idd, df_known_idd = bcftools_stats_statistics(arg_values.input_file,arg_values.output_prefix)
 
+    # insertion and deleletion by base
+    ins_del_hete, ins_del_homo = insertion_deletion_statistics(arg_values.input_file, arg_values.output_prefix)
 
-    FIELDS_TO_IGNORE = [
-        "GNOMAD_AF",
-        "X_IC",
-        "X_IL",
-        "X_HIL",
-        "X_HIN",
-        "X_LM",
-        "X_RM",
-        "X_GCC",
-        "X_CSS",
-        "PL",
-        "DB",
-        "AD",
-    ]
-    logger.info("Converting vcf to df")
-    df = vcftools.get_vcf_df(
-        arg_values.input_file,
-        sample_id=arg_values.sample_id,
-        sample_name=arg_values.sample_name,
-        ignore_fields=FIELDS_TO_IGNORE,
-    )
-    logger.info("Annotating vcf")
-    annotated_df, _ = vcf_pipeline_utils.annotate_concordance(df, arg_values.reference)
+    # same for exome
+    cmd = f"bcftools view -i \'INFO/EXOME=\"TRUE\"\' {arg_values.input_file} -Oz -o {arg_values.output_prefix}_exome.vcf.gz"
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
 
-    logger.info("insertion/ deletion statistics")
-    ins_del_df = insertion_deletion_statistics(df)
-
-    logger.info("Allele frequency histogram")
-    af_df = allele_freq_hist(annotated_df)
-
-    logger.info("snps motifs statistics")
-    snp_motifs = snp_statistics(df, arg_values.reference)
+    stats_tables_exome, df_novel_idd_exome, df_known_idd_exome = bcftools_stats_statistics(f"{arg_values.output_prefix}_exome.vcf.gz",
+                                                                         f"{arg_values.output_prefix}_exome")
 
     logger.info("save all statistics in h5 file")
-    ins_del_df["hete"].to_hdf(f"{arg_values.output_prefix}.h5", key="ins_del_hete")
-    ins_del_df["homo"].to_hdf(f"{arg_values.output_prefix}.h5", key="ins_del_homo")
-    af_df.to_hdf(f"{arg_values.output_prefix}.h5", key="af_hist")
-    snp_motifs.to_hdf(f"{arg_values.output_prefix}.h5", key="snp_motifs")
     for stats_table_name, stats_table in stats_tables.items():
         stats_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{stats_table_name}")
+
+    df_novel_idd.to_hdf(f"{arg_values.output_prefix}.h5", key="idd_novel")
+    df_known_idd.to_hdf(f"{arg_values.output_prefix}.h5", key="idd_known")
+
+    ins_del_hete.to_hdf(f"{arg_values.output_prefix}.h5", key="ins_del_hete")
+    ins_del_homo.to_hdf(f"{arg_values.output_prefix}.h5", key="ins_del_homo")
+    # exome
+    for stats_table_name, stats_table in stats_tables_exome.items():
+        stats_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_exome_{stats_table_name}")
+
 
 
 
@@ -560,7 +565,6 @@ if __name__ == "__main__":
     full_analysis = subparsers.add_parser(name="full_analysis", description="Run the full analysis of no_gt_report")
 
     full_analysis.add_argument("--input_file", help="Input vcf file", required=True, type=str)
-    full_analysis.add_argument("--dbsnp", help="dbsnp vcf file", required=True, type=str)
     full_analysis.add_argument("--reference", help="Reference genome", required=True, type=str)
     full_analysis.add_argument("--output_prefix", help="output file", required=True, type=str)
     full_analysis.add_argument(
