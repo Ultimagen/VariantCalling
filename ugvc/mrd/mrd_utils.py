@@ -665,8 +665,10 @@ def featuremap_to_dataframe(
     # define type conversion dictionary, String is converted to object to support np.nan
     type_conversion_dict = {"String": object, "Integer": int, "Float": float, "Flag": bool}
 
-    # auxiliary function
+    # auxiliary function to parse info and formats fields to read
     def get_metadata_dict(values: list[str], input_fields: list[str] = None):
+        if input_fields is None:
+            return {}, []
         metadata_dict_full = {value.name: (value.number, value.type) for value in values}
         input_fields_to_use = list(metadata_dict_full.keys()) if input_fields.lower() == "all" else input_fields
         for key in input_fields_to_use:
