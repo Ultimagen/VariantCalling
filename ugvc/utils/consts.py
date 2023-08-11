@@ -18,3 +18,5 @@ class FileExtension(Enum):
     JPEG = ".jpeg"
     FASTA = ".fasta"
     TXT = ".txt"
+    VCF = ".vcf"
+    VCF_GZ = ".vcf.gz"

@@ -1,5 +1,6 @@
 import filecmp
 import subprocess
+import tempfile
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
@@ -42,28 +43,29 @@ def test_read_signature_external():
 def test_intersect_featuremap_with_signature():
     signature_file = pjoin(inputs_dir, "signature.chr19.vcf.gz")
     featuremap_file = pjoin(inputs_dir, "featuremap.chr19.vcf.gz")
-    output_intersection_file = pjoin(inputs_dir, "featuremap.chr19.intersection.vcf.gz")
-    output_intersection_file_headerless = pjoin(inputs_dir, "featuremap.chr19.intersection.NOHEADER.vcf")
-    output_test_headerless = pjoin(inputs_dir, ".signature.matched.intersection.NOHEADER.vcf")
-    intersect_featuremap_with_signature(
-        featuremap_file, signature_file, output_intersection_file=output_intersection_file, is_matched=True
-    )
-    cmd1 = f"bcftools view -H {output_intersection_file} > {output_intersection_file_headerless}"
-    subprocess.check_call(cmd1, shell=True)
-    assert filecmp.cmp(output_intersection_file_headerless, output_test_headerless)
+    output_test_headerless = pjoin(inputs_dir, "signature.matched.intersection.NOHEADER.vcf")
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_intersection_file = pjoin(tmpdirname, "featuremap.chr19.intersection.vcf.gz")
+        output_intersection_file_headerless = pjoin(tmpdirname, "featuremap.chr19.intersection.NOHEADER.vcf")
+        intersect_featuremap_with_signature(
+            featuremap_file, signature_file, output_intersection_file=output_intersection_file, is_matched=True
+        )
+        cmd1 = f"bcftools view -H {output_intersection_file} > {output_intersection_file_headerless}"
+        subprocess.check_call(cmd1, shell=True)
+        assert filecmp.cmp(output_intersection_file_headerless, output_test_headerless)
 
 
 def test_featuremap_to_dataframe():
-    featuremap_dataframe = featuremap_to_dataframe(
-        pjoin(
-            inputs_dir, "MRD_test_subsample.MRD_test_subsample_annotated_AF_vcf_gz_mrd_quality_snvs.intersection.vcf.gz"
-        ),
-        reference_fasta=reference_fasta,
-    )
-    featuremap_dataframe_expected = pd.read_parquet(
-        pjoin(inputs_dir, f"{intersection_file_basename}.expected_output.parquet")
-    )
-    assert_frame_equal(featuremap_dataframe, featuremap_dataframe_expected)
+    input_featuremap = pjoin(inputs_dir, "Pa_46.bsDNA.chr20_sample.vcf.gz")
+    expected_featuremap_dataframe = pjoin(inputs_dir, "Pa_46.bsDNA.chr20_sample.parquet")
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        tmp_out_path = pjoin(tmpdirname, "tmp_out.parquet")
+
+        featuremap_dataframe = featuremap_to_dataframe(featuremap_vcf=input_featuremap, output_file=tmp_out_path)
+        featuremap_dataframe_expected = pd.read_parquet(expected_featuremap_dataframe)
+        assert_frame_equal(featuremap_dataframe, featuremap_dataframe_expected)
+        assert filecmp.cmp(tmp_out_path, expected_featuremap_dataframe)
 
 
 def test_read_intersection_dataframes():
@@ -76,14 +78,21 @@ def test_read_intersection_dataframes():
     parsed_intersection_dataframe2 = read_intersection_dataframes(
         [pjoin(inputs_dir, f"{intersection_file_basename}.expected_output.parquet")]
     )
-    assert_frame_equal(parsed_intersection_dataframe.reset_index(), parsed_intersection_dataframe_expected)
-    assert_frame_equal(parsed_intersection_dataframe2.reset_index(), parsed_intersection_dataframe_expected)
+    assert_frame_equal(
+        parsed_intersection_dataframe.reset_index(),
+        parsed_intersection_dataframe_expected,
+    )
+    assert_frame_equal(
+        parsed_intersection_dataframe2.reset_index(),
+        parsed_intersection_dataframe_expected,
+    )
 
 
 def test_generate_synthetic_signatures():
     signature_file = pjoin(inputs_dir, "mutect_mrd_signature_test.vcf.gz")
     db_file = pjoin(
-        inputs_dir, "pancan_pcawg_2020.mutations_hg38_GNOMAD_dbsnp_beds.sorted.Annotated.HMER_LEN.edited.chr19.vcf.gz"
+        inputs_dir,
+        "pancan_pcawg_2020.mutations_hg38_GNOMAD_dbsnp_beds.sorted.Annotated.HMER_LEN.edited.chr19.vcf.gz",
     )
     n_synthetic_signatures = 1
     output_dir = inputs_dir
