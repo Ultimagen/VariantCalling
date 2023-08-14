@@ -20,44 +20,44 @@ jobs:
           conda-channels: conda-forge, bioconda, r, defaults
       - name: Setup file system
         run: |
-          sudo mkdir -p /data
+          sudo mkdir -p /data && \
           sudo chmod 777 /data
       - name: Setup environment variables
         run: |
           export PAPYRUS_ACCESS_STRING=mongodb+srv://inigo-montoya:1aBc5678910@testcluster.jm2x3.mongodb.net/test
       - name: Install dependencies
         run: |
-          pip install flake8
-          conda env create --file setup/other_envs/ucsc.yml --name ucsc
-          conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
-          conda env create --file setup/other_envs/cnmops.yml --name cn.mops
-          conda env create --file setup/environment.yml --name genomics.py3
+          pip install flake8 && \
+          conda env create --file setup/other_envs/ucsc.yml --name ucsc && \
+          conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv && \
+          conda env create --file setup/other_envs/cnmops.yml --name cn.mops && \
+          conda env create --file setup/environment.yml --name genomics.py3 
       - name: Install as a package
         run: |
-          source activate genomics.py3
+          source activate genomics.py3 && \
           pip install .
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics && \
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Import integrity tests
         run: |
-          source activate genomics.py3
-          python ugvc
-          run_comparison_pipeline.py -h
-          filter_variants_pipeline.py -h
-          evaluate_concordance.py -h
-          train_models_pipeline.py -h
-          coverage_analysis.py -h
-          correct_systematic_errors.py -h
-          sec_training.py -h
-          collect_existing_metrics.py -h
-          convert_h5_to_json.py -h
-          correct_genotypes_by_imputation.py -h
+          source activate genomics.py3 && \
+          python ugvc && \
+          run_comparison_pipeline.py -h && \
+          filter_variants_pipeline.py -h && \
+          evaluate_concordance.py -h && \
+          train_models_pipeline.py -h && \
+          coverage_analysis.py -h && \
+          correct_systematic_errors.py -h && \
+          sec_training.py -h && \
+          collect_existing_metrics.py -h && \
+          convert_h5_to_json.py -h && \
+          correct_genotypes_by_imputation.py -h 
       - name: Test with pytest
         run: |
-          source activate genomics.py3
-          python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
+          source activate genomics.py3 && \
+          python -m pytest --ignore test/unit/utils/test_db_access.py test/unit && \
           python -m pytest test/system
