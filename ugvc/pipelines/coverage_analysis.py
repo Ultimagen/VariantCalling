@@ -52,9 +52,8 @@ from ugvc.utils.cloud_auth import get_gcs_token
 from ugvc.utils.cloud_sync import cloud_sync
 from ugvc.utils.consts import COVERAGE, GCS_OAUTH_TOKEN, FileExtension
 from ugvc.utils.misc_utils import set_pyplot_defaults
-from ugvc.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
 from ugvc.utils.plotting_utils import set_default_plt_rc_params
-
+from ugvc.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
 
 MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
 MIN_LENGTH_TO_SHOW = 10000000  # contigs that are shorter than that won't be shown on coverage plot
@@ -68,100 +67,166 @@ MERGED_REGIONS = "merged_regions"
 set_pyplot_defaults()
 
 
-def parse_args(argv):
-    parser = argparse.ArgumentParser(
-        prog="coverage_analysis",
-        description=run.__doc__,
-    )
-    parser.add_argument(
-        "-i",
-        "--input",
-        type=str,
-        help="input bam or cram file ",
-    )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=str,
-        help="Path to which output dataframe will be written, will be created if it does not exist",
-    )
-    parser.add_argument(
-        "-c",
-        "--coverage_intervals",
-        type=str,
-        required=True,
-        help="tsv file pointing to a dataframe detailing the various intervals",
-    )
-    parser.add_argument(
-        "-r",
-        "--region",
-        type=str,
-        nargs="*",
-        default=None,
-        help="Genomic region in samtools format - default is None ",
-    )
-    parser.add_argument(
-        "-w",
-        "--windows",
-        type=int,
-        default=None,
-        help="Number of base pairs to bin coverage by (leave blank for default [100, 1000, 10000, 100000])",
-    )
-    parser.add_argument(
-        "-q",
-        "-bq",
-        type=int,
-        default=0,
-        help="Base quality theshold (default 0, samtools depth -q parameter)",
-    )
-    parser.add_argument(
-        "-Q",
-        "-mapq",
-        type=int,
-        default=0,
-        help="Mapping quality theshold (default 0, samtools depth -Q parameter)",
-    )
-    parser.add_argument(
-        "-l",
-        type=int,
-        default=0,
-        help="read length threshold (ignore reads shorter than <int>) (default 0, samtools depth -l parameter)",
-    )
-    parser.add_argument(
-        "--reference",
-        type=str,
-        required=True,
-        help="Reference fasta used for cram file compression, not used for bam inputs",
-    )
-    parser.add_argument(
-        "--reference-gaps",
-        type=str,
-        default=None,
-        help="""hg38 reference gaps, default taken from:
-    hgdownload.cse.ucsc.edu/goldenpath/hg38/database/gap.txt.gz""",
-    )
-    parser.add_argument(
-        "--centromeres",
-        type=str,
-        default=None,
-        help="""centromeres file, extracted from:
-    hgdownload.cse.ucsc.edu/goldenpath/hg38/database/cytoBand.txt.gz""",
-    )
-    parser.add_argument(
-        "-j",
-        "--jobs",
-        type=int,
-        default=-1,
-        help="Number of processes to run in parallel if INPUT is an iterable (joblib convention - the number of CPUs)",
-    )
-    parser.add_argument(
-        "--no_progress_bar",
-        default=False,
-        action="store_true",
-        help="Do not display progress bar for iterable INPUT",
-    )
+def parse_args(argv, command):
+    if command == "full_analysis":
+        parser = argparse.ArgumentParser(
+            prog="coverage_analysis",
+            description=run.__doc__,
+        )
+        parser.add_argument(
+            "-i",
+            "--input",
+            type=str,
+            help="input bam or cram file ",
+        )
+        parser.add_argument(
+            "-o",
+            "--output",
+            type=str,
+            help="Path to which output dataframe will be written, will be created if it does not exist",
+        )
+        parser.add_argument(
+            "-c",
+            "--coverage_intervals",
+            type=str,
+            required=True,
+            help="tsv file pointing to a dataframe detailing the various intervals",
+        )
+        parser.add_argument(
+            "-r",
+            "--region",
+            type=str,
+            nargs="*",
+            default=None,
+            help="Genomic region in samtools format - default is None ",
+        )
+        parser.add_argument(
+            "-w",
+            "--windows",
+            type=int,
+            default=None,
+            help="Number of base pairs to bin coverage by (leave blank for default [100, 1000, 10000, 100000])",
+        )
+        parser.add_argument(
+            "-q",
+            "-bq",
+            type=int,
+            default=0,
+            help="Base quality theshold (default 0, samtools depth -q parameter)",
+        )
+        parser.add_argument(
+            "-Q",
+            "-mapq",
+            type=int,
+            default=0,
+            help="Mapping quality theshold (default 0, samtools depth -Q parameter)",
+        )
+        parser.add_argument(
+            "-l",
+            type=int,
+            default=0,
+            help="read length threshold (ignore reads shorter than <int>) (default 0, samtools depth -l parameter)",
+        )
+        parser.add_argument(
+            "--reference",
+            type=str,
+            required=True,
+            help="Reference fasta used for cram file compression, not used for bam inputs",
+        )
+        parser.add_argument(
+            "--reference-gaps",
+            type=str,
+            default=None,
+            help="""hg38 reference gaps, default taken from:
+        hgdownload.cse.ucsc.edu/goldenpath/hg38/database/gap.txt.gz""",
+        )
+        parser.add_argument(
+            "--centromeres",
+            type=str,
+            default=None,
+            help="""centromeres file, extracted from:
+        hgdownload.cse.ucsc.edu/goldenpath/hg38/database/cytoBand.txt.gz""",
+        )
+        parser.add_argument(
+            "-j",
+            "--jobs",
+            type=int,
+            default=-1,
+            help="Number of processes to run in parallel if INPUT is an iterable (-1 - the number of CPUs)",
+        )
+        parser.add_argument(
+            "--no_progress_bar",
+            default=False,
+            action="store_true",
+            help="Do not display progress bar for iterable INPUT",
+        )
+    elif command == "collect_coverage":
+        parser = argparse.ArgumentParser(
+            prog="collect_coverage",
+            description=run.__doc__,
+        )
+        parser.add_argument(
+            "-i",
+            "--input",
+            type=str,
+            help="input bam or cram file ",
+        )
+        parser.add_argument(
+            "-o",
+            "--output",
+            type=str,
+            help="Path to which output bedgraph and bigwig are written",
+        )
+        parser.add_argument(
+            "-r",
+            "--region",
+            type=str,
+            nargs="*",
+            default=None,
+            help="Genomic region in samtools format - default is None ",
+        )
+        parser.add_argument(
+            "-q",
+            "-bq",
+            type=int,
+            default=0,
+            help="Base quality theshold (default 0, samtools depth -q parameter)",
+        )
+        parser.add_argument(
+            "-Q",
+            "-mapq",
+            type=int,
+            default=0,
+            help="Mapping quality theshold (default 0, samtools depth -Q parameter)",
+        )
+        parser.add_argument(
+            "-l",
+            type=int,
+            default=0,
+            help="read length threshold (ignore reads shorter than <int>) (default 0, samtools depth -l parameter)",
+        )
+        parser.add_argument(
+            "--reference",
+            type=str,
+            required=True,
+            help="Reference fasta used for cram file compression, not used for bam inputs",
+        )
+        parser.add_argument(
+            "-j",
+            "--jobs",
+            type=int,
+            default=-1,
+            help="Number of processes to run in parallel if INPUT is an iterable (-1 - the number of CPUs)",
+        )
+        parser.add_argument(
+            "--no_progress_bar",
+            default=False,
+            action="store_true",
+            help="Do not display progress bar for iterable INPUT",
+        )
 
     args = parser.parse_args(argv[1:])
+
     return args
 
 
@@ -170,54 +235,82 @@ def run(argv: list[str]):
     Run full coverage analysis of an aligned bam/cram file
     """
     set_default_plt_rc_params()
-    args = parse_args(argv)
-    run_full_coverage_analysis(
-        bam_file=args.input,
-        out_path=args.output,
-        coverage_intervals_dict=args.coverage_intervals,
-        regions=args.region,
-        windows=args.windows,
-        min_bq=args.q,
-        min_mapq=args.Q,
-        min_read_length=args.l,
-        ref_fasta=args.reference,
-        centromere_file=args.centromeres,
-        reference_gaps_file=args.reference_gaps,
-        n_jobs=args.jobs,
-        progress_bar=not args.no_progress_bar,
-    )
+    cmd = argv[0]
+    assert cmd in {"full_analysis", "collect_coverage"}
+    args = parse_args(argv[1:], cmd)
+    if cmd == "full_analysis":
+        run_full_coverage_analysis(
+            bam_file=args.input,
+            out_path=args.output,
+            coverage_intervals_dict=args.coverage_intervals,
+            regions=args.region,
+            windows=args.windows,
+            min_bq=args.q,
+            min_mapq=args.Q,
+            min_read_length=args.l,
+            ref_fasta=args.reference,
+            centromere_file=args.centromeres,
+            reference_gaps_file=args.reference_gaps,
+            n_jobs=args.jobs,
+            progress_bar=not args.no_progress_bar,
+        )
+
+    else:
+        run_coverage_collection(
+            bam_file=args.input,
+            out_path=args.output,
+            ref_fasta=args.reference,
+            regions=args.region,
+            min_bq=args.q,
+            min_mapq=args.Q,
+            min_read_length=args.l,
+        )
+
     sys.stdout.write("DONE" + os.linesep)
 
 
-def run_full_coverage_analysis(
-    # pylint: disable=too-many-arguments
+def run_coverage_collection(
     bam_file: str,
     out_path: str,
     ref_fasta: str,
-    coverage_intervals_dict: str,
-    regions: str | list[str] | None = None,
-    windows: int | list[int] | None = None,
+    regions: str | list = None,
     min_bq: int = 0,
     min_mapq: int = 0,
     min_read_length: int = 0,
     n_jobs: int = -1,
     progress_bar: bool = True,
-    verbose=False,
-    centromere_file=None,
-    reference_gaps_file=None,
-):
-    # check inputs
-    os.makedirs(out_path, exist_ok=True)
-    if windows is None:
-        windows = [100, 1000, 10000, 100000]
-    elif isinstance(windows, int):
-        windows = [windows]
-    win0 = 1
-    for win in windows:
-        if win % win0 != 0:
-            raise ValueError(f"consecutive window sizes must divide by each other, got {windows}")
-        win0 = win
+) -> tuple:
+    """Collects coverage from CRAM or BAM file
 
+    Parameters
+    ----------
+    bam_file : str
+        Input CRAM or BAM file
+    out_path : str
+        Output directory, will be created if does not exist
+    ref_fasta : str
+        Reference FASTA file
+    regions : str or list
+        A region or a list of regions to collect coverage, default is whole genome
+    min_bq : int, optional
+        Min basequality to use, 0 default
+    min_mapq : int, optional
+        Min mapping quality to use, by default 0
+    min_read_length : int, optional
+        Minimal read length to use, by default 0
+    n_jobs : int, optional
+        Number of processes to run in parallel, by default -1
+    progress_bar : bool, optional
+        Show progress bar, by default True
+
+    Returns
+    -------
+    tuple(list,list):
+        tuple of lists of output bigWig file names and output bedGraph file names
+        that contain the coverage vectors per chromosome or per region
+    """
+
+    os.makedirs(out_path, exist_ok=True)
     sizes_file = pjoin(out_path, "chrom.sizes")
     utils.contig_lens_from_bam_header(bam_file, sizes_file)
     chr_sizes = dnautils.get_chr_sizes(sizes_file)
@@ -227,8 +320,6 @@ def run_full_coverage_analysis(
         logger.debug("regions = %s", regions)
     elif isinstance(regions, str) or not isinstance(regions, Iterable):
         regions = [regions]
-    bam_file_name = basename(bam_file).split(".")[0]
-    params_filename_suffix = f"q{min_bq}.Q{min_mapq}.l{min_read_length}"
 
     # set samtools arguments
     is_cram = bam_file.endswith(FileExtension.CRAM.value)
@@ -277,7 +368,102 @@ def run_full_coverage_analysis(
             desc="converting .bedgraph depth files to .bw",
         )
     )
+    return out_depth_files, out_bw_files
 
+
+def run_full_coverage_analysis(
+    # pylint: disable=too-many-arguments
+    bam_file: str,
+    out_path: str,
+    ref_fasta: str,
+    coverage_intervals_dict: str,
+    regions: str | list[str] | None = None,
+    windows: int | list[int] | None = None,
+    min_bq: int = 0,
+    min_mapq: int = 0,
+    min_read_length: int = 0,
+    n_jobs: int = -1,
+    progress_bar: bool = True,
+    verbose=False,
+    centromere_file=None,
+    reference_gaps_file=None,
+):
+    # check inputs
+    os.makedirs(out_path, exist_ok=True)
+    if windows is None:
+        windows = [100, 1000, 10000, 100000]
+    elif isinstance(windows, int):
+        windows = [windows]
+    win0 = 1
+    for win in windows:
+        if win % win0 != 0:
+            raise ValueError(f"consecutive window sizes must divide by each other, got {windows}")
+        win0 = win
+
+    bam_file_name = basename(bam_file).split(".")[0]
+    params_filename_suffix = f"q{min_bq}.Q{min_mapq}.l{min_read_length}"
+
+    # sizes_file = pjoin(out_path, "chrom.sizes")
+    # utils.contig_lens_from_bam_header(bam_file, sizes_file)
+    # chr_sizes = dnautils.get_chr_sizes(sizes_file)
+
+    # if regions is None:
+    #     regions = [x for x in chr_sizes if int(chr_sizes[x]) > MIN_CONTIG_LENGTH]
+    #     logger.debug("regions = %s", regions)
+    # elif isinstance(regions, str) or not isinstance(regions, Iterable):
+    #     regions = [regions]
+
+    # # set samtools arguments
+    # is_cram = bam_file.endswith(FileExtension.CRAM.value)
+    # ref_str = ""
+    # if is_cram:
+    #     ref_fasta = cloud_sync(ref_fasta)
+    #     ref_str = f"--reference {ref_fasta}"
+
+    # samtools_depth_args = [
+    #     "-a",
+    #     "-J",
+    #     ref_str,
+    #     f"-q {min_bq}",
+    #     f"-Q {min_mapq}",
+    #     f"-l {min_read_length}",
+    # ]
+    # # collect depth
+    # out_depth_files = Parallel(n_jobs=n_jobs)(
+    #     delayed(collect_depth)(
+    #         bam_file,
+    #         _get_output_file_name(
+    #             bam_file,
+    #             out_path,
+    #             min_bq,
+    #             min_mapq,
+    #             min_read_length,
+    #             region,
+    #             window=1,
+    #             output_format="depth.bedgraph",
+    #         ),
+    #         samtools_args=" ".join(samtools_depth_args + [f"-r {region}" if region is not None else ""]).split(),
+    #     )
+    #     for region in tqdm(
+    #         regions,
+    #         disable=not progress_bar,
+    #         desc="Creating depth files using samtools",
+    #     )
+    # )
+
+    # # convert bedgraph files to BW
+    # out_bw_files = Parallel(n_jobs=n_jobs)(
+    #     delayed(depth_to_bigwig)(depth_file, depth_file.replace(".bedgraph", ".bw"), sizes_file)
+    #     for depth_file in tqdm(
+    #         out_depth_files,
+    #         disable=not progress_bar,
+    #         desc="converting .bedgraph depth files to .bw",
+    #     )
+    # )
+
+    out_depth_files, out_bw_files = run_coverage_collection(
+        bam_file, out_path, ref_fasta, regions, min_bq, min_mapq, min_read_length, n_jobs, progress_bar
+    )
     # collect coverage in intervals
     if coverage_intervals_dict is not None:
         if verbose:
