@@ -173,6 +173,7 @@ def get_vcf_df(
         "MQ0C",
         "SCL",
         "SCR",
+        "NMC",
         "BG_AD",
     ]
 
