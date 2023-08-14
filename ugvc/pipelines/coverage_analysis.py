@@ -403,64 +403,6 @@ def run_full_coverage_analysis(
     bam_file_name = basename(bam_file).split(".")[0]
     params_filename_suffix = f"q{min_bq}.Q{min_mapq}.l{min_read_length}"
 
-    # sizes_file = pjoin(out_path, "chrom.sizes")
-    # utils.contig_lens_from_bam_header(bam_file, sizes_file)
-    # chr_sizes = dnautils.get_chr_sizes(sizes_file)
-
-    # if regions is None:
-    #     regions = [x for x in chr_sizes if int(chr_sizes[x]) > MIN_CONTIG_LENGTH]
-    #     logger.debug("regions = %s", regions)
-    # elif isinstance(regions, str) or not isinstance(regions, Iterable):
-    #     regions = [regions]
-
-    # # set samtools arguments
-    # is_cram = bam_file.endswith(FileExtension.CRAM.value)
-    # ref_str = ""
-    # if is_cram:
-    #     ref_fasta = cloud_sync(ref_fasta)
-    #     ref_str = f"--reference {ref_fasta}"
-
-    # samtools_depth_args = [
-    #     "-a",
-    #     "-J",
-    #     ref_str,
-    #     f"-q {min_bq}",
-    #     f"-Q {min_mapq}",
-    #     f"-l {min_read_length}",
-    # ]
-    # # collect depth
-    # out_depth_files = Parallel(n_jobs=n_jobs)(
-    #     delayed(collect_depth)(
-    #         bam_file,
-    #         _get_output_file_name(
-    #             bam_file,
-    #             out_path,
-    #             min_bq,
-    #             min_mapq,
-    #             min_read_length,
-    #             region,
-    #             window=1,
-    #             output_format="depth.bedgraph",
-    #         ),
-    #         samtools_args=" ".join(samtools_depth_args + [f"-r {region}" if region is not None else ""]).split(),
-    #     )
-    #     for region in tqdm(
-    #         regions,
-    #         disable=not progress_bar,
-    #         desc="Creating depth files using samtools",
-    #     )
-    # )
-
-    # # convert bedgraph files to BW
-    # out_bw_files = Parallel(n_jobs=n_jobs)(
-    #     delayed(depth_to_bigwig)(depth_file, depth_file.replace(".bedgraph", ".bw"), sizes_file)
-    #     for depth_file in tqdm(
-    #         out_depth_files,
-    #         disable=not progress_bar,
-    #         desc="converting .bedgraph depth files to .bw",
-    #     )
-    # )
-
     out_depth_files, out_bw_files = run_coverage_collection(
         bam_file, out_path, ref_fasta, regions, min_bq, min_mapq, min_read_length, n_jobs, progress_bar
     )
