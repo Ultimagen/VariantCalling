@@ -382,6 +382,9 @@ def run_coverage_collection(
         _zip_bedgraph_files(out_path, n_jobs, progress_bar)
         assert isinstance(out_depth_files, list)
         out_depth_files = [x + ".gz" for x in out_depth_files]
+    assert isinstance(out_depth_files, list)
+    assert isinstance(out_bw_files, list)
+    assert isinstance(regions, list)
     return out_depth_files, out_bw_files, regions
 
 
@@ -604,6 +607,7 @@ def _run_shell_command(cmd, logger=logger):
         token = (
             get_gcs_token() if np.any([x.startswith("gs://") for x in cmd.split()]) else ""
         )  # only generate token if input files are on gs
+        assert isinstance(token, str)
         if len(token) > 0:
             logger.debug("gcs token generated")
         logger.debug("Running command:\n%s", cmd)
