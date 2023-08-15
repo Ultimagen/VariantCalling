@@ -21,6 +21,8 @@ parser$add_argument("-o", "--base_file_name",
                     help="out base file name")
 parser$add_argument("--save_hdf", action='store_true',
                     help="whether to save reads count data-frames in hdf5 format")
+parser$add_argument("--save_csv", action='store_true',
+                    help="whether to save reads count data-frames in csv format")
 
 args <- parser$parse_args()
 
@@ -28,6 +30,9 @@ refSeqNames <- unlist(strsplit(args$refSeqNames_string, ","))
 bamDataRanges_RC <- getReadCountsFromBAM(args$input_bam_file, refSeqNames=refSeqNames, WL=args$window_length ,parallel=args$parallel)
 saveRDS(bamDataRanges_RC, file = paste(args$base_file_name,".ReadCounts.rds",sep = ""))
 
+if(args$save_csv){
+  write.csv(as.data.frame(bamDataRanges_RC),paste(args$base_file_name,".ReadCounts.csv",sep = ""), row.names = FALSE,quote=FALSE)
+}
 if(args$save_hdf){
   hdf5_out_file_name <- paste(args$base_file_name,".ReadCounts.hdf5",sep = "")
   h5createFile(hdf5_out_file_name)
