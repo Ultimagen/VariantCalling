@@ -25,9 +25,9 @@ import itertools
 import os
 import subprocess
 import sys
+import typing
 import warnings
 from collections import Counter
-from collections.abc import Iterable
 from glob import glob
 from os.path import basename, dirname
 from os.path import join as pjoin
@@ -70,19 +70,21 @@ set_pyplot_defaults()
 def parse_args(argv, command):
     if command == "full_analysis":
         parser = argparse.ArgumentParser(
-            prog="coverage_analysis",
+            prog="full_analysis",
             description=run.__doc__,
         )
         parser.add_argument(
             "-i",
             "--input",
             type=str,
+            required=True,
             help="input bam or cram file ",
         )
         parser.add_argument(
             "-o",
             "--output",
             type=str,
+            required=True,
             help="Path to which output dataframe will be written, will be created if it does not exist",
         )
         parser.add_argument(
@@ -169,12 +171,14 @@ def parse_args(argv, command):
             "-i",
             "--input",
             type=str,
+            required=True,
             help="input bam or cram file ",
         )
         parser.add_argument(
             "-o",
             "--output",
             type=str,
+            required=True,
             help="Path to which output bedgraph and bigwig are written",
         )
         parser.add_argument(
@@ -224,6 +228,8 @@ def parse_args(argv, command):
             action="store_true",
             help="Do not display progress bar for iterable INPUT",
         )
+    else:
+        raise AssertionError(f"Unsupported command {command}")
 
     args = parser.parse_args(argv[1:])
 
@@ -235,8 +241,8 @@ def run(argv: list[str]):
     Run full coverage analysis of an aligned bam/cram file
     """
     set_default_plt_rc_params()
-    cmd = argv[0]
-    assert cmd in {"full_analysis", "collect_coverage"}
+    cmd = argv[1]
+    assert cmd in {"full_analysis", "collect_coverage"}, "Usage: coverage_analysis.py full_analysis|collect_coverage"
     args = parse_args(argv[1:], cmd)
     if cmd == "full_analysis":
         run_full_coverage_analysis(
@@ -254,7 +260,6 @@ def run(argv: list[str]):
             n_jobs=args.jobs,
             progress_bar=not args.no_progress_bar,
         )
-
     else:
         run_coverage_collection(
             bam_file=args.input,
@@ -273,12 +278,13 @@ def run_coverage_collection(
     bam_file: str,
     out_path: str,
     ref_fasta: str,
-    regions: str | list = None,
+    regions: str | list | None = None,
     min_bq: int = 0,
     min_mapq: int = 0,
     min_read_length: int = 0,
     n_jobs: int = -1,
     progress_bar: bool = True,
+    zip_bg: bool = True,
 ) -> tuple:
     """Collects coverage from CRAM or BAM file
 
@@ -302,7 +308,9 @@ def run_coverage_collection(
         Number of processes to run in parallel, by default -1
     progress_bar : bool, optional
         Show progress bar, by default True
-
+    zip_bg: bool, optional
+        Should the bedgraph outputs be zipped, by default True
+        (needed if this is the only step running, False in full_analysis)
     Returns
     -------
     tuple(list,list):
@@ -318,7 +326,7 @@ def run_coverage_collection(
     if regions is None:
         regions = [x for x in chr_sizes if int(chr_sizes[x]) > MIN_CONTIG_LENGTH]
         logger.debug("regions = %s", regions)
-    elif isinstance(regions, str) or not isinstance(regions, Iterable):
+    elif isinstance(regions, str) or not isinstance(regions, list):
         regions = [regions]
 
     # set samtools arguments
@@ -331,6 +339,7 @@ def run_coverage_collection(
     samtools_depth_args = [
         "-a",
         "-J",
+        ref_str,
         ref_str,
         f"-q {min_bq}",
         f"-Q {min_mapq}",
@@ -368,6 +377,10 @@ def run_coverage_collection(
             desc="converting .bedgraph depth files to .bw",
         )
     )
+    if zip_bg:
+        _zip_bedgraph_files(out_path, n_jobs, progress_bar)
+        assert isinstance(out_depth_files, list)
+        out_depth_files = [x + ".gz" for x in out_depth_files]
     return out_depth_files, out_bw_files
 
 
@@ -404,7 +417,7 @@ def run_full_coverage_analysis(
     params_filename_suffix = f"q{min_bq}.Q{min_mapq}.l{min_read_length}"
 
     out_depth_files, out_bw_files = run_coverage_collection(
-        bam_file, out_path, ref_fasta, regions, min_bq, min_mapq, min_read_length, n_jobs, progress_bar
+        bam_file, out_path, ref_fasta, regions, min_bq, min_mapq, min_read_length, n_jobs, progress_bar, zip_bg=False
     )
     # collect coverage in intervals
     if coverage_intervals_dict is not None:
@@ -553,6 +566,25 @@ def run_full_coverage_analysis(
             # set new parameters so that the next window size is a processing of the binned file and not the original
             win0 = win
     # gzip all the bed files
+    _zip_bedgraph_files(out_path, n_jobs, progress_bar)
+
+
+def _zip_bedgraph_files(out_path: str, n_jobs: int, progress_bar: bool):
+    """Compress all bedgraph files in out_path
+
+    Parameters
+    ----------
+    out_path: str
+        Directory that stores the bedgraph_files
+    n_jobs: int
+        Number to run in parallel
+    progress_bar: bool
+        Should the progress bar be displayed
+
+    Returns
+    -------
+    None, replaces bedgraph -> bedgraph.gz
+    """
     Parallel(n_jobs=n_jobs)(
         delayed(lambda x: subprocess.call(["gzip", x]))(depth_file)
         for depth_file in tqdm(
@@ -904,7 +936,7 @@ def generate_stats_from_histogram(
     quantiles=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]),
     out_path=None,
     verbose=True,
-):
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     if isinstance(val_count, str) and os.path.isfile(val_count):
         val_count = pd.read_hdf(val_count, key="histogram")
     if val_count.shape[0] == 0:  # empty input
@@ -973,7 +1005,7 @@ def generate_stats_from_histogram(
     return df_percentiles, df_stats
 
 
-def generate_coverage_boxplot(df_percentiles, color_group=None, out_path=None, title=""):
+def generate_coverage_boxplot(df_percentiles: pd.DataFrame, color_group=None, out_path=None, title=""):
     if out_path is not None:
         mpl.use("Agg")
     if isinstance(df_percentiles, str) and os.path.isfile(df_percentiles):
@@ -1147,6 +1179,7 @@ def plot_coverage_profile(
         median_coverage = mc1
     else:
         median_coverage = np.median(filtered_mc)
+    typing.cast(median_coverage, float)
     median_coverage = max(median_coverage, 1)
     logger.debug("Median coverage: %s", median_coverage)
 
