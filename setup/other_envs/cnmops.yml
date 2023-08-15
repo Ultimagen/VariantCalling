@@ -1,4 +1,4 @@
-name: test
+name: cn.mops
 channels:
   - bioconda
   - conda-forge
@@ -20,6 +20,9 @@ dependencies:
   - bioconductor-genomeinfodbdata=1.2.10=r43hdfd78af_0
   - bioconductor-genomicranges=1.52.0=r43ha9d7317_0
   - bioconductor-iranges=2.34.1=r43ha9d7317_0
+  - bioconductor-rhdf5=2.44.0=r43hf17093f_0
+  - bioconductor-rhdf5filters=1.12.1=r43hf17093f_0
+  - bioconductor-rhdf5lib=1.22.0=r43ha9d7317_0
   - bioconductor-rhtslib=2.2.0=r43ha9d7317_0
   - bioconductor-rsamtools=2.16.0=r43hf17093f_0
   - bioconductor-s4vectors=0.38.1=r43ha9d7317_0
@@ -99,16 +102,21 @@ dependencies:
   - python=3.11.4=hab00c5b_0_cpython
   - python_abi=3.11=3_cp311
   - pyyaml=6.0=py311hd4cff14_5
+  - r-argparse=2.2.2=r43hc72bb7e_1
   - r-base=4.3.1=h29c4799_3
   - r-bh=1.81.0_1=r43hc72bb7e_1
   - r-bitops=1.0_7=r43h57805ef_2
   - r-codetools=0.2_19=r43hc72bb7e_1
   - r-cpp11=0.4.6=r43hc72bb7e_0
   - r-crayon=1.5.2=r43hc72bb7e_2
+  - r-findpython=1.0.8=r43hc72bb7e_1
   - r-formatr=1.14=r43hc72bb7e_1
   - r-futile.logger=1.4.3=r43hc72bb7e_1005
   - r-futile.options=1.0.1=r43hc72bb7e_1004
+  - r-jsonlite=1.8.7=r43h57805ef_0
   - r-lambda.r=1.2.4=r43hc72bb7e_3
+  - r-magrittr=2.0.3=r43h57805ef_2
+  - r-r6=2.5.1=r43hc72bb7e_2
   - r-rcurl=1.98_1.12=r43hf9611b0_2
   - r-snow=0.4_4=r43hc72bb7e_2
   - readline=8.2=h8228510_1
@@ -139,4 +147,3 @@ dependencies:
   - yq=3.2.2=pyhd8ed1ab_0
   - zlib=1.2.13=hd590300_5
   - zstd=1.5.2=hfc55251_7
-prefix: /home/ubuntu/miniconda3/envs/test
