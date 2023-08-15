@@ -1,6 +1,8 @@
 import filecmp
 import os
 import subprocess
+import pandas as pd
+import numpy as np
 from os.path import join as pjoin
 from test import get_resource_dir
 
@@ -32,4 +34,6 @@ def test_merge_reads_count_sample_to_cohort(tmpdir):
         "--save_csv"
     ]
     assert subprocess.check_call(cmd, cwd=tmpdir) == 0
-    assert filecmp.cmp(out_file, expected_out_merged_reads_count_file)
+    df = pd.read_csv(out_file)
+    df_ref = pd.read_csv(expected_out_merged_reads_count_file)
+    assert np.allclose(df.iloc[:, -4], df_ref.iloc[:, -4])

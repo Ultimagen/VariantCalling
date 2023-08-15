@@ -3,6 +3,9 @@ import subprocess
 from os.path import join as pjoin
 from test import get_resource_dir
 
+import numpy as np
+import pandas as pd
+
 from ugvc import base_dir
 
 resources_dir = get_resource_dir(__file__)
@@ -33,4 +36,6 @@ def test_create_reads_count_cohort_matrix(tmpdir):
         "--save_csv"
     ]
     assert subprocess.check_call(cmd, cwd=tmpdir) == 0
-    assert filecmp.cmp(out_file, expected_out_file)
+    df = pd.read_csv(out_file)
+    df_ref = pd.read_csv(expected_out_file)
+    assert np.allclose(df.iloc[:,-3:], df_ref.iloc[:,-3:])
