@@ -17,8 +17,8 @@ def test_create_reads_count_cohort_matrix(tmpdir):
         f.write(in_rds_file + '\n')
         f.write(in_rds_file + '\n')
 
-    expected_out_file = pjoin(resources_dir, "merged_cohort_reads_count.rds")
-    out_file = pjoin(tmpdir, "merged_cohort_reads_count.rds")
+    expected_out_file = pjoin(resources_dir, "merged_cohort_reads_count.csv")
+    out_file = pjoin(tmpdir, "merged_cohort_reads_count.csv")
 
     cmd = [
         "conda",
@@ -29,7 +29,8 @@ def test_create_reads_count_cohort_matrix(tmpdir):
         "--vanilla",
         script_path,
         "-samples_read_count_files_list",
-        rc_files_list
+        rc_files_list,
+        "--save_csv"
     ]
     assert subprocess.check_call(cmd, cwd=tmpdir) == 0
     assert filecmp.cmp(out_file, expected_out_file)

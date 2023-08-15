@@ -58,8 +58,9 @@ for(i in 3:length(RC_RData_files)){
 }
 
 saveRDS(gr,file="merged_cohort_reads_count.rds")
+
 if(args$save_csv){
-  write.csv(as.data.frame(gr),paste(path_to_RC.RData_files,"merged_cohort_reads_count.csv",sep = ""), row.names = FALSE)
+  write.csv(as.data.frame(gr),"merged_cohort_reads_count.csv",sep = "", row.names = FALSE,quote=FALSE)
 }
 if(args$save_hdf){
   h5write(as.data.frame(gr),"merged_cohort_reads_count.hdf5","merged_cohort_reads_count")
