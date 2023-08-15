@@ -87,11 +87,25 @@ def test_plot_trimmer_histogram():
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmp_out_path = pjoin(tmpdirname, "tmp_out.png")
         df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
-            BalancedStrandAdapterVersions.LA_v5and6,
+            BalancedStrandAdapterVersions.LA_v5,
             input_histogram_LAv5_csv,
             output_filename=tmp_out_path,
         )
-        plot_trimmer_histogram(df_trimmer_histogram, output_filename=tmp_out_path)
+        plot_trimmer_histogram(
+            BalancedStrandAdapterVersions.LA_v5,
+            df_trimmer_histogram,
+            output_filename=tmp_out_path,
+        )
+        df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
+            BalancedStrandAdapterVersions.LA_v5and6,
+            input_histogram_LAv5and6_csv,
+            output_filename=tmp_out_path,
+        )
+        plot_trimmer_histogram(
+            BalancedStrandAdapterVersions.LA_v5and6,
+            df_trimmer_histogram,
+            output_filename=tmp_out_path,
+        )
 
 
 def test_collect_statistics():
