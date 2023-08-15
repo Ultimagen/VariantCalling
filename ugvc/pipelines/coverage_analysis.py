@@ -285,7 +285,7 @@ def run_coverage_collection(
     n_jobs: int = -1,
     progress_bar: bool = True,
     zip_bg: bool = True,
-) -> tuple:
+) -> tuple[list, list, list]:
     """Collects coverage from CRAM or BAM file
 
     Parameters
@@ -313,9 +313,10 @@ def run_coverage_collection(
         (needed if this is the only step running, False in full_analysis)
     Returns
     -------
-    tuple(list,list):
+    tuple(list,list, list):
         tuple of lists of output bigWig file names and output bedGraph file names
-        that contain the coverage vectors per chromosome or per region
+        that contain the coverage vectors per chromosome or per region. The last parameter is the list of regions
+        that correspond to the aligned files
     """
 
     os.makedirs(out_path, exist_ok=True)
@@ -381,7 +382,7 @@ def run_coverage_collection(
         _zip_bedgraph_files(out_path, n_jobs, progress_bar)
         assert isinstance(out_depth_files, list)
         out_depth_files = [x + ".gz" for x in out_depth_files]
-    return out_depth_files, out_bw_files
+    return out_depth_files, out_bw_files, regions
 
 
 def run_full_coverage_analysis(
@@ -416,7 +417,7 @@ def run_full_coverage_analysis(
     bam_file_name = basename(bam_file).split(".")[0]
     params_filename_suffix = f"q{min_bq}.Q{min_mapq}.l{min_read_length}"
 
-    out_depth_files, out_bw_files = run_coverage_collection(
+    out_depth_files, out_bw_files, regions = run_coverage_collection(
         bam_file, out_path, ref_fasta, regions, min_bq, min_mapq, min_read_length, n_jobs, progress_bar, zip_bg=False
     )
     # collect coverage in intervals
