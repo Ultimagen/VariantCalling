@@ -1,4 +1,3 @@
-import shutil
 import subprocess
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
@@ -8,33 +7,17 @@ def test_methyldackel_create_qc_report(tmpdir):
     path = test_dir
     datadir = get_resource_dir(__file__)
     report_path = pjoin(path, "..", "ugvc", "reports")
+    notebook_file_in = pjoin(report_path, "methyldackel_qc_report.ipynb")
+    papermill_out = pjoin(tmpdir, "methyldackel_qc_report.papermill.ipynb")
+    input_csv_file = pjoin(datadir, "input_for_html_report.csv")
+    base_file_name = "test"
 
-    # copy notebook ugvc/reports/methyldackel_qc_report.ipynb
-    shutil.copy(pjoin(report_path, "methyldackel_qc_report.ipynb"), tmpdir)
+    cmd1 = (
+        f"papermill {notebook_file_in} {papermill_out} "
+        f"-p input_csv_file {input_csv_file} "
+        f"-p input_base_file_name {base_file_name}"
+    )
+    assert subprocess.check_call(cmd1.split(), cwd=tmpdir) == 0
 
-    # copy input: input_for_html_report.csv
-    shutil.copy(pjoin(datadir, "input_for_html_report.csv"), tmpdir)
-
-    cmd = [
-        "jupyter",
-        "nbconvert",
-        "--to",
-        "notebook",
-        "--execute",
-        "methyldackel_qc_report.ipynb",
-    ]
-    assert subprocess.check_call(cmd, cwd=tmpdir) == 0
-
-    cmd = [
-        "jupyter",
-        "nbconvert",
-        "--to",
-        "html",
-        "methyldackel_qc_report.nbconvert.ipynb",
-        "--template",
-        "classic",
-        "--no-input",
-        "--output",
-        "methyldackel_qc_report.html",
-    ]
-    assert subprocess.check_call(cmd, cwd=tmpdir) == 0
+    cmd2 = f"jupyter nbconvert --to html {papermill_out} --template classic --no-input --output {base_file_name}.html"
+    assert subprocess.check_call(cmd2.split(), cwd=tmpdir) == 0
