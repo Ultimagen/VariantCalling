@@ -19,7 +19,5 @@ def test_methyldackel_create_qc_report(tmpdir):
     )
     assert subprocess.check_call(cmd1.split(), cwd=tmpdir) == 0
 
-    cmd2 = (
-        f"jupyter nbconvert --to html {papermill_out} " f"--template classic --no-input --output {base_file_name}.html"
-    )
+    cmd2 = f"jupyter nbconvert --to html {papermill_out} --template classic --no-input --output {base_file_name}.html"
     assert subprocess.check_call(cmd2.split(), cwd=tmpdir) == 0
