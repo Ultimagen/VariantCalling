@@ -12,6 +12,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 from ugvc.cnv import filter_sample_cnvs
+from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -60,6 +61,7 @@ modules = [
     convert_haploid_regions,
     correct_genotypes_by_imputation,
     vcfeval_flavors,
+    bicseq2_post_processing
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
