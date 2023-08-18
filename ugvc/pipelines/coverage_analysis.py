@@ -341,7 +341,6 @@ def run_coverage_collection(
         "-a",
         "-J",
         ref_str,
-        ref_str,
         f"-q {min_bq}",
         f"-Q {min_mapq}",
         f"-l {min_read_length}",
