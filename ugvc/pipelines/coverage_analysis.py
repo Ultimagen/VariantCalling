@@ -242,7 +242,11 @@ def run(argv: list[str]):
     """
     set_default_plt_rc_params()
     cmd = argv[1]
-    assert cmd in {"full_analysis", "collect_coverage"}, "Usage: coverage_analysis.py full_analysis|collect_coverage"
+    assert cmd in {
+        "full_analysis",
+        "collect_coverage",
+        "-h",
+    }, "Usage: coverage_analysis.py full_analysis|collect_coverage|-h"
     args = parse_args(argv[1:], cmd)
     if cmd == "full_analysis":
         run_full_coverage_analysis(
@@ -260,7 +264,7 @@ def run(argv: list[str]):
             n_jobs=args.jobs,
             progress_bar=not args.no_progress_bar,
         )
-    else:
+    elif cmd == "collect_coverage":
         run_coverage_collection(
             bam_file=args.input,
             out_path=args.output,
@@ -270,6 +274,8 @@ def run(argv: list[str]):
             min_mapq=args.Q,
             min_read_length=args.l,
         )
+    else:
+        sys.stderr.write("Usage: coverage_analysis.py full_analysis|collect_coverage|-h" + os.linesep)
 
     sys.stdout.write("DONE" + os.linesep)
 
