@@ -22,7 +22,7 @@ from tqdm import tqdm
 from ugvc import logger
 from ugvc.dna.utils import revcomp
 from ugvc.utils.consts import FileExtension
-from ugvc.vcfbed.variant_annotation import get_trinuc_substitution_dist, parse_trinuc_sub
+from ugvc.vcfbed.variant_annotation import get_trinuc_substitution_dist, parse_trinuc_sub, VcfAnnotator
 
 default_featuremap_info_fields = {
     "X_CIGAR": str,

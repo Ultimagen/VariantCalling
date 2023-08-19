@@ -45,7 +45,7 @@ from ugvc.pipelines.mrd import (
     prepare_data_from_mrd_pipeline,
     substitution_error_rate,
     bqsr_train,
-    bqsr_inference,
+    srsnv_inference,
 )
 
 # import pipeline modules implementing run(argv) method
@@ -82,7 +82,7 @@ mrd_modules = [
     pileup_based_read_features,
     generate_synthetic_signatures,
     bqsr_train,
-    bqsr_inference,
+    srsnv_inference,
 ]
 
 methylation_modules = [

@@ -5,16 +5,13 @@ import subprocess
 from os.path import join as pjoin
 
 import joblib
+import json
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from os.path import basename, dirname, isfile, join as pjoin
 import subprocess
-import joblib
-import joblib
-from joblib import dump, load, Parallel, delayed
 import random
-from tqdm import tqdm
 
 from ugvc.dna.utils import revcomp
 from ugvc.utils.misc_utils import set_pyplot_defaults
@@ -89,10 +86,11 @@ def single_read_snv_inference(featuremap_path: str,
 
     # os.makedirs(os.dirname(out_path), exist_ok=True)
     model = joblib.load(model_path)
-    categorical_features = params_path['categorical_features']
+    with open(params_path, 'r') as params_path:
+        params = json.load(params_path)
+    categorical_features = params['model_params']['categorical_features'] + params['model_params']['motif_only_features']
     ml_qual_annotator = MLQualAnnotator(model, categorical_features)
-    variant_annotation.process_vcf(annotators=[ml_qual_annotator],
-                                   input_path=featuremap_path,
-                                   output_path=out_path,
-                                   multiprocess_contigs=True
-                                   )
+    VcfAnnotator.process_vcf(annotators=[ml_qual_annotator],
+                             input_path=featuremap_path,
+                             output_path=out_path,
+                             multiprocess_contigs=True)

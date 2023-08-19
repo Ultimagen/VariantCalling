@@ -33,14 +33,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""input featuremap file""",
     )
     parser.add_argument(
-        "-f",
+        "-p",
         "--params_path",
         type=str,
         required=True,
         help="""params file path""",
     )
     parser.add_argument(
-        "-f",
+        "-m",
         "--model_path",
         type=str,
         required=True,
