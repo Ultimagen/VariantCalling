@@ -247,7 +247,11 @@ def run(argv: list[str]):
         "collect_coverage",
         "-h",
     }, "Usage: coverage_analysis.py full_analysis|collect_coverage|-h"
-    args = parse_args(argv[1:], cmd)
+    if cmd in {"full_analysis", "collect_coverage"}:
+        args = parse_args(argv[1:], cmd)
+    else:
+        sys.stderr.write("Usage: coverage_analysis.py full_analysis|collect_coverage|-h" + os.linesep)
+        return
     if cmd == "full_analysis":
         run_full_coverage_analysis(
             bam_file=args.input,
@@ -274,9 +278,6 @@ def run(argv: list[str]):
             min_mapq=args.Q,
             min_read_length=args.l,
         )
-    else:
-        sys.stderr.write("Usage: coverage_analysis.py full_analysis|collect_coverage|-h" + os.linesep)
-
     sys.stdout.write("DONE" + os.linesep)
 
 
@@ -1124,13 +1125,6 @@ Calculated on chr9 unless noted otherwise (WG - Whole Genome)""",
         return coverage_plot
 
     return fig
-
-
-def _check_chr_in_file_name(filename):
-    for x in basename(filename).split("."):
-        if x.startswith("chr"):
-            return x[:4]
-    return None
 
 
 def plot_coverage_profile(
