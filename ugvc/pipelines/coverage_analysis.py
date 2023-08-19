@@ -239,6 +239,15 @@ def parse_args(argv, command):
 def run(argv: list[str]):
     """
     Run full coverage analysis of an aligned bam/cram file
+    Two options are supported: full_analysis - the whole genome coverage at
+    base resolution is collected and statistics of coverages on different intervals
+    are calcuated
+    collect_coverage - only coverage at base resolution is collected
+
+    Parameters
+    ----------
+    argv: list[str]
+        Input parameters of the script
     """
     set_default_plt_rc_params()
     cmd = argv[1]
