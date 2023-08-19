@@ -1,10 +1,11 @@
+import filecmp
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
 import numpy as np
 import pandas as pd
 
-from ugvc.pipelines.coverage_analysis import run_full_coverage_analysis
+from ugvc.pipelines.coverage_analysis import run_coverage_collection, run_full_coverage_analysis
 
 inputs_dir = get_resource_dir(__file__)
 general_inputs_dir = f"{test_dir}/resources/general/"
@@ -31,3 +32,26 @@ def test_coverage_analysis(tmpdir):
     df = pd.read_hdf(pjoin(tmpdir, "170201-BC23.coverage_stats.q0.Q0.l0.h5"), "percentiles")
     df_ref = pd.read_parquet(f_ref)
     assert np.allclose(df.fillna(-1), df_ref.fillna(-1))
+
+
+def test_coverage_collection(tmpdir):
+    bg_ref = pjoin(
+        inputs_dir,
+        "170201-BC23.chr9_1000000_2001000.bedgraph",
+    )
+    bw_ref = pjoin(
+        inputs_dir,
+        "170201-BC23.chr9_1000000_2001000.bw",
+    )
+
+    run_coverage_collection(
+        bam_file=f_in,
+        out_path=tmpdir,
+        ref_fasta=pjoin(general_inputs_dir, "sample.fasta"),
+        regions=["chr9:1000000-2001000"],
+        zip_bg=False,
+    )
+    assert filecmp.cmp(
+        pjoin(tmpdir, "170201-BC23.chr9_1000000-2001000.q0.Q0.l0.w1.depth.bedgraph"), bg_ref, shallow=False
+    )
+    assert filecmp.cmp(pjoin(tmpdir, "170201-BC23.chr9_1000000-2001000.q0.Q0.l0.w1.depth.bw"), bw_ref, shallow=False)
