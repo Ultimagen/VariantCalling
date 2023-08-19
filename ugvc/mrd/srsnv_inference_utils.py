@@ -93,4 +93,4 @@ def single_read_snv_inference(featuremap_path: str,
     VcfAnnotator.process_vcf(annotators=[ml_qual_annotator],
                              input_path=featuremap_path,
                              output_path=out_path,
-                             multiprocess_contigs=True)
+                             multiprocess_contigs=False)
