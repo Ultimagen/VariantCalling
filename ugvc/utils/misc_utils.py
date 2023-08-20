@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import collections
 import itertools
+import logging
 import pkgutil
+import subprocess
 from os.path import dirname
 from os.path import join as pjoin
 
 import numpy as np
 import pysam
 from matplotlib import pyplot as plt
+from simppl.simple_pipeline import SimplePipeline
 
 SMALL_SIZE = 12
 MEDIUM_SIZE = 18
@@ -317,3 +320,24 @@ def modify_jupyter_notebook_html(
     output_html = output_html if output_html else input_html
     with open(output_html, "w", encoding="utf-8") as file:
         file.write(html)
+
+
+def exec_command_list(commands: list[str], simple_pipeline: SimplePipeline = None, logger: logging.Logger = None):
+    """
+    Execute a list of commands
+
+    Parameters
+    ----------
+    commands : list[str]
+        List of commands to execute
+    simple_pipeline : SimplePipeline, optional
+        SimplePipeline object to use for printing and running commands, by default None
+    """
+    if simple_pipeline:
+        for command in commands:
+            simple_pipeline.print_and_run(command)
+    else:
+        for command in commands:
+            if logger:
+                logger.debug(command)
+            subprocess.call(command, shell=True)
