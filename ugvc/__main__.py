@@ -11,6 +11,7 @@ path = f"{dirname(dirname(__file__))}"
 if path not in sys.path:
     sys.path.insert(0, path)
 
+# import pipeline modules implementing run(argv) method
 from ugvc.cnv import filter_sample_cnvs
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
@@ -30,6 +31,7 @@ from ugvc.pipelines import (
     train_models_pipeline,
     vcfeval_flavors,
 )
+from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugvc.pipelines.mrd import (
     annotate_featuremap,
@@ -48,8 +50,6 @@ from ugvc.pipelines.mrd import (
     srsnv_training,
     substitution_error_rate,
 )
-
-# import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import annotate_contig, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
@@ -113,6 +113,7 @@ lpr_modules = [
 ]
 
 vcfbed_modules = [annotate_contig, intersect_bed_regions]
+deepvariant_modules = [training_set_consistency_check]
 
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
@@ -121,7 +122,7 @@ modules.extend(methylation_modules)
 modules.extend(joint_modules)
 modules.extend(lpr_modules)
 modules.extend(vcfbed_modules)
-
+modules.extend(deepvariant_modules)
 
 LOGO = """
       __    __    ___________    ____  ______
