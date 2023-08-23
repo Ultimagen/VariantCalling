@@ -227,7 +227,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
         self,
         ref_fasta: str,
         flow_order=str,
-        motif_length_to_annotate: int = 4,
+        motif_length_to_annotate: int = 3,
         max_hmer_length: int = 20,
     ):
         """
@@ -325,9 +325,11 @@ class RefContextVcfAnnotator(VcfAnnotator):
             f'Number=1,Type=Integer,Description="homopolymer context in the ref allele '
             f'(assuming the variant considered only), up to length {self.max_hmer_length}">'
         )
-        header.add_line(
-            f"##INFO=<ID={self.CYCLE_SKIP_FLAG}," f'Number=1,Type=Flag,Description="True if the SNV is a cycle skip">'
-        )
+        header.add_meta("INFO", 
+                        items=[("ID", self.CYCLE_SKIP_FLAG), 
+                        ("Number", 0),
+                        ("Type", "Flag"), 
+                        ("Description", "is the SNV a cycle skip")])
 
         return header
 
