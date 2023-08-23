@@ -55,9 +55,11 @@ def prepare_featuremap_for_model(
     test_set_size: int = None,
     sp: SimplePipeline = None,
     regions_file: str = None,
+    balance_motifs: bool = True,
     sorter_json_stats_file: str = None,
     read_effective_coverage_from_sorter_json_kwargs: dict = None,
     keep_temp_file: bool = False,
+    random_seed: bool = None,
 ) -> (str, int):
     """
     Prepare a featuremap for training. This function takes an input featuremap and creates two downsampled dataframes,
@@ -98,7 +100,7 @@ def prepare_featuremap_for_model(
 
     """
 
-    # check inputs define paths
+    # check inputs and define paths
     os.makedirs(workdir, exist_ok=True)
     assert isfile(input_featuremap_vcf), f"input_featuremap_vcf {input_featuremap_vcf} not found"
     assert input_featuremap_vcf.endswith(FileExtension.VCF_GZ.value)
@@ -171,39 +173,41 @@ def prepare_featuremap_for_model(
     )
 
     # random sample of intersected featuremap - sampled featuremap
-    np.random.seed(0)
-    sampling_array = np.random.uniform(size=featuremap_entry_number) < downsampling_rate
-    while sum(sampling_array) < min(total_size, featuremap_entry_number):
+    if random_seed is not None:
+        np.random.seed(random_seed)
+    if not balance_motifs:
         sampling_array = np.random.uniform(size=featuremap_entry_number) < downsampling_rate
-    record_counter = 0
-    with pysam.VariantFile(input_featuremap_vcf) as vcf_in:
-        # Add a comment to the output file indicating the subsampling
-        header_train = vcf_in.header
-        header_train.add_line(
-            f"##datatype=training_set, subsampled {training_set_size}"
-            f"variants from a total of {featuremap_entry_number}"
-        )
-        header_test = vcf_in.header
-        header_test.add_line(
-            f"##datatype=test_set, subsampled approximately {test_set_size}"
-            f"variants from a total of {featuremap_entry_number}"
-        )
-        with pysam.VariantFile(
-            downsampled_training_featuremap_vcf, "w", header=header_train
-        ) as vcf_out_train, pysam.VariantFile(
-            downsampled_test_featuremap_vcf, "w", header=header_train
-        ) as vcf_out_test:
-            for j, rec in enumerate(vcf_in.fetch()):
-                if sampling_array[j]:
-                    # write the first training_set_size records to the training set
-                    if record_counter < training_set_size:
-                        vcf_out_train.write(rec)
-                    # write the next test_set_size records to the test set
-                    elif record_counter < total_size:
-                        vcf_out_test.write(rec)
-                    else:
-                        break
-                    record_counter += 1
+        while sum(sampling_array) < min(total_size, featuremap_entry_number):
+            sampling_array = np.random.uniform(size=featuremap_entry_number) < downsampling_rate
+        record_counter = 0
+        with pysam.VariantFile(input_featuremap_vcf) as vcf_in:
+            # Add a comment to the output file indicating the subsampling
+            header_train = vcf_in.header
+            header_train.add_line(
+                f"##datatype=training_set, subsampled {training_set_size}"
+                f"variants from a total of {featuremap_entry_number}"
+            )
+            header_test = vcf_in.header
+            header_test.add_line(
+                f"##datatype=test_set, subsampled approximately {test_set_size}"
+                f"variants from a total of {featuremap_entry_number}"
+            )
+            with pysam.VariantFile(
+                downsampled_training_featuremap_vcf, "w", header=header_train
+            ) as vcf_out_train, pysam.VariantFile(
+                downsampled_test_featuremap_vcf, "w", header=header_train
+            ) as vcf_out_test:
+                for j, rec in enumerate(vcf_in.fetch()):
+                    if sampling_array[j]:
+                        # write the first training_set_size records to the training set
+                        if record_counter < training_set_size:
+                            vcf_out_train.write(rec)
+                        # write the next test_set_size records to the test set
+                        elif record_counter < total_size:
+                            vcf_out_test.write(rec)
+                        else:
+                            break
+                        record_counter += 1
     # create tabix index
     pysam.tabix_index(downsampled_training_featuremap_vcf, preset="vcf", force=True)
     pysam.tabix_index(downsampled_test_featuremap_vcf, preset="vcf", force=True)
@@ -388,8 +392,6 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         statlist = [self.sorter_json_stats_file, None]
 
         # training set of size will include n TP and n FP where n ~ 0.5*(test_size+train_size)
-        desired_n = int(0.51 * (self.model_params["test_size"] + self.model_params["train_size"]))
-
         featuremaps_for_training = []
         total_n_list = []
         for featuremap, regions_file, sorter_json_stats_file in zip(featuremaplist, regionslist, statlist):
@@ -397,9 +399,11 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
                 self.sp,
                 self.out_path,
                 featuremap,
-                desired_n,
-                regions_file,
-                sorter_json_stats_file,
+                train_set_size=self.train_set_size,
+                test_set_size=self.test_set_size,
+                tp_regions_bed_file=self.tp_regions_bed_file,
+                fp_regions_bed_file=self.fp_regions_bed_file,
+                sorter_json_stats_file=self.sorter_json_stats_file,
                 featuremap_entry_number=None,
             )
             if not (isfile(featuremap_for_training)):
