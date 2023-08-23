@@ -22,10 +22,10 @@ from tqdm import tqdm
 from ugvc import logger
 from ugvc.dna.format import ALT, CHROM, FILTER, POS, QUAL, REF
 from ugvc.dna.utils import revcomp
-from ugvc.utils.consts import FileExtension
-from ugvc.vcfbed.variant_annotation import get_trinuc_substitution_dist, parse_trinuc_sub, VcfAnnotator, RefContextVcfAnnotator
 from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
-
+from ugvc.mrd.featuremap_utils import FeaturemapAnnotator, RefContextVcfAnnotator, VcfAnnotator
+from ugvc.utils.consts import FileExtension
+from ugvc.vcfbed.variant_annotation import get_trinuc_substitution_dist, parse_trinuc_sub
 
 default_featuremap_info_fields = {
     "X_CIGAR": str,
@@ -1025,21 +1025,27 @@ def generate_synthetic_signatures(
 
     return synthetic_signatures
 
-def annotate_featuremap(input_featuremap: str, 
-                        output_featuremap: str, 
-                        ref_fasta: str, 
-                        adapter_version: str, 
-                        flow_order: str, 
-                        motif_length_to_annotate: int, 
-                        max_hmer_length: int, 
-                        ):
+
+def annotate_featuremap(
+    input_featuremap: str,
+    output_featuremap: str,
+    ref_fasta: str,
+    adapter_version: str,
+    flow_order: str,
+    motif_length_to_annotate: int,
+    max_hmer_length: int,
+):
     featuremap_annotator = FeaturemapAnnotator()
     balanced_strand_annotator = BalancedStrandVcfAnnotator(adapter_version=adapter_version)
-    ref_context_annotator = RefContextVcfAnnotator(ref_fasta=ref_fasta,
-                                                   flow_order=flow_order,
-                                                   motif_length_to_annotate=motif_length_to_annotate,
-                                                   max_hmer_length=max_hmer_length)
-    VcfAnnotator.process_vcf(annotators=[featuremap_annotator, balanced_strand_annotator, ref_context_annotator],
-                             input_path=input_featuremap,
-                             output_path=output_featuremap,
-                             multiprocess_contigs=False)
+    ref_context_annotator = RefContextVcfAnnotator(
+        ref_fasta=ref_fasta,
+        flow_order=flow_order,
+        motif_length_to_annotate=motif_length_to_annotate,
+        max_hmer_length=max_hmer_length,
+    )
+    VcfAnnotator.process_vcf(
+        annotators=[featuremap_annotator, balanced_strand_annotator, ref_context_annotator],
+        input_path=input_featuremap,
+        output_path=output_featuremap,
+        multiprocess_contigs=False,
+    )
