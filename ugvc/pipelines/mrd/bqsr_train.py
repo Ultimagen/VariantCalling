@@ -57,7 +57,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="""Path to cram stats file (for LoD estimation)""",
     )
-    
+
     parser.add_argument(
         "--model_params",
         type=str,
@@ -105,11 +105,11 @@ def run(argv: list[str]):
     )
 
     bqsrtrain = BQSRTrain(
-        hom_snv_featuremap=args.hom_snv_featuremap,
-        single_substitution_featuremap=args.single_substitution_featuremap,
-        hom_snv_regions = args.hom_snv_regions,
-        single_sub_regions = args.single_sub_regions,
-        cram_stats_file = args.cram_stats_file,
+        tp_featuremap=args.hom_snv_featuremap,
+        fp_featuremap=args.single_substitution_featuremap,
+        tp_regions_bed_file=args.hom_snv_regions,
+        fp_regions_bed_file=args.single_sub_regions,
+        cram_stats_file=args.cram_stats_file,
         out_path=args.output,
         out_basename=args.basename,
         reference_fasta=args.reference_fasta,
