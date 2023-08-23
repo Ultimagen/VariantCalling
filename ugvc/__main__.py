@@ -44,6 +44,7 @@ from ugvc.pipelines.mrd import (
     positional_error_rate_profile,
     prepare_data_from_mrd_pipeline,
     substitution_error_rate,
+    annotate_featuremap,
     bqsr_train,
     srsnv_inference,
 )
@@ -81,6 +82,7 @@ mrd_modules = [
     prepare_data_from_mrd_pipeline,
     pileup_based_read_features,
     generate_synthetic_signatures,
+    annotate_featuremap,
     bqsr_train,
     srsnv_inference,
 ]
