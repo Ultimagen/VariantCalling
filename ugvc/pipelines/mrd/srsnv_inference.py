@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 # DESCRIPTION
-#    Calculate error rate per motif
+#    Add ml qual to SNVs according to features in featuremap
 # CHANGELOG in reverse chronological order
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def run(argv: list[str]):
-    """BQSR inference: load model, run inference and write quality for all events in the input featuremap"""
+    """Add ml qual to SNVs according to features in featuremap"""
     args = parse_args(argv)
 
     single_read_snv_inference(
