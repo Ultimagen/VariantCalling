@@ -20,8 +20,8 @@ def test_prepare_featuremap_for_training_no_test(tmpdir):
     downsampled_training_featuremap_vcf, _ = prepare_featuremap_for_model(
         workdir=tmpdir,
         input_featuremap_vcf=input_featuremap_vcf,
-        training_set_size=12,
-        balance_motifs=False,
+        train_set_size=12,
+        balanced_sampling_info_fields=False,
         random_seed=0,
     )
     assert filecmp.cmp(downsampled_training_featuremap_vcf, expected_training_featuremap_vcf)
@@ -43,9 +43,9 @@ def test_prepare_featuremap_for_training_with_test(tmpdir):
     (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf,) = prepare_featuremap_for_model(
         workdir=tmpdir,
         input_featuremap_vcf=input_featuremap_vcf,
-        training_set_size=12,
+        train_set_size=12,
         test_set_size=3,
-        balance_motifs=False,
+        balanced_sampling_info_fields=False,
         random_seed=0,
     )
     assert filecmp.cmp(downsampled_training_featuremap_vcf, expected_training_featuremap_vcf)
