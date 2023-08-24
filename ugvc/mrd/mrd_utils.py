@@ -804,7 +804,7 @@ def featuremap_to_dataframe(
     )
     # Determine output file name
     if output_file is None:
-        if output_file.endswith(FileExtension.VCF_GZ.value):
+        if featuremap_vcf.endswith(FileExtension.VCF_GZ.value):
             output_file = pjoin(
                 dirname(featuremap_vcf),
                 splitext(splitext(basename(featuremap_vcf))[0])[0] + FileExtension.PARQUET.value,
