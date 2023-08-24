@@ -115,11 +115,11 @@ class FeaturemapAnnotator(VcfAnnotator):
         header.add_line("##ugvc_ugvc/mrd/mrd_utils.py_FeaturemapAnnotator=.")
         header.add_line(
             f"##INFO=<ID={FeatureMapFields.IS_FORWARD.value},"
-            'Number=1,Type=Flag,Description="is the read forward mapped">'
+            'Number=0,Type=Flag,Description="is the read forward mapped">'
         )
         header.add_line(
             f"##INFO=<ID={FeatureMapFields.IS_DUPLICATE.value},"
-            'Number=1,Type=Flag,Description="is the read a duplicate">'
+            'Number=0,Type=Flag,Description="is the read a duplicate">'
         )
         header.add_line(
             f"##INFO=<ID={FeatureMapFields.MAX_SOFTCLIP_LENGTH.value},"
@@ -261,7 +261,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
             f'(assuming the variant considered only), up to length {self.max_hmer_length}">'
         )
         header.add_line(
-            f"##INFO=<ID={self.CYCLE_SKIP_FLAG}," f'Number=1,Type=Flag,Description="True if the SNV is a cycle skip">'
+            f"##INFO=<ID={self.CYCLE_SKIP_FLAG}," f'Number=0,Type=Flag,Description="True if the SNV is a cycle skip">'
         )
 
         return header
