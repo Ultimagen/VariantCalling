@@ -22,7 +22,7 @@ import argparse
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.mrd.bqsr_train_utils import BQSRTrain, bqsr_train_report
+from ugvc.mrd.bqsr_train_utils import BQSRTrain
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -104,41 +104,22 @@ def run(argv: list[str]):
         print_timing=True,
     )
 
-    bqsrtrain = BQSRTrain(
+    # TODO add to args         numerical_features: list[str] = None,
+    # TODO add to args         categorical_features: list[str] = None,
+    # TODO add to args         flow_order: str = DEFAULT_FLOW_ORDER,
+    # TODO add to args, maybe add the option to read from a json file         model_parameters: dict | str = None,
+    # TODO add to args         classifier_class=xgb.XGBClassifier,
+    # TODO add to args         train_set_size: int = 100000,
+    # TODO add to args         test_set_size: int = 10000,
+    # TODO add to args         balanced_sampling_info_fields: list[str] = None,
+
+    BQSRTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
         tp_regions_bed_file=args.hom_snv_regions,
         fp_regions_bed_file=args.single_sub_regions,
-        cram_stats_file=args.cram_stats_file,
+        sorter_json_stats_file=args.cram_stats_file,
         out_path=args.output,
         out_basename=args.basename,
-        reference_fasta=args.reference_fasta,
-        flow_order=args.flow_order,
-        model_params_file=args.model_params,
         simple_pipeline=sp,
     ).process()
-
-    return
-    bqsr_train_report(
-        out_path=bqsrtrain.workdir,
-        out_basename=bqsrtrain.out_basename,
-        report_name="test",
-        model_path=bqsrtrain.model_save_path,
-        X_path=bqsrtrain.X_test_save_path,
-        y_path=bqsrtrain.y_test_save_path,
-        fp_bed_file=args.single_sub_regions,
-        params_path=bqsrtrain.params_save_path,
-        simple_pipeline=sp,
-    )
-
-    bqsr_train_report(
-        out_path=bqsrtrain.workdir,
-        out_basename=bqsrtrain.out_basename,
-        report_name="train",
-        model_path=bqsrtrain.model_save_path,
-        X_path=bqsrtrain.X_train_save_path,
-        y_path=bqsrtrain.y_train_save_path,
-        fp_bed_file=args.single_sub_regions,
-        params_path=bqsrtrain.params_save_path,
-        simple_pipeline=sp,
-    )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import defaultdict
 from os.path import basename, isfile
 from os.path import join as pjoin
 
@@ -16,7 +17,7 @@ from simppl.simple_pipeline import SimplePipeline
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields
-from ugvc.srsnv.srsnv_utils import balance_df_according_motif, precision_recall_curve
+from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import exec_command_list
@@ -51,11 +52,11 @@ default_categorical_features = [
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
-    training_set_size: int,
+    train_set_size: int,
     test_set_size: int = None,
     sp: SimplePipeline = None,
     regions_file: str = None,
-    balance_motifs: bool = True,
+    balanced_sampling_info_fields: list[str] = True,
     sorter_json_stats_file: str = None,
     read_effective_coverage_from_sorter_json_kwargs: dict = None,
     keep_temp_file: bool = False,
@@ -76,7 +77,7 @@ def prepare_featuremap_for_model(
         Working directory to which outputs will be written
     input_featuremap_vcf : str
         Path to input featuremap
-    training_set_size : int
+    train_set_size : int
         Size of training set to create, must be at larger than 0
     test_set_size : int
         Size of test set to create, must be at larger than 0
@@ -104,13 +105,16 @@ def prepare_featuremap_for_model(
     os.makedirs(workdir, exist_ok=True)
     assert isfile(input_featuremap_vcf), f"input_featuremap_vcf {input_featuremap_vcf} not found"
     assert input_featuremap_vcf.endswith(FileExtension.VCF_GZ.value)
-    assert training_set_size > 0, f"training_set_size must be > 0, got {training_set_size}"
+    assert train_set_size > 0, f"training_set_size must be > 0, got {train_set_size}"
     assert test_set_size is None or (test_set_size > 0), f"test_set_size must be > 0, got {test_set_size}"
     if not read_effective_coverage_from_sorter_json_kwargs:
         read_effective_coverage_from_sorter_json_kwargs = {}
     # make sure X_READ_COUNT is in the INFO fields in the header
     with pysam.VariantFile(input_featuremap_vcf) as fmap:
         assert FeatureMapFields.READ_COUNT.value in fmap.header.info
+    if balanced_sampling_info_fields:
+        for info_field in balanced_sampling_info_fields:
+            assert info_field in fmap.header.info, f"INFO field {info_field} not found in header"
     intersect_featuremap_vcf = pjoin(
         workdir,
         basename(input_featuremap_vcf).replace(FileExtension.VCF_GZ.value, ".intersect.vcf.gz"),
@@ -149,14 +153,14 @@ def prepare_featuremap_for_model(
     assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
     # count entries in intersected featuremap and determine downsampling rate
-    total_size = training_set_size + test_set_size if test_set_size else training_set_size
+    total_size = train_set_size + test_set_size if test_set_size else train_set_size
     with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
         featuremap_entry_number = 0
         for _ in enumerate(fmap.fetch()):
             featuremap_entry_number += 1
     if featuremap_entry_number < total_size:
         logger.warning(
-            f"featuremap_entry_number={featuremap_entry_number} > training_set_size={training_set_size}"
+            f"featuremap_entry_number={featuremap_entry_number} > training_set_size={train_set_size}"
             f"+ test_set_size={test_set_size if test_set_size else 0}"
             "\nbehavior is undefined",
         )
@@ -164,7 +168,7 @@ def prepare_featuremap_for_model(
     overhead_factor = 1.03  # 3% overhead to make sure we get the desired number of entries
     downsampling_rate = overhead_factor * (total_size) / featuremap_entry_number
     logger.info(
-        f"training_set_size={training_set_size}, featuremap_entry_number = {featuremap_entry_number},"
+        f"training_set_size={train_set_size}, featuremap_entry_number = {featuremap_entry_number},"
         f"downsampling_rate {downsampling_rate}"
     )
     logger.info(
@@ -175,7 +179,63 @@ def prepare_featuremap_for_model(
     # random sample of intersected featuremap - sampled featuremap
     if random_seed is not None:
         np.random.seed(random_seed)
-    if not balance_motifs:
+    if balanced_sampling_info_fields:
+        # TODO test this code and add a test, I wrote an implementation but didn't even get to run it
+        # count the number of entries with each combination of info fields to balance by
+        balanced_sampling_info_fields_counter = defaultdict(int)
+        with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
+            for record in fmap.fetch():
+                balanced_sampling_info_fields_counter[
+                    (record.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
+                ] += 1
+        # determine sampling rate per group (defined by a combination of info fields)
+        total_size_per_group = total_size // len(balanced_sampling_info_fields_counter)
+        downsampling_rate = {
+            k: total_size_per_group / v * overhead_factor for k, v in balanced_sampling_info_fields_counter.items()
+        }
+        for k, v in downsampling_rate.items():
+            logger.debug(f"downsampling_rate for {k} = {v}")
+            if v > 1:
+                logger.warning(f"downsampling_rate for {k} = {v} > 1, result will contain less data than expected")
+                downsampling_rate[k] = 1
+
+        record_counter = 0
+        with pysam.VariantFile(input_featuremap_vcf) as vcf_in:
+            # Add a comment to the output file indicating the subsampling
+            header_train = vcf_in.header
+            header_train.add_line(
+                f"##datatype=training_set, subsampled {train_set_size}"
+                f"variants from a total of {featuremap_entry_number}"
+                f", balanced by {balanced_sampling_info_fields}"
+            )
+            header_test = vcf_in.header
+            header_test.add_line(
+                f"##datatype=test_set, subsampled approximately {test_set_size}"
+                f"variants from a total of {featuremap_entry_number}"
+                f", balanced by {balanced_sampling_info_fields}"
+            )
+            with pysam.VariantFile(
+                downsampled_training_featuremap_vcf, "w", header=header_train
+            ) as vcf_out_train, pysam.VariantFile(
+                downsampled_test_featuremap_vcf, "w", header=header_train
+            ) as vcf_out_test:
+                for j, rec in enumerate(vcf_in.fetch()):
+                    if (
+                        np.random.uniform()
+                        < downsampling_rate[
+                            (record.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
+                        ]
+                    ):
+                        # write the first training_set_size records to the training set
+                        if record_counter < train_set_size:
+                            vcf_out_train.write(rec)
+                        # write the next test_set_size records to the test set
+                        elif record_counter < total_size:
+                            vcf_out_test.write(rec)
+                        else:
+                            break
+                        record_counter += 1
+    else:
         sampling_array = np.random.uniform(size=featuremap_entry_number) < downsampling_rate
         while sum(sampling_array) < min(total_size, featuremap_entry_number):
             sampling_array = np.random.uniform(size=featuremap_entry_number) < downsampling_rate
@@ -184,7 +244,7 @@ def prepare_featuremap_for_model(
             # Add a comment to the output file indicating the subsampling
             header_train = vcf_in.header
             header_train.add_line(
-                f"##datatype=training_set, subsampled {training_set_size}"
+                f"##datatype=training_set, subsampled {train_set_size}"
                 f"variants from a total of {featuremap_entry_number}"
             )
             header_test = vcf_in.header
@@ -200,7 +260,7 @@ def prepare_featuremap_for_model(
                 for j, rec in enumerate(vcf_in.fetch()):
                     if sampling_array[j]:
                         # write the first training_set_size records to the training set
-                        if record_counter < training_set_size:
+                        if record_counter < train_set_size:
                             vcf_out_train.write(rec)
                         # write the next test_set_size records to the test set
                         elif record_counter < total_size:
@@ -248,11 +308,11 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         tp_regions_bed_file: str = None,
         fp_regions_bed_file: str = None,
         flow_order: str = DEFAULT_FLOW_ORDER,
-        model_parameters: dict | str = None,
+        model_params: dict | str = None,
         classifier_class=xgb.XGBClassifier,
         train_set_size: int = 100000,
         test_set_size: int = 10000,
-        balance_motifs_in_train_set: bool = True,
+        balanced_sampling_info_fields: list[str] = None,
         simple_pipeline: SimplePipeline = None,
     ):
         """
@@ -278,7 +338,7 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
             Path to bed file of regions to use for false positives
         flow_order : str, optional
             Flow order, by default TGCA
-        model_parameters : dict, optional
+        model_params : dict, optional
             Parameters for classifier, by default None (default_xgboost_model_params)
             If a string is given then it is assumed to be a path to a json file with the parameters
         sorter_json_stats_file : str, optional
@@ -286,8 +346,8 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         classifier_class : xgb.XGBClassifier, optional
             class from which classifier will be instantiated, by default xgb.XGBClassifier
             sklearn.base.is_classifier() must return True for this class
-        balance_motifs_in_train_set : bool, optional
-            Whether to balance the motifs (trinuc context) in the training set, by default True
+        balanced_sampling_info_fields : list[str], optional
+            List of info fields to balance the TP data by, default None (do not balance)
             Recommended in order to avoid the motif distribution of germline variants being learned (data leak)
         simple_pipeline : SimplePipeline, optional
             SimplePipeline object to use for printing and running commands, by default None
@@ -323,16 +383,16 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
             classifier_class()
         ), "classifier_class must be a classifier - sklearn.base.is_classifier() must return True"
         self.classifier_type = type(classifier_class).__name__
-        if isfile(model_parameters) and model_parameters.endswith(".json"):
-            with open(model_parameters, "r", encoding="utf-8") as f:
+        if isfile(model_params) and model_params.endswith(".json"):
+            with open(model_params, "r", encoding="utf-8") as f:
                 model_params = json.load(f)
-        elif model_parameters is None:
+        elif model_params is None:
             model_params = default_xgboost_model_params
         self.model_parameters = model_params
         self.classifier = classifier_class(**self.model_parameters)
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
-        self.balance_motifs_in_train_set = balance_motifs_in_train_set
+        self.balanced_sampling_info_fields = balanced_sampling_info_fields
 
         # save input data file paths
         assert isfile(tp_featuremap), f"tp_featuremap {tp_featuremap} not found"
@@ -376,68 +436,16 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}, {self.out_basename}params.json"),
         )
 
-    def balance_motifs(self, data):
-        tp_df = data[data["label"] == "TP"]
-        fp_df = data[data["label"] == "FP"]
+    def save_model_and_data(self):
+        joblib.dump(self.classifier, self.model_save_path)
 
-        balanced_tps = balance_df_according_motif(tp_df, "ref_alt_motif", 0)
-        data = pd.concat([balanced_tps, fp_df], ignore_index=True)
-
-        return data
-
-    # prepare featuremaps for training
-    def prepare_featuremaps_for_model(self):
-        featuremaplist = [self.single_substitution_featuremap, self.hom_snv_featuremap]
-        regionslist = [self.fp_regions_bed_file, self.tp_regions_bed_file]
-        statlist = [self.sorter_json_stats_file, None]
-
-        # training set of size will include n TP and n FP where n ~ 0.5*(test_size+train_size)
-        featuremaps_for_training = []
-        total_n_list = []
-        for featuremap, regions_file, sorter_json_stats_file in zip(featuremaplist, regionslist, statlist):
-            featuremap_for_training, total_n = prepare_featuremap_for_model(
-                self.sp,
-                self.out_path,
-                featuremap,
-                train_set_size=self.train_set_size,
-                test_set_size=self.test_set_size,
-                tp_regions_bed_file=self.tp_regions_bed_file,
-                fp_regions_bed_file=self.fp_regions_bed_file,
-                sorter_json_stats_file=self.sorter_json_stats_file,
-                featuremap_entry_number=None,
-            )
-            if not (isfile(featuremap_for_training)):
-                logger.error(f"failed to create training data from {featuremap}")
-                raise ValueError
-            featuremaps_for_training.append(featuremap_for_training)
-            total_n_list.append(total_n)
-
-        self.f_fp_training = featuremaps_for_training[0]
-        self.f_tp_training = featuremaps_for_training[1]
-
-        self.total_n_single_sub_featuremap = total_n_list[0]
-
-    def train_test_split_head_tail(self, data, label_columns):
-        df_tp = data.query("label")
-        df_fp = data.query("not label")
-
-        n_train = self.train_set_size // 2
-        n_test = self.test_set_size // 2
-        df_train = pd.concat((df_tp.head(n_train), df_fp.head(n_train)))
-        df_test = pd.concat((df_tp.tail(n_test), df_fp.tail(n_test)))
-
-        return df_train, df_test, df_train[label_columns], df_test[label_columns]
-
-    def save_model_and_data(self, xgb_classifier, X_test, y_test, X_train, y_train):
-        joblib.dump(xgb_classifier, self.model_save_path)
-
-        for d, savename in (
-            (X_test, self.X_test_save_path),
-            (y_test, self.y_test_save_path),
-            (X_train, self.X_train_save_path),
-            (y_train, self.y_train_save_path),
+        for data, savename in (
+            (self.X_test, self.X_test_save_path),
+            (self.y_test, self.y_test_save_path),
+            (self.X_train, self.X_train_save_path),
+            (self.y_train, self.y_train_save_path),
         ):
-            d.to_parquet(savename)
+            data.to_parquet(savename)
 
         params_for_save = {
             item[0]: item[1] for item in self.__dict__.items() if not isinstance(item[1], SimplePipeline)
@@ -445,60 +453,62 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_for_save, f)
 
+    def prepare_featuremap_for_model(self):
+        """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
+        # prepare TP featuremaps for training
+        (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf,) = prepare_featuremap_for_model(
+            workdir=self.out_path,
+            input_featuremap_vcf=self.hom_snv_featuremap,
+            train_set_size=self.train_set_size,
+            test_set_size=self.test_set_size,
+            regions_file=self.tp_regions_bed_file,
+            balanced_sampling_info_fields=self.balanced_sampling_info_fields,
+            sorter_json_stats_file=self.sorter_json_stats_file,
+        )
+        # prepare FP featuremaps for training
+        (self.fp_train_featuremap_vcf, self.fp_test_featuremap_vcf,) = prepare_featuremap_for_model(
+            workdir=self.out_path,
+            input_featuremap_vcf=self.single_substitution_featuremap,
+            train_set_size=self.train_set_size,
+            test_set_size=self.test_set_size,
+            regions_file=self.fp_regions_bed_file,
+            sorter_json_stats_file=self.sorter_json_stats_file,
+        )
+
+    def create_dataframes(self):
+        """create X and y dataframes for train and test"""
+        # read dataframes
+        columns = self.numerical_features + self.categorical_features
+        df_tp_train = featuremap_to_dataframe(self.tp_train_featuremap_vcf)[columns].astype(
+            {c: "category" for c in self.categorical_features}
+        )
+        df_tp_test = featuremap_to_dataframe(self.tp_test_featuremap_vcf)[columns].astype(
+            {c: "category" for c in self.categorical_features}
+        )
+        df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)[columns].astype(
+            {c: "category" for c in self.categorical_features}
+        )
+        df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)[columns].astype(
+            {c: "category" for c in self.categorical_features}
+        )
+        # create X and y
+        self.X_train = pd.concat((df_tp_train, df_fp_train))
+        self.X_test = pd.concat((df_tp_test, df_fp_test))
+        self.y_train = pd.concat((np.ones(df_tp_train.shape[0]), np.zeros(df_fp_train.shape[0]))).astype(bool)
+        self.y_test = pd.concat((np.ones(df_tp_test.shape[0]), np.zeros(df_fp_test.shape[0]))).astype(bool)
+
     def process(self):
+        # prepare featuremaps
+        self.prepare_featuremap_for_model()
+
         # load training data
-        data = self.extract_data_from_featuremap_local()
-        logger.info(f"Labels in data: \n{data['label'].value_counts()}")
+        self.create_dataframes()
 
-        # model init and train
-        motif_only_features = self.model_params["motif_only_features"]
-        categorical_features = self.model_params["categorical_features"] + motif_only_features
-        non_categorical_features = self.model_params["non_categorical_features"]
-
-        features = categorical_features + non_categorical_features
-
-        label_columns = ["label"]
-
-        for col in categorical_features:
-            data[col] = data[col].astype("category")
-
-        if self.model_params["balance_motifs_in_train_set"]:
-            data = self.balance_motifs(data)
-
-        data.loc[:, "label"] = data["label"] == "TP"
-
-        # if not (data.shape[0] > desired_n):
-        #     logger.error("data size smaller than requested")
-        #     return
-
-        # split data to train and test
-        # X_train, X_test, y_train, y_test = train_test_split(
-        #     data, data[label_columns], test_size=0.33, random_state=42
-        # )
-        X_train, X_test, y_train, y_test = self.train_test_split_head_tail(data, label_columns)
-
-        # xgb_classifier = xgb.XGBClassifier(
-        #     n_estimators=int(self.model_params["forest_size"]),
-        #     objective="multi:softprob",
-        #     tree_method="hist",
-        #     eta=self.model_params["eta"],
-        #     max_depth=self.model_params["max_depth"],
-        #     n_jobs=self.model_params["n_jobs"],
-        #     enable_categorical=True,
-        #     subsample=self.model_params["subsample"],
-        #     num_class=2,
-        # )
-
-        self.classifier.fit(X_train[features], y_train["label"])
+        # fit classifier
+        self.classifier.fit(self.X_train, self.y_train)
 
         # save classifier and data, generate plots for report
-        self.save_model_and_data(
-            self.classifier,
-            X_test,
-            y_test,
-            X_train,
-            y_train,
-        )
+        self.save_model_and_data(self.classifier)
 
         return self
 
@@ -531,36 +541,3 @@ def create_filters_file(filters_file_path):
 
     with open(filters_file_path, "w") as f:
         json.dump(filters_dict, f, indent=6)
-
-
-def inference_on_dataframe(xgb_classifier, X, y):
-    cls_features = xgb_classifier.feature_names_in_
-    probs = xgb_classifier.predict_proba(X[cls_features])
-    predictions = xgb_classifier.predict(X[cls_features])
-    quals = -10 * np.log10(1 - probs)
-    # labels = np.unique(y["label"])
-    predictions_df = pd.DataFrame(y)
-    labels = np.unique(y["label"].astype(int))
-    for label in labels:
-        predictions_df[f"XGB_prob_{label}"] = probs[:, label]
-        predictions_df[f"XGB_qual_{label}"] = quals[:, label]
-        predictions_df[f"XGB_prediction_{label}"] = predictions[:, label]
-    df = pd.concat([X, predictions_df.drop(["label"], axis="columns", inplace=False)], axis=1)
-
-    df_tp = df.query("label == True")
-    df_fp = df.query("label == False")
-
-    fprs = {}
-    recalls = {}
-    max_score = -1
-    for label in labels:
-        fprs[label] = []
-        recalls[label] = []
-        score = f"XGB_qual_{label}"
-        max_score = np.max((int(np.ceil(df[score].max())), max_score))
-        gtr = df["label"] == label
-        fprs_, recalls_ = precision_recall_curve(df[score], max_score=max_score, y_true=gtr)
-        fprs[label].append(fprs_)
-        recalls[label].append(recalls_)
-
-    return df, df_tp, df_fp, labels, max_score, cls_features, fprs, recalls
