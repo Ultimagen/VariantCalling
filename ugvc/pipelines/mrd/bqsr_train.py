@@ -104,6 +104,7 @@ def run(argv: list[str]):
         print_timing=True,
     )
 
+    # TODO add balancesd_strand adapter version parameters that will add relevant features (numerical_features/categorical_features)
     # TODO add to args         numerical_features: list[str] = None,
     # TODO add to args         categorical_features: list[str] = None,
     # TODO add to args         flow_order: str = DEFAULT_FLOW_ORDER,
