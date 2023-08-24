@@ -20,8 +20,8 @@ from __future__ import annotations
 import argparse
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.mrd.srsnv_inference_utils import single_read_snv_inference
 from ugvc.mrd.mrd_utils import annotate_featuremap
+
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="annotate featuremap", description=run.__doc__)
@@ -32,12 +32,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="input featuremap file",
     )
-    parser.add_argument(
-        "--adaptor_version",
-        type=str,
-        default=None,
-        help="adaptor version"
-    )
+    parser.add_argument("--adapter_version", type=str, default=None, help="adapter version")
     parser.add_argument(
         "-o",
         "--output_featuremap",
@@ -45,13 +40,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="Path of annotated featuremap file",
     )
-    parser.add_argument(
-        "-r",
-        "--ref_fasta",
-        type=str,
-        required=True,
-        help='Reference genome fasta file'
-    )
+    parser.add_argument("-r", "--ref_fasta", type=str, required=True, help="Reference genome fasta file")
     parser.add_argument(
         "--flow_order",
         type=str,
@@ -62,14 +51,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         type=int,
         default=3,
     )
-    parser.add_argument(
-        "--max_hmer_length",
-        type=int,
-        default=20
-    )
+    parser.add_argument("--max_hmer_length", type=int, default=20)
 
     return parser.parse_args(argv[1:])
-
 
 
 def run(argv: list[str]):
@@ -79,9 +63,9 @@ def run(argv: list[str]):
     annotate_featuremap(
         input_featuremap=args.featuremap_path,
         output_featuremap=args.output_featuremap,
-        ref_fasta=args.ref_fasta, 
-        adapter_version=args.adaptor_version, 
-        flow_order=args.flow_order, 
-        motif_length_to_annotate=args.motif_length_to_annotate, 
-        max_hmer_length=args.max_hmer_length
+        ref_fasta=args.ref_fasta,
+        adapter_version=args.adapter_version,
+        flow_order=args.flow_order,
+        motif_length_to_annotate=args.motif_length_to_annotate,
+        max_hmer_length=args.max_hmer_length,
     )
