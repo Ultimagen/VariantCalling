@@ -28,7 +28,7 @@ class FeatureMapFields(Enum):
     X_MAPQ = "X_MAPQ"
     X_INDEX = "X_INDEX"
     X_FC1 = "X_FC1"
-    TRINUC_CONTEXT = "trinuc_context"
+    TRINUC_CONTEXT_WITH_ALT = "trinuc_context_with_alt"
     HMER_CONTEXT_REF = "hmer_context_ref"
     HMER_CONTEXT_ALT = "hmer_context_alt"
     IS_CYCLE_SKIP = IS_CYCLE_SKIP
@@ -168,7 +168,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
         """
         Annotator to add reference context to VCF records, only modifies biallelic SNVs.
         The following are added to the INFO field:
-        - trinuc_context: reference trinucleotide context
+        - TRINUC_CONTEXT_WITH_ALT: reference trinucleotide context
         - prev_Nbp: N bases in the reference before the variant, N=length motif_length_to_annotate
         - next_Nnp: N bases in the reference after the variant, N=length motif_length_to_annotate
         - hmer_context_ref: reference homopolymer context, up to length max_hmer_length
@@ -202,14 +202,14 @@ class RefContextVcfAnnotator(VcfAnnotator):
         self.faidx_ref = pyfaidx.Fasta(self.ref_fasta, build_index=False, rebuild=False)
 
         # info field names
-        self.TRINUC_CONTEXT = FeatureMapFields.TRINUC_CONTEXT.value
+        self.TRINUC_CONTEXT_WITH_ALT = FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value
         self.HMER_CONTEXT_REF = FeatureMapFields.HMER_CONTEXT_REF.value
         self.HMER_CONTEXT_ALT = FeatureMapFields.HMER_CONTEXT_ALT.value
         self.CYCLE_SKIP_FLAG = FeatureMapFields.IS_CYCLE_SKIP.value
         self.PREV_N_BP = f"prev_{self.motif_length_to_annotate}bp"
         self.NEXT_N_BP = f"next_{self.motif_length_to_annotate}bp"
         self.info_fields_to_add = [
-            self.TRINUC_CONTEXT,
+            self.TRINUC_CONTEXT_WITH_ALT,
             self.HMER_CONTEXT_REF,
             self.HMER_CONTEXT_ALT,
             self.PREV_N_BP,
@@ -238,7 +238,8 @@ class RefContextVcfAnnotator(VcfAnnotator):
             f"_max_hmer_length:{self.max_hmer_length}"
         )
         header.add_line(
-            f"##INFO=<ID={self.TRINUC_CONTEXT}," 'Number=1,Type=String,Description="reference trinucleotide context">'
+            f"##INFO=<ID={self.TRINUC_CONTEXT_WITH_ALT},"
+            'Number=1,Type=String,Description="reference trinucleotide context and alt base">'
         )
         header.add_line(
             f"##INFO=<ID={self.PREV_N_BP},"
@@ -295,7 +296,8 @@ class RefContextVcfAnnotator(VcfAnnotator):
                 # assign to record
                 record.info[self.HMER_CONTEXT_REF] = get_hmer_of_central_base(ref_around_snv)
                 record.info[self.HMER_CONTEXT_ALT] = get_hmer_of_central_base(alt_around_snv)
-                record.info[self.TRINUC_CONTEXT] = trinuc_ref
+                record.info[self.TRINUC_CONTEXT_WITH_ALT] = trinuc_ref + record.alts[0]
+                print(record.info[self.TRINUC_CONTEXT_WITH_ALT])
                 record.info[self.PREV_N_BP] = ref_around_snv[
                     central_base_ind - self.motif_length_to_annotate : central_base_ind
                 ]

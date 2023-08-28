@@ -42,8 +42,7 @@ default_numerical_features = [
 ]
 default_categorical_features = [
     FeatureMapFields.IS_CYCLE_SKIP.value,
-    FeatureMapFields.TRINUC_CONTEXT.value,
-    FeatureMapFields.ALT.value,
+    FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value
 ]
 
 
@@ -337,7 +336,7 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         numerical_features : list[str], optional
             List of numerical features to use, default (None): [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
         categorical_features : list[str], optional
-            List of categorical features to use, default (None): [IS_CYCLE_SKIP,TRINUC_CONTEXT,ALT]
+            List of categorical features to use, default (None): [IS_CYCLE_SKIP,TRINUC_CONTEXT_WITH_ALT_WITH_ALT]
         tp_regions_bed_file : str, optional
             Path to bed file of regions to use for true positives
         fp_regions_bed_file : str, optional
