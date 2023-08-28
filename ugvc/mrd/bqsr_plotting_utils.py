@@ -9,15 +9,79 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import xgboost as xgb
 from matplotlib import ticker
 from scipy.stats import binom
 from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
 
-from ugvc.mrd.bqsr_train_utils import inference_on_dataframe
 from ugvc.srsnv.srsnv_utils import plot_precision_recall, precision_recall_curve
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import exec_command_list
+
+
+def create_data_for_report(
+    xgb_classifier: xgb.XGBClassifier,
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+):
+    """create the data needed for the report plots
+
+    Parameters
+    ----------
+    xgb_classifier : xgb.XGBClassifier
+        the trained ML model
+    X : pd.DataFrame
+        input data with features for the classifier
+    y : pd.DataFrame
+        labels
+
+    Returns
+    -------
+    df : pd.DataFrame
+        dataset with input features, model predicions and probabilities
+    df_tp : pd.DataFrame
+        TP subset of df
+    df_fp : pd.DataFrame
+        FP subset of df
+    max_score : float
+        maximal ML model score
+    cls_features : list
+        list of input features for the ML model
+    fprs : dict
+        list of false positive rates per ML score per label
+    recalls : dict
+        list of false positive rates per ML score per label
+    """
+    cls_features = xgb_classifier.feature_names_in_
+    probs = xgb_classifier.predict_proba(X[cls_features])
+    predictions = xgb_classifier.predict(X[cls_features])
+    quals = -10 * np.log10(1 - probs)
+    predictions_df = pd.DataFrame(y)
+    labels = np.unique(y["label"].astype(int))
+    for label in labels:
+        predictions_df[f"XGB_prob_{label}"] = probs[:, label]
+        predictions_df[f"XGB_qual_{label}"] = quals[:, label]
+        predictions_df[f"XGB_prediction_{label}"] = predictions[:, label]
+    df = pd.concat([X, predictions_df.drop(["label"], axis="columns", inplace=False)], axis=1)
+
+    df_tp = df.query("label == True")
+    df_fp = df.query("label == False")
+
+    fprs = {}
+    recalls = {}
+    max_score = -1
+    for label in labels:
+        fprs[label] = []
+        recalls[label] = []
+        score = f"XGB_qual_{label}"
+        max_score = np.max((int(np.ceil(df[score].max())), max_score))
+        gtr = df["label"] == label
+        fprs_, recalls_ = precision_recall_curve(df[score], max_score=max_score, y_true=gtr)
+        fprs[label].append(fprs_)
+        recalls[label].append(recalls_)
+
+    return df, df_tp, df_fp, max_score, cls_features, fprs, recalls
 
 
 def bqsr_train_report(
@@ -1037,12 +1101,11 @@ def create_report_plots(
         df,
         df_tp,
         df_fp,
-        _,
         max_score,
         cls_features,
         fprs,
         recalls,
-    ) = inference_on_dataframe(xgb_classifier, X_test, y_test)
+    ) = create_data_for_report(xgb_classifier, X_test, y_test)
 
     labels_dict = {0: "FP", 1: "TP"}
     cram_stats_file = params["cram_stats_file"]

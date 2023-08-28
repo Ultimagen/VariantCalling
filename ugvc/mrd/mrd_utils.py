@@ -20,7 +20,10 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from ugvc import logger
+from ugvc.dna.format import ALT, CHROM, FILTER, POS, QUAL, REF
 from ugvc.dna.utils import revcomp
+from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
+from ugvc.mrd.featuremap_utils import FeaturemapAnnotator, RefContextVcfAnnotator, VcfAnnotator
 from ugvc.utils.consts import FileExtension
 from ugvc.vcfbed.variant_annotation import get_trinuc_substitution_dist, parse_trinuc_sub
 
@@ -39,82 +42,6 @@ default_featuremap_info_fields = {
     "X_SCORE": float,
     "rq": float,
 }
-
-
-class FeaturemapAnnotator(VcfAnnotator):
-    """
-    Annotate vcf with featuremap-specific fields derived from X_FLAGS and X_CIGAR:
-    - is_forward: is the read forward mapped
-    - is_duplicate: is the read a duplicate
-    - max_softclip_length: maximum softclip length
-    """
-
-    IS_FORWARD = "is_forward"
-    IS_DUPLICATE = "is_duplicate"
-    MAX_SOFTCLIP_LENGTH = "max_softclip_length"
-    X_FLAGS = "X_FLAGS"
-    X_CIGAR = "X_CIGAR"
-
-    def __init__(self):
-        pass
-
-    def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
-        """
-        Edit the VCF header to include new fields
-
-        Parameters
-        ----------
-        header : pysam.VariantHeader
-            VCF header
-
-        Returns
-        -------
-        pysam.VariantHeader
-            Modified VCF header
-
-        """
-        header.add_line("##ugvc_ugvc/mrd/mrd_utils.py_FeaturemapAnnotator=.")
-        header.add_line(
-            f"##INFO=<ID={FeaturemapAnnotator.IS_FORWARD},"
-            'Number=1,Type=Flag,Description="is the read forward mapped">'
-        )
-        header.add_line(
-            f"##INFO=<ID={FeaturemapAnnotator.IS_DUPLICATE},"
-            'Number=1,Type=Flag,Description="is the read a duplicate">'
-        )
-        header.add_line(
-            f"##INFO=<ID={FeaturemapAnnotator.MAX_SOFTCLIP_LENGTH},"
-            'Number=1,Type=Integer,Description="maximum softclip length">'
-        )
-
-        return header
-
-    def process_records(self, records: list[pysam.VariantRecord]) -> list[pysam.VariantRecord]:
-        """
-
-        Parameters
-        ----------
-        records : list[pysam.VariantRecord]
-            list of VCF records
-
-        Returns
-        -------
-        list[pysam.VariantRecord]
-            list of updated VCF records
-        """
-        records_out = [None] * len(records)
-        for j, record in enumerate(records):
-            if FeaturemapAnnotator.X_FLAGS in record.info:
-                flags = record.info[FeaturemapAnnotator.X_FLAGS]
-                record.info[FeaturemapAnnotator.IS_FORWARD] = (flags & 16) == 0
-                record.info[FeaturemapAnnotator.IS_DUPLICATE] = (flags & 1024) != 0
-            if FeaturemapAnnotator.X_CIGAR in record.info:
-                record.info[FeaturemapAnnotator.MAX_SOFTCLIP_LENGTH] = get_max_softclip_len(
-                    record.info[FeaturemapAnnotator.X_CIGAR]
-                )
-            records_out[j] = record
-
-        return records_out
 
 
 def _get_sample_name_from_file_name(file_name, split_position=0):
@@ -726,58 +653,6 @@ def vcf_row_generator(
         yield entry
 
 
-def vcf_row_generator(
-    vcf_handle: pysam.VariantFile,
-    info_metadata_dict: dict = None,
-    formats_metadata_dict: dict = None,
-    sample_index: int = None,
-):
-    """
-    Return a generator object that reads entries from an open vcf file handle and yields a list of values
-
-    Parameters
-    ----------
-    vcf_handle: pysam.VariantFile
-        An open vcf file handle
-    info_metadata_dict: dict
-        A dictionary of info columns to read from the vcf file. The keys are the info column names and the values
-        default None, in which case no INFO fields are read
-    formats_metadata_dict: dict
-        A dictionary of format columns to read from the vcf file. The keys are the info column names and the values
-        default None, in which case no FORMAT fields are read
-    sample_index: int
-        The index of the sample to read from the vcf file.
-
-    """
-    for record in vcf_handle.fetch():
-        # read basic fields
-        entry = [
-            record.chrom,
-            record.pos,
-            record.ref,
-            record.alts[0] if len(record.alts) >= 1 else None,
-            record.qual,
-            ";".join(record.filter.keys()),
-        ]
-        # read info fields
-        if info_metadata_dict is not None and len(info_metadata_dict) > 0:
-            entry += [
-                record.info.get(info_key)[0]
-                if info_value[0] == "A"
-                and record.info.get(info_key, None) is not None
-                and len(record.info.get(info_key)) >= 1
-                else record.info.get(info_key, np.nan)
-                for info_key, info_value in info_metadata_dict.items()
-            ]
-        # read format fields
-        if formats_metadata_dict is not None and len(formats_metadata_dict) > 0:
-            entry += [
-                record.samples[sample_index].get(formats_key, np.nan) for formats_key in formats_metadata_dict.keys()
-            ]
-        yield entry
-
-
-# pylint: disable=too-many-arguments
 def featuremap_to_dataframe(
     featuremap_vcf: str,
     output_file: str = None,
@@ -854,7 +729,12 @@ def featuremap_to_dataframe(
             sample_index = list(pysam.VariantFile(featuremap_vcf).header.samples).index(sample_name)
 
     # define type conversion dictionary, String is converted to object to support np.nan
-    type_conversion_dict = {"String": object, "Integer": int, "Float": float, "Flag": bool}
+    type_conversion_dict = {
+        "String": object,
+        "Integer": int,
+        "Float": float,
+        "Flag": bool,
+    }
 
     # auxiliary function to parse info and formats fields to read
     def get_metadata_dict(values: list[str], input_fields: list[str] = None):
@@ -894,9 +774,7 @@ def featuremap_to_dataframe(
                 formats_metadata_dict=format_metadata_dict,
                 sample_index=sample_index,
             ),
-            columns=["chrom", "pos", "ref", "alt", "qual", "filter"]
-            + info_input_fields_to_use
-            + format_input_fields_to_use,
+            columns=[CHROM, POS, REF, ALT, QUAL, FILTER] + info_input_fields_to_use + format_input_fields_to_use,
         )
     # fillna in int columns before converting types, because int columns can't contain NaNs
     df = df.fillna(
@@ -926,7 +804,7 @@ def featuremap_to_dataframe(
     )
     # Determine output file name
     if output_file is None:
-        if output_file.endswith(FileExtension.VCF_GZ.value):
+        if featuremap_vcf.endswith(FileExtension.VCF_GZ.value):
             output_file = pjoin(
                 dirname(featuremap_vcf),
                 splitext(splitext(basename(featuremap_vcf))[0])[0] + FileExtension.PARQUET.value,
@@ -1117,3 +995,28 @@ def generate_synthetic_signatures(
         pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
 
     return synthetic_signatures
+
+
+def annotate_featuremap(
+    input_featuremap: str,
+    output_featuremap: str,
+    ref_fasta: str,
+    adapter_version: str,
+    flow_order: str,
+    motif_length_to_annotate: int,
+    max_hmer_length: int,
+):
+    featuremap_annotator = FeaturemapAnnotator()
+    balanced_strand_annotator = BalancedStrandVcfAnnotator(adapter_version=adapter_version)
+    ref_context_annotator = RefContextVcfAnnotator(
+        ref_fasta=ref_fasta,
+        flow_order=flow_order,
+        motif_length_to_annotate=motif_length_to_annotate,
+        max_hmer_length=max_hmer_length,
+    )
+    VcfAnnotator.process_vcf(
+        annotators=[featuremap_annotator, balanced_strand_annotator, ref_context_annotator],
+        input_path=input_featuremap,
+        output_path=output_featuremap,
+        multiprocess_contigs=False,
+    )

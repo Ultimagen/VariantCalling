@@ -7,8 +7,8 @@ from test import get_resource_dir, test_dir
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
+from ugvc.mrd.featuremap_utils import FeaturemapAnnotator
 from ugvc.mrd.mrd_utils import (
-    FeaturemapAnnotator,
     featuremap_to_dataframe,
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
@@ -63,7 +63,9 @@ def test_intersect_featuremap_with_signature():
     with tempfile.TemporaryDirectory() as tmpdirname:
         output_intersection_file = pjoin(tmpdirname, "intersected.vcf.gz")
         intersect_featuremap_with_signature(
-            featuremap_file, signature_file, output_intersection_file=output_intersection_file
+            featuremap_file,
+            signature_file,
+            output_intersection_file=output_intersection_file,
         )
         cmd1 = f"bcftools view -H {output_intersection_file}"
         cmd2 = f"bcftools view -H {test_file}"

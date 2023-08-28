@@ -13,14 +13,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 # DESCRIPTION
-#    Calculate error rate per motif
+#    Add ml qual to SNVs according to features in featuremap
 # CHANGELOG in reverse chronological order
 from __future__ import annotations
 
 import argparse
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.mrd.bqsr_inference_utils import bqsr_inference
+from ugvc.mrd.srsnv_inference_utils import single_read_snv_inference
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -33,14 +33,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""input featuremap file""",
     )
     parser.add_argument(
-        "-f",
+        "-p",
         "--params_path",
         type=str,
         required=True,
         help="""params file path""",
     )
     parser.add_argument(
-        "-f",
+        "-m",
         "--model_path",
         type=str,
         required=True,
@@ -53,44 +53,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="""Path to which output files will be written to""",
     )
-    parser.add_argument(
-        "--basename",
-        type=str,
-        default="",
-        required=False,
-        help="""basename of output files""",
-    )
-    parser.add_argument(
-        "-r",
-        "--reference_fasta",
-        type=str,
-        help="""reference fasta, only required for motif annotation most likely"""
-    )
-    parser.add_argument(
-        "--flow_order",
-        type=str,
-        required=False,
-        default=DEFAULT_FLOW_ORDER,
-        help="""flow order - required for cycle skip annotation """,
-    )
-    parser.add_argument(
-        "--chrom",
-        type=str,
-        required=False,
-        default=None,
-        help="""training chromosome""",
-    )
+    
     return parser.parse_args(argv[1:])
 
 
 def run(argv: list[str]):
-    """BQSR inference: load model, run inference and write quality for all reads in the input featuremap"""
+    """Add ml qual to SNVs according to features in featuremap"""
     args = parse_args(argv)
 
-    bqsr_inference(
+    single_read_snv_inference(
         featuremap_path=args.featuremap_path,
         params_path=args.params_path,
         model_path=args.model_path,
         out_path=args.output_path,
-        out_basename=args.basename,
     )
+
+if __name__ == '__main__':
+    import sys
+    run(sys.argv)
