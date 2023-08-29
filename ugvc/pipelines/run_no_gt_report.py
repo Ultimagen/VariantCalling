@@ -353,6 +353,7 @@ def run_somatic_analysis(arg_values):
     except ValueError as e:
         # check if the exception was caused because there are no snp variants at all
         variant_count = _check_number_of_variants(arg_values.input_file, "snp")
+        logger.info(f"Number of snps in vcf: {variant_count}")
         if variant_count > 0:
             raise e
         else:
@@ -371,6 +372,7 @@ def run_somatic_analysis(arg_values):
     except ValueError as e:
         # check if the exception was caused because there are no snp variants at all
         variant_count = _check_number_of_variants(arg_values.input_file, "indel")
+        logger.info(f"Number of indels in vcf: {variant_count}")
         if variant_count > 0:
             raise e
         else:
@@ -389,6 +391,7 @@ def run_somatic_analysis(arg_values):
     except ValueError as e:
         # check if the exception was caused because there are no snp variants at all
         variant_count = _check_number_of_variants(arg_values.input_file,"snp")
+        logger.info(f"Number of snps in vcf: {variant_count}")
         if variant_count > 0:
             raise e
         else:
