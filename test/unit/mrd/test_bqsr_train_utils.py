@@ -5,7 +5,6 @@ from test import get_resource_dir, test_dir
 
 from ugvc.mrd.bqsr_train_utils import prepare_featuremap_for_model
 
-general_inputs_dir = pjoin(test_dir, "resources", "general")
 inputs_dir = get_resource_dir(__file__)
 
 def __count_variants(vcf_file):
@@ -28,6 +27,8 @@ def test_prepare_featuremap_for_model(tmpdir):
         balanced_sampling_info_fields=False,
         random_seed=0,
     )
+
+    # Since we use random downsampling the train_set_size might differ slightly from expected
     assert __count_variants(downsampled_training_featuremap_vcf) == 11
     
 
