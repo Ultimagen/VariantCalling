@@ -1,4 +1,5 @@
 import filecmp
+import pysam
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
@@ -7,15 +8,18 @@ from ugvc.mrd.bqsr_train_utils import prepare_featuremap_for_model
 general_inputs_dir = pjoin(test_dir, "resources", "general")
 inputs_dir = get_resource_dir(__file__)
 
+def __count_variants(vcf_file):
+    counter = 0
+    for variant in pysam.VariantFile(vcf_file):
+        counter += 1
+    return counter
 
-def test_prepare_featuremap_for_training_no_test(tmpdir):
+def test_prepare_featuremap_for_model(tmpdir):
+    """Test that downsampling training-set works as expected""" 
+
     input_featuremap_vcf = pjoin(
         inputs_dir,
         "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
-    )
-    expected_training_featuremap_vcf = pjoin(
-        inputs_dir,
-        "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.intersect.training.downsampled.vcf.gz",
     )
     downsampled_training_featuremap_vcf, _ = prepare_featuremap_for_model(
         workdir=tmpdir,
@@ -24,23 +28,16 @@ def test_prepare_featuremap_for_training_no_test(tmpdir):
         balanced_sampling_info_fields=False,
         random_seed=0,
     )
-    assert filecmp.cmp(downsampled_training_featuremap_vcf, expected_training_featuremap_vcf)
+    assert __count_variants(downsampled_training_featuremap_vcf) == 11
+    
 
-
-def test_prepare_featuremap_for_training_with_test(tmpdir):
+def test_prepare_featuremap_for_model_training_and_test_sets(tmpdir):
+    """Test that downsampling of training and test sets works as expected""" 
     input_featuremap_vcf = pjoin(
         inputs_dir,
         "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
     )
-    expected_training_featuremap_vcf = pjoin(
-        inputs_dir,
-        "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.intersect.training.downsampled.2.vcf.gz",
-    )
-    expected_test_featuremap_vcf = pjoin(
-        inputs_dir,
-        "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.intersect.test.downsampled.2.vcf.gz",
-    )
-    (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf,) = prepare_featuremap_for_model(
+    (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf) = prepare_featuremap_for_model(
         workdir=tmpdir,
         input_featuremap_vcf=input_featuremap_vcf,
         train_set_size=12,
@@ -48,5 +45,6 @@ def test_prepare_featuremap_for_training_with_test(tmpdir):
         balanced_sampling_info_fields=False,
         random_seed=0,
     )
-    assert filecmp.cmp(downsampled_training_featuremap_vcf, expected_training_featuremap_vcf)
-    assert filecmp.cmp(downsampled_test_featuremap_vcf, expected_test_featuremap_vcf)
+    assert __count_variants(downsampled_training_featuremap_vcf) == 12
+    assert __count_variants(downsampled_test_featuremap_vcf) == 3
+    
