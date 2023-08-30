@@ -88,20 +88,43 @@ def bqsr_train_report(
     out_path,
     out_basename,
     report_name,
-    model_path,
-    X_path,
-    y_path,
-    fp_bed_file,
     params_path,
     simple_pipeline=None,
 ):
     reportfile = pjoin(out_path, f"{out_basename}{report_name}_report.ipynb")
     reporthtml = pjoin(out_path, f"{out_basename}{report_name}_report.html")
 
+    with open(params_path, "r", encoding="utf-8") as f:
+        params = json.load(f)
+
+    [
+        output_roc_plot,
+        output_LoD_plot,
+        output_cm_plot,
+        output_precision_recall_qual,
+        output_qual_density,
+        output_obsereved_qual_plot,
+        output_ML_qual_hist,
+        output_qual_per_feature,
+        output_bepcr_hists,
+        output_bepcr_fpr,
+        output_bepcr_recalls,
+    ] = _get_plot_paths(report_name, params)
+
     commands = [
-        f"papermill ugvc/reports/bqsr_train_report.ipynb {reportfile} -p report_name {report_name} \
-            -p model_file {model_path} -p X_file {X_path} -p y_file {y_path} \
-            -p single_sub_regions {fp_bed_file} -p params_file {params_path} -k python3",
+        f"papermill ugvc/reports/bqsr_train_report.ipynb {reportfile} \
+        -p {output_roc_plot} \
+        -p {output_LoD_plot} \
+        -p {output_cm_plot} \
+        -p {output_precision_recall_qual} \
+        -p {output_qual_density} \
+        -p {output_obsereved_qual_plot} \
+        -p {output_ML_qual_hist} \
+        -p {output_qual_per_feature} \
+        -p {output_bepcr_hists} \
+        -p {output_bepcr_fpr} \
+        -p {output_bepcr_recalls} \
+        -k python3",
         f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --template classic --no-input",
     ]
     exec_command_list(commands, simple_pipeline)
@@ -1067,6 +1090,36 @@ def plot_mixed_recall(
     )
 
 
+def _get_plot_paths(report_name, params):
+    output_roc_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.ROC_curve")
+    output_LoD_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.LoD_curve")
+    output_cm_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.confusion_matrix")
+    output_precision_recall_qual = os.path.join(
+        params["workdir"], f"{params['out_basename']}{report_name}.precision_recall_qual"
+    )
+    output_qual_density = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.qual_density")
+    output_obsereved_qual_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.observed_qual")
+    output_ML_qual_hist = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.ML_qual_hist")
+    output_qual_per_feature = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.qual_per_")
+    output_bepcr_hists = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.bepcr_")
+    output_bepcr_fpr = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.bepcr_fpr")
+    output_bepcr_recalls = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.bepcr_recalls")
+
+    return [
+        output_roc_plot,
+        output_LoD_plot,
+        output_cm_plot,
+        output_precision_recall_qual,
+        output_qual_density,
+        output_obsereved_qual_plot,
+        output_ML_qual_hist,
+        output_qual_per_feature,
+        output_bepcr_hists,
+        output_bepcr_fpr,
+        output_bepcr_recalls,
+    ]
+
+
 def create_report_plots(
     model_file: str,
     X_file: str,
@@ -1136,15 +1189,19 @@ def create_report_plots(
     df_mrd_sim, lod_label, c_lod, min_LoD_filter = LoD_simulation_on_signature(LoD_params)
     print(min_LoD_filter)
 
-    output_roc_plot = os.path.join(params["workdir"], f"{params['out_basename']}ROC_curve")
-    output_LoD_plot = os.path.join(params["workdir"], f"{params['out_basename']}LoD_curve")
-    output_cm_plot = os.path.join(params["workdir"], f"{params['out_basename']}confusion_matrix")
-    output_precision_recall_qual = os.path.join(params["workdir"], f"{params['out_basename']}precision_recall_qual")
-    output_qual_density = os.path.join(params["workdir"], f"{params['out_basename']}qual_density")
-    output_obsereved_qual_plot = os.path.join(params["workdir"], f"{params['out_basename']}observed_qual")
-    output_ML_qual_hist = os.path.join(params["workdir"], f"{params['out_basename']}ML_qual_hist")
-    output_qual_per_feature = os.path.join(params["workdir"], f"{params['out_basename']}qual_per_")
-    output_bepcr_hists = os.path.join(params["workdir"], f"{params['out_basename']}bepcr_")
+    [
+        output_roc_plot,
+        output_LoD_plot,
+        output_cm_plot,
+        output_precision_recall_qual,
+        output_qual_density,
+        output_obsereved_qual_plot,
+        output_ML_qual_hist,
+        output_qual_per_feature,
+        output_bepcr_hists,
+        output_bepcr_fpr,
+        output_bepcr_recalls,
+    ] = _get_plot_paths(report_name, params)
 
     plot_ROC_curve(
         df,
@@ -1238,8 +1295,6 @@ def create_report_plots(
             output_filename=output_bepcr_hists,
         )
 
-        output_bepcr_fpr = os.path.join(params["workdir"], f"{params['out_basename']}bepcr_fpr")
-        output_bepcr_recalls = os.path.join(params["workdir"], f"{params['out_basename']}bepcr_recalls")
         plot_mixed_fpr(
             fprs_mixed_cs,
             fprs_mixed_non_cs,
