@@ -16,6 +16,7 @@ from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.mrd.bqsr_plotting_utils import create_report_plots
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 from ugvc.utils.consts import FileExtension
@@ -465,6 +466,13 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
 
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
+
+        for X, y, name in zip(
+            [self.X_test_save_path, self.X_train_save_path],
+            [self.y_test_save_path, self.y_train_save_path],
+            ["test", "train"],
+        ):
+            create_report_plots(self.model_save_path, X, y, self.params_save_path, name)
 
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
