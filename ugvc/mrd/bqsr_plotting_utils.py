@@ -9,15 +9,79 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import xgboost as xgb
 from matplotlib import ticker
 from scipy.stats import binom
 from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
 
-from ugvc.mrd.bqsr_train_utils import inference_on_dataframe
 from ugvc.srsnv.srsnv_utils import plot_precision_recall, precision_recall_curve
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import exec_command_list
+
+
+def create_data_for_report(
+    xgb_classifier: xgb.XGBClassifier,
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+):
+    """create the data needed for the report plots
+
+    Parameters
+    ----------
+    xgb_classifier : xgb.XGBClassifier
+        the trained ML model
+    X : pd.DataFrame
+        input data with features for the classifier
+    y : pd.DataFrame
+        labels
+
+    Returns
+    -------
+    df : pd.DataFrame
+        dataset with input features, model predicions and probabilities
+    df_tp : pd.DataFrame
+        TP subset of df
+    df_fp : pd.DataFrame
+        FP subset of df
+    max_score : float
+        maximal ML model score
+    cls_features : list
+        list of input features for the ML model
+    fprs : dict
+        list of false positive rates per ML score per label
+    recalls : dict
+        list of false positive rates per ML score per label
+    """
+    cls_features = xgb_classifier.feature_names_in_
+    probs = xgb_classifier.predict_proba(X[cls_features])
+    predictions = xgb_classifier.predict(X[cls_features])
+    quals = -10 * np.log10(1 - probs)
+    predictions_df = pd.DataFrame(y)
+    labels = np.unique(y["label"].astype(int))
+    for label in labels:
+        predictions_df[f"XGB_prob_{label}"] = probs[:, label]
+        predictions_df[f"XGB_qual_{label}"] = quals[:, label]
+        predictions_df[f"XGB_prediction_{label}"] = predictions[:, label]
+    df = pd.concat([X, predictions_df.drop(["label"], axis="columns", inplace=False)], axis=1)
+
+    df_tp = df.query("label == True")
+    df_fp = df.query("label == False")
+
+    fprs = {}
+    recalls = {}
+    max_score = -1
+    for label in labels:
+        fprs[label] = []
+        recalls[label] = []
+        score = f"XGB_qual_{label}"
+        max_score = np.max((int(np.ceil(df[score].max())), max_score))
+        gtr = df["label"] == label
+        fprs_, recalls_ = precision_recall_curve(df[score], max_score=max_score, y_true=gtr)
+        fprs[label].append(fprs_)
+        recalls[label].append(recalls_)
+
+    return df, df_tp, df_fp, max_score, cls_features, fprs, recalls
 
 
 def bqsr_train_report(
@@ -47,10 +111,27 @@ def plot_ROC_curve(
     df: pd.DataFrame,
     df_tp: pd.DataFrame,
     df_fp: pd.DataFrame,
-    score: str = "",
+    score: str,
     title: str = "",
     output_filename: str = None,
 ):
+    """generate and save ROC curve plot
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        data set with features, labels and quals of the model
+    df_tp : pd.DataFrame
+        subset of df: rows with label TP
+    df_fp : pd.DataFrame
+        subset of df: reads with label FP
+    score : str
+        ML model score name (column in df),
+    title : str, optional
+        title for the ROC curve plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    """
     label_dict = {
         "X_SCORE": "FeatureMap",
         "X_SCORE_mixed": "FeatureMap",
@@ -101,8 +182,38 @@ def plot_ROC_curve(
 
 
 def LoD_training_summary(
-    single_sub_regions, cram_stats_file, sampling_rate, df, filters_file, df_summary_file, output_params_file
+    single_sub_regions: str,
+    cram_stats_file: str,
+    sampling_rate: float,
+    df: pd.DataFrame,
+    filters_file: str,
+    df_summary_file: str,
+    output_params_file: str,
 ):
+    """generate summary of the training reults for LoD estimation WRT a set of pre-defined filters
+
+    Parameters
+    ----------
+    single_sub_regions : str
+        a path to the single substitutions (FP) regions file
+    cram_stats_file : str
+        a path to the cram statistics file
+    sampling_rate : float
+        the size of the data set / # of reads in single sub featuremap after intersection with single_sub_regions
+    df : pd.DataFrame
+        data set with features, labels and quals of the model
+    filters_file : str
+        a json file with a list of pre-defined queries for df
+    df_summary_file : str
+        output file path for df_summary
+    output_params_file : str
+        output file path for a list of params for LoD estimation
+
+    Returns
+    -------
+    list
+        list of filters applied for LoD estimation
+    """
 
     # apply filters to data
     with open(filters_file, encoding="utf-8") as f:
@@ -170,7 +281,30 @@ def LoD_training_summary(
     return filters
 
 
-def LoD_simulation_on_signature(LoD_params):
+def LoD_simulation_on_signature(
+    LoD_params: dict,
+):
+    """estimate the LoD based on the LoD params
+
+    Parameters
+    ----------
+    LoD_params : dict
+        a dict of parameters required for the LoD estimation
+
+    Returns
+    -------
+    df_mrd_sim: pd.DataFrame,
+        the estimated LoD parameters per filter
+
+    lod_label: str,
+        label for the LoD axis in the Lod plot
+
+    c_lod: str,
+        lod column name
+
+    min_LoD_filter: str,
+        the filter which minimizes the LoD
+    """
 
     df_summary = pd.read_parquet(LoD_params["df_summary_file"])
 
@@ -201,7 +335,7 @@ def LoD_simulation_on_signature(LoD_params):
                 q=specificity_at_lod,
             )
         )
-        .clip(min=2)
+        .clip(min=2)  # TODO: change to input parameter
         .astype(int),
     )
 
@@ -225,16 +359,44 @@ def LoD_simulation_on_signature(LoD_params):
 
     df_mrd_sim = df_mrd_sim[df_mrd_sim["read_retention_ratio"] > 0.01]
     lod_label = f"LoD @ {specificity_at_lod*100:.0f}% specificity, \
-                        {sensitivity_at_lod*100:.0f}% sensitivity (estimated)\
-                        \nsignature size {simulated_signature_size}, \
-                        {simulated_coverage}x coverage"
+    {sensitivity_at_lod*100:.0f}% sensitivity (estimated)\
+    \nsignature size {simulated_signature_size}, \
+    {simulated_coverage}x coverage"
     c_lod = f"LoD_{sensitivity_at_lod*100:.0f}"
     min_LoD_filter = df_mrd_sim["LoD_90"].idxmin()
 
     return df_mrd_sim, lod_label, c_lod, min_LoD_filter
 
 
-def plot_LoD(df_mrd_sim, lod_label, c_lod, filters, title="", output_filename="", fs=14):
+def plot_LoD(
+    df_mrd_sim: pd.DataFrame,
+    lod_label: str,
+    c_lod: str,
+    filters: dict,
+    title: str = "",
+    output_filename: str = None,
+    fs: int = 14,
+):
+    """generates and saves the LoD plot
+
+    Parameters
+    ----------
+    df_mrd_sim : pd.DataFrame
+        the estimated LoD parameters per filter
+    lod_label : str
+        label for the LoD axis in the Lod plot
+    c_lod : str
+        lod column name
+    filters : dict
+        filters applied on data to estimate LoD
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+
+    """
     xgb_filters = {i: filters[i] for i in filters if i[:3] == "xgb" and i in df_mrd_sim.index}
 
     plt.figure(figsize=(20, 12))
@@ -262,7 +424,6 @@ def plot_LoD(df_mrd_sim, lod_label, c_lod, filters, title="", output_filename=""
         ("r", "r", "r", "r", "none", "none"),
         (150, 150, 150, 150, 100, 100),
     ):
-
         plt.plot(
             df_tmp["read_retention_ratio"],
             df_tmp["residual_snv_rate"],
@@ -312,6 +473,19 @@ def plot_confusion_matrix(
     output_filename: str = None,
     fs: int = 14,
 ):
+    """generates and saves confusion matrix
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        data set with labels and model predictions
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     cm = confusion_matrix(df["XGB_prediction_1"], df["label"])
     cm_norm = cm / cm.sum(axis=0)
     plt.figure(figsize=(4, 3))
@@ -336,13 +510,30 @@ def plot_confusion_matrix(
 
 
 def plot_observed_vs_measured_qual(
-    labels_dict,
-    fprs,
-    max_score,
+    labels_dict: dict,
+    fprs: dict,
+    max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs=14,
+    fs: int = 14,
 ):
+    """generate and saves a plot of observed ML qual vs measured FP rates
+
+    Parameters
+    ----------
+    labels_dict : dict
+        dict of label values and names
+    fprs : dict
+        list of false positive rates per label
+    max_score : float
+        maximal ML model score
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     plt.figure(figsize=(8, 6))
     for label in labels_dict:
         plot_precision_recall(
@@ -370,13 +561,30 @@ def plot_observed_vs_measured_qual(
 
 
 def plot_qual_density(
-    labels_dict,
-    recalls,
-    max_score,
+    labels_dict: dict,
+    recalls: dict,
+    max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs=14,
+    fs: int = 14,
 ):
+    """generate and saves a plot of observed ML qual vs measured recall rates
+
+    Parameters
+    ----------
+    labels_dict : dict
+        dict of label values and names
+    recalls : dict
+        list of recalls rates per label
+    max_score : float
+        maximal ML model score
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     plt.figure(figsize=(8, 6))
 
     for label in labels_dict:
@@ -405,13 +613,30 @@ def plot_qual_density(
 
 
 def plot_precision_recall_vs_qual_thresh(
-    df,
-    labels_dict,
-    max_score,
+    df: pd.DataFrame,
+    labels_dict: dict,
+    max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs=14,
+    fs: int = 14,
 ):
+    """generate and saves a plot of precision and recall rates vs ML qual threshold
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        data set with features, labels and quals of the model
+    labels_dict : dict
+        dict of label values and names
+    max_score : float
+        maximal ML model score
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     plt.figure(figsize=(8, 6))
     plt.title("precision/recall average as a function of min-qual")
     for label in labels_dict:
@@ -453,13 +678,30 @@ def plot_precision_recall_vs_qual_thresh(
 
 
 def plot_ML_qual_hist(
-    labels_dict,
-    df,
-    max_score,
+    labels_dict: dict,
+    df: pd.DataFrame,
+    max_score: float,
     title: str = "",
     output_filename: str = None,
     fs: int = 14,
 ):
+    """generate and save histogram of ML qual per label
+
+    Parameters
+    ----------
+    labels_dict : dict
+        dict of label values and names
+    df : pd.DataFrame
+        data set with features, labels and quals of the model
+    max_score : float
+        maximal ML model score
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     score = "XGB_qual_1"
 
     plt.figure(figsize=[8, 6])
@@ -492,13 +734,32 @@ def plot_ML_qual_hist(
 
 
 def plot_qual_per_feature(
-    labels_dict,
-    cls_features,
-    df,
+    labels_dict: dict,
+    cls_features: list,
+    df: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
-    fs=14,
+    fs: int = 14,
 ):
+    """generate and save distributions of ML qual per input feature
+
+    df : pd.DataFrame
+        data set with features, labels and quals of the model
+    Parameters
+    ----------
+    labels_dict : dict
+        dict of label values and names
+    cls_features : list
+        list of input features for the ML model
+    df : pd.DataFrame
+        data set with features, labels and quals of the model
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     features = cls_features
     if "is_mixed" in df:
         df["is_mixed"] = df["is_mixed"].astype(int)
@@ -522,7 +783,27 @@ def plot_qual_per_feature(
         )
 
 
-def get_mixed_data(df):
+def get_mixed_data(
+    df: pd.DataFrame,
+):
+    """generates subsets of the input df by category: mixed/non mixed * cycle-skip/non cycle-skip
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        data set with features, labels and quals of the model
+
+    Returns
+    -------
+    df_mixed_cs: pd.DataFrame
+        subset of input df: mixed and cycle-skip
+    df_mixed_non_cs: pd.DataFrame
+        subset of input df: mixed and non cycle-skip
+    df_non_mixed_non_cs: pd.DataFrame
+        subset of input df: non mixed and non cycle-skip
+    df_non_mixed_cs: pd.DataFrame
+        subset of input df: non mixed and cycle-skip
+    """
     df_mixed_cs = df[(df["is_mixed"]) & (df["cycle_skip_status"] == "cycle-skip")]
     df_mixed_non_cs = df[(df["is_mixed"]) & (df["cycle_skip_status"] != "cycle-skip")]
     df_non_mixed_non_cs = df[(~df["is_mixed"]) & (df["cycle_skip_status"] != "cycle-skip")]
@@ -530,7 +811,47 @@ def get_mixed_data(df):
     return df_mixed_cs, df_mixed_non_cs, df_non_mixed_non_cs, df_non_mixed_cs
 
 
-def get_fpr_recalls_mixed(df_mixed_cs, df_mixed_non_cs, df_non_mixed_cs, df_non_mixed_non_cs, max_score):
+def get_fpr_recalls_mixed(
+    df_mixed_cs: pd.DataFrame,
+    df_mixed_non_cs: pd.DataFrame,
+    df_non_mixed_cs: pd.DataFrame,
+    df_non_mixed_non_cs: pd.DataFrame,
+    max_score: float,
+):
+    """get the FP and recall rates for subsamples of the data: mixed/non mixed * cycle skip/non cycle skip
+
+    Parameters
+    ----------
+    df_mixed_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, mixed and cycle-skip
+    df_mixed_non_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, mixed and non cycle-skip
+    df_non_mixed_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, non mixed and cycle-skip
+    df_non_mixed_non_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, non mixed and non cycle-skip
+    max_score : float
+        maximal ML model score
+
+    Returns
+    -------
+    fprs_mixed_cs: list
+        list of FP rates for mixed and cycle skip reads
+    recalls_mixed_cs: list
+        list of recall rates for mixed and cycle skip reads
+    fprs_mixed_non_cs: list
+        list of FP rates for mixed and non cycle skip reads
+    recalls_mixed_non_cs: list
+        list of recall rates for mixed and non cycle skip reads
+    fprs_non_mixed_cs: list
+        list of FP rates for non mixed and cycle skip reads
+    recalls_non_mixed_cs: list
+        list of recall rates for non mixed and cycle skip reads
+    fprs_non_mixed_non_cs: list
+        list of FP rates for non mixed and non cycle skip reads
+    recalls_non_mixed_non_cs: list
+        list of recall rates for non mixed and non cycle skip reads
+    """
     score = "XGB_qual_1"
     label = 1
     gtr = df_mixed_cs["label"] == label
@@ -561,34 +882,49 @@ def get_fpr_recalls_mixed(df_mixed_cs, df_mixed_non_cs, df_non_mixed_cs, df_non_
 
 
 def plot_mixed(
-    labels_dict,
-    df_mixed_cs,
-    df_mixed_non_cs,
-    df_non_mixed_non_cs,
-    df_non_mixed_cs,
-    max_score,
+    labels_dict: dict,
+    df_mixed_cs: pd.DataFrame,
+    df_mixed_non_cs: pd.DataFrame,
+    df_non_mixed_non_cs: pd.DataFrame,
+    df_non_mixed_cs: pd.DataFrame,
+    max_score: float,
     title: str = "",
     output_filename: str = None,
     fs: int = 14,
 ):
-    score = "XGB_qual_1"
+    """generate and save histograms of ML qual, separated by subsets: mixed/non mixed and cycle-skip/non cycle-skip
 
-    for td, name in zip(
-        [df_mixed_cs, df_mixed_non_cs, df_non_mixed_cs, df_non_mixed_non_cs],
-        ["mixed & cs", "mixed & ~cs", "~mixed & cs", "~mixed & ~cs"],
-    ):
-        # Mean and median ML_QUAL in [mixed/non-mixed]*[cskp/non-cskp]
-        print(
-            name,
-            ": Mean ML_QUAL: {:.2f}, Median ML_QUAL: {:.2f}".format(td[score].mean(), td[score].median()),
-        )
+    Parameters
+    ----------
+    labels_dict : dict
+        dict of label values and names
+    df_mixed_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, mixed and cycle-skip
+    df_mixed_non_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, mixed and non cycle-skip
+    df_non_mixed_non_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, non mixed and non cycle-skip
+    df_non_mixed_cs : pd.DataFrame
+        data subset with features, labels and quals of the model, non mixed and cycle-skip
+    max_score : float
+        maximal ML model score
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
+    score = "XGB_qual_1"
 
     for td, name in zip(
         [df_mixed_cs, df_mixed_non_cs, df_non_mixed_cs, df_non_mixed_non_cs],
         ["mixed_cs", "mixed_non_cs", "non_mixed_cs", "non_mixed_non_cs"],
     ):
         plt.figure()
-        plt.title(title + name)
+        plt.title(
+            title + name + "\nMean ML_QUAL: {:.2f}, Median ML_QUAL: {:.2f}".format(td[score].mean(), td[score].median())
+        )
         for label in labels_dict:
             _ = td[td["label"] == label][score].clip(upper=max_score).hist(bins=20, label=labels_dict[label])
         plt.xlim([0, max_score])
@@ -609,15 +945,36 @@ def plot_mixed(
 
 
 def plot_mixed_fpr(
-    fprs_mixed_cs,
-    fprs_mixed_non_cs,
-    fprs_non_mixed_cs,
-    fprs_non_mixed_non_cs,
-    max_score,
+    fprs_mixed_cs: list,
+    fprs_mixed_non_cs: list,
+    fprs_non_mixed_cs: list,
+    fprs_non_mixed_non_cs: list,
+    max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs=14,
+    fs: int = 14,
 ):
+    """generate and save a plot of FP rates per subset: mixed/non-mixed * cycle-skip/non cycle-skip
+
+    Parameters
+    ----------
+    fprs_mixed_cs : list
+        list of FP rates for mixed and cycle skip reads
+    fprs_mixed_non_cs : list
+        list of FP rates for mixed and non cycle skip reads
+    fprs_non_mixed_cs : list
+        list of FP rates for non mixed and cycle skip reads
+    fprs_non_mixed_non_cs : list
+        list of FP rates for non mixed and non cycle skip reads
+    max_score : float
+        maximal ML model score
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     plt.figure(figsize=(8, 6))
     plot_precision_recall(
         [fprs_mixed_cs, fprs_mixed_non_cs, fprs_non_mixed_cs, fprs_non_mixed_non_cs],
@@ -647,15 +1004,36 @@ def plot_mixed_fpr(
 
 
 def plot_mixed_recall(
-    recalls_mixed_cs,
-    recalls_mixed_non_cs,
-    recalls_non_mixed_cs,
-    recalls_non_mixed_non_cs,
-    max_score,
+    recalls_mixed_cs: list,
+    recalls_mixed_non_cs: list,
+    recalls_non_mixed_cs: list,
+    recalls_non_mixed_non_cs: list,
+    max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs=14,
+    fs: int = 14,
 ):
+    """generate and save a plot of recall rates per subset: mixed/non-mixed * cycle-skip/non cycle-skip
+
+    Parameters
+    ----------
+    recalls_mixed_cs : list
+        list of recall rates for mixed and cycle skip reads
+    recalls_mixed_non_cs : list
+        list of recall rates for mixed and non cycle skip reads
+    recalls_non_mixed_cs : list
+        list of recall rates for non mixed and cycle skip reads
+    recalls_non_mixed_non_cs : list
+        list of recall rates for non mixed and non cycle skip reads
+    max_score : float
+        maximal ML model score
+    title : str, optional
+        title for the generated plot, by default ""
+    output_filename : str, optional
+        path to which the plot will be saved, by default None
+    fs : int, optional
+        font size for the plot, by default 14
+    """
     plt.figure(figsize=(8, 6))
     plot_precision_recall(
         [
@@ -690,12 +1068,27 @@ def plot_mixed_recall(
 
 
 def create_report_plots(
-    model_file,
-    X_file,
-    y_file,
-    params_file,
-    report_name,
+    model_file: str,
+    X_file: str,
+    y_file: str,
+    params_file: str,
+    report_name: str,
 ):
+    """loads model, data, params and generate plots for report
+
+    Parameters
+    ----------
+    model_file : str
+        path to model file
+    X_file : str
+        path to data
+    y_file : str
+        path to labels
+    params_file : str
+        path to params file
+    report_name : str
+        name of data set (train/test)
+    """
     # load model, data and params
     xgb_classifier = joblib.load(model_file)
     X_test = pd.read_parquet(X_file)
@@ -708,12 +1101,11 @@ def create_report_plots(
         df,
         df_tp,
         df_fp,
-        _,
         max_score,
         cls_features,
         fprs,
         recalls,
-    ) = inference_on_dataframe(xgb_classifier, X_test, y_test)
+    ) = create_data_for_report(xgb_classifier, X_test, y_test)
 
     labels_dict = {0: "FP", 1: "TP"}
     cram_stats_file = params["cram_stats_file"]
@@ -723,9 +1115,6 @@ def create_report_plots(
     sampling_rate = (
         data_size / total_n
     )  # N reads in test (test_size) / N reads in single sub featuremap intersected with single_sub_regions
-    # df_mrd_sim, lod_label, c_lod, filters = simulate_LoD(
-    #     params["single_sub_regions"], cram_stats_file, sampling_rate, df, filters_file
-    # )
 
     LoD_params = {}
     LoD_params["df_summary_file"] = pjoin(params["workdir"], "df_summary.parquet")
@@ -830,7 +1219,13 @@ def create_report_plots(
             recalls_non_mixed_cs,
             fprs_non_mixed_non_cs,
             recalls_non_mixed_non_cs,
-        ) = get_fpr_recalls_mixed(df_mixed_cs, df_mixed_non_cs, df_non_mixed_cs, df_non_mixed_non_cs, max_score)
+        ) = get_fpr_recalls_mixed(
+            df_mixed_cs,
+            df_mixed_non_cs,
+            df_non_mixed_cs,
+            df_non_mixed_non_cs,
+            max_score,
+        )
 
         plot_mixed(
             labels_dict,
