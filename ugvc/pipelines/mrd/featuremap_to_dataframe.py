@@ -93,16 +93,5 @@ def run(argv: list[str]):
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,
-<<<<<<< HEAD
         input_info_fields=args_in.info_fields,
-=======
-        reference_fasta=args_in.reference_fasta,
-        motif_length=args_in.motif_length,
-        info_fields_override=info_fields,
-        format_fields=format_fields,
-        report_bases_in_synthesis_direction=not args_in.report_bases_in_reference_direction,
-        show_progress_bar=args_in.show_progress_bar,
-        flow_order=args_in.flow_order,
-        is_matched=is_matched,
->>>>>>> parent c6dcac32a6b39b8fe568e22876ef2aeebf785648
     )

@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 # DESCRIPTION
-#    Calculate error rate per motif
+#    Train a model for single read SNV quality recalibration
 # CHANGELOG in reverse chronological order
 from __future__ import annotations
 
@@ -94,6 +94,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def run(argv: list[str]):
+    """Train a model for single read SNV quality recalibration"""
 
     args = parse_args(argv)
     simple_pipeline_args = (0, 10000, False)
