@@ -3,10 +3,9 @@ import subprocess
 import tempfile
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
-import pysam
-
 
 import pandas as pd
+import pysam
 from pandas.testing import assert_frame_equal
 
 from ugvc.mrd.featuremap_utils import FeaturemapAnnotator, FeatureMapFields
@@ -27,8 +26,7 @@ intersection_file_basename = "MRD_test_subsample.MRD_test_subsample_annotated_AF
 
 def test_featuremap_annotator(tmpdir):
     input_featuremap = pjoin(inputs_dir, "Pa_46.bsDNA.chr20_sample.vcf.gz")
-    expected_featuremap = pjoin(inputs_dir, "Pa_46.bsDNA.chr20_sample.annotated.vcf.gz")
-    tmpfile = f'{tmpdir}/output_featuremap.vcf.gz'
+    tmpfile = f"{tmpdir}/output_featuremap.vcf.gz"
     VcfAnnotator.process_vcf(
         input_path=input_featuremap,
         output_path=tmpfile,
@@ -45,15 +43,19 @@ def test_featuremap_annotator(tmpdir):
             forward_events += 1
         else:
             reverse_events += 1
-    assert FeatureMapFields.IS_DUPLICATE.value in output_variants.header.info, \
-    f'{FeatureMapFields.IS_DUPLICATE.value} is not in info header {output_variants.header.info}'
+    assert (
+        FeatureMapFields.IS_DUPLICATE.value in output_variants.header.info
+    ), f"{FeatureMapFields.IS_DUPLICATE.value} is not in info header {output_variants.header.info}"
     assert forward_events == 9
     assert reverse_events == 22
     assert total_max_softclip_bases == 81
 
+
 def test_read_signature_ug_mutect():
-    signature = read_signature(pjoin(inputs_dir, "mutect_mrd_signature_test.vcf.gz"))
-    signature_no_sample_name = read_signature(pjoin(inputs_dir, "mutect_mrd_signature_test.no_sample_name.vcf.gz"))
+    signature = read_signature(pjoin(inputs_dir, "mutect_mrd_signature_test.vcf.gz"), return_dataframes=True)
+    signature_no_sample_name = read_signature(
+        pjoin(inputs_dir, "mutect_mrd_signature_test.no_sample_name.vcf.gz"), return_dataframes=True
+    )
     expected_output = pd.read_hdf(pjoin(inputs_dir, "mutect_mrd_signature_test.expected_output.h5"))
 
     assert_frame_equal(signature, expected_output)
@@ -64,14 +66,14 @@ def test_read_signature_ug_mutect():
 
 
 def test_read_signature_ug_dv():
-    signature = read_signature(pjoin(inputs_dir, "dv_mrd_signature_test.vcf.gz"))
+    signature = read_signature(pjoin(inputs_dir, "dv_mrd_signature_test.vcf.gz"), return_dataframes=True)
     expected_output = pd.read_hdf(pjoin(inputs_dir, "dv_mrd_signature_test.expected_output.h5"))
 
     assert_frame_equal(signature, expected_output)
 
 
 def test_read_signature_external():
-    signature = read_signature(pjoin(inputs_dir, "external_somatic_signature.vcf.gz"))
+    signature = read_signature(pjoin(inputs_dir, "external_somatic_signature.vcf.gz"), return_dataframes=True)
     expected_output = pd.read_hdf(pjoin(inputs_dir, "external_somatic_signature.expected_output.h5"))
 
     assert_frame_equal(signature, expected_output)
@@ -108,22 +110,21 @@ def test_featuremap_to_dataframe():
 def test_read_intersection_dataframes():
     parsed_intersection_dataframe = read_intersection_dataframes(
         pjoin(inputs_dir, f"{intersection_file_basename}.expected_output.parquet"),
-        read_dataframes=True,
+        return_dataframes=True,
     )
     parsed_intersection_dataframe_expected = pd.read_parquet(
-        pjoin(inputs_dir, f"{intersection_file_basename}.parsed.expected_output.parquet"),
-        read_dataframes=True,
+        pjoin(inputs_dir, f"{intersection_file_basename}.parsed.expected_output.parquet")
     )
     parsed_intersection_dataframe2 = read_intersection_dataframes(
         [pjoin(inputs_dir, f"{intersection_file_basename}.expected_output.parquet")],
-        read_dataframes=True,
+        return_dataframes=True,
     )
     assert_frame_equal(
-        parsed_intersection_dataframe,
+        parsed_intersection_dataframe.reset_index(),
         parsed_intersection_dataframe_expected,
     )
     assert_frame_equal(
-        parsed_intersection_dataframe2,
+        parsed_intersection_dataframe2.reset_index(),
         parsed_intersection_dataframe_expected,
     )
 
