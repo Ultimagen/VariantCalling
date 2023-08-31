@@ -132,6 +132,43 @@ def _validate_info(x):
         raise ValueError(f"Cannot convert {x} to bool")
     return None
 
+
+def collect_coverage_per_locus(coverage_bw_files, df_sig):
+    try:
+        logger.debug("Reading input from bigwig coverage data")
+        f_bw = [bw.open(x) for x in coverage_bw_files]
+        df_list = []
+
+        for chrom, df_tmp in tqdm(df_sig.groupby(level="chrom")):
+            if df_tmp.shape[0] == 0:
+                continue
+            found_correct_file = False
+
+            f_bw_chrom = {}
+            for f_bw_chrom in f_bw:
+                if chrom in f_bw_chrom.chroms():
+                    found_correct_file = True
+                    break
+
+            if not found_correct_file:
+                raise ValueError(f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}")
+
+            chrom_start = df_tmp.index.get_level_values("pos") - 1
+            chrom_end = df_tmp.index.get_level_values("pos")
+            df_list.append(
+                df_tmp.assign(
+                    coverage=np.concatenate(
+                        [f_bw_chrom.values(chrom, x, y, numpy=True) for x, y in zip(chrom_start, chrom_end)]
+                    )
+                )
+            )
+    finally:
+        if "f_bw" in locals():
+            for variant_file in f_bw:
+                variant_file.close()
+    return df_list
+
+
 def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
     signature_vcf_files: list[str],
     output_parquet: str = None,
@@ -307,11 +344,6 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
                                 else np.nan
                             ),
                             (
-                                rec.samples[tumor_sample]["VAF"][0]
-                                if tumor_sample and "VAF" in rec.samples[tumor_sample]
-                                else np.nan
-                            ),
-                            (
                                 rec.samples[tumor_sample]["DP"]
                                 if tumor_sample and "DP" in rec.samples[tumor_sample]
                                 else np.nan
@@ -326,8 +358,7 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
                         + [rec.info[c][0] if isinstance(rec.info[c], tuple) else rec.info[c] for c in x_columns]
                     )
                 )
-        logger.debug(f"Done reading vcf file {signature_vcf_files}")
-        logger.debug("Converting to dataframe")
+        logger.debug(f"Done reading vcf file {signature_vcf_files}" "Converting to dataframe")
         df_sig = (
             pd.DataFrame(
                 entries,
@@ -339,7 +370,6 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
                     "id",
                     "qual",
                     "af",
-                    "vaf",
                     "depth_tumor_sample",
                     "hmer",
                     "tlod",
@@ -351,49 +381,18 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
             .reset_index(drop=True)
             .astype({"chrom": str, "pos": int})
             .set_index(["chrom", "pos"])
-            .dropna(how="all", axis=1)
         )
         logger.debug("Done converting to dataframe")
 
     df_sig = df_sig.sort_index()
 
     if coverage_bw_files:  # collect coverage per locus
-        try:
-            logger.debug("Reading input from bigwig coverage data")
-            f_bw = [bw.open(x) for x in coverage_bw_files]
-            df_list = []
-
-            for chrom, df_tmp in tqdm(df_sig.groupby(level="chrom")):
-                if df_tmp.shape[0] == 0:
-                    continue
-                found_correct_file = False
-
-                f_bw_chrom = {}
-                for f_bw_chrom in f_bw:
-                    if chrom in f_bw_chrom.chroms():
-                        found_correct_file = True
-                        break
-
-                if not found_correct_file:
-                    raise ValueError(f"Could not find a bigwig file with {chrom} in:\n{', '.join(coverage_bw_files)}")
-
-                chrom_start = df_tmp.index.get_level_values("pos") - 1
-                chrom_end = df_tmp.index.get_level_values("pos")
-                df_list.append(
-                    df_tmp.assign(
-                        coverage=np.concatenate(
-                            [f_bw_chrom.values(chrom, x, y, numpy=True) for x, y in zip(chrom_start, chrom_end)]
-                        )
-                    )
-                )
-        finally:
-            if "f_bw" in locals():
-                for variant_file in f_bw:
-                    variant_file.close()
+        df_list = collect_coverage_per_locus(coverage_bw_files, df_sig)
         df_sig = pd.concat(df_list).astype({"coverage": int})
-    df_sig["hmer"] = pd.to_numeric(df_sig["hmer"], errors="coerce")
+
     logger.debug("Calculating reference hmer")
     try:
+        df_sig["hmer"] = pd.to_numeric(df_sig["hmer"], errors="coerce")
         df_sig.loc[:, "hmer"] = (
             df_sig[["hmer"]]
             .assign(
@@ -471,7 +470,8 @@ def read_intersection_dataframes(
     logger.debug(f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps")
     df_int = pd.concat(
         (
-            pd.read_parquet(f).assign(
+            pd.read_parquet(f)
+            .assign(
                 cfdna=_get_sample_name_from_file_name(f, split_position=0),
                 signature=_get_sample_name_from_file_name(f, split_position=1),
                 signature_type=_get_sample_name_from_file_name(f, split_position=2),
@@ -930,7 +930,6 @@ def prepare_data_from_mrd_pipeline(
 
     intersection_dataframe = read_intersection_dataframes(
         intersected_featuremaps_parquet,
-        substitution_error_rate=substitution_error_rate_hdf,
         output_parquet=intersection_dataframe_fname,
         return_dataframes=return_dataframes,
     )
