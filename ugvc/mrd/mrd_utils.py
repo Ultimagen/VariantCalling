@@ -189,7 +189,7 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
         File name or a list of file names
     output_parquet: str, optional
         File name to save result to, unless None (default).
-        If this file exists and concat_to_existing_output_parquet is True data is apppended
+        If this file exists and concat_to_existing_output_parquet is True data is appended
     coverage_bw_files: list[str], optional
         Coverage bigwig files generated with "coverage_analysis full_analysis", defualt None
     tumor_sample: str, optional
@@ -317,7 +317,7 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
                 # synthetic signature
                 af_field = "DNA_VAF"
             else:
-                af_field = None
+                af_field = "no_AF_field_found"
             logger.debug(f"Reading x_columns: {x_columns}")
 
             for j, rec in enumerate(variant_file):
@@ -470,24 +470,11 @@ def read_intersection_dataframes(
     logger.debug(f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps")
     df_int = pd.concat(
         (
-            pd.read_parquet(f)
-            .assign(
+            pd.read_parquet(f).assign(
                 cfdna=_get_sample_name_from_file_name(f, split_position=0),
                 signature=_get_sample_name_from_file_name(f, split_position=1),
                 signature_type=_get_sample_name_from_file_name(f, split_position=2),
             )
-            .reset_index()
-            .astype(
-                {
-                    "chrom": str,
-                    "pos": int,
-                    "ref": str,
-                    "alt": str,
-                    "left_motif": str,
-                    "right_motif": str,
-                }
-            )
-            .set_index(["signature", "chrom", "pos"])
             for f in intersected_featuremaps_parquet
         )
     )
@@ -899,8 +886,7 @@ def prepare_data_from_mrd_pipeline(
     )
 
     intersection_dataframe = read_intersection_dataframes(
-        intersected_featuremaps_parquet,
-        output_parquet=intersection_dataframe_fname,
+        intersected_featuremaps_parquet, output_parquet=intersection_dataframe_fname, return_dataframes=True
     )
     signature_dataframe = read_signature(
         matched_signatures_vcf_files,
@@ -917,6 +903,7 @@ def prepare_data_from_mrd_pipeline(
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         signature_type="control",
+        concat_to_existing_output_parquet=True,
     )
     signature_dataframe = read_signature(
         db_control_signatures_vcf_files,
