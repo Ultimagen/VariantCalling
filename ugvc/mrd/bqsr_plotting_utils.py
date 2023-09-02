@@ -15,6 +15,7 @@ from scipy.stats import binom
 from sklearn.metrics import confusion_matrix
 from tqdm import tqdm
 
+from ugvc import logger
 from ugvc.srsnv.srsnv_utils import plot_precision_recall, precision_recall_curve
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import exec_command_list
@@ -53,6 +54,7 @@ def create_data_for_report(
     recalls : dict
         list of false positive rates per ML score per label
     """
+
     cls_features = xgb_classifier.feature_names_in_
     probs = xgb_classifier.predict_proba(X[cls_features])
     predictions = xgb_classifier.predict(X[cls_features])
@@ -63,7 +65,7 @@ def create_data_for_report(
         predictions_df[f"XGB_prob_{label}"] = probs[:, label]
         predictions_df[f"XGB_qual_{label}"] = quals[:, label]
         predictions_df[f"XGB_prediction_{label}"] = predictions[:, label]
-    df = pd.concat([X, predictions_df.drop(["label"], axis="columns", inplace=False)], axis=1)
+    df = pd.concat([X, predictions_df], axis=1)
 
     df_tp = df.query("label == True")
     df_fp = df.query("label == False")
@@ -88,14 +90,12 @@ def bqsr_train_report(
     out_path,
     out_basename,
     report_name,
-    params_path,
+    model_file,
+    params_file,
     simple_pipeline=None,
 ):
     reportfile = pjoin(out_path, f"{out_basename}{report_name}_report.ipynb")
     reporthtml = pjoin(out_path, f"{out_basename}{report_name}_report.html")
-
-    with open(params_path, "r", encoding="utf-8") as f:
-        params = json.load(f)
 
     [
         output_roc_plot,
@@ -109,10 +109,13 @@ def bqsr_train_report(
         output_bepcr_hists,
         output_bepcr_fpr,
         output_bepcr_recalls,
-    ] = _get_plot_paths(report_name, params)
+    ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
 
     commands = [
         f"papermill ugvc/reports/bqsr_train_report.ipynb {reportfile} \
+        -p {report_name} \
+        -p {model_file} \
+        -p {params_file} \
         -p {output_roc_plot} \
         -p {output_LoD_plot} \
         -p {output_cm_plot} \
@@ -163,9 +166,10 @@ def plot_ROC_curve(
 
     recall = {}
     precision = {}
+
     for xvar, querystr, namestr in (
         ("X_SCORE", "X_SCORE>-1", "X_SCORE"),
-        ("X_SCORE", "is_mixed == True & X_SCORE>-1", "X_SCORE_mixed"),
+        # ("X_SCORE", "is_mixed == True & X_SCORE>-1", "X_SCORE_mixed"),
         (score, "X_SCORE>-1", score),
     ):
         thresholds = np.linspace(0, df[xvar].quantile(0.99), 100)
@@ -206,7 +210,7 @@ def plot_ROC_curve(
 
 def LoD_training_summary(
     single_sub_regions: str,
-    cram_stats_file: str,
+    sorter_json_stats_file: str,
     sampling_rate: float,
     df: pd.DataFrame,
     filters_file: str,
@@ -219,7 +223,7 @@ def LoD_training_summary(
     ----------
     single_sub_regions : str
         a path to the single substitutions (FP) regions file
-    cram_stats_file : str
+    sorter_json_stats_file : str
         a path to the cram statistics file
     sampling_rate : float
         the size of the data set / # of reads in single sub featuremap after intersection with single_sub_regions
@@ -241,6 +245,13 @@ def LoD_training_summary(
     # apply filters to data
     with open(filters_file, encoding="utf-8") as f:
         filters = json.load(f)
+
+    if not ("is_mixed" in df):
+        filters_no_mixed = {}
+        for f in filters.items():
+            if f[1].find("mixed") == -1:
+                filters_no_mixed[f[0]] = f[1]
+        filters = filters_no_mixed
 
     df = df.assign(
         **{
@@ -267,12 +278,18 @@ def LoD_training_summary(
         ratio_of_bases_in_coverage_range,
         _,
         _,
-    ) = read_effective_coverage_from_sorter_json(cram_stats_file)
+    ) = read_effective_coverage_from_sorter_json(sorter_json_stats_file)
 
-    read_filter_correction_factor = (df_tp["X_FILTERED_COUNT"]).sum() / df_tp["X_READ_COUNT"].sum()
+    read_filter_correction_factor = 1
+    if ("X_FILTERED_COUNT" in df_tp) and ("X_READ_COUNT" in df_tp):
+        read_filter_correction_factor = (df_tp["X_FILTERED_COUNT"]).sum() / df_tp["X_READ_COUNT"].sum()
+    else:
+        logger.warning("X_FILTERED_COUNT or X_READ_COUNT no in dataset, read_filter_correction_factor = 1 in LoD")
+
     n_noise_reads = df_fp.shape[0]
     n_signal_reads = df_tp.shape[0]
-    print("n_noise_reads, n_signal_reads", n_noise_reads, n_signal_reads)
+    logger.info(f"n_noise_reads {n_noise_reads}, n_signal_reads {n_signal_reads}")
+
     effective_bases_covered = (
         mean_coverage
         * n_bases_in_region
@@ -420,9 +437,18 @@ def plot_LoD(
         font size for the plot, by default 14
 
     """
+
     xgb_filters = {i: filters[i] for i in filters if i[:3] == "xgb" and i in df_mrd_sim.index}
 
     plt.figure(figsize=(20, 12))
+
+    mixed_query_name = "BQ80_mixed_only"
+    ind = list(df_mrd_sim.index.values)
+    if not (mixed_query_name in df_mrd_sim.index):
+        ind.append(mixed_query_name)
+        new_record = pd.DataFrame([[0] * df_mrd_sim.shape[1]], columns=df_mrd_sim.columns)
+        df_mrd_sim = pd.concat([df_mrd_sim, new_record])
+        df_mrd_sim.index = ind
 
     for df_tmp, marker, label, edgecolor, markersize in zip(
         (
@@ -789,7 +815,14 @@ def plot_qual_per_feature(
     for feature in features:
         plt.figure()
         for label in labels_dict:
-            _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+            if df[feature].dtype == bool:
+                _ = (
+                    df[df["label"] == label][feature]
+                    .astype(int)
+                    .hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+                )
+            else:
+                _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
         legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
         feature_title = title + feature
         title_handle = plt.title(feature_title, fontsize=fs)
@@ -1090,20 +1123,22 @@ def plot_mixed_recall(
     )
 
 
-def _get_plot_paths(report_name, params):
-    output_roc_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.ROC_curve")
-    output_LoD_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.LoD_curve")
-    output_cm_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.confusion_matrix")
-    output_precision_recall_qual = os.path.join(
-        params["workdir"], f"{params['out_basename']}{report_name}.precision_recall_qual"
-    )
-    output_qual_density = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.qual_density")
-    output_obsereved_qual_plot = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.observed_qual")
-    output_ML_qual_hist = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.ML_qual_hist")
-    output_qual_per_feature = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.qual_per_")
-    output_bepcr_hists = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.bepcr_")
-    output_bepcr_fpr = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.bepcr_fpr")
-    output_bepcr_recalls = os.path.join(params["workdir"], f"{params['out_basename']}{report_name}.bepcr_recalls")
+def _get_plot_paths(report_name, out_path, out_basename):
+
+    outdir = out_path
+    basename = out_basename
+
+    output_roc_plot = os.path.join(outdir, f"{basename}{report_name}.ROC_curve")
+    output_LoD_plot = os.path.join(outdir, f"{basename}{report_name}.LoD_curve")
+    output_cm_plot = os.path.join(outdir, f"{basename}{report_name}.confusion_matrix")
+    output_precision_recall_qual = os.path.join(outdir, f"{basename}{report_name}.precision_recall_qual")
+    output_qual_density = os.path.join(outdir, f"{basename}{report_name}.qual_density")
+    output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
+    output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
+    output_qual_per_feature = os.path.join(outdir, f"{basename}{report_name}.qual_per_")
+    output_bepcr_hists = os.path.join(outdir, f"{basename}{report_name}.bepcr_")
+    output_bepcr_fpr = os.path.join(outdir, f"{basename}{report_name}.bepcr_fpr")
+    output_bepcr_recalls = os.path.join(outdir, f"{basename}{report_name}.bepcr_recalls")
 
     return [
         output_roc_plot,
@@ -1126,6 +1161,8 @@ def create_report_plots(
     y_file: str,
     params_file: str,
     report_name: str,
+    out_path: str,
+    base_name: str = None,
 ):
     """loads model, data, params and generate plots for report
 
@@ -1140,15 +1177,27 @@ def create_report_plots(
     params_file : str
         path to params file
     report_name : str
-        name of data set (train/test)
+        name of data set, should be "train" or "test"
+    out_path : str
+        path to output directory
+    base_name : str
+        prefix for saved files
     """
     # load model, data and params
     xgb_classifier = joblib.load(model_file)
     X_test = pd.read_parquet(X_file)
     y_test = pd.read_parquet(y_file)
-    params = None
     with open(params_file, "r", encoding="utf-8") as f:
         params = json.load(f)
+
+    params["workdir"] = out_path
+    if base_name:
+        params["data_name"] = base_name
+    else:
+        params["data_name"] = ""
+
+    assert "fp_regions_bed_file" in params, "no fp_regions_file in params"
+    assert "sorter_json_stats_file" in params, "no sorter_json_stats_file in params"
 
     (
         df,
@@ -1161,10 +1210,11 @@ def create_report_plots(
     ) = create_data_for_report(xgb_classifier, X_test, y_test)
 
     labels_dict = {0: "FP", 1: "TP"}
-    cram_stats_file = params["cram_stats_file"]
+
+    sorter_json_stats_file = params["sorter_json_stats_file"]
     filters_file = "/data1/work/rinas/xgbpipeline/filters.json"
-    data_size = params["model_params"][f"{report_name}_size"]
-    total_n = params["total_n_single_sub_featuremap"]
+    data_size = params[f"{report_name}_set_size"]
+    total_n = 1000000000  # params['single_substitution_featuremap'] #params["total_n_single_sub_featuremap"]
     sampling_rate = (
         data_size / total_n
     )  # N reads in test (test_size) / N reads in single sub featuremap intersected with single_sub_regions
@@ -1178,8 +1228,8 @@ def create_report_plots(
     LoD_params["simulated_coverage"] = 30
 
     filters = LoD_training_summary(
-        params["single_sub_regions"],
-        cram_stats_file,
+        params["fp_regions_bed_file"],
+        sorter_json_stats_file,
         sampling_rate,
         df,
         filters_file,
@@ -1187,7 +1237,7 @@ def create_report_plots(
         LoD_params["summary_params_file"],
     )
     df_mrd_sim, lod_label, c_lod, min_LoD_filter = LoD_simulation_on_signature(LoD_params)
-    print(min_LoD_filter)
+    logger.info(f"min_LoD_filter {min_LoD_filter}")
 
     [
         output_roc_plot,
@@ -1201,7 +1251,7 @@ def create_report_plots(
         output_bepcr_hists,
         output_bepcr_fpr,
         output_bepcr_recalls,
-    ] = _get_plot_paths(report_name, params)
+    ] = _get_plot_paths(report_name, out_path=params["workdir"], out_basename=params["data_name"])
 
     plot_ROC_curve(
         df,

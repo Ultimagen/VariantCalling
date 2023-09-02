@@ -41,10 +41,9 @@ default_numerical_features = [
     FeatureMapFields.X_INDEX.value,
     FeatureMapFields.MAX_SOFTCLIP_LENGTH.value,
 ]
-default_categorical_features = [
-    FeatureMapFields.IS_CYCLE_SKIP.value,
-    FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value
-]
+default_categorical_features = [FeatureMapFields.IS_CYCLE_SKIP.value, FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]
+
+# pylint:disable=too-many-arguments
 
 
 def prepare_featuremap_for_model(
@@ -83,12 +82,16 @@ def prepare_featuremap_for_model(
         SimplePipeline object to use for printing and running commands
     regions_file : str, optional
         Path to regions file, by default None
+    balanced_sampling_info_fields : list[str], optional
+        List of fields for balanced sampling
     sorter_json_stats_file : str, optional
         Path to cram stats file, by default None
     read_effective_coverage_from_sorter_json_kwargs : dict, optional
         kwargs for read_effective_coverage_from_sorter_json, by default None
     keep_temp_file: bool, optional
         Whether to keep the intersected featuremap file created prior to sampling, by default False
+    random_seed: bool, optional
+        Whether to use a random seed for sampling the input featuremap
 
     Returns
     -------
@@ -98,6 +101,7 @@ def prepare_featuremap_for_model(
         Number of entries in intersected featuremap
 
     """
+    # pylint:disable=too-many-branches
 
     # check inputs and define paths
     os.makedirs(workdir, exist_ok=True)
@@ -158,7 +162,7 @@ def prepare_featuremap_for_model(
             featuremap_entry_number += 1
     if featuremap_entry_number < total_size:
         logger.warning(
-            f"featuremap_entry_number={featuremap_entry_number} > training_set_size={train_set_size}"
+            f"featuremap_entry_number={featuremap_entry_number} < training_set_size={train_set_size}"
             f"+ test_set_size={test_set_size if test_set_size else 0}"
             "\nbehavior is undefined",
         )
@@ -221,7 +225,7 @@ def prepare_featuremap_for_model(
                     if (
                         np.random.uniform()
                         < downsampling_rate[
-                            (record.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
+                            (rec.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
                         ]
                     ):
                         # write the first training_set_size records to the training set
@@ -354,6 +358,8 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         ------
         ValueError
             If test_set_size < MIN_TEST_SIZE or train_set_size < MIN_TRAIN_SIZE
+        RuntimeError
+            If model_params file is not valid: json file, dictionary or None
 
         """
         # default values
@@ -472,7 +478,9 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
             [self.y_test_save_path, self.y_train_save_path],
             ["test", "train"],
         ):
-            create_report_plots(self.model_save_path, X, y, self.params_save_path, name)
+            create_report_plots(
+                self.model_save_path, X, y, self.params_save_path, name, self.out_path, self.out_basename
+            )
 
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
@@ -499,11 +507,11 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
     def create_dataframes(self):
         """create X and y dataframes for train and test"""
         # read dataframes
-        columns = self.numerical_features + self.categorical_features
-        df_tp_train = featuremap_to_dataframe(self.tp_train_featuremap_vcf)[columns]
-        df_tp_test = featuremap_to_dataframe(self.tp_test_featuremap_vcf)[columns]
-        df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)[columns]
-        df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)[columns]
+        self.columns = self.numerical_features + self.categorical_features
+        df_tp_train = featuremap_to_dataframe(self.tp_train_featuremap_vcf)
+        df_tp_test = featuremap_to_dataframe(self.tp_test_featuremap_vcf)
+        df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)
+        df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)
         # create X and y
         self.X_train = pd.concat((df_tp_train, df_fp_train)).astype({c: "category" for c in self.categorical_features})
         self.X_test = pd.concat((df_tp_test, df_fp_test)).astype({c: "category" for c in self.categorical_features})
@@ -526,7 +534,7 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         self.create_dataframes()
 
         # fit classifier
-        self.classifier.fit(self.X_train, self.y_train)
+        self.classifier.fit(self.X_train[self.columns], self.y_train)
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()
@@ -560,5 +568,5 @@ def create_filters_file(filters_file_path):
         **xgb_filters,
     }
 
-    with open(filters_file_path, "w") as f:
+    with open(filters_file_path, "w", encoding="utf-8") as f:
         json.dump(filters_dict, f, indent=6)

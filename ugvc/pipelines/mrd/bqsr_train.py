@@ -22,6 +22,7 @@ import argparse
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.mrd.bqsr_plotting_utils import bqsr_train_report
 from ugvc.mrd.bqsr_train_utils import BQSRTrain
 
 
@@ -105,7 +106,8 @@ def run(argv: list[str]):
         print_timing=True,
     )
 
-    # TODO add balancesd_strand adapter version parameters that will add relevant features (numerical_features/categorical_features)
+    # TODO add balancesd_strand adapter version parameters that will add relevant features
+    #      (numerical_features/categorical_features)
     # TODO add to args         numerical_features: list[str] = None,
     # TODO add to args         categorical_features: list[str] = None,
     # TODO add to args         flow_order: str = DEFAULT_FLOW_ORDER,
@@ -115,7 +117,7 @@ def run(argv: list[str]):
     # TODO add to args         test_set_size: int = 10000,
     # TODO add to args         balanced_sampling_info_fields: list[str] = None,
 
-    BQSRTrain(
+    s = BQSRTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
         tp_regions_bed_file=args.hom_snv_regions,
@@ -125,3 +127,21 @@ def run(argv: list[str]):
         out_basename=args.basename,
         simple_pipeline=sp,
     ).process()
+
+    bqsr_train_report(
+        out_path=args.output,
+        out_basename=args.basename,
+        report_name="test",
+        model_file=s.model_save_path,
+        params_file=s.params_save_path,
+        simple_pipeline=None,
+    )
+
+    bqsr_train_report(
+        out_path=args.output,
+        out_basename=args.basename,
+        report_name="train",
+        model_file=s.model_save_path,
+        params_file=s.params_save_path,
+        simple_pipeline=None,
+    )
