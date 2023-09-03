@@ -58,17 +58,10 @@ def _assert_read_signature(signature, expected_signature, expected_columns=None,
         "id",
         "qual",
         "af",
-        "depth_tumor_sample",
-        "cycle_skip_status",
-        "gc_content",
-        "left_motif",
-        "right_motif",
-        "mutation_type",
     ]
     possibly_null_columns = possibly_null_columns or [
         "id",
         "qual",
-        "depth_tumor_sample",
     ]
     for c in expected_columns:
         assert c in signature.columns
@@ -84,10 +77,39 @@ def test_read_signature_ug_mutect():
         return_dataframes=True,
     )  # make sure we can read the dataframe even if the sample name could not be deduced from the header
     expected_signature = pd.read_hdf(pjoin(inputs_dir, "mutect_mrd_signature_test.expected_output.h5"))
-    _assert_read_signature(signature, expected_signature)
+    _assert_read_signature(
+        signature,
+        expected_signature,
+        expected_columns=[
+            "ref",
+            "alt",
+            "id",
+            "qual",
+            "af",
+            "depth_tumor_sample",
+            "cycle_skip_status",
+            "gc_content",
+            "left_motif",
+            "right_motif",
+            "mutation_type",
+        ],
+    )
     _assert_read_signature(
         signature_no_sample_name,
         expected_signature,
+        expected_columns=[
+            "ref",
+            "alt",
+            "id",
+            "qual",
+            "af",
+            "depth_tumor_sample",
+            "cycle_skip_status",
+            "gc_content",
+            "left_motif",
+            "right_motif",
+            "mutation_type",
+        ],
         possibly_null_columns=["id", "qual", "depth_tumor_sample", "af"],
     )
 
@@ -95,7 +117,23 @@ def test_read_signature_ug_mutect():
 def test_read_signature_ug_dv():
     signature = read_signature(pjoin(inputs_dir, "dv_mrd_signature_test.vcf.gz"), return_dataframes=True)
     expected_signature = pd.read_hdf(pjoin(inputs_dir, "dv_mrd_signature_test.expected_output.h5"))
-    _assert_read_signature(signature, expected_signature)
+    _assert_read_signature(
+        signature,
+        expected_signature,
+        expected_columns=[
+            "ref",
+            "alt",
+            "id",
+            "qual",
+            "af",
+            "depth_tumor_sample",
+            "cycle_skip_status",
+            "gc_content",
+            "left_motif",
+            "right_motif",
+            "mutation_type",
+        ],
+    )
 
 
 def test_read_signature_external():
