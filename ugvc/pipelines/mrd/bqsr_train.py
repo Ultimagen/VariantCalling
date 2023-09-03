@@ -64,20 +64,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Path to json file with input parameters for the classification model""",
     )
     parser.add_argument(
-        "--train_set_size",
-        type=int,
-        required=False,
-        default=500000,
-        help="""Size of the train set for the classification model""",
-    )
-    parser.add_argument(
-        "--test_set_size",
-        type=int,
-        required=False,
-        default=150000,
-        help="""Size of the test set for the classification model""",
-    )
-    parser.add_argument(
         "--output",
         type=str,
         required=True,
@@ -102,6 +88,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=False,
         default=DEFAULT_FLOW_ORDER,
         help="""flow order - required for cycle skip annotation """,
+    )
+    parser.add_argument(
+        "--train_set_size",
+        type=int,
+        help="""Size of the train set for the classification model""",
+    )
+    parser.add_argument(
+        "--test_set_size",
+        type=int,
+        help="""Size of the test set for the classification model""",
+    )
+    parser.add_argument(
+        "--numerical_features",
+        type=str,
+        help="""comma separated list of numerical features for ML classifier """,
+    )
+    parser.add_argument(
+        "--categorical_features",
+        type=str,
+        help="""comma separated list of categorical features for ML classifier """,
     )
     return parser.parse_args(argv[1:])
 
@@ -134,6 +140,8 @@ def run(argv: list[str]):
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=args.train_set_size,
         test_set_size=args.test_set_size,
+        numerical_features=args.numerical_features.split(","),
+        categorical_features=args.categorical_features.split(","),
         out_path=args.output,
         out_basename=args.basename,
         simple_pipeline=sp,
