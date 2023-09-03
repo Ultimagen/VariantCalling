@@ -107,7 +107,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def run(argv: list[str]):
-
+    """Train a model for single read SNV quality recalibration"""
     args = parse_args(argv)
     simple_pipeline_args = (0, 10000, False)
     sp = SimplePipeline(
