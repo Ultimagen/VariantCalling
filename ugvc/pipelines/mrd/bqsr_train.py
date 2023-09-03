@@ -108,7 +108,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         type=list,
         required=False,
         default=None,
-        help="""flow order - required for cycle skip annotation """,
+        help="""list of numerical features for ML classifier """,
+    )
+    parser.add_argument(
+        "--categorical_features",
+        type=list,
+        required=False,
+        default=None,
+        help="""list of categorical features for ML classifier """,
     )
     return parser.parse_args(argv[1:])
 
@@ -141,6 +148,8 @@ def run(argv: list[str]):
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=args.train_set_size,
         test_set_size=args.test_set_size,
+        numerical_features=args.numerical_features,
+        categorical_features=args.categorical_features,
         out_path=args.output,
         out_basename=args.basename,
         simple_pipeline=sp,
