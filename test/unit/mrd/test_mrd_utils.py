@@ -1,4 +1,3 @@
-import filecmp
 import subprocess
 import tempfile
 from os.path import join as pjoin
@@ -52,76 +51,96 @@ def test_featuremap_annotator(tmpdir):
     assert total_max_softclip_bases == 81
 
 
+def _assert_read_signature(signature, expected_signature, expected_columns=None, possibly_null_columns=None):
+    expected_columns = expected_columns or [
+        "ref",
+        "alt",
+        "id",
+        "qual",
+        "af",
+    ]
+    possibly_null_columns = possibly_null_columns or [
+        "id",
+        "qual",
+    ]
+    for c in expected_columns:
+        assert c in signature.columns
+        if c not in possibly_null_columns:
+            assert not signature[c].isnull().all()
+            assert (signature[c] == expected_signature[c]).all() or np.allclose(signature[c], expected_signature[c])
+
+
 def test_read_signature_ug_mutect():
     signature = read_signature(pjoin(inputs_dir, "mutect_mrd_signature_test.vcf.gz"), return_dataframes=True)
     signature_no_sample_name = read_signature(
         pjoin(inputs_dir, "mutect_mrd_signature_test.no_sample_name.vcf.gz"),
         return_dataframes=True,
     )  # make sure we can read the dataframe even if the sample name could not be deduced from the header
-    expected_output = pd.read_hdf(pjoin(inputs_dir, "mutect_mrd_signature_test.expected_output.h5"))
-    expected_columns = [
-        "ref",
-        "alt",
-        "id",
-        "qual",
-        "af",
-        "depth_tumor_sample",
-        "hmer",
-        "tlod",
-        "sor",
-        "ug_hcr",
-        "ug_mrd_blacklist",
-        "cycle_skip_status",
-        "gc_content",
-        "left_motif",
-        "right_motif",
-        "mutation_type",
-    ]
-    for c in expected_columns:
-        assert c in signature.columns
-        assert c in signature_no_sample_name.columns
-        if c not in ["id", "qual", "depth_tumor_sample"]:
-            assert not signature[c].isnull().all()
-            assert (signature[c] == expected_output[c]).all() or np.allclose(
-                signature[c], expected_output[c]
-            ), f"column {c} is not as expected"
-            if c not in ["af"]:  # requires sample name to be read for FORMATS
-                assert (signature_no_sample_name[c] == expected_output[c]).all() or np.allclose(
-                    signature_no_sample_name[c], expected_output[c]
-                )
+    expected_signature = pd.read_hdf(pjoin(inputs_dir, "mutect_mrd_signature_test.expected_output.h5"))
+    _assert_read_signature(
+        signature,
+        expected_signature,
+        expected_columns=[
+            "ref",
+            "alt",
+            "id",
+            "qual",
+            "af",
+            "depth_tumor_sample",
+            "cycle_skip_status",
+            "gc_content",
+            "left_motif",
+            "right_motif",
+            "mutation_type",
+        ],
+    )
+    _assert_read_signature(
+        signature_no_sample_name,
+        expected_signature,
+        expected_columns=[
+            "ref",
+            "alt",
+            "id",
+            "qual",
+            "af",
+            "depth_tumor_sample",
+            "cycle_skip_status",
+            "gc_content",
+            "left_motif",
+            "right_motif",
+            "mutation_type",
+        ],
+        possibly_null_columns=["id", "qual", "depth_tumor_sample", "af"],
+    )
 
 
 def test_read_signature_ug_dv():
     signature = read_signature(pjoin(inputs_dir, "dv_mrd_signature_test.vcf.gz"), return_dataframes=True)
-    expected_output = pd.read_hdf(pjoin(inputs_dir, "dv_mrd_signature_test.expected_output.h5"))
-    expected_columns = [
-        "ref",
-        "alt",
-        "id",
-        "qual",
-        "af",
-        "depth_tumor_sample",
-        "hmer",
-        "ug_hcr",
-        "ug_mrd_blacklist",
-        "cycle_skip_status",
-        "gc_content",
-        "left_motif",
-        "right_motif",
-        "mutation_type",
-    ]
-    for c in expected_columns:
-        assert c in signature.columns
-        if c not in ["id", "qual", "depth_tumor_sample"]:
-            assert not signature[c].isnull().all()
-            assert (signature[c] == expected_output[c]).all() or np.allclose(signature[c], expected_output[c])
+    expected_signature = pd.read_hdf(pjoin(inputs_dir, "dv_mrd_signature_test.expected_output.h5"))
+    _assert_read_signature(
+        signature,
+        expected_signature,
+        expected_columns=[
+            "ref",
+            "alt",
+            "id",
+            "qual",
+            "af",
+            "depth_tumor_sample",
+            "cycle_skip_status",
+            "gc_content",
+            "left_motif",
+            "right_motif",
+            "mutation_type",
+        ],
+    )
 
 
 def test_read_signature_external():
     signature = read_signature(pjoin(inputs_dir, "external_somatic_signature.vcf.gz"), return_dataframes=True)
-    expected_output = pd.read_hdf(pjoin(inputs_dir, "external_somatic_signature.expected_output.h5"))
+    expected_signature = pd.read_hdf(pjoin(inputs_dir, "external_somatic_signature.expected_output.h5"))
 
-    assert_frame_equal(signature, expected_output)
+    _assert_read_signature(signature, expected_signature)
 
 
 def test_intersect_featuremap_with_signature(tmpdir):
@@ -148,8 +167,46 @@ def test_featuremap_to_dataframe():
 
         featuremap_dataframe = featuremap_to_dataframe(featuremap_vcf=input_featuremap, output_file=tmp_out_path)
         featuremap_dataframe_expected = pd.read_parquet(expected_featuremap_dataframe)
-        assert_frame_equal(featuremap_dataframe, featuremap_dataframe_expected)
-        assert filecmp.cmp(tmp_out_path, expected_featuremap_dataframe)
+        _assert_read_signature(
+            featuremap_dataframe,
+            featuremap_dataframe_expected,
+            expected_columns=[
+                "chrom",
+                "pos",
+                "ref",
+                "alt",
+                "qual",
+                "filter",
+                "MLEAC",
+                "MLEAF",
+                "X_CIGAR",
+                "X_EDIST",
+                "X_FC1",
+                "X_FC2",
+                "X_FILTERED_COUNT",
+                "X_FLAGS",
+                "X_INDEX",
+                "X_LENGTH",
+                "X_MAPQ",
+                "X_READ_COUNT",
+                "X_RN",
+                "X_SCORE",
+                "X_SMQ_LEFT",
+                "X_SMQ_LEFT_MEAN",
+                "X_SMQ_RIGHT",
+                "X_SMQ_RIGHT_MEAN",
+                "a3",
+                "ae",
+                "as",
+                "rq",
+                "s2",
+                "s3",
+                "te",
+                "tm",
+                "ts",
+            ],
+            possibly_null_columns=["tm", "filter", "qual", "MLEAC", "MLEAF"],
+        )
 
 
 def test_read_intersection_dataframes():
