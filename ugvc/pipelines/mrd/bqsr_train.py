@@ -103,6 +103,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_FLOW_ORDER,
         help="""flow order - required for cycle skip annotation """,
     )
+    parser.add_argument(
+        "--numerical_features",
+        type=list,
+        required=False,
+        default=None,
+        help="""flow order - required for cycle skip annotation """,
+    )
     return parser.parse_args(argv[1:])
 
 
