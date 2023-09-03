@@ -57,12 +57,25 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="""Path to cram stats file (for LoD estimation)""",
     )
-
     parser.add_argument(
         "--model_params",
         type=str,
         required=False,
         help="""Path to json file with input parameters for the classification model""",
+    )
+    parser.add_argument(
+        "--train_set_size",
+        type=int,
+        required=False,
+        default=100000,
+        help="""Size of the train set for the classification model""",
+    )
+    parser.add_argument(
+        "--test_set_size",
+        type=int,
+        required=False,
+        default=10000,
+        help="""Size of the test set for the classification model""",
     )
     parser.add_argument(
         "--output",
@@ -110,8 +123,6 @@ def run(argv: list[str]):
     # TODO add to args         flow_order: str = DEFAULT_FLOW_ORDER,
     # TODO add to args, maybe add the option to read from a json file         model_parameters: dict | str = None,
     # TODO add to args         classifier_class=xgb.XGBClassifier,
-    # TODO add to args         train_set_size: int = 100000,
-    # TODO add to args         test_set_size: int = 10000,
     # TODO add to args         balanced_sampling_info_fields: list[str] = None,
 
     BQSRTrain(
@@ -120,6 +131,8 @@ def run(argv: list[str]):
         tp_regions_bed_file=args.hom_snv_regions,
         fp_regions_bed_file=args.single_sub_regions,
         sorter_json_stats_file=args.cram_stats_file,
+        train_set_size=args.train_set_size,
+        test_set_size=args.test_set_size,
         out_path=args.output,
         out_basename=args.basename,
         simple_pipeline=sp,
