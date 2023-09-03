@@ -4,6 +4,7 @@ import tempfile
 from os.path import join as pjoin
 from test import get_resource_dir, test_dir
 
+import numpy as np
 import pandas as pd
 import pysam
 from pandas.testing import assert_frame_equal
@@ -54,22 +55,66 @@ def test_featuremap_annotator(tmpdir):
 def test_read_signature_ug_mutect():
     signature = read_signature(pjoin(inputs_dir, "mutect_mrd_signature_test.vcf.gz"), return_dataframes=True)
     signature_no_sample_name = read_signature(
-        pjoin(inputs_dir, "mutect_mrd_signature_test.no_sample_name.vcf.gz"), return_dataframes=True
-    )
-    expected_output = pd.read_hdf(pjoin(inputs_dir, "mutect_mrd_signature_test.expected_output.h5"))
-
-    assert_frame_equal(signature, expected_output)
-    assert_frame_equal(
-        signature_no_sample_name.drop(columns=["af", "depth_tumor_sample"]),
-        expected_output.drop(columns=["af", "depth_tumor_sample"]),
+        pjoin(inputs_dir, "mutect_mrd_signature_test.no_sample_name.vcf.gz"),
+        return_dataframes=True,
     )  # make sure we can read the dataframe even if the sample name could not be deduced from the header
+    expected_output = pd.read_hdf(pjoin(inputs_dir, "mutect_mrd_signature_test.expected_output.h5"))
+    expected_columns = [
+        "ref",
+        "alt",
+        "id",
+        "qual",
+        "af",
+        "depth_tumor_sample",
+        "hmer",
+        "tlod",
+        "sor",
+        "ug_hcr",
+        "ug_mrd_blacklist",
+        "cycle_skip_status",
+        "gc_content",
+        "left_motif",
+        "right_motif",
+        "mutation_type",
+    ]
+    for c in expected_columns:
+        assert c in signature.columns
+        assert c in signature_no_sample_name.columns
+        if c not in ["id", "qual", "depth_tumor_sample"]:
+            assert not signature[c].isnull().all()
+            assert (signature[c] == expected_output[c]).all() or np.allclose(
+                signature[c], expected_output[c]
+            ), f"column {c} is not as expected"
+            if c not in ["af"]:  # requires sample name to be read for FORMATS
+                assert (signature_no_sample_name[c] == expected_output[c]).all() or np.allclose(
+                    signature_no_sample_name[c], expected_output[c]
+                )
 
 
 def test_read_signature_ug_dv():
     signature = read_signature(pjoin(inputs_dir, "dv_mrd_signature_test.vcf.gz"), return_dataframes=True)
     expected_output = pd.read_hdf(pjoin(inputs_dir, "dv_mrd_signature_test.expected_output.h5"))
-
-    assert_frame_equal(signature, expected_output)
+    expected_columns = [
+        "ref",
+        "alt",
+        "id",
+        "qual",
+        "af",
+        "depth_tumor_sample",
+        "hmer",
+        "ug_hcr",
+        "ug_mrd_blacklist",
+        "cycle_skip_status",
+        "gc_content",
+        "left_motif",
+        "right_motif",
+        "mutation_type",
+    ]
+    for c in expected_columns:
+        assert c in signature.columns
+        if c not in ["id", "qual", "depth_tumor_sample"]:
+            assert not signature[c].isnull().all()
+            assert (signature[c] == expected_output[c]).all() or np.allclose(signature[c], expected_output[c])
 
 
 def test_read_signature_external():

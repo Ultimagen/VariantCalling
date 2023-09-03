@@ -338,9 +338,7 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
                                 rec.samples[tumor_sample][af_field][0]
                                 if tumor_sample
                                 and af_field in rec.samples[tumor_sample]
-                                and len(rec.samples[tumor_sample]) > 0
-                                else rec.info[af_field]
-                                if af_field in rec.info
+                                and len(rec.samples[tumor_sample][af_field]) > 0
                                 else np.nan
                             ),
                             (
