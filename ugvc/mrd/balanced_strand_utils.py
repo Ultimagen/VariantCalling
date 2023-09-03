@@ -246,13 +246,13 @@ def _assert_adapter_version_supported(
     """
     print(supported_adapter_versions)
     if isinstance(adapter_version, BalancedStrandAdapterVersions):
-        assert adapter_version in supported_adapter_versions, (
+        assert adapter_version.value in supported_adapter_versions, (
             f"Unsupported adapter version {adapter_version.value}, "
             + f"supprted values are {', '.join(supported_adapter_versions)}"
         )
     if isinstance(adapter_version, str):
-        assert adapter_version in [v for v in supported_adapter_versions], (
-            f"Unsupported adapter version {adapter_version}, "
+        assert adapter_version in supported_adapter_versions, (
+            f"Unsupported adapter version str {adapter_version}, "
             + f"supprted values are {', '.join(supported_adapter_versions)}"
         )
 

@@ -237,14 +237,42 @@ def test_generate_synthetic_signatures(tmpdir):
         inputs_dir,
         "pancan_pcawg_2020.mutations_hg38_GNOMAD_dbsnp_beds.sorted.Annotated.HMER_LEN.edited.chr19.vcf.gz",
     )
-    n_synthetic_signatures = 1
-    output_dir = tmpdir
     synthetic_signature_list = generate_synthetic_signatures(
-        signature_file, db_file, n_synthetic_signatures, output_dir
+        signature_vcf=signature_file, db_vcf=db_file, n_synthetic_signatures=1, output_dir=tmpdir
     )
-    output_file = synthetic_signature_list[0]
-    test_signautre = pjoin(inputs_dir, "synthetic_signature_test.vcf.gz")
-    # assert similar number of lines in output file as in input file
-    cmd1 = f"bcftools view -H {output_file}"
-    cmd2 = f"bcftools view -H {test_signautre}"
-    assert subprocess.check_output(cmd1, shell=True) == subprocess.check_output(cmd2, shell=True)
+    signature = read_signature(synthetic_signature_list[0], return_dataframes=True)
+    expected_signature = read_signature(pjoin(inputs_dir, "synthetic_signature_test.vcf.gz"), return_dataframes=True)
+    _assert_read_signature(
+        signature,
+        expected_signature,
+        expected_columns=[
+            "ref",
+            "alt",
+            "id",
+            "qual",
+            "af",
+            "depth_tumor_sample",
+            "hmer",
+            "tlod",
+            "sor",
+            "exome",
+            "giab_hcr",
+            "lcr",
+            "long_hmer",
+            "map_unique",
+            "ug_hcr",
+            "ug_mrd_blacklist",
+            "cycle_skip_status",
+            "gc_content",
+            "left_motif",
+            "right_motif",
+            "mutation_type",
+        ],
+        possibly_null_columns=[
+            "id",
+            "qual",
+            "depth_tumor_sample",
+            "tlod",
+            "sor",
+        ],
+    )
