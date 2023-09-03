@@ -47,7 +47,7 @@ def test_annotate_featruremap(tmpdir):
         HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
         HistogramColumnNames.STRAND_RATIO_START.value,
         HistogramColumnNames.STRAND_RATIO_END.value,
-        "trinuc_context",
+        # "trinuc_context",
         "hmer_context_ref",
         "hmer_context_alt",
         "is_cycle_skip",

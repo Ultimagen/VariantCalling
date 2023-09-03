@@ -20,7 +20,7 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 
 from ugvc import logger
-from ugvc.dna.format import ALT, CHROM, FILTER, POS, QUAL, REF
+from ugvc.dna.format import ALT, CHROM, DEFAULT_FLOW_ORDER, FILTER, POS, QUAL, REF
 from ugvc.dna.utils import revcomp
 from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
 from ugvc.mrd.featuremap_utils import FeaturemapAnnotator, RefContextVcfAnnotator, VcfAnnotator
@@ -132,7 +132,8 @@ def _validate_info(x):
         raise ValueError(f"Cannot convert {x} to bool")
     return None
 
-def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
+
+def read_signature(  # pylint: disable=too-many-branches,too-many-arguments,too-many-statements
     signature_vcf_files: list[str],
     output_parquet: str = None,
     coverage_bw_files: list[str] = None,
@@ -471,7 +472,8 @@ def read_intersection_dataframes(
     logger.debug(f"Reading {len(intersected_featuremaps_parquet)} intersection featuremaps")
     df_int = pd.concat(
         (
-            pd.read_parquet(f).assign(
+            pd.read_parquet(f)
+            .assign(
                 cfdna=_get_sample_name_from_file_name(f, split_position=0),
                 signature=_get_sample_name_from_file_name(f, split_position=1),
                 signature_type=_get_sample_name_from_file_name(f, split_position=2),
@@ -930,7 +932,6 @@ def prepare_data_from_mrd_pipeline(
 
     intersection_dataframe = read_intersection_dataframes(
         intersected_featuremaps_parquet,
-        substitution_error_rate=substitution_error_rate_hdf,
         output_parquet=intersection_dataframe_fname,
         return_dataframes=return_dataframes,
     )
@@ -1030,21 +1031,45 @@ def annotate_featuremap(
     input_featuremap: str,
     output_featuremap: str,
     ref_fasta: str,
-    adapter_version: str,
-    flow_order: str,
     motif_length_to_annotate: int,
     max_hmer_length: int,
+    flow_order: str = DEFAULT_FLOW_ORDER,
+    adapter_version: str = None,
 ):
+    """
+    Annotate featuremap with ref context, balanced strand and hmer
+
+    Parameters
+    ----------
+    input_featuremap: str
+        Input featuremap file
+    output_featuremap: str
+        Output featuremap file
+    ref_fasta: str
+        Reference fasta file
+    motif_length_to_annotate: int
+        Motif length to annotate
+    max_hmer_length: int
+        Max hmer length to annotate
+    adapter_version: str
+        Balanced ePCR adapter version, options ["LA_v5", "LA_v5and6", "LA_v6"], default None
+    flow_order: str
+        Flow order, default TGCA
+    """
     featuremap_annotator = FeaturemapAnnotator()
-    balanced_strand_annotator = BalancedStrandVcfAnnotator(adapter_version=adapter_version)
     ref_context_annotator = RefContextVcfAnnotator(
         ref_fasta=ref_fasta,
         flow_order=flow_order,
         motif_length_to_annotate=motif_length_to_annotate,
         max_hmer_length=max_hmer_length,
     )
+    annotators = [featuremap_annotator, ref_context_annotator]
+    if adapter_version is not None:
+        balanced_strand_annotator = BalancedStrandVcfAnnotator(adapter_version=adapter_version)
+        annotators.append(balanced_strand_annotator)
+
     VcfAnnotator.process_vcf(
-        annotators=[featuremap_annotator, balanced_strand_annotator, ref_context_annotator],
+        annotators=annotators,
         input_path=input_featuremap,
         output_path=output_featuremap,
         multiprocess_contigs=False,
