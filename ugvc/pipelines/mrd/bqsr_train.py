@@ -67,14 +67,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--train_set_size",
         type=int,
         required=False,
-        default=100000,
+        default=500000,
         help="""Size of the train set for the classification model""",
     )
     parser.add_argument(
         "--test_set_size",
         type=int,
         required=False,
-        default=10000,
+        default=150000,
         help="""Size of the test set for the classification model""",
     )
     parser.add_argument(
@@ -117,7 +117,8 @@ def run(argv: list[str]):
         print_timing=True,
     )
 
-    # TODO add balancesd_strand adapter version parameters that will add relevant features (numerical_features/categorical_features)
+    # TODO add balancesd_strand adapter version parameters that will add relevant features
+    # (numerical_features/categorical_features)
     # TODO add to args         numerical_features: list[str] = None,
     # TODO add to args         categorical_features: list[str] = None,
     # TODO add to args         flow_order: str = DEFAULT_FLOW_ORDER,
