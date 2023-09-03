@@ -40,10 +40,7 @@ default_numerical_features = [
     FeatureMapFields.X_INDEX.value,
     FeatureMapFields.MAX_SOFTCLIP_LENGTH.value,
 ]
-default_categorical_features = [
-    FeatureMapFields.IS_CYCLE_SKIP.value,
-    FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value
-]
+default_categorical_features = [FeatureMapFields.IS_CYCLE_SKIP.value, FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]
 
 
 def prepare_featuremap_for_model(
@@ -220,7 +217,7 @@ def prepare_featuremap_for_model(
                     if (
                         np.random.uniform()
                         < downsampling_rate[
-                            (record.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
+                            (rec.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
                         ]
                     ):
                         # write the first training_set_size records to the training set
@@ -299,6 +296,8 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         out_basename: str,
         tp_featuremap: str,
         fp_featuremap: str,
+        train_set_size: int,
+        test_set_size: int,
         numerical_features: list[str] = None,
         categorical_features: list[str] = None,
         sorter_json_stats_file: str = None,
@@ -307,8 +306,6 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         flow_order: str = DEFAULT_FLOW_ORDER,
         model_params: dict | str = None,
         classifier_class=xgb.XGBClassifier,
-        train_set_size: int = 100000,
-        test_set_size: int = 10000,
         balanced_sampling_info_fields: list[str] = None,
         simple_pipeline: SimplePipeline = None,
     ):
