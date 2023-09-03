@@ -10,7 +10,7 @@ from ugvc.mrd.mrd_utils import annotate_featuremap
 __general_inputs_dir = f"{test_dir}/resources/general/"
 
 
-def test_annotate_featruremap(tmpdir):
+def test_annotate_featuremap(tmpdir):
     resource_dir = get_resource_dir(__file__)
     input_featuremap = pjoin(resource_dir, "tp_featuremap_chr20.vcf.gz")
     output_featuremap = pjoin(tmpdir, "tp_featuremap_chr20.annotated.vcf.gz")
