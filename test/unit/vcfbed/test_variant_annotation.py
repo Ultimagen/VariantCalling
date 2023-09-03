@@ -221,12 +221,13 @@ class TestVariantAnnotation:
             hmer_context_ref_sum=64,
             hmer_context_alt_sum=41
         )
+        
     def test_ref_context_vcf_annotator_multi_processing(self, tmpdir):        
         # test on FeatureMap file, with multi-processing)
         sample_featuremap = pjoin(resource_dir, "Pa_46.bsDNA.chr20_sample.vcf.gz")
         motif_length = 3
         ref_contetxt_variant_annotator = RefContextVcfAnnotator(
-            ref_fasta=pjoin(general_inputs_dir, "sample.fasta"),
+            ref_fasta = pjoin(general_inputs_dir, "sample.fasta"),
             flow_order=DEFAULT_FLOW_ORDER,
             motif_length_to_annotate=motif_length
         )    
@@ -245,3 +246,12 @@ class TestVariantAnnotation:
             hmer_context_ref_sum=64,
             hmer_context_alt_sum=41
         )
+
+    def test_pickle_an_annotator(self):  
+        from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
+        import pickle
+        annotator = BalancedStrandVcfAnnotator(adapter_version='LA_v5')
+        with open('annotators_pickle', "wb") as f:
+            pickle.dump(annotator, f)
+        
+    
