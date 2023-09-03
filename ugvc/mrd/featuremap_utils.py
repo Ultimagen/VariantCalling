@@ -168,7 +168,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
         """
         Annotator to add reference context to VCF records, only modifies biallelic SNVs.
         The following are added to the INFO field:
-        - TRINUC_CONTEXT_WITH_ALT: reference trinucleotide context
+        - trinuc_context_with_alt: reference trinucleotide context
         - prev_Nbp: N bases in the reference before the variant, N=length motif_length_to_annotate
         - next_Nnp: N bases in the reference after the variant, N=length motif_length_to_annotate
         - hmer_context_ref: reference homopolymer context, up to length max_hmer_length
