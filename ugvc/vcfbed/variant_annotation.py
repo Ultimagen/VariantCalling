@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import itertools
+import multiprocessing
 import os
-import tempfile
-from abc import ABC, abstractmethod
 import pickle
+from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
 import pyBigWig as pbw
 import pyfaidx
 import pysam
-from joblib import Parallel, delayed
 from simppl.simple_pipeline import SimplePipeline
-import multiprocessing
 
 import ugvc.dna.utils as dnautils
 import ugvc.flow_format.flow_based_read as flowBasedRead
@@ -135,7 +133,7 @@ class VcfAnnotator(ABC):
         multiprocess_contigs : bool, optional
             If True, runs in parallel over different contigs. Defaults to False.
         """
-        # pickle the annotators       
+        # pickle the annotators
         annotators_pickle = output_path + ".annotators.pickle"
         with open(annotators_pickle, "wb") as f:
             pickle.dump(annotators, f)
@@ -150,31 +148,25 @@ class VcfAnnotator(ABC):
             # Get the contigs
             contigs = list(input_variant_file.header.contigs)
             tmp_output_paths = []
+            sp = SimplePipeline(0, 100, debug=False)
+            commands = []
+            for contig in contigs:
+                try:
+                    next(input_variant_file.fetch(contig))  # to raise StopIteration if contig is empty
+                    out_per_contig = os.path.join(out_dir, contig + ".vcf.gz")
+                    commands.append(
+                        f"python ugvc annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} "
+                        f"--annotators_pickle {annotators_pickle} --contig {contig} --chunk_size {chunk_size}"
+                    )
+                    tmp_output_paths.append(out_per_contig)
+                except StopIteration:
+                    pass
             if multiprocess_contigs:
-                sp = SimplePipeline(0, 100, debug=False)
-                commands = []
-                for contig in contigs:
-                    try:
-                        v = next(input_variant_file.fetch(contig))
-                        out_per_contig = os.path.join(out_dir, contig + '.vcf.gz')
-                        commands.append(f'python ugvc annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} --annotators_pickle {annotators_pickle} --contig {contig} --chunk_size {chunk_size}')
-                        tmp_output_paths.append(out_per_contig)
-                    except StopIteration:
-                        pass
                 thread_pool_size = multiprocessing.cpu_count()
                 sp.run_parallel(commands, thread_pool_size)
             else:
-                # Process the contigs one at a time
-                with pysam.VariantFile(output_path, "w", header=new_header) as vcf_out:
-                    for contig in contigs:
-                        try:
-                            v = next(input_variant_file.fetch(contig))
-                            out_per_contig = os.path.join(out_dir, contig + '.vcf.gz')
-                            VcfAnnotator.process_contig(input_path, out_per_contig, annotators, contig, chunk_size)
-                            tmp_output_paths.append(out_per_contig)
-                        except StopIteration:
-                            pass    
-            
+                for command in commands:
+                    sp.print_and_run(command)
             # Merge the temporary output files into the final output file and remove them
             VcfAnnotator.merge_temp_files(tmp_output_paths, output_path, new_header)
             # Create a tabix index for the final output file
@@ -203,33 +195,28 @@ class VcfAnnotator(ABC):
             Path to the output file.
         """
         # Edit the header
-        input_variant_file = pysam.VariantFile(vcf_in)
-        new_header = input_variant_file.header
-        for annotator in annotators:
-            new_header = annotator.edit_vcf_header(new_header)
-
-        output_variant_file = pysam.VariantFile(vcf_out, "w", header=new_header)
-        close_when_finished = True
-        records = []
-        for record in input_variant_file.fetch(contig):
-            records.append(record)
-
-            if len(records) == chunk_size:
-                for annotator in annotators:
-                    records = annotator.process_records(records)
-
-                for record in records:
-                    output_variant_file.write(record)
-
+        with pysam.VariantFile(vcf_in) as input_variant_file:
+            with pysam.VariantFile(vcf_out, "w", header=input_variant_file.header) as output_variant_file:
                 records = []
+                for record in input_variant_file.fetch(contig):
+                    records.append(record)
 
-        # Process the remaining records
-        if records:
-            for annotator in annotators:
-                records = annotator.process_records(records)
+                    if len(records) == chunk_size:
+                        for annotator in annotators:
+                            records = annotator.process_records(records)
 
-            for record in records:
-                output_variant_file.write(record)
+                        for record in records:
+                            output_variant_file.write(record)
+
+                        records = []
+
+                # Process the remaining records
+                if records:
+                    for annotator in annotators:
+                        records = annotator.process_records(records)
+
+                    for record in records:
+                        output_variant_file.write(record)
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:
