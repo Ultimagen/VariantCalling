@@ -298,8 +298,8 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         fp_featuremap: str,
         train_set_size: int,
         test_set_size: int,
-        numerical_features: list[str] = None,
-        categorical_features: list[str] = None,
+        numerical_features: str,
+        categorical_features: str,
         sorter_json_stats_file: str = None,
         tp_regions_bed_file: str = None,
         fp_regions_bed_file: str = None,
@@ -322,10 +322,10 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
             Path to featuremap of true positives (generally homozygous SNVs)
         fp_featuremap : str
             Path to featuremap of false positives (generally single substitutions)
-        numerical_features : list[str], optional
-            List of numerical features to use, default (None): [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
-        categorical_features : list[str], optional
-            List of categorical features to use, default (None): [IS_CYCLE_SKIP,TRINUC_CONTEXT_WITH_ALT]
+        numerical_features : str
+            List of numerical features to use, example: [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
+        categorical_features : str
+            List of categorical features to use, example: [IS_CYCLE_SKIP,TRINUC_CONTEXT_WITH_ALT]
         tp_regions_bed_file : str, optional
             Path to bed file of regions to use for true positives
         fp_regions_bed_file : str, optional
@@ -354,8 +354,8 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         """
         # default values
         model_params = model_params or default_xgboost_model_params
-        categorical_features = categorical_features or default_categorical_features
-        numerical_features = numerical_features or default_numerical_features
+        numerical_features = numerical_features.split(",")
+        categorical_features = categorical_features.split(",")
 
         # determine output paths
         os.makedirs(out_path, exist_ok=True)

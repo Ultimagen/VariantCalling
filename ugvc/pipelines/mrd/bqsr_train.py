@@ -64,20 +64,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Path to json file with input parameters for the classification model""",
     )
     parser.add_argument(
-        "--train_set_size",
-        type=int,
-        required=False,
-        default=500000,
-        help="""Size of the train set for the classification model""",
-    )
-    parser.add_argument(
-        "--test_set_size",
-        type=int,
-        required=False,
-        default=150000,
-        help="""Size of the test set for the classification model""",
-    )
-    parser.add_argument(
         "--output",
         type=str,
         required=True,
@@ -104,17 +90,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""flow order - required for cycle skip annotation """,
     )
     parser.add_argument(
+        "--train_set_size",
+        type=int,
+        help="""Size of the train set for the classification model""",
+    )
+    parser.add_argument(
+        "--test_set_size",
+        type=int,
+        help="""Size of the test set for the classification model""",
+    )
+    parser.add_argument(
         "--numerical_features",
-        type=list,
-        required=False,
-        default=None,
+        type=str,
         help="""list of numerical features for ML classifier """,
     )
     parser.add_argument(
         "--categorical_features",
-        type=list,
-        required=False,
-        default=None,
+        type=str,
         help="""list of categorical features for ML classifier """,
     )
     return parser.parse_args(argv[1:])
