@@ -14,6 +14,7 @@ if path not in sys.path:
 from ugvc.cnv import filter_sample_cnvs
 from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.joint import compress_gvcf
+from ugvc.pipelines.vcfbed import annotate_contig
 from ugvc.methylation import (
     concat_methyldackel_csvs,
     process_Mbias,
@@ -105,12 +106,18 @@ lpr_modules = [
     filter_vcf_with_lib_prep_recalibration_model,
 ]
 
+vcfbed_modules = [
+    annotate_contig,
+]
+
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
 modules.extend(misc_modules)
 modules.extend(methylation_modules)
 modules.extend(joint_modules)
 modules.extend(lpr_modules)
+modules.extend(vcfbed_modules)
+
 
 LOGO = """
       __    __    ___________    ____  ______
