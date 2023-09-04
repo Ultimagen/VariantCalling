@@ -66,16 +66,22 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--train_set_size",
         type=int,
-        required=False,
-        default=500000,
         help="""Size of the train set for the classification model""",
     )
     parser.add_argument(
         "--test_set_size",
         type=int,
-        required=False,
-        default=150000,
         help="""Size of the test set for the classification model""",
+    )
+    parser.add_argument(
+        "--numerical_features",
+        type=str,
+        help="""comma separated list of numerical features for ML classifier """,
+    )
+    parser.add_argument(
+        "--categorical_features",
+        type=str,
+        help="""comma separated list of categorical features for ML classifier """,
     )
     parser.add_argument(
         "--output",
@@ -107,7 +113,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def run(argv: list[str]):
-
+    """Train a model for single read SNV quality recalibration"""
     args = parse_args(argv)
     simple_pipeline_args = (0, 10000, False)
     sp = SimplePipeline(
@@ -119,9 +125,6 @@ def run(argv: list[str]):
 
     # TODO add balancesd_strand adapter version parameters that will add relevant features
     # (numerical_features/categorical_features)
-    # TODO add to args         numerical_features: list[str] = None,
-    # TODO add to args         categorical_features: list[str] = None,
-    # TODO add to args         flow_order: str = DEFAULT_FLOW_ORDER,
     # TODO add to args, maybe add the option to read from a json file         model_parameters: dict | str = None,
     # TODO add to args         classifier_class=xgb.XGBClassifier,
     # TODO add to args         balanced_sampling_info_fields: list[str] = None,
@@ -131,6 +134,8 @@ def run(argv: list[str]):
         fp_featuremap=args.single_substitution_featuremap,
         tp_regions_bed_file=args.hom_snv_regions,
         fp_regions_bed_file=args.single_sub_regions,
+        numerical_features=args.numerical_features.split(","),
+        categorical_features=args.categorical_features.split(","),
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=args.train_set_size,
         test_set_size=args.test_set_size,

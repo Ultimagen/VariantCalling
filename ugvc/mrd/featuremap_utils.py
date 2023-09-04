@@ -168,7 +168,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
         """
         Annotator to add reference context to VCF records, only modifies biallelic SNVs.
         The following are added to the INFO field:
-        - TRINUC_CONTEXT_WITH_ALT: reference trinucleotide context
+        - trinuc_context_with_alt: reference trinucleotide context
         - prev_Nbp: N bases in the reference before the variant, N=length motif_length_to_annotate
         - next_Nnp: N bases in the reference after the variant, N=length motif_length_to_annotate
         - hmer_context_ref: reference homopolymer context, up to length max_hmer_length
@@ -199,7 +199,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
 
         # init accesory objects
         self.cycle_skip_dataframe = get_cycle_skip_dataframe(flow_order)
-        self.faidx_ref = pyfaidx.Fasta(self.ref_fasta, build_index=False, rebuild=False)
+        
 
         # info field names
         self.TRINUC_CONTEXT_WITH_ALT = FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value
@@ -269,8 +269,6 @@ class RefContextVcfAnnotator(VcfAnnotator):
 
     def process_records(self, records: list[pysam.VariantRecord]) -> list[pysam.VariantRecord]:
         """
-
-
         Parameters
         ----------
         records : list[pysam.VariantRecord]
@@ -282,10 +280,11 @@ class RefContextVcfAnnotator(VcfAnnotator):
             list of updated VCF records
         """
         records_out = [None] * len(records)
+        faidx_ref = pyfaidx.Fasta(self.ref_fasta, build_index=False, rebuild=False)
         for j, record in enumerate(records):
             if is_biallelic_snv(record):
                 # get motif
-                ref_around_snv = get_motif_around_snv(record, self.max_hmer_length, self.faidx_ref)
+                ref_around_snv = get_motif_around_snv(record, self.max_hmer_length, faidx_ref)
                 central_base_ind = len(ref_around_snv) // 2
                 trinuc_ref = ref_around_snv[central_base_ind - 1 : central_base_ind + 2]
                 # create sequence of alt allele
@@ -297,7 +296,6 @@ class RefContextVcfAnnotator(VcfAnnotator):
                 record.info[self.HMER_CONTEXT_REF] = get_hmer_of_central_base(ref_around_snv)
                 record.info[self.HMER_CONTEXT_ALT] = get_hmer_of_central_base(alt_around_snv)
                 record.info[self.TRINUC_CONTEXT_WITH_ALT] = trinuc_ref + record.alts[0]
-                print(record.info[self.TRINUC_CONTEXT_WITH_ALT])
                 record.info[self.PREV_N_BP] = ref_around_snv[
                     central_base_ind - self.motif_length_to_annotate : central_base_ind
                 ]

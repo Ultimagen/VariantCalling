@@ -43,6 +43,7 @@ default_numerical_features = [
 default_categorical_features = [FeatureMapFields.IS_CYCLE_SKIP.value, FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]
 
 
+# pylint:disable=too-many-arguments,too-many-branches
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
@@ -85,6 +86,11 @@ def prepare_featuremap_for_model(
         kwargs for read_effective_coverage_from_sorter_json, by default None
     keep_temp_file: bool, optional
         Whether to keep the intersected featuremap file created prior to sampling, by default False
+    random_seed : bool, optional
+        Random seed to use for sampling, by default None
+    balanced_sampling_info_fields: list[str], optional
+        List of info fields to balance the TP data by, default None (do not balance)
+
 
     Returns
     -------
@@ -296,8 +302,8 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         out_basename: str,
         tp_featuremap: str,
         fp_featuremap: str,
-        train_set_size: int,
-        test_set_size: int,
+        train_set_size: int = MIN_TRAIN_SIZE,
+        test_set_size: int = MIN_TEST_SIZE,
         numerical_features: list[str] = None,
         categorical_features: list[str] = None,
         sorter_json_stats_file: str = None,
@@ -322,6 +328,10 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
             Path to featuremap of true positives (generally homozygous SNVs)
         fp_featuremap : str
             Path to featuremap of false positives (generally single substitutions)
+        train_set_size : int, optional
+            Size of training set, by default 100000 (not enough data for a good model, just for testing)
+        test_set_size : int, optional
+            Size of test set, by default 10000
         numerical_features : list[str], optional
             List of numerical features to use, default (None): [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
         categorical_features : list[str], optional
@@ -350,6 +360,8 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         ------
         ValueError
             If test_set_size < MIN_TEST_SIZE or train_set_size < MIN_TRAIN_SIZE
+        RuntimeError
+            If model_params is not a json file, dictionary or None
 
         """
         # default values
@@ -549,5 +561,5 @@ def create_filters_file(filters_file_path):
         **xgb_filters,
     }
 
-    with open(filters_file_path, "w") as f:
+    with open(filters_file_path, "w", encoding="utf-8") as f:
         json.dump(filters_dict, f, indent=6)

@@ -10,7 +10,7 @@ from ugvc.mrd.mrd_utils import annotate_featuremap
 __general_inputs_dir = f"{test_dir}/resources/general/"
 
 
-def test_annotate_featruremap(tmpdir):
+def test_annotate_featuremap(tmpdir):
     resource_dir = get_resource_dir(__file__)
     input_featuremap = pjoin(resource_dir, "tp_featuremap_chr20.vcf.gz")
     output_featuremap = pjoin(tmpdir, "tp_featuremap_chr20.annotated.vcf.gz")
@@ -47,7 +47,7 @@ def test_annotate_featruremap(tmpdir):
         HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
         HistogramColumnNames.STRAND_RATIO_START.value,
         HistogramColumnNames.STRAND_RATIO_END.value,
-        "trinuc_context",
+        "trinuc_context_with_alt",
         "hmer_context_ref",
         "hmer_context_alt",
         "is_cycle_skip",
