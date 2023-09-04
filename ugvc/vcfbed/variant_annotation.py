@@ -194,9 +194,14 @@ class VcfAnnotator(ABC):
         output_path : str
             Path to the output file.
         """
-        # Edit the header
+
         with pysam.VariantFile(vcf_in) as input_variant_file:
-            with pysam.VariantFile(vcf_out, "w", header=input_variant_file.header) as output_variant_file:
+            # Edit the header - needed in case new INFO/FORMATS fields are added
+            new_header = input_variant_file.header
+            for annotator in annotators:
+                new_header = annotator.edit_vcf_header(new_header)
+            # Write output file
+            with pysam.VariantFile(vcf_out, "w", header=new_header) as output_variant_file:
                 records = []
                 for record in input_variant_file.fetch(contig):
                     records.append(record)
