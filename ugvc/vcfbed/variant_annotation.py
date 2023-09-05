@@ -155,8 +155,7 @@ class VcfAnnotator(ABC):
                     next(input_variant_file.fetch(contig))  # to raise StopIteration if contig is empty
                     out_per_contig = os.path.join(out_dir, contig + ".vcf.gz")
                     commands.append(
-                        f"conda activate genomics.py3 && "
-                        f"python ugvc annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} "
+                        f"python /VariantCalling/ugvc annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} "
                         f"--annotators_pickle {annotators_pickle} --contig {contig} --chunk_size {chunk_size}"
                     )
                     tmp_output_paths.append(out_per_contig)
