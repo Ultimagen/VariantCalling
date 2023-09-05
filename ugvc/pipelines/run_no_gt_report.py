@@ -398,18 +398,24 @@ def insertion_deletion_statistics(vcf_input, output_prefix):
 
 
 def run_full_analysis(arg_values):
-    stats_tables, df_novel_idd, df_known_idd = bcftools_stats_statistics(arg_values.input_file,arg_values.output_prefix)
+    # PASS only
+    cmd = f"bcftools view -f 'PASS,.' {arg_values.input_file} -Oz -o {arg_values.output_prefix}_PASS.vcf.gz"
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
+
+    stats_tables, df_novel_idd, df_known_idd = bcftools_stats_statistics(f"{arg_values.output_prefix}_PASS.vcf.gz",arg_values.output_prefix)
 
     # insertion and deleletion by base
-    ins_del_hete, ins_del_homo = insertion_deletion_statistics(arg_values.input_file, arg_values.output_prefix)
+    ins_del_hete, ins_del_homo = insertion_deletion_statistics(f"{arg_values.output_prefix}_PASS.vcf.gz", arg_values.output_prefix)
 
     # same for exome
-    cmd = f"bcftools view -i \'INFO/EXOME=\"TRUE\"\' {arg_values.input_file} -Oz -o {arg_values.output_prefix}_exome.vcf.gz"
+    cmd = f"bcftools view -i \'INFO/EXOME=\"TRUE\"\' {arg_values.output_prefix}_PASS.vcf.gz -Oz -o {arg_values.output_prefix}_exome.vcf.gz"
     logger.info(cmd)
     subprocess.check_call(cmd, shell=True)
 
     stats_tables_exome, df_novel_idd_exome, df_known_idd_exome = bcftools_stats_statistics(f"{arg_values.output_prefix}_exome.vcf.gz",
                                                                          f"{arg_values.output_prefix}_exome")
+
 
     logger.info("save all statistics in h5 file")
     for stats_table_name, stats_table in stats_tables.items():
@@ -425,7 +431,31 @@ def run_full_analysis(arg_values):
         stats_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_exome_{stats_table_name}")
 
 
+    # F1 prediction
+    # number of LowQualInExome
+    cmd = f"bcftools view -H {arg_values.input_file} | awk \'{{print $7}}\' | sort | uniq -c | grep LowQualInExome| awk \'{{print $1}}\'"
+    logger.info(cmd)
+    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True)
+    number_of_LowQualInExome = int(output.strip())
+    logger.info(f"number of LowQualInExome:{number_of_LowQualInExome}")
 
+    # indel SOR > 3 proportion
+    cmd = f"bcftools view {arg_values.output_prefix}_PASS.vcf.gz -H -v indels | awk \'{{print $8}}\' | sed \'s/;/\t/g\' | sed \'s/.*SOR=/ /\' | awk \'$1>3{{s=s+1}} END{{print s/NR}}\'"
+    logger.info(cmd)
+    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True)
+    indels_SOR_above_3_proportion = float(output.strip())
+    logger.info(f"indel SOR > 3 proportion':{indels_SOR_above_3_proportion}")
+
+    # quantiles:20_percentile_RS
+    cmd = f"zcat {arg_values.output_prefix}_PASS.vcf.gz | grep -v \'^#\' | awk \'{{print $6}}\' | sort -g | perl -ne \'$arr[$. - 1] = $_; END {{ print $arr[int($./5)] }}\'"
+    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True)
+    the20_percentile_RS = float(output.strip())
+    logger.info(f"20th percentile RS':{the20_percentile_RS}")
+
+    # InsertionDeletionRatio:UG_HCR:known
+
+
+    # IndelSummary:novel:Average of indel_het_to_hom_ratio
 
 def run_somatic_analysis(arg_values):
 
