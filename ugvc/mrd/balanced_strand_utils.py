@@ -252,7 +252,7 @@ def _assert_adapter_version_supported(
         )
     if isinstance(adapter_version, str):
         assert adapter_version in supported_adapter_versions, (
-            f"Unsupported adapter version str {adapter_version}, "
+            f"Unsupported adapter version {adapter_version}, "
             + f"supprted values are {', '.join(supported_adapter_versions)}"
         )
 

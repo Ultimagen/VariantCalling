@@ -22,7 +22,7 @@ def test_prepare_featuremap_for_model(tmpdir):
         inputs_dir,
         "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
     )
-    downsampled_training_featuremap_vcf, _ = prepare_featuremap_for_model(
+    downsampled_training_featuremap_vcf, _, _ = prepare_featuremap_for_model(
         workdir=tmpdir,
         input_featuremap_vcf=input_featuremap_vcf,
         train_set_size=12,
@@ -40,7 +40,7 @@ def test_prepare_featuremap_for_model_training_and_test_sets(tmpdir):
         inputs_dir,
         "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
     )
-    (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf) = prepare_featuremap_for_model(
+    (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf, _) = prepare_featuremap_for_model(
         workdir=tmpdir,
         input_featuremap_vcf=input_featuremap_vcf,
         train_set_size=12,
