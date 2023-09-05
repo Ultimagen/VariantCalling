@@ -32,7 +32,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="input featuremap file",
     )
-    parser.add_argument("--adapter_version", type=str, default=None, help="adapter version")
+    parser.add_argument(
+        "--balanced_strand_adapter_version", type=str, default=None, help="Balanced strand adapter version"
+    )
     parser.add_argument(
         "-o",
         "--output_featuremap",
@@ -64,7 +66,7 @@ def run(argv: list[str]):
         input_featuremap=args.featuremap_path,
         output_featuremap=args.output_featuremap,
         ref_fasta=args.ref_fasta,
-        adapter_version=args.adapter_version,
+        balanced_strand_adapter_version=args.balanced_strand_adapter_version,
         flow_order=args.flow_order,
         motif_length_to_annotate=args.motif_length_to_annotate,
         max_hmer_length=args.max_hmer_length,

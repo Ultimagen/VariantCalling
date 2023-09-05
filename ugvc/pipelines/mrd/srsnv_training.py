@@ -123,8 +123,6 @@ def run(argv: list[str]):
         print_timing=True,
     )
 
-    # TODO add balancesd_strand adapter version parameters that will add relevant features
-    # (numerical_features/categorical_features)
     # TODO add to args, maybe add the option to read from a json file         model_parameters: dict | str = None,
     # TODO add to args         classifier_class=xgb.XGBClassifier,
     # TODO add to args         balanced_sampling_info_fields: list[str] = None,
