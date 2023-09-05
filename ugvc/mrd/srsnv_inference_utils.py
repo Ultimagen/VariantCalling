@@ -80,8 +80,21 @@ class MLQualAnnotator(VcfAnnotator):
 
 
 def single_read_snv_inference(featuremap_path: str, params_path: str, model_path: str, out_path: str) -> None:
+    """
+    Annotate a featuremap with single-read-SNV model ML_QUAL scores
 
-    # os.makedirs(os.dirname(out_path), exist_ok=True)
+    Parameters
+    ----------
+    featuremap_path : str
+        Path to featuremap
+    params_path : str
+        Path to model parameters
+    model_path : str
+        Path to model
+    out_path : str
+        Path to output featuremap
+
+    """
     model = joblib.load(model_path)
     with open(params_path, "r", encoding="UTF-8") as p_fh:
         params = json.load(p_fh)

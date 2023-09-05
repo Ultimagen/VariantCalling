@@ -40,7 +40,10 @@ default_numerical_features = [
     FeatureMapFields.X_INDEX.value,
     FeatureMapFields.MAX_SOFTCLIP_LENGTH.value,
 ]
-default_categorical_features = [FeatureMapFields.IS_CYCLE_SKIP.value, FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]
+default_categorical_features = [
+    FeatureMapFields.IS_CYCLE_SKIP.value,
+    FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value,
+]
 
 
 # pylint:disable=too-many-arguments,too-many-branches
@@ -181,6 +184,10 @@ def prepare_featuremap_for_model(
         np.random.seed(random_seed)
     if balanced_sampling_info_fields:
         # TODO test this code and add a test, I wrote an implementation but didn't even get to run it
+        logger.warning(
+            "Data motif balancing not tested, use at your own risk"
+            f" (balanced_sampling_info_fields={balanced_sampling_info_fields})"
+        )
         # count the number of entries with each combination of info fields to balance by
         balanced_sampling_info_fields_counter = defaultdict(int)
         with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
@@ -291,7 +298,7 @@ def prepare_featuremap_for_model(
     return downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf
 
 
-class BQSRTrain:  # pylint: disable=too-many-instance-attributes
+class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     MIN_TEST_SIZE = 10000
     MIN_TRAIN_SIZE = 100000
 
@@ -427,12 +434,12 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         self.train_set_size = train_set_size
         self.test_set_size = test_set_size
 
-        if self.train_set_size < BQSRTrain.MIN_TRAIN_SIZE:
-            msg = f"train_size must be >= {BQSRTrain.MIN_TRAIN_SIZE}"
+        if self.train_set_size < SRSNVTrain.MIN_TRAIN_SIZE:
+            msg = f"train_size must be >= {SRSNVTrain.MIN_TRAIN_SIZE}"
             logger.error(msg)
             raise ValueError(msg)
-        if self.test_set_size < BQSRTrain.MIN_TEST_SIZE:
-            msg = f"test_size must be >= {BQSRTrain.MIN_TEST_SIZE}"
+        if self.test_set_size < SRSNVTrain.MIN_TEST_SIZE:
+            msg = f"test_size must be >= {SRSNVTrain.MIN_TEST_SIZE}"
             logger.error(msg)
             raise ValueError(msg)
 
@@ -481,8 +488,9 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf,) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
-            train_set_size=self.train_set_size,
-            test_set_size=self.test_set_size,
+            train_set_size=self.train_set_size
+            // 2,  # half the total training size because we want equal parts TP and FP
+            test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
             regions_file=self.tp_regions_bed_file,
             balanced_sampling_info_fields=self.balanced_sampling_info_fields,
             sorter_json_stats_file=self.sorter_json_stats_file,
@@ -491,8 +499,9 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         (self.fp_train_featuremap_vcf, self.fp_test_featuremap_vcf,) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.single_substitution_featuremap,
-            train_set_size=self.train_set_size,
-            test_set_size=self.test_set_size,
+            train_set_size=self.train_set_size
+            // 2,  # half the total training size because we want equal parts TP and FP
+            test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
             regions_file=self.fp_regions_bed_file,
             sorter_json_stats_file=self.sorter_json_stats_file,
         )
@@ -509,12 +518,22 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         self.X_train = pd.concat((df_tp_train, df_fp_train)).astype({c: "category" for c in self.categorical_features})
         self.X_test = pd.concat((df_tp_test, df_fp_test)).astype({c: "category" for c in self.categorical_features})
         self.y_train = (
-            pd.concat([pd.Series(np.ones(df_tp_train.shape[0])), pd.Series(np.zeros(df_fp_train.shape[0]))])
+            pd.concat(
+                [
+                    pd.Series(np.ones(df_tp_train.shape[0])),
+                    pd.Series(np.zeros(df_fp_train.shape[0])),
+                ]
+            )
             .astype(bool)
             .to_frame(name="label")
         )
         self.y_test = (
-            pd.concat([pd.Series(np.ones(df_tp_test.shape[0])), pd.Series(np.zeros(df_fp_test.shape[0]))])
+            pd.concat(
+                [
+                    pd.Series(np.ones(df_tp_test.shape[0])),
+                    pd.Series(np.zeros(df_fp_test.shape[0])),
+                ]
+            )
             .astype(bool)
             .to_frame(name="label")
         )
@@ -533,33 +552,3 @@ class BQSRTrain:  # pylint: disable=too-many-instance-attributes
         self.save_model_and_data()
 
         return self
-
-
-def create_filters_file(filters_file_path):
-    # load/define filters
-    edist_filter = "X_EDIST <= 5"
-    trim_ends = "X_INDEX > 12 and X_INDEX < (X_LENGTH - 12)"
-    filters_hueristic = {
-        "no_filter": "X_SCORE >= 0",
-        "edit_distance_5": f"X_SCORE >= 0 and {edist_filter}",
-        "BQ60": f"X_SCORE >= 6 and {edist_filter}",
-        "BQ80": f"X_SCORE >= 7.9 and {edist_filter}",
-        "CSKP": f"X_SCORE >= 10 and {edist_filter}",
-        "BQ80_trim_ends": f"X_SCORE >= 7.9 and {edist_filter} and {trim_ends}",
-        "CSKP_trim_ends": f"X_SCORE >= 10 and {edist_filter} and {trim_ends}",
-        "BQ60_mixed_only": f"X_SCORE >= 6 and {edist_filter} and is_mixed",
-        "BQ80_mixed_only": f"X_SCORE >= 7.9 and {edist_filter} and is_mixed",
-        "CSKP_mixed_only": f"X_SCORE >= 10 and {edist_filter} and is_mixed",
-        "BQ80_trim_ends_mixed_only": f"X_SCORE >= 7.9 and {edist_filter} and {trim_ends} and is_mixed",
-        "CSKP_trim_ends_mixed_only": f"X_SCORE >= 10 and {edist_filter} and {trim_ends} and is_mixed",
-    }
-
-    xgb_filters = {f"xgb_qual_{q}": f"XGB_qual_1 >= {q}" for q in range(0, 29)}
-
-    filters_dict = {
-        **filters_hueristic,
-        **xgb_filters,
-    }
-
-    with open(filters_file_path, "w", encoding="utf-8") as f:
-        json.dump(filters_dict, f, indent=6)

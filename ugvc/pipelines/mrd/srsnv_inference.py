@@ -19,12 +19,11 @@ from __future__ import annotations
 
 import argparse
 
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.srsnv_inference_utils import single_read_snv_inference
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="bqsr_inference.py", description=run.__doc__)
+    parser = argparse.ArgumentParser(prog="srsnv_inference.py", description=run.__doc__)
     parser.add_argument(
         "-f",
         "--featuremap_path",
@@ -53,7 +52,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="""Path to which output files will be written to""",
     )
-    
+
     return parser.parse_args(argv[1:])
 
 
@@ -68,6 +67,8 @@ def run(argv: list[str]):
         out_path=args.output_path,
     )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import sys
+
     run(sys.argv)

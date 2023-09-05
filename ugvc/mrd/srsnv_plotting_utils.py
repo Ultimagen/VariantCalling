@@ -84,7 +84,7 @@ def create_data_for_report(
     return df, df_tp, df_fp, max_score, cls_features, fprs, recalls
 
 
-def bqsr_train_report(
+def srsnv_training_report(
     out_path,
     out_basename,
     report_name,
@@ -99,7 +99,7 @@ def bqsr_train_report(
     reporthtml = pjoin(out_path, f"{out_basename}{report_name}_report.html")
 
     commands = [
-        f"papermill ugvc/reports/bqsr_train_report.ipynb {reportfile} -p report_name {report_name} \
+        f"papermill ugvc/reports/srsnv_training_report.ipynb {reportfile} -p report_name {report_name} \
             -p model_file {model_path} -p X_file {X_path} -p y_file {y_path} \
             -p single_sub_regions {fp_bed_file} -p params_file {params_path} -k python3",
         f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --template classic --no-input",

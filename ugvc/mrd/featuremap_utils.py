@@ -199,7 +199,6 @@ class RefContextVcfAnnotator(VcfAnnotator):
 
         # init accesory objects
         self.cycle_skip_dataframe = get_cycle_skip_dataframe(flow_order)
-        
 
         # info field names
         self.TRINUC_CONTEXT_WITH_ALT = FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value

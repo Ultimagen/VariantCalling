@@ -22,11 +22,11 @@ import argparse
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.mrd.bqsr_train_utils import BQSRTrain
+from ugvc.mrd.srsnv_training_utils import SRSNVTrain
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="bqsr_train.py", description=run.__doc__)
+    parser = argparse.ArgumentParser(prog="srsnv_training.py", description=run.__doc__)
     parser.add_argument(
         "--hom_snv_featuremap",
         type=str,
@@ -129,7 +129,7 @@ def run(argv: list[str]):
     # TODO add to args         classifier_class=xgb.XGBClassifier,
     # TODO add to args         balanced_sampling_info_fields: list[str] = None,
 
-    BQSRTrain(
+    SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
         tp_regions_bed_file=args.hom_snv_regions,
