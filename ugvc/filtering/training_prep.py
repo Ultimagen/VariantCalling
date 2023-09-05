@@ -130,3 +130,27 @@ def encode_label(label):
 def decode_label(label):
     decode_dct = {0: (0, 1), 1: (1, 1), 2: (0, 0)}
     return decode_dct[label]
+
+
+# def select_overlapping_variants(df: pd.DataFrame) -> list[list[int]]:
+#     """Selects lists of overlapping variants that need to be genotyped together. This
+#     can be multiallelic variants or variants with spanning deletion
+
+#     Parameters
+#     ----------
+#     df : pd.DataFrame
+#         Training set dataframe
+#     Returns
+#     -------
+#     list
+#         List of list of indices that generate the co-genotyped sets
+#     """
+
+#     multiallelic_locations = np.nonzero(df['alleles'].apply(len) > 2)
+#     spandel_locations = np.nonzero(df['alleles'].apply(lambda x: "*" in x))
+#     result = []
+#     for i in spandel_locations[0][::-1]:
+#         list_to_add: list[int] = [i]
+#         for j in range(i-1,-1,-1):
+#             mlen = np.nanmin(df.iloc[j,])
+#     return result
