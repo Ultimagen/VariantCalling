@@ -97,8 +97,10 @@ def prepare_featuremap_for_model(
 
     Returns
     -------
-    str
-        Path to sampled featuremap
+    downsampled_training_featuremap_vcf, str
+        Downsampled training featuremap
+    downsampled_test_featuremap_vcf, str
+        Downsampled test featuremap
     int
         Number of entries in intersected featuremap
 
@@ -295,7 +297,11 @@ def prepare_featuremap_for_model(
         os.remove(downsampled_test_featuremap_vcf)
         os.remove(downsampled_test_featuremap_vcf + ".tbi")
 
-    return downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf
+    return (
+        downsampled_training_featuremap_vcf,
+        downsampled_test_featuremap_vcf,
+        featuremap_entry_number,
+    )
 
 
 class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
@@ -477,6 +483,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "flow_order": self.flow_order,
             "train_set_size": self.train_set_size,
             "test_set_size": self.test_set_size,
+            "fp_featuremap_entry_number": self.fp_featuremap_entry_number,
         }
 
         with open(self.params_save_path, "w", encoding="utf-8") as f:
@@ -485,7 +492,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
         # prepare TP featuremaps for training
-        (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf,) = prepare_featuremap_for_model(
+        (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf, _,) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
             train_set_size=self.train_set_size
@@ -496,7 +503,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             sorter_json_stats_file=self.sorter_json_stats_file,
         )
         # prepare FP featuremaps for training
-        (self.fp_train_featuremap_vcf, self.fp_test_featuremap_vcf,) = prepare_featuremap_for_model(
+        (
+            self.fp_train_featuremap_vcf,
+            self.fp_test_featuremap_vcf,
+            self.fp_featuremap_entry_number,
+        ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.single_substitution_featuremap,
             train_set_size=self.train_set_size

@@ -19,7 +19,7 @@ def test_annotate_featuremap(tmpdir):
         input_featuremap,
         output_featuremap,
         ref_fasta=ref_fasta,
-        adapter_version="LA_v5and6",
+        balanced_strand_adapter_version="LA_v5and6",
         flow_order="TGCA",
         motif_length_to_annotate=3,
         max_hmer_length=20,

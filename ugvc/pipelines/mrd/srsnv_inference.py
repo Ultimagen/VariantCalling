@@ -66,9 +66,3 @@ def run(argv: list[str]):
         model_path=args.model_path,
         out_path=args.output_path,
     )
-
-
-if __name__ == "__main__":
-    import sys
-
-    run(sys.argv)
