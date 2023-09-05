@@ -391,7 +391,7 @@ def get_all_precision_recalls(results: pd.DataFrame) -> dict:
 def tuple_break(x):
     """Returns the first element in the tuple"""
     if isinstance(x, tuple):
-        return x[0]
+        return x[0] if x[0] is not None else np.nan
     return 0 if (x is None or np.isnan(x)) else x
 
 
@@ -495,17 +495,17 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     def motif_encode_right_df(s):
         return pd.DataFrame(np.array([motif_encode_right(y) for y in s]).reshape((-1, 1)), index=s.index)
 
-    # def density_calculation(df):
-    #     snvs = df.query('variant_type=="snp"')
-    #     pos_start = snvs.index.searchsorted(df.apply(lambda x: (x["chrom"], x["pos"] - 5000), axis=1))
-    #     pos_end = snvs.index.searchsorted(df.apply(lambda x: (x["chrom"], x["pos"] + 5000), axis=1))
-    #     return pd.DataFrame(pos_end - pos_start, index=df.index)
-
     tuple_filter = preprocessing.FunctionTransformer(tuple_encode_df)
+    INS_DEL_ENCODE = {"ins": -1, "del": 1, "NA": 0}
+
+    def ins_del_encode(x):
+        return x.replace(INS_DEL_ENCODE)
+
+    ins_del_encode_filter = preprocessing.FunctionTransformer(ins_del_encode)
+
     tuple_encode_df_transformer = preprocessing.FunctionTransformer(tuple_encode_df)
     tuple_encode_doublet_df_transformer = preprocessing.FunctionTransformer(tuple_encode_doublet_df)
     tuple_uniform_encode_df_transformer = preprocessing.FunctionTransformer(tuple_uniform_encode)
-    # density_addition_transformer = preprocessing.FunctionTransformer(density_calculation)
     left_motif_filter = preprocessing.FunctionTransformer(motif_encode_left_df)
 
     right_motif_filter = preprocessing.FunctionTransformer(motif_encode_right_df)
@@ -515,6 +515,10 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     def allele_encode_df(s):
         return pd.DataFrame(np.array([x[:2] for x in s]), index=s.index).applymap(allele_encode)
 
+    def allele_encode_single(df):
+        return df.applymap(allele_encode)
+
+    allele_filter_single = preprocessing.FunctionTransformer(allele_encode_single)
     allele_filter = preprocessing.FunctionTransformer(allele_encode_df)
 
     def gt_encode_df(s):
@@ -543,22 +547,22 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
         "x_hil",
         "x_hin",
         "x_il",
+        "x_ic",
     ]
 
     transform_list = [
         ("sor", default_filler, ["sor"]),
         ("dp", default_filler, ["dp"]),
         ("alleles", allele_filter, "alleles"),
-        #        ("x_hin", make_pipeline(tuple_filter, allele_filter), "x_hin"),
-        #        ("x_hil", tuple_filter, ["x_hil"]),
-        #        ("x_il", make_pipeline(tuple_filter, default_filler), ["x_il"]),
+        ("x_hin", make_pipeline(tuple_filter, allele_filter_single), "x_hin"),
+        ("x_hil", make_pipeline(tuple_filter, default_filler), "x_hil"),
+        ("x_il", make_pipeline(tuple_filter, default_filler), "x_il"),
         ("indel", "passthrough", ["indel"]),
-        # ("x_ic", default_filler),
+        ("x_ic", make_pipeline(tuple_filter, ins_del_encode_filter), "x_ic"),
         ("x_lm", left_motif_filter, "x_lm"),
         ("x_rm", right_motif_filter, "x_rm"),
         ("x_css", make_pipeline(tuple_filter, preprocessing.OrdinalEncoder()), "x_css"),
         ("x_gcc", default_filler, ["x_gcc"]),
-        # ("density", density_addition_transformer, ["chrom", "pos", "variant_type"]),
     ]
 
     if vtype == "dv":
@@ -568,7 +572,6 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
             [
                 ("vaf", tuple_filter, "vaf"),
                 ("ad", tuple_encode_doublet_df_transformer, "ad"),
-                # ("trinuc", trinucleotide_filter,"trinuc"),
                 ("mq0_ref", default_filler, ["mq0_ref"]),
                 ("mq0_alt", default_filler, ["mq0_alt"]),
                 ("ls_ref", default_filler, ["ls_ref"]),
