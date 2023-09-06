@@ -17,7 +17,6 @@ def main(argc, argv):
     handle = SeqIO.parse(argv[1], "fastq")
     with open(argv[2] + "_1.fq", "w", encoding="utf8") as out1:
         with open(argv[2] + "_2.fq", "w", encoding="utf8") as out2:
-            print("here")
             for record in tqdm.tqdm(handle):
                 splitlen = len(record.seq) // 2
                 qual = record.letter_annotations["phred_quality"]
