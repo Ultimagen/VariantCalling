@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 # DESCRIPTION
-#    Calculate error rate per motif
+#    Run single read SNV quality recalibration training
 # CHANGELOG in reverse chronological order
 from __future__ import annotations
 

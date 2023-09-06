@@ -86,12 +86,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="""Basename of output files that will be created.""",
     )
-    parser.add_argument(
-        "--return_dataframes",
-        type=bool,
-        default=None,
-        help="""Whether to return dataframes instead of writing to file""",
-    )
     return parser.parse_args(argv[1:])
 
 
@@ -107,6 +101,5 @@ def run(argv: list[str]):
         tumor_sample=args_in.tumor_sample,
         output_dir=args_in.output_dir,
         output_basename=args_in.output_basename,
-        return_dataframes=args_in.return_dataframes,
     )
     sys.stdout.write("DONE" + os.linesep)
