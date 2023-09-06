@@ -22,6 +22,7 @@ import argparse
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.mrd.srsnv_plotting_utils import srsnv_report
 from ugvc.mrd.srsnv_training_utils import SRSNVTrain
 
 
@@ -48,7 +49,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--single_sub_regions",
         type=str,
-        required=False,
+        required=True,
         help="""Path to bed file containint regions for single substitution featuremap (FP)""",
     )
     parser.add_argument(
@@ -109,6 +110,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_FLOW_ORDER,
         help="""flow order - required for cycle skip annotation """,
     )
+    parser.add_argument(
+        "--lod_filters",
+        type=dict,
+        required=False,
+        default=None,
+        help="""dict of format 'filter name':'querie' for LoD simulation """,
+    )
+    parser.add_argument(
+        "--adapter_version",
+        type=str,
+        required=False,
+        default=None,
+        help="""adapter version, indicates if input featuremap is from balanced ePCR data """,
+    )
     return parser.parse_args(argv[1:])
 
 
@@ -127,7 +142,7 @@ def run(argv: list[str]):
     # TODO add to args         classifier_class=xgb.XGBClassifier,
     # TODO add to args         balanced_sampling_info_fields: list[str] = None,
 
-    SRSNVTrain(
+    s = SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
         tp_regions_bed_file=args.hom_snv_regions,
@@ -139,5 +154,25 @@ def run(argv: list[str]):
         test_set_size=args.test_set_size,
         out_path=args.output,
         out_basename=args.basename,
+        lod_filters=args.lod_filters,
+        adapter_version=args.adapter_version,
         simple_pipeline=sp,
     ).process()
+
+    srsnv_report(
+        out_path=args.output,
+        out_basename=args.basename,
+        report_name="test",
+        model_file=s.model_save_path,
+        params_file=s.params_save_path,
+        simple_pipeline=None,
+    )
+
+    srsnv_report(
+        out_path=args.output,
+        out_basename=args.basename,
+        report_name="train",
+        model_file=s.model_save_path,
+        params_file=s.params_save_path,
+        simple_pipeline=None,
+    )

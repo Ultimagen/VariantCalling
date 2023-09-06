@@ -18,6 +18,7 @@ from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
+from ugvc.mrd.srsnv_plotting_utils import create_report_plots
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import exec_command_list
@@ -326,6 +327,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         model_params: dict | str = None,
         classifier_class=xgb.XGBClassifier,
         balanced_sampling_info_fields: list[str] = None,
+        lod_filters: dict = None,
+        adapter_version: str = None,
         simple_pipeline: SimplePipeline = None,
     ):
         """
@@ -366,6 +369,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         balanced_sampling_info_fields : list[str], optional
             List of info fields to balance the TP data by, default None (do not balance)
             Recommended in order to avoid the motif distribution of germline variants being learned (data leak)
+        lod_filters : dict, optional
+            dict of format 'filter name':'querie' for LoD simulation, by default None
+        adapter_version : str, optional
+            adapter version, indicates if input featuremap is from balanced ePCR data, by default None
         simple_pipeline : SimplePipeline, optional
             SimplePipeline object to use for printing and running commands, by default None
 
@@ -381,6 +388,9 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         model_params = model_params or default_xgboost_model_params
         categorical_features = categorical_features or default_categorical_features
         numerical_features = numerical_features or default_numerical_features
+
+        print(categorical_features)
+        print(numerical_features)
 
         # determine output paths
         os.makedirs(out_path, exist_ok=True)
@@ -416,6 +426,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
         self.balanced_sampling_info_fields = balanced_sampling_info_fields
+        self.columns = self.numerical_features + self.categorical_features
 
         # save input data file paths
         assert isfile(tp_featuremap), f"tp_featuremap {tp_featuremap} not found"
@@ -434,6 +445,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         # misc
         self.flow_order = flow_order
+        self.lod_filters = lod_filters
+        self.adapter_version = adapter_version
         self.sp = simple_pipeline
 
         # set and check train and test sizes
@@ -484,10 +497,29 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "train_set_size": self.train_set_size,
             "test_set_size": self.test_set_size,
             "fp_featuremap_entry_number": self.fp_featuremap_entry_number,
+            "lod_filters": self.lod_filters,
+            "adapter_version": self.adapter_version,
+            "columns": self.columns,
         }
 
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
+
+        for X, y, name in zip(
+            [self.X_test_save_path, self.X_train_save_path],
+            [self.y_test_save_path, self.y_train_save_path],
+            ["test", "train"],
+        ):
+            create_report_plots(
+                self.model_save_path,
+                X,
+                y,
+                self.params_save_path,
+                name,
+                self.out_path,
+                self.out_basename,
+                self.lod_filters,
+            )
 
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
@@ -520,11 +552,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     def create_dataframes(self):
         """create X and y dataframes for train and test"""
         # read dataframes
-        columns = self.numerical_features + self.categorical_features
-        df_tp_train = featuremap_to_dataframe(self.tp_train_featuremap_vcf)[columns]
-        df_tp_test = featuremap_to_dataframe(self.tp_test_featuremap_vcf)[columns]
-        df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)[columns]
-        df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)[columns]
+        df_tp_train = featuremap_to_dataframe(self.tp_train_featuremap_vcf)
+        df_tp_test = featuremap_to_dataframe(self.tp_test_featuremap_vcf)
+        df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)
+        df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)
         # create X and y
         self.X_train = pd.concat((df_tp_train, df_fp_train)).astype({c: "category" for c in self.categorical_features})
         self.X_test = pd.concat((df_tp_test, df_fp_test)).astype({c: "category" for c in self.categorical_features})
@@ -557,7 +588,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.create_dataframes()
 
         # fit classifier
-        self.classifier.fit(self.X_train, self.y_train)
+        self.classifier.fit(self.X_train[self.columns], self.y_train)
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()

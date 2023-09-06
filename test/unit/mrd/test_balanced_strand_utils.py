@@ -186,10 +186,16 @@ def test_add_strand_ratios_and_categories_to_featuremap(tmpdir):
         input_featuremap_vcf=input_featuremap_LAv5and6,
         output_featuremap_vcf=tmp_out_path,
     )
+
     _assert_files_are_identical(
         expected_output_featuremap_LAv5and6,
         tmp_out_path,
     )
+
+    # TODO: instead of identical files:
+    # load tmp_out_path
+    # check we have strand_ratio and categories in featuremap info
+    # check that the values makes sense - perhaps sum on values
 
 
 def test_plot_strand_ratio_category_concordnace(tmpdir):
