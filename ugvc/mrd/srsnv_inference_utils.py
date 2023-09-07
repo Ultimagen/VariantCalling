@@ -90,7 +90,13 @@ class MLQualAnnotator(VcfAnnotator):
         return records
 
 
-def single_read_snv_inference(featuremap_path: str, params_path: str, model_path: str, out_path: str) -> None:
+def single_read_snv_inference(
+    featuremap_path: str,
+    params_path: str,
+    model_path: str,
+    out_path: str,
+    multiprocess_contigs: bool = True,
+) -> None:
     """
     Annotate a featuremap with single-read-SNV model ML_QUAL scores
 
@@ -104,6 +110,8 @@ def single_read_snv_inference(featuremap_path: str, params_path: str, model_path
         Path to model
     out_path : str
         Path to output featuremap
+    multiprocess_contigs : bool
+        Whether to run multiprocessing over contigs
 
     """
     model = joblib.load(model_path)
@@ -118,5 +126,5 @@ def single_read_snv_inference(featuremap_path: str, params_path: str, model_path
         annotators=[ml_qual_annotator],
         input_path=featuremap_path,
         output_path=out_path,
-        multiprocess_contigs=False,
+        multiprocess_contigs=multiprocess_contigs,
     )
