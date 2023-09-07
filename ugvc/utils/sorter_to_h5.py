@@ -55,7 +55,9 @@ def sorter_to_h5(
         .astype(int)
     )
     df_coverage_histogram.index.name = "coverage"
-    _, df_stats = generate_stats_from_histogram(df_coverage_histogram / df_coverage_histogram.sum())
+    df_percentiles, df_stats = generate_stats_from_histogram(
+        df_coverage_histogram / df_coverage_histogram.sum(), quantiles=[0.05, 0.1, 0.2, 0.5]
+    )
     df_stats["metric"] = df_stats.index
     df_stats_coverage = df_stats.melt(id_vars="metric")
     df_stats_coverage = df_stats_coverage.set_index(["variable", "metric"])
@@ -67,6 +69,17 @@ def sorter_to_h5(
     # add the 5x coverage percentage to RawWgsMetrics
     x5_coverage = df_coverage_histogram.loc[5:, "Genome"].sum() / df_coverage_histogram["Genome"].sum() * 100
     h5_dict["RawWgsMetrics"]["PCT_5X"] = x5_coverage
+
+    # add the F80, F90, F95 metrics to RawWgsMetrics
+    h5_dict["RawWgsMetrics"]["FOLD_80_BASE_PENALTY"] = (
+        df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q20", "Genome"]
+    )
+    h5_dict["RawWgsMetrics"]["FOLD_90_BASE_PENALTY"] = (
+        df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q10", "Genome"]
+    )
+    h5_dict["RawWgsMetrics"]["FOLD_95_BASE_PENALTY"] = (
+        df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q5", "Genome"]
+    )
 
     # order the keys in RawWgsMetrics
     key_order = [
@@ -80,6 +93,9 @@ def sorter_to_h5(
         "PCT_100X",
         "PCT_500X",
         "PCT_1000X",
+        "FOLD_80_BASE_PENALTY",
+        "FOLD_90_BASE_PENALTY",
+        "FOLD_95_BASE_PENALTY",
         "FOLD_80_BASE_PENALTY_AT_30X",
         "FOLD_90_BASE_PENALTY_AT_30X",
         "FOLD_95_BASE_PENALTY_AT_30X",

@@ -1,5 +1,5 @@
 key,metric
-TOTAL_READS,AlignmentSummaryMetrics
+TOTAL_READS,QualityYieldMetricsFlow
 PCT_PF_READS,AlignmentSummaryMetrics
 PCT_PF_READS_ALIGNED,AlignmentSummaryMetrics
 PF_BASES,QualityYieldMetricsFlow
