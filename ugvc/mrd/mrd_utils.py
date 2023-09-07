@@ -759,6 +759,7 @@ def featuremap_to_dataframe(
         format_metadata_dict, format_input_fields_to_use = get_metadata_dict(
             values=header.formats.values(), input_fields=input_format_fields
         )
+        # TODO remove this patch once the issue is fixed in FeatureMap
         # This section is a patch for specific integer tags, since there is an issue with FeautreMap
         # not propagating the types of copied SAM tags properly, so that they all default to String.
         # There is a pending request to fix, in the mean time this is a workaround.

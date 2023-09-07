@@ -168,7 +168,7 @@ def prepare_featuremap_for_model(
             f"featuremap_entry_number={featuremap_entry_number} > training_set_size={train_set_size}"
             f"+ test_set_size={test_set_size if test_set_size else 0}"
             "\nbehavior is undefined",
-        )
+        )  # TODO in this case we should make sure we still have a test set (and behavior should be defined)
     # set sampling rate to be slightly higher than the desired training set size
     overhead_factor = 1.03  # 3% overhead to make sure we get the desired number of entries
     downsampling_rate = overhead_factor * (total_size) / featuremap_entry_number

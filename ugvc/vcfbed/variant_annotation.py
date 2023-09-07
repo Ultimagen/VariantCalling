@@ -223,6 +223,7 @@ class VcfAnnotator(ABC):
 
                     for record in records:
                         output_variant_file.write(record)
+        pysam.tabix_index(vcf_out, preset="vcf", force=True)
 
 
 def classify_indel(concordance: pd.DataFrame) -> pd.DataFrame:

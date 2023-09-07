@@ -15,8 +15,9 @@ class MLQualAnnotator(VcfAnnotator):
     Annotate vcf with ml-qual score
     """
 
-    def __init__(self, model, categorical_features: list[str]):
+    def __init__(self, model, categorical_features: list[str], numerical_features: list[str]):
         self.model = model
+        self.numerical_features = numerical_features
         self.categorical_features = categorical_features
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
@@ -60,15 +61,25 @@ class MLQualAnnotator(VcfAnnotator):
             list of updated VCF records
         """
         # Convert list of variant records to a pandas DataFrame
-        data = []
-        features = self.model.feature_names_in_
-        for variant in records:
-            d_rec = {feature: variant.info[feature] for feature in features}
-            data.append(d_rec)
-        df = pd.DataFrame(data)[features]
+        columns = self.numerical_features + self.categorical_features
+        # TODO change this implementation to use modules from featuremap_to_dataframe - this is brittle
+        data = [{column: variant.info[column] for column in columns} for variant in records]
+        df = pd.DataFrame(data)[columns]
 
         # Mark categorical features
         df = df.astype({col: "category" for col in self.categorical_features})
+
+        # TODO remove this patch (types should be read from header as in featuremap_to_dataframe)
+        df = df.astype(
+            {
+                k: v
+                for k, v in {
+                    **{x: int for x in ("a3", "ae", "as", "s2", "s3", "te", "ts")},
+                    **{"rq": float},
+                }.items()
+                if k in df.columns
+            },
+        )
 
         # Apply the provided model to assign a new quality value
         predicted_qualities = self.model.predict_proba(df)
@@ -98,8 +109,14 @@ def single_read_snv_inference(featuremap_path: str, params_path: str, model_path
     model = joblib.load(model_path)
     with open(params_path, "r", encoding="UTF-8") as p_fh:
         params = json.load(p_fh)
-    categorical_features = params["categorical_features"]
-    ml_qual_annotator = MLQualAnnotator(model, categorical_features)
+    ml_qual_annotator = MLQualAnnotator(
+        model,
+        categorical_features=params["categorical_features"],
+        numerical_features=params["numerical_features"],
+    )
     VcfAnnotator.process_vcf(
-        annotators=[ml_qual_annotator], input_path=featuremap_path, output_path=out_path, multiprocess_contigs=False
+        annotators=[ml_qual_annotator],
+        input_path=featuremap_path,
+        output_path=out_path,
+        multiprocess_contigs=False,
     )
