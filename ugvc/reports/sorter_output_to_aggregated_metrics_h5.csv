@@ -1,7 +1,7 @@
 key,"H5 key, item",which_table
 PF_Barcode_reads,QualityYieldMetricsFlow/PF_READS,csv
-PCT_PF,QualityYieldMetricsFlow/PCT_PF,csv
-PCT_PF_aligned,AlignmentSummaryMetrics/PCT_PF_ALIGNED,csv
+PCT_PF_aligned,QualityYieldMetricsFlow/PCT_PF_ALIGNED,csv
+PCT_PF_Reads_aligned,AlignmentSummaryMetrics/PCT_PF_READS_ALIGNED,csv
 PCT_PF_HQ_aligned,AlignmentSummaryMetrics/PCT_PF_HQ_ALIGNED,csv
 PCT_PF_Q20_bases,QualityYieldMetricsFlow/PCT_PF_Q20_BASES,csv
 PCT_PF_Q30_bases,QualityYieldMetricsFlow/PCT_PF_Q20_BASES,csv
