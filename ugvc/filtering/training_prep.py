@@ -132,25 +132,41 @@ def decode_label(label):
     return decode_dct[label]
 
 
-# def select_overlapping_variants(df: pd.DataFrame) -> list[list[int]]:
-#     """Selects lists of overlapping variants that need to be genotyped together. This
-#     can be multiallelic variants or variants with spanning deletion
+def select_overlapping_variants(df: pd.DataFrame) -> list[list[int]]:
+    """Selects lists of overlapping variants that need to be genotyped together. This
+    can be multiallelic variants or variants with spanning deletion
 
-#     Parameters
-#     ----------
-#     df : pd.DataFrame
-#         Training set dataframe
-#     Returns
-#     -------
-#     list
-#         List of list of indices that generate the co-genotyped sets
-#     """
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Training set dataframe
+    Returns
+    -------
+    list
+        List of list of indices that generate the co-genotyped sets
+    """
 
-#     multiallelic_locations = np.nonzero(df['alleles'].apply(len) > 2)
-#     spandel_locations = np.nonzero(df['alleles'].apply(lambda x: "*" in x))
-#     result = []
-#     for i in spandel_locations[0][::-1]:
-#         list_to_add: list[int] = [i]
-#         for j in range(i-1,-1,-1):
-#             mlen = np.nanmin(df.iloc[j,])
-#     return result
+    multiallelic_locations = set(np.where(df["alleles"].apply(len) > 2)[0])
+    del_length = df["alleles"].apply(lambda x: max(len(x[0]) - len(y) for y in x))
+    current_span = 0
+    results = []
+    cluster = []
+    for i in range(df.shape[0]):
+        if df.iloc[i]["pos"] > current_span:
+            if len(cluster) > 1:
+                for c in cluster:
+                    if c in multiallelic_locations:
+                        multiallelic_locations.remove(c)
+                results.append(cluster[:])
+            cluster = []
+        cluster.append(i)
+        current_span = max(current_span, del_length[i] + df.iloc[i]["pos"])
+    if len(cluster) > 1:
+        for c in cluster:
+            if c in multiallelic_locations:
+                multiallelic_locations.remove(c)
+        results.append(cluster[:])
+    for m in multiallelic_locations:
+        results.append([m])
+    results = sorted(results)
+    return results
