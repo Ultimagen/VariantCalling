@@ -1057,5 +1057,5 @@ def annotate_featuremap(
         annotators=annotators,
         input_path=input_featuremap,
         output_path=output_featuremap,
-        multiprocess_contigs=False,
+        process_number=1,
     )

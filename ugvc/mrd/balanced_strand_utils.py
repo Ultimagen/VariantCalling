@@ -727,7 +727,7 @@ def add_strand_ratios_and_categories_to_featuremap(
     max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
     chunk_size: int = 10000,
-    multiprocess_contigs: bool = False,
+    process_number: int = 1,
 ):
     """
     Add strand ratio and strand ratio category columns to a featuremap VCF file
@@ -755,9 +755,9 @@ def add_strand_ratios_and_categories_to_featuremap(
     min_stem_end_matched_length : int, optional
         minimum length of stem end matched to determine the read end was reached
     chunk_size : int, optional
-            The chunk size. Defaults to 10000.
-    multiprocess_contigs : bool, optional
-        If True, runs in parallel over different contigs. Defaults to False.
+        The chunk size. Defaults to 10000.
+    process_number: int, optional
+        The number of processes to use. Defaults to 1.
     """
     _assert_adapter_version_supported(adapter_version)
     balanced_strand_variant_annotator = BalancedStrandVcfAnnotator(
@@ -773,7 +773,7 @@ def add_strand_ratios_and_categories_to_featuremap(
         input_path=input_featuremap_vcf,
         output_path=output_featuremap_vcf,
         chunk_size=chunk_size,
-        multiprocess_contigs=multiprocess_contigs,
+        process_number=process_number,
     )
 
 

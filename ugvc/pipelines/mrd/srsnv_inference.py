@@ -52,6 +52,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="""Path to which output files will be written to""",
     )
+    parser.add_argument(
+        "-@",
+        "--process_number",
+        type=int,
+        default=1,
+        help="""Number of processes to use for parallelization. If -N, use all available cores except N. Default 1""",
+    )
 
     return parser.parse_args(argv[1:])
 
@@ -65,4 +72,5 @@ def run(argv: list[str]):
         params_path=args.params_path,
         model_path=args.model_path,
         out_path=args.output_path,
+        process_number=args.process_number,
     )

@@ -114,7 +114,7 @@ class VcfAnnotator(ABC):
         input_path: str,
         output_path: str,
         chunk_size: int = 10000,
-        multiprocess_contigs: bool = False,
+        process_number: int = 1,
     ):
         """
         Static method to process a VCF file in chunks with multiple VcfAnnotator objects.
@@ -130,8 +130,8 @@ class VcfAnnotator(ABC):
             Path to the output file.
         chunk_size : int, optional
             The chunk size. Defaults to 10000.
-        multiprocess_contigs : bool, optional
-            If True, runs in parallel over different contigs. Defaults to False.
+        process_number : int, optional
+            Number of processes to use. Defaults to 1.
         """
         # pickle the annotators
         annotators_pickle = output_path + ".annotators.pickle"
@@ -162,9 +162,11 @@ class VcfAnnotator(ABC):
                     tmp_output_paths.append(out_per_contig)
                 except StopIteration:
                     pass
-            if multiprocess_contigs:
-                thread_pool_size = multiprocessing.cpu_count()
-                sp.run_parallel(commands, thread_pool_size)
+            # process_number<1 it is interpreted as all the CPUs except -process_number
+            if process_number < 1:
+                process_number = multiprocessing.cpu_count() % process_number
+            if process_number > 1:  # multiprocessing
+                sp.run_parallel(commands, process_number)
             else:
                 for command in commands:
                     sp.print_and_run(command)

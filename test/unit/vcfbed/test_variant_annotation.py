@@ -236,7 +236,7 @@ class TestVariantAnnotation:
             input_path=sample_featuremap,
             output_path=annotated_balanced_featuremap,
             annotators=[ref_contetxt_variant_annotator],
-            multiprocess_contigs=True,
+            process_number=1,
         )
         self.__ref_context_annotator_assertion(
             annotated_vcf=annotated_balanced_featuremap,
