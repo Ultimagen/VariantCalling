@@ -56,8 +56,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "-@",
         "--process_number",
         type=int,
-        default=1,
-        help="""Number of processes to use for parallelization. If -N, use all available cores except N. Default 1""",
+        default=0,
+        help="""Number of processes to use for parallelization.
+             If N < 1, use all-available - abs(N) cores. Default 0""",
     )
 
     return parser.parse_args(argv[1:])

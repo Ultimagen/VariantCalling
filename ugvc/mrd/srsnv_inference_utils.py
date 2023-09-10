@@ -95,7 +95,7 @@ def single_read_snv_inference(
     params_path: str,
     model_path: str,
     out_path: str,
-    process_number: int = -1,
+    process_number: int = 0,
 ) -> None:
     """
     Annotate a featuremap with single-read-SNV model ML_QUAL scores
@@ -111,7 +111,7 @@ def single_read_snv_inference(
     out_path : str
         Path to output featuremap
     process_number: int, optional
-        Number of processes to use for parallelization. If -N, use all available cores except N. Default 1
+        Number of processes to use for parallelization. If N < 1, use all-available - abs(N) cores. Default 0
 
     """
     model = joblib.load(model_path)

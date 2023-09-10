@@ -131,7 +131,7 @@ class VcfAnnotator(ABC):
         chunk_size : int, optional
             The chunk size. Defaults to 10000.
         process_number : int, optional
-            Number of processes to use. Defaults to 1.
+            Number of processes to use. If N < 1, use all-available - abs(N) cores. Defaults to 1.
         """
         # pickle the annotators
         annotators_pickle = output_path + ".annotators.pickle"
@@ -164,7 +164,8 @@ class VcfAnnotator(ABC):
                     pass
             # process_number<1 it is interpreted as all the CPUs except -process_number
             if process_number < 1:
-                process_number = multiprocessing.cpu_count() % process_number
+                process_number = multiprocessing.cpu_count() + process_number
+
             if process_number > 1:  # multiprocessing
                 sp.run_parallel(commands, process_number)
             else:

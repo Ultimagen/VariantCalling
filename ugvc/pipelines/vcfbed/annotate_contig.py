@@ -21,7 +21,7 @@ def get_args(argv):
         help="name of contig to process (this script analyses a contig at a time, "
         "use VcfAnnotator.process_vcf to process multiple contigs)",
     )
-    parser.add_argument("--chunk_size", required=True, help="size of chunks to process in memory")
+    parser.add_argument("--chunk_size", type=int, required=True, help="size of chunks to process in memory")
     return parser.parse_args(argv)
 
 
