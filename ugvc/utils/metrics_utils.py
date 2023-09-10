@@ -137,7 +137,7 @@ def parse_alignment_metrics(alignment_file):
     return res1
 
 
-def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = False) -> pd.DataFrame:
+def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = True) -> pd.DataFrame:
     """
     Collect sorter statistics from csv
 
