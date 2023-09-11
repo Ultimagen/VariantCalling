@@ -360,12 +360,12 @@ def _parse_stats_section_report(filename, section):
 def insertion_deletion_statistics(vcf_input, output_prefix):
     # extract info
     # heterozygous
-    cmd = f"bcftools query -i \'INFO/VARIANT_TYPE=\"h-indel\" && GT=\"0/1\"\' -f \'%INFO/X_HIL;%INFO/X_HIN;%INFO/X_IC\\n\' {vcf_input} > {output_prefix}_info_hete.txt"
+    cmd = f"bcftools query -i \'(INFO/VARIANT_TYPE=\"h-indel\" || INFO/VARIANT_TYPE=\"non-h-indel\") && GT=\"0/1\"\' -f \'%INFO/X_HIL;%INFO/X_HIN;%INFO/X_IC\\n\' {vcf_input} > {output_prefix}_info_hete.txt"
     logger.info(cmd)
     subprocess.check_call(cmd, shell=True)
 
     # homozygous
-    cmd = f"bcftools query -i \'INFO/VARIANT_TYPE=\"h-indel\" && GT=\"1/1\"\' -f \'%INFO/X_HIL;%INFO/X_HIN;%INFO/X_IC\\n\' {vcf_input} > {output_prefix}_info_homo.txt"
+    cmd = f"bcftools query -i \'(INFO/VARIANT_TYPE=\"h-indel\" || INFO/VARIANT_TYPE=\"non-h-indel\") && GT=\"1/1\"\' -f \'%INFO/X_HIL;%INFO/X_HIN;%INFO/X_IC\\n\' {vcf_input} > {output_prefix}_info_homo.txt"
     logger.info(cmd)
     subprocess.check_call(cmd, shell=True)
 
@@ -377,7 +377,7 @@ def insertion_deletion_statistics(vcf_input, output_prefix):
 
         logger.info("Creating a summary table of insertion and deletions by base")
         # remove multi-allelic
-        df = df.loc[df["X_HIL"].str.split(',').apply(lambda x: (len(x) == 1) and int(x[0]) != 0)]
+        df = df.loc[df["X_HIL"].str.split(',').apply(lambda x: (len(x) == 1))]
         # make it as a summary table
         summary = df.groupby(['X_HIN', 'X_HIL', 'X_IC']).size().reset_index(name='Counts')
         summary.loc[summary['X_HIN'] == 'T', 'X_HIN'] = 'A'
@@ -385,14 +385,21 @@ def insertion_deletion_statistics(vcf_input, output_prefix):
         summary['index_name'] = summary['X_IC'] + ' ' + summary['X_HIN']
         summary = summary.groupby(['index_name', 'X_HIL'])['Counts'].sum().reset_index(name='Counts')
         summary_table = summary.pivot(index='index_name', columns='X_HIL', values='Counts').fillna(0)
-        summary_table = summary_table[pd.Series(np.arange(1, 13)).apply(str)]
         summary_table = summary_table.astype(int)
-        return summary_table
+        num_ins_del = summary_table.sum().sum()
+        valid_columns = set(summary_table.columns) & set(pd.Series(np.arange(1, 13)).apply(str))
+        summary_table.drop(['del .', 'ins .'], errors='ignore', inplace=True)
+        summary_table = summary_table[sorted(list(valid_columns), key=int)]
 
-    summary_table_hete = _create_ins_del_summary_table(f"{output_prefix}_info_hete.txt")
-    summary_table_homo = _create_ins_del_summary_table(f"{output_prefix}_info_homo.txt")
+        return summary_table, num_ins_del
 
-    return summary_table_hete, summary_table_homo
+    summary_table_hete, num_ins_del_hete = _create_ins_del_summary_table(f"{output_prefix}_info_hete.txt")
+    summary_table_homo, num_ins_del_homo = _create_ins_del_summary_table(f"{output_prefix}_info_homo.txt")
+    print(num_ins_del_hete)
+    print(num_ins_del_homo)
+    indel_het_to_hom_ratio =num_ins_del_hete/num_ins_del_homo
+
+    return summary_table_hete, summary_table_homo, indel_het_to_hom_ratio
 
 
 
@@ -406,7 +413,7 @@ def run_full_analysis(arg_values):
     stats_tables, df_novel_idd, df_known_idd = bcftools_stats_statistics(f"{arg_values.output_prefix}_PASS.vcf.gz",arg_values.output_prefix)
 
     # insertion and deleletion by base
-    ins_del_hete, ins_del_homo = insertion_deletion_statistics(f"{arg_values.output_prefix}_PASS.vcf.gz", arg_values.output_prefix)
+    ins_del_hete, ins_del_homo, indel_het_to_hom_ratio = insertion_deletion_statistics(f"{arg_values.output_prefix}_PASS.vcf.gz", arg_values.output_prefix)
 
     # same for exome
     cmd = f"bcftools view -i \'INFO/EXOME=\"TRUE\"\' {arg_values.output_prefix}_PASS.vcf.gz -Oz -o {arg_values.output_prefix}_exome.vcf.gz"
@@ -415,6 +422,16 @@ def run_full_analysis(arg_values):
 
     stats_tables_exome, df_novel_idd_exome, df_known_idd_exome = bcftools_stats_statistics(f"{arg_values.output_prefix}_exome.vcf.gz",
                                                                          f"{arg_values.output_prefix}_exome")
+
+
+
+    # same for ug_hcr
+    cmd = f"bcftools view -i \'INFO/UG_HCR=\"TRUE\"\' {arg_values.output_prefix}_PASS.vcf.gz -Oz -o {arg_values.output_prefix}_ug_hcr.vcf.gz"
+    logger.info(cmd)
+    subprocess.check_call(cmd, shell=True)
+
+    stats_tables_ug_hcr, df_novel_idd_ug_hcr, df_known_idd_ug_hcr = bcftools_stats_statistics(f"{arg_values.output_prefix}_ug_hcr.vcf.gz",
+                                                                         f"{arg_values.output_prefix}_ug_hcr")
 
 
     logger.info("save all statistics in h5 file")
@@ -429,6 +446,10 @@ def run_full_analysis(arg_values):
     # exome
     for stats_table_name, stats_table in stats_tables_exome.items():
         stats_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_exome_{stats_table_name}")
+
+    # hg_hcr
+    for stats_table_name, stats_table in stats_tables_ug_hcr.items():
+        stats_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_hg_hcr_{stats_table_name}")
 
 
     # F1 prediction
@@ -453,9 +474,12 @@ def run_full_analysis(arg_values):
     logger.info(f"20th percentile RS':{the20_percentile_RS}")
 
     # InsertionDeletionRatio:UG_HCR:known
-
+    insertion_to_deletion_ratio = stats_tables_ug_hcr["known"].loc["insertion_to_deletion_ratio"][0]
+    logger.info(f"Insertion deletion ratio in UG_HCR known':{the20_percentile_RS}")
 
     # IndelSummary:novel:Average of indel_het_to_hom_ratio
+    logger.info(f"Indel heterozygous homozygous ratio':{indel_het_to_hom_ratio}")
+
 
 def run_somatic_analysis(arg_values):
 
