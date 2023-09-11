@@ -5,7 +5,7 @@ from test import get_resource_dir, test_dir
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from ugvc.utils.sorter_to_h5 import sorter_to_h5
+from ugvc.scripts.sorter_to_h5 import sorter_to_h5
 
 general_inputs_dir = pjoin(test_dir, "resources", "general")
 inputs_dir = get_resource_dir(__file__)

@@ -147,6 +147,10 @@ def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = 
         path to a Sorter stats file
     edit_metric_names: bool
         if True, edit the metric names to be more human-readable
+
+    Returns
+    -------
+    sorter stats as a pandas DataFrame
     """
 
     # read Sorter stats

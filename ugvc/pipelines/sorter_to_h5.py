@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from ugvc.utils.sorter_to_h5 import sorter_to_h5
+from ugvc.scripts.sorter_to_h5 import sorter_to_h5
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:

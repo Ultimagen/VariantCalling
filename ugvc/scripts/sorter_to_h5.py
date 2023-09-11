@@ -19,6 +19,22 @@ def sorter_to_h5(
 ) -> str:
     """
     Aggregate sorter metrics into an h5 file of the format: aggregated_metrics.h5
+    Parameters
+    ----------
+    input_csv_file:
+        path to the sorter statistics csv file
+    input_json_file:
+        path to the sorter statistics json file
+    metric_mapping_file:
+        path to the metric mapping file,
+        default: VariantCalling/ugvc/reports/sorter_output_to_aggregated_metrics_h5.csv
+    output_dir:
+        path to the output directory
+
+    Returns
+    -------
+    output_h5_file: str
+        path to the output h5 file
     """
     # Read in the input files
     input_csv = read_sorter_statistics_csv(input_csv_file, edit_metric_names=False)
