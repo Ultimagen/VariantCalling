@@ -12,7 +12,6 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 from ugvc.cnv import filter_sample_cnvs
-from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -47,6 +46,8 @@ from ugvc.pipelines.mrd import (
 
 # import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
+from ugvc.scripts import sorter_to_h5
+from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.utils import cloud_sync
 
 # create a list of imported pipeline modules
@@ -61,7 +62,7 @@ modules = [
     convert_haploid_regions,
     correct_genotypes_by_imputation,
     vcfeval_flavors,
-    bicseq2_post_processing
+    bicseq2_post_processing,
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
@@ -91,7 +92,10 @@ methylation_modules = [
 joint_modules = [compress_gvcf]
 
 
-misc_modules = [cloud_sync]
+misc_modules = [
+    cloud_sync,
+    sorter_to_h5,
+]
 
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
