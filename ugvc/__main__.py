@@ -27,7 +27,6 @@ from ugvc.pipelines import (
     evaluate_concordance,
     filter_variants_pipeline,
     run_comparison_pipeline,
-    sorter_to_h5,
     train_models_pipeline,
     vcfeval_flavors,
 )
@@ -47,6 +46,7 @@ from ugvc.pipelines.mrd import (
 
 # import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
+from ugvc.scripts import sorter_to_h5
 from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.utils import cloud_sync
 
