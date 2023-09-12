@@ -120,7 +120,7 @@ def sorter_to_h5(
     h5_dict["RawWgsMetrics"] = {k: h5_dict["RawWgsMetrics"][k] for k in key_order}
 
     # write to h5 file
-    base_file_name = os.path.basename(input_csv_file).split(".")[0]
+    base_file_name = os.path.splitext(os.path.basename(input_csv_file))[0]
     if output_dir is None:
         output_dir = os.path.dirname(input_csv_file)
     output_h5_file = pjoin(output_dir, base_file_name + ".aggregated_metrics.h5")
