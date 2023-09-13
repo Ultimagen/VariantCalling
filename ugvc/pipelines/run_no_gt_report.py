@@ -377,7 +377,7 @@ def insertion_deletion_statistics(vcf_input, output_prefix):
 
         logger.info("Creating a summary table of insertion and deletions by base")
         # remove multi-allelic
-        df = df.loc[df["X_HIL"].str.split(',').apply(lambda x: (len(x) == 1))]
+        df = df.loc[df["X_HIL"].astype(str).str.split(',').apply(lambda x: (len(x) == 1))]
         # make it as a summary table
         summary = df.groupby(['X_HIN', 'X_HIL', 'X_IC']).size().reset_index(name='Counts')
         summary.loc[summary['X_HIN'] == 'T', 'X_HIN'] = 'A'
@@ -457,7 +457,7 @@ def run_full_analysis(arg_values):
     cmd = f"bcftools view -H {arg_values.input_file} | awk \'{{print $7}}\' | sort | uniq -c | grep LowQualInExome| awk \'{{print $1}}\'"
     logger.info(cmd)
     output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT, text=True)
-    number_of_LowQualInExome = int(output.strip())
+    number_of_LowQualInExome = int(output.strip()) if output.strip() and output.strip().isdigit() else 0
     logger.info(f"number of LowQualInExome:{number_of_LowQualInExome}")
 
     # indel SOR > 3 proportion
