@@ -117,9 +117,9 @@ def prepare_featuremap_for_model(
     # make sure X_READ_COUNT is in the INFO fields in the header
     with pysam.VariantFile(input_featuremap_vcf) as fmap:
         assert FeatureMapFields.READ_COUNT.value in fmap.header.info
-    if balanced_sampling_info_fields:
-        for info_field in balanced_sampling_info_fields:
-            assert info_field in fmap.header.info, f"INFO field {info_field} not found in header"
+        if balanced_sampling_info_fields:
+            for info_field in balanced_sampling_info_fields:
+                assert info_field in fmap.header.info, f"INFO field {info_field} not found in header"
     intersect_featuremap_vcf = pjoin(
         workdir,
         basename(input_featuremap_vcf).replace(FileExtension.VCF_GZ.value, ".intersect.vcf.gz"),
@@ -185,28 +185,23 @@ def prepare_featuremap_for_model(
     if random_seed is not None:
         np.random.seed(random_seed)
     if balanced_sampling_info_fields:
-        # TODO test this code and add a test, I wrote an implementation but didn't even get to run it
-        logger.warning(
-            "Data motif balancing not tested, use at your own risk"
-            f" (balanced_sampling_info_fields={balanced_sampling_info_fields})"
-        )
         # count the number of entries with each combination of info fields to balance by
         balanced_sampling_info_fields_counter = defaultdict(int)
         with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
             for record in fmap.fetch():
                 balanced_sampling_info_fields_counter[
-                    (record.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
+                    tuple(record.info.get(info_field) for info_field in balanced_sampling_info_fields)
                 ] += 1
         # determine sampling rate per group (defined by a combination of info fields)
         total_size_per_group = total_size // len(balanced_sampling_info_fields_counter)
         downsampling_rate = {
-            k: total_size_per_group / v * overhead_factor for k, v in balanced_sampling_info_fields_counter.items()
+            k: (total_size_per_group / v) * overhead_factor for k, v in balanced_sampling_info_fields_counter.items()
         }
         for k, v in downsampling_rate.items():
             logger.debug(f"downsampling_rate for {k} = {v}")
-            if v > 1:
+            if v > overhead_factor:
                 logger.warning(f"downsampling_rate for {k} = {v} > 1, result will contain less data than expected")
-                downsampling_rate[k] = 1
+                downsampling_rate[k] = min(1, downsampling_rate[k])
 
         record_counter = 0
         with pysam.VariantFile(intersect_featuremap_vcf) as vcf_in:
@@ -232,7 +227,7 @@ def prepare_featuremap_for_model(
                     if (
                         np.random.uniform()
                         < downsampling_rate[
-                            (rec.info.get(info_field) for info_field in balanced_sampling_info_fields_counter)
+                            tuple(rec.info.get(info_field) for info_field in balanced_sampling_info_fields)
                         ]
                     ):
                         # write the first training_set_size records to the training set

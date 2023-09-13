@@ -43,7 +43,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--model_path",
         type=str,
         required=True,
-        help="""xgb model file path""",
+        help="""model file path""",
     )
     parser.add_argument(
         "-o",
