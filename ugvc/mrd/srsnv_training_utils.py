@@ -165,10 +165,14 @@ def prepare_featuremap_for_model(
             featuremap_entry_number += 1
     if featuremap_entry_number < total_size:
         logger.warning(
-            f"featuremap_entry_number={featuremap_entry_number} > training_set_size={train_set_size}"
+            "Requested training and test set size cannot be met - insufficient data"
+            f"featuremap_entry_number={featuremap_entry_number} < training_set_size={train_set_size}"
             f"+ test_set_size={test_set_size if test_set_size else 0}"
-            "\nbehavior is undefined",
-        )  # TODO in this case we should make sure we still have a test set (and behavior should be defined)
+        )
+        if test_set_size is not None:
+            train_set_size = featuremap_entry_number * np.floor(train_set_size / total_size)
+            test_set_size = featuremap_entry_number - train_set_size
+            logger.warning(f"Set train_set_size to {train_set_size} and test_set_size to {test_set_size}")
     # set sampling rate to be slightly higher than the desired training set size
     overhead_factor = 1.03  # 3% overhead to make sure we get the desired number of entries
     downsampling_rate = overhead_factor * (total_size) / featuremap_entry_number
