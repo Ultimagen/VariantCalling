@@ -84,6 +84,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""comma separated list of categorical features for ML classifier """,
     )
     parser.add_argument(
+        "--balanced_sampling_info_fields",
+        type=str,
+        help="comma separated list of categorical features to be used for balanced sampling of the TP training set"
+        " to eliminate prior distribution bias (e.g. 'trinuc_context_with_alt,is_forward')",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         required=True,
@@ -123,10 +129,8 @@ def run(argv: list[str]):
         print_timing=True,
     )
 
-    # TODO add to args, maybe add the option to read from a json file         model_parameters: dict | str = None,
+    # TODO add the option to read from a json file         model_parameters: dict | str = None,
     # TODO add to args         classifier_class=xgb.XGBClassifier,
-    # TODO add to args         balanced_sampling_info_fields: list[str] = None,
-
     SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
@@ -134,6 +138,7 @@ def run(argv: list[str]):
         fp_regions_bed_file=args.single_sub_regions,
         numerical_features=args.numerical_features.split(","),
         categorical_features=args.categorical_features.split(","),
+        balanced_sampling_info_fields=args.balanced_sampling_info_fields.split(","),
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=args.train_set_size,
         test_set_size=args.test_set_size,
