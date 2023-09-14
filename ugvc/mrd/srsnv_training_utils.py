@@ -170,7 +170,7 @@ def prepare_featuremap_for_model(
             f"+ test_set_size={test_set_size if test_set_size else 0}"
         )
         if test_set_size is not None:
-            train_set_size = featuremap_entry_number * np.floor(train_set_size / total_size)
+            train_set_size = np.floor(featuremap_entry_number * (train_set_size / total_size))
             test_set_size = featuremap_entry_number - train_set_size
             logger.warning(f"Set train_set_size to {train_set_size} and test_set_size to {test_set_size}")
     # set sampling rate to be slightly higher than the desired training set size
