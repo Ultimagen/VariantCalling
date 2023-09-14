@@ -51,7 +51,7 @@ def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
     train_set_size: int,
-    test_set_size: int = None,
+    test_set_size: int,
     sp: SimplePipeline = None,
     regions_file: str = None,
     balanced_sampling_info_fields: list[str] = None,
@@ -111,7 +111,7 @@ def prepare_featuremap_for_model(
     assert isfile(input_featuremap_vcf), f"input_featuremap_vcf {input_featuremap_vcf} not found"
     assert input_featuremap_vcf.endswith(FileExtension.VCF_GZ.value)
     assert train_set_size > 0, f"training_set_size must be > 0, got {train_set_size}"
-    assert test_set_size is None or (test_set_size > 0), f"test_set_size must be > 0, got {test_set_size}"
+    assert test_set_size > 0, f"test_set_size must be > 0, got {test_set_size}"
     if not read_effective_coverage_from_sorter_json_kwargs:
         read_effective_coverage_from_sorter_json_kwargs = {}
     # make sure X_READ_COUNT is in the INFO fields in the header
@@ -158,7 +158,7 @@ def prepare_featuremap_for_model(
     assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
     # count entries in intersected featuremap and determine downsampling rate
-    total_size = train_set_size + test_set_size if test_set_size else train_set_size
+    total_size = train_set_size + test_set_size
     with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
         featuremap_entry_number = 0
         for _ in enumerate(fmap.fetch()):
@@ -169,10 +169,9 @@ def prepare_featuremap_for_model(
             f"featuremap_entry_number={featuremap_entry_number} < training_set_size={train_set_size}"
             f"+ test_set_size={test_set_size if test_set_size else 0}"
         )
-        if test_set_size is not None:
-            train_set_size = np.floor(featuremap_entry_number * (train_set_size / total_size))
-            test_set_size = featuremap_entry_number - train_set_size
-            logger.warning(f"Set train_set_size to {train_set_size} and test_set_size to {test_set_size}")
+        train_set_size = np.floor(featuremap_entry_number * (train_set_size / total_size))
+        test_set_size = featuremap_entry_number - train_set_size
+        logger.warning(f"Set train_set_size to {train_set_size} and test_set_size to {test_set_size}")
     # set sampling rate to be slightly higher than the desired training set size
     overhead_factor = 1.03  # 3% overhead to make sure we get the desired number of entries
     downsampling_rate = overhead_factor * (total_size) / featuremap_entry_number
@@ -220,7 +219,6 @@ def prepare_featuremap_for_model(
             header_test.add_line(
                 f"##datatype=test_set, subsampled approximately {test_set_size}"
                 f"variants from a total of {featuremap_entry_number}"
-                f", balanced by {balanced_sampling_info_fields}"
             )
             with pysam.VariantFile(
                 downsampled_training_featuremap_vcf, "w", header=header_train
