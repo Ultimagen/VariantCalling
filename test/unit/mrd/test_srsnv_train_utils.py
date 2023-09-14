@@ -88,7 +88,7 @@ def test_prepare_featuremap_for_model_training_and_test_sets(tmpdir):
         input_featuremap_vcf=input_featuremap_vcf,
         train_set_size=12,
         test_set_size=3,
-        balanced_sampling_info_fields=False,
+        balanced_sampling_info_fields=None,
         random_seed=0,
     )
     assert __count_variants(downsampled_training_featuremap_vcf) == 12

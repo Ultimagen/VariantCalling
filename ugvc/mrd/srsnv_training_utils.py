@@ -115,9 +115,10 @@ def prepare_featuremap_for_model(
     if not read_effective_coverage_from_sorter_json_kwargs:
         read_effective_coverage_from_sorter_json_kwargs = {}
     # make sure X_READ_COUNT is in the INFO fields in the header
+    do_motif_balancing_in_tp = balanced_sampling_info_fields is not None
     with pysam.VariantFile(input_featuremap_vcf) as fmap:
         assert FeatureMapFields.READ_COUNT.value in fmap.header.info
-        if balanced_sampling_info_fields:
+        if do_motif_balancing_in_tp:
             for info_field in balanced_sampling_info_fields:
                 assert info_field in fmap.header.info, f"INFO field {info_field} not found in header"
     intersect_featuremap_vcf = pjoin(
@@ -158,11 +159,17 @@ def prepare_featuremap_for_model(
     assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
     # count entries in intersected featuremap and determine downsampling rate
+    # count the number of entries with each combination of info fields to balance by if balanced_sampling_info_fields
     total_size = train_set_size + test_set_size
+    balanced_sampling_info_fields_counter = defaultdict(int)
     with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
         featuremap_entry_number = 0
-        for _ in enumerate(fmap.fetch()):
+        for record in fmap.fetch():
             featuremap_entry_number += 1
+            if do_motif_balancing_in_tp:
+                balanced_sampling_info_fields_counter[
+                    tuple(record.info.get(info_field) for info_field in balanced_sampling_info_fields)
+                ] += 1
     if featuremap_entry_number < total_size:
         logger.warning(
             "Requested training and test set size cannot be met - insufficient data"
@@ -187,22 +194,16 @@ def prepare_featuremap_for_model(
     # random sample of intersected featuremap - sampled featuremap
     if random_seed is not None:
         np.random.seed(random_seed)
-    if balanced_sampling_info_fields:
-        # count the number of entries with each combination of info fields to balance by
-        balanced_sampling_info_fields_counter = defaultdict(int)
-        with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
-            for record in fmap.fetch():
-                balanced_sampling_info_fields_counter[
-                    tuple(record.info.get(info_field) for info_field in balanced_sampling_info_fields)
-                ] += 1
+    if do_motif_balancing_in_tp:
         # determine sampling rate per group (defined by a combination of info fields)
         total_size_per_group = total_size // len(balanced_sampling_info_fields_counter)
         downsampling_rate = {
-            k: (total_size_per_group / v) * overhead_factor for k, v in balanced_sampling_info_fields_counter.items()
+            group_key: (total_size_per_group / group_total_entries_in_featuremap)
+            for group_key, group_total_entries_in_featuremap in balanced_sampling_info_fields_counter.items()
         }
         for k, v in downsampling_rate.items():
             logger.debug(f"downsampling_rate for {k} = {v}")
-            if v > overhead_factor:
+            if v > 1:
                 logger.warning(f"downsampling_rate for {k} = {v} > 1, result will contain less data than expected")
                 downsampling_rate[k] = min(1, downsampling_rate[k])
 
