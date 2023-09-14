@@ -160,7 +160,7 @@ def prepare_featuremap_for_model(
 
     # count entries in intersected featuremap and determine downsampling rate
     # count the number of entries with each combination of info fields to balance by if balanced_sampling_info_fields
-    total_size = train_set_size + test_set_size
+    train_and_test_size = train_set_size + test_set_size
     balanced_sampling_info_fields_counter = defaultdict(int)
     with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
         featuremap_entry_number = 0
@@ -170,18 +170,18 @@ def prepare_featuremap_for_model(
                 balanced_sampling_info_fields_counter[
                     tuple(record.info.get(info_field) for info_field in balanced_sampling_info_fields)
                 ] += 1
-    if featuremap_entry_number < total_size:
+    if featuremap_entry_number < train_and_test_size:
         logger.warning(
             "Requested training and test set size cannot be met - insufficient data"
             f"featuremap_entry_number={featuremap_entry_number} < training_set_size={train_set_size}"
             f"+ test_set_size={test_set_size if test_set_size else 0}"
         )
-        train_set_size = np.floor(featuremap_entry_number * (train_set_size / total_size))
+        train_set_size = np.floor(featuremap_entry_number * (train_set_size / train_and_test_size))
         test_set_size = featuremap_entry_number - train_set_size
         logger.warning(f"Set train_set_size to {train_set_size} and test_set_size to {test_set_size}")
     # set sampling rate to be slightly higher than the desired training set size
     overhead_factor = 1.03  # 3% overhead to make sure we get the desired number of entries
-    downsampling_rate = overhead_factor * (total_size) / featuremap_entry_number
+    downsampling_rate = overhead_factor * train_and_test_size / featuremap_entry_number
     logger.info(
         f"training_set_size={train_set_size}, featuremap_entry_number = {featuremap_entry_number},"
         f"downsampling_rate {downsampling_rate}"
@@ -196,16 +196,20 @@ def prepare_featuremap_for_model(
         np.random.seed(random_seed)
     if do_motif_balancing_in_tp:
         # determine sampling rate per group (defined by a combination of info fields)
-        total_size_per_group = total_size // len(balanced_sampling_info_fields_counter)
+        number_of_groups = len(balanced_sampling_info_fields_counter)
+        train_and_test_size_per_group = train_and_test_size // number_of_groups
         downsampling_rate = {
-            group_key: (total_size_per_group / group_total_entries_in_featuremap)
+            group_key: (train_and_test_size_per_group / group_total_entries_in_featuremap)
             for group_key, group_total_entries_in_featuremap in balanced_sampling_info_fields_counter.items()
         }
-        for k, v in downsampling_rate.items():
-            logger.debug(f"downsampling_rate for {k} = {v}")
-            if v > 1:
-                logger.warning(f"downsampling_rate for {k} = {v} > 1, result will contain less data than expected")
-                downsampling_rate[k] = min(1, downsampling_rate[k])
+        for group_key, group_downsampling_rate in downsampling_rate.items():
+            logger.debug(f"downsampling_rate for {group_key} = {group_downsampling_rate}")
+            if group_downsampling_rate > 1:
+                logger.warning(
+                    f"downsampling_rate for {group_key} = {group_downsampling_rate} > 1, "
+                    "result will contain less data than expected"
+                )
+            downsampling_rate[group_key] = min(1, group_downsampling_rate)
 
         record_counter = 0
         with pysam.VariantFile(intersect_featuremap_vcf) as vcf_in:
@@ -237,14 +241,14 @@ def prepare_featuremap_for_model(
                         if record_counter < train_set_size:
                             vcf_out_train.write(rec)
                         # write the next test_set_size records to the test set
-                        elif record_counter < total_size:
+                        elif record_counter < train_and_test_size:
                             vcf_out_test.write(rec)
                         else:
                             break
                         record_counter += 1
     else:
         sampling_array = np.random.uniform(size=featuremap_entry_number + 1) < downsampling_rate
-        while sum(sampling_array) < min(total_size, featuremap_entry_number):
+        while sum(sampling_array) < min(train_and_test_size, featuremap_entry_number):
             sampling_array = np.random.uniform(size=featuremap_entry_number + 1) < downsampling_rate
         record_counter = 0
         with pysam.VariantFile(intersect_featuremap_vcf) as vcf_in:
@@ -270,7 +274,7 @@ def prepare_featuremap_for_model(
                         if record_counter < train_set_size:
                             vcf_out_train.write(rec)
                         # write the next test_set_size records to the test set
-                        elif record_counter < total_size:
+                        elif record_counter < train_and_test_size:
                             vcf_out_test.write(rec)
                         else:
                             break
@@ -291,9 +295,6 @@ def prepare_featuremap_for_model(
             os.remove(intersect_featuremap_vcf)
         if isfile(intersect_featuremap_vcf + ".tbi"):
             os.remove(intersect_featuremap_vcf + ".tbi")
-    if test_set_size is None:  # an empty vcf file should have been created
-        os.remove(downsampled_test_featuremap_vcf)
-        os.remove(downsampled_test_featuremap_vcf + ".tbi")
 
     return (
         downsampled_training_featuremap_vcf,
