@@ -34,7 +34,7 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="balanced_strand_analysis", description=run.__doc__)
     parser.add_argument(
         "--adapter-version",
-        choices=[v.value for v in supported_adapter_versions],
+        choices=supported_adapter_versions,
         help="Library adapter version",
     )
     parser.add_argument(
