@@ -86,6 +86,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--balanced_sampling_info_fields",
         type=str,
+        default=None,
         help="comma separated list of categorical features to be used for balanced sampling of the TP training set"
         " to eliminate prior distribution bias (e.g. 'trinuc_context_with_alt,is_forward')",
     )
@@ -138,7 +139,9 @@ def run(argv: list[str]):
         fp_regions_bed_file=args.single_sub_regions,
         numerical_features=args.numerical_features.split(","),
         categorical_features=args.categorical_features.split(","),
-        balanced_sampling_info_fields=args.balanced_sampling_info_fields.split(","),
+        balanced_sampling_info_fields=args.balanced_sampling_info_fields.split(",")
+        if args.balanced_sampling_info_fields
+        else None,
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=args.train_set_size,
         test_set_size=args.test_set_size,
