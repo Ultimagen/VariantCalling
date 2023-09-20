@@ -389,9 +389,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         categorical_features = categorical_features or default_categorical_features
         numerical_features = numerical_features or default_numerical_features
 
-        print(categorical_features)
-        print(numerical_features)
-
         # determine output paths
         os.makedirs(out_path, exist_ok=True)
         if len(out_basename) > 0 and not out_basename.endswith("."):

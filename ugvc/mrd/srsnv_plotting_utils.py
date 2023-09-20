@@ -119,6 +119,8 @@ def srsnv_report(
     params_file,
     simple_pipeline=None,
 ):
+    if len(out_basename) > 0 and not out_basename.endswith("."):
+        out_basename += "."
     reportfile = pjoin(out_path, f"{out_basename}{report_name}_report.ipynb")
     reporthtml = pjoin(out_path, f"{out_basename}{report_name}_report.html")
 
