@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 
-# from ugvc.mrd.mrd_utils import default_featuremap_info_fields, featuremap_to_dataframe
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 
 
@@ -42,54 +41,31 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "-if",
-        "--info_fields_override",
+        "--info_fields",
         type=str,
-        nargs="+",
         required=False,
-        default="all",
-        help="""List of input info fields to include in dataframe, by default 'all''
-        If 'all' then all the info fields are read to columns
-        If None then no info fields are read to columns""",
+        default=None,
+        help="""Comma-separated list of input info fields to include in dataframe,
+        If None (default) then all the info fields are read to columns""",
     )
 
     parser.add_argument(
-        "--input-format-fields", type=str, nargs="+", default=None, help="Fields to extract from the vcf FORMAT fields"
+        "--input-format-fields",
+        type=str,
+        default=None,
+        help="comma-separated list of fields to extract from the vcf FORMAT fields, by default none are read",
     )
     return parser.parse_args(argv[1:])
-
-
-# def __parse_dict_from_arg(arg: list[str]) -> dict:
-#     """
-#     parse fields command-line arguments where each argument is passed as key=val,
-#     """
-#     if arg is None:
-#         return {}
-#     d = {}
-#     # wasn't splitted correctly, such as when calling from simppl print_and_run_clt
-#     if len(arg) == 1 and " " in arg[0]:
-#         arg = arg[0].split(" ")
-#     for f in arg:
-#         if f == "":
-#             continue
-#         key, val = f.split("=")
-#         d[key] = val
-#     return d
 
 
 def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
 
-    # if args_in.info_fields_override is None:
-    #     info_fields = default_featuremap_info_fields
-    # else:
-    #     info_fields = __parse_dict_from_arg(args_in.info_fields_override)
-    # info_fields.update(__parse_dict_from_arg(args_in.extra_fields))
-    # input_format_fields = __parse_dict_from_arg(args_in.input_format_fields)
-
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,
-        # input_format_fields=input_format_fields,
-        # input_info_fields=info_fields,
+        input_format_fields=args_in.input_format_fields.split(",") if args_in.input_format_fields else None,
+        input_info_fields=args_in.info_fields.split(",") if args_in.info_fields else "all",
     )
+    # TODO add CLI interface to specify sample_name for the formats fields
