@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import argparse
 
-from ugvc.mrd.mrd_utils import default_featuremap_info_fields, featuremap_to_dataframe
+# from ugvc.mrd.mrd_utils import default_featuremap_info_fields, featuremap_to_dataframe
+from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:
@@ -41,7 +42,7 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "-if",
-        "--info_fields",
+        "--info_fields_override",
         type=str,
         nargs="+",
         required=False,
@@ -57,38 +58,38 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv[1:])
 
 
-def __parse_dict_from_arg(arg: list[str]) -> dict:
-    """
-    parse fields command-line arguments where each argument is passed as key=val,
-    """
-    if arg is None:
-        return {}
-    d = {}
-    # wasn't splitted correctly, such as when calling from simppl print_and_run_clt
-    if len(arg) == 1 and " " in arg[0]:
-        arg = arg[0].split(" ")
-    for f in arg:
-        if f == "":
-            continue
-        key, val = f.split("=")
-        d[key] = val
-    return d
+# def __parse_dict_from_arg(arg: list[str]) -> dict:
+#     """
+#     parse fields command-line arguments where each argument is passed as key=val,
+#     """
+#     if arg is None:
+#         return {}
+#     d = {}
+#     # wasn't splitted correctly, such as when calling from simppl print_and_run_clt
+#     if len(arg) == 1 and " " in arg[0]:
+#         arg = arg[0].split(" ")
+#     for f in arg:
+#         if f == "":
+#             continue
+#         key, val = f.split("=")
+#         d[key] = val
+#     return d
 
 
 def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
 
-    if args_in.info_fields_override is None:
-        info_fields = default_featuremap_info_fields
-    else:
-        info_fields = __parse_dict_from_arg(args_in.info_fields_override)
-    info_fields.update(__parse_dict_from_arg(args_in.extra_fields))
-    input_format_fields = __parse_dict_from_arg(args_in.input_format_fields)
+    # if args_in.info_fields_override is None:
+    #     info_fields = default_featuremap_info_fields
+    # else:
+    #     info_fields = __parse_dict_from_arg(args_in.info_fields_override)
+    # info_fields.update(__parse_dict_from_arg(args_in.extra_fields))
+    # input_format_fields = __parse_dict_from_arg(args_in.input_format_fields)
 
     featuremap_to_dataframe(
         featuremap_vcf=args_in.input,
         output_file=args_in.output,
-        input_format_fields=input_format_fields,
-        input_info_fields=info_fields,
+        # input_format_fields=input_format_fields,
+        # input_info_fields=info_fields,
     )
