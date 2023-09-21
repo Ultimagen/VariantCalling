@@ -326,8 +326,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         model_params: dict | str = None,
         classifier_class=xgb.XGBClassifier,
         balanced_sampling_info_fields: list[str] = None,
-        lod_filters: dict = None,
-        adapter_version: str = None,
+        lod_filters: str = None,
+        balanced_strand_adapter_version: str = None,
         simple_pipeline: SimplePipeline = None,
     ):
         """
@@ -368,9 +368,9 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         balanced_sampling_info_fields : list[str], optional
             List of info fields to balance the TP data by, default None (do not balance)
             Recommended in order to avoid the motif distribution of germline variants being learned (data leak)
-        lod_filters : dict, optional
-            dict of format 'filter name':'querie' for LoD simulation, by default None
-        adapter_version : str, optional
+        lod_filters : str, optional
+            json file with a dict of format 'filter name':'query' for LoD simulation, by default None
+        balanced_strand_adapter_version : str, optional
             adapter version, indicates if input featuremap is from balanced ePCR data, by default None
         simple_pipeline : SimplePipeline, optional
             SimplePipeline object to use for printing and running commands, by default None
@@ -440,9 +440,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.sorter_json_stats_file = sorter_json_stats_file
 
         # misc
+        with open(lod_filters, "r", encoding="utf-8") as f:
+            self.lod_filters = json.load(f)
         self.flow_order = flow_order
-        self.lod_filters = lod_filters
-        self.adapter_version = adapter_version
+        self.balanced_strand_adapter_version = balanced_strand_adapter_version
         self.sp = simple_pipeline
 
         # set and check train and test sizes
@@ -494,7 +495,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "test_set_size": self.test_set_size,
             "fp_featuremap_entry_number": self.fp_featuremap_entry_number,
             "lod_filters": self.lod_filters,
-            "adapter_version": self.adapter_version,
+            "adapter_version": self.balanced_strand_adapter_version,
             "columns": self.columns,
         }
 

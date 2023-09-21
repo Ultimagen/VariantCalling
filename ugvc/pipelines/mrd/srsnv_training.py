@@ -119,13 +119,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--lod_filters",
-        type=dict,
+        type=str,
         required=False,
         default=None,
-        help="""dict of format 'filter name':'querie' for LoD simulation """,
+        help="""json file with a dict of format 'filter name':'query' for LoD simulation """,
     )
     parser.add_argument(
-        "--adapter_version",
+        "--balanced_strand_adapter_version",
         type=str,
         required=False,
         default=None,
@@ -165,10 +165,11 @@ def run(argv: list[str]):
         out_path=args.output,
         out_basename=args.basename,
         lod_filters=args.lod_filters,
-        adapter_version=args.adapter_version,
+        balanced_strand_adapter_version=args.balanced_strand_adapter_version,
         simple_pipeline=sp,
     ).process()
 
+    # TODO: merge the two reports so train and test set results are presented together
     srsnv_report(
         out_path=args.output,
         out_basename=args.basename,

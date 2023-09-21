@@ -21,6 +21,7 @@ from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import exec_command_list
 
+# TODO: use constants instead of X_EDIST etc.
 default_LoD_filters = {
     "no_filter": f"{FeatureMapFields.X_SCORE.value} >= 0",
     "edit_distance_5": f"{FeatureMapFields.X_SCORE.value} >= 0 and X_EDIST <= 5",
@@ -33,7 +34,6 @@ default_LoD_filters = {
         and X_INDEX < (X_LENGTH - 12)",
     "BQ60_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 6 and X_EDIST <= 5 and is_mixed",
     "BQ80_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 7.9 and X_EDIST <= 5 and is_mixed",
-    "BQ80_mixed_CSKP_only": f"{FeatureMapFields.X_SCORE.value} >= 7.9 and X_EDIST <= 5 and is_mixed and is_cycle_skip",
     "CSKP_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 10 and X_EDIST <= 5 and is_mixed",
     "BQ80_trim_ends_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 7.9 and X_EDIST <= 5 and X_INDEX > 12 \
         and X_INDEX < (X_LENGTH - 12) and is_mixed",
@@ -86,7 +86,9 @@ def create_data_for_report(
         predictions_df[f"ML_prob_{label}"] = probs[:, label]
         predictions_df[f"ML_qual_{label}"] = quals[:, label]
         predictions_df[f"ML_prediction_{label}"] = predictions[:, label]
+    # TODO: write the code below with .assign rather than concat
     df = pd.concat([X, predictions_df], axis=1)
+    # TODO: use the information from adapter_version instead of this patch
     if "strand_ratio_category_end" in df and "strand_ratio_category_start" in df:
         df = df.assign(
             is_mixed=((df["strand_ratio_category_end"] == "MIXED") & (df["strand_ratio_category_start"] == "MIXED"))
@@ -394,6 +396,8 @@ def LoD_simulation_on_signature(
         simulated_coverage * simulated_signature_size
     )  # * ratio_of_reads_over_mapq * read_filter_correction_factor
 
+    # TODO: it makes more sense to calculate the error rate column here
+    # than to carry it over to another function and save a single scalar value separately.
     df_mrd_sim = (df_summary[["TP"]]).rename(columns={"TP": "read_retention_ratio"})
     df_mrd_sim = df_mrd_sim.assign(
         residual_snv_rate=df_summary["FP"] * residual_snv_rate_no_filter / df_mrd_sim["read_retention_ratio"]
@@ -448,7 +452,7 @@ def plot_LoD(
     min_LoD_filter: str,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generates and saves the LoD plot
 
@@ -470,11 +474,11 @@ def plot_LoD(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
 
     """
-
+    # TODO: a less patchy solution, perhaps accept ml_filters as a separate input
     ML_filters = {i: filters[i] for i in filters if i[:2] == "ML" and i in df_mrd_sim.index}
 
     fig = plt.figure(figsize=(20, 12))
@@ -525,11 +529,11 @@ def plot_LoD(
             zorder=markersize,
         )
 
-    plt.xlabel("Read retention ratio on HOM SNVs", fontsize=fs)
-    plt.ylabel("Residual SNV rate", fontsize=fs)
+    plt.xlabel("Read retention ratio on HOM SNVs", fontsize=font_size)
+    plt.ylabel("Residual SNV rate", fontsize=font_size)
     plt.yscale("log")
-    title_handle = plt.title(title, fontsize=fs)
-    legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=font_size)
+    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
 
     def fmt(x, pos):
         a, b = "{:.1e}".format(x).split("e")
@@ -544,7 +548,7 @@ def plot_LoD(
         0.01,
         f"ML qual threshold for min LoD: {min_LoD_filter}",
         ha="center",
-        fontsize=fs,
+        fontsize=font_size,
         bbox={"facecolor": "orange", "alpha": 0.5, "pad": 5},
     )
     if output_filename is not None:
@@ -563,7 +567,7 @@ def plot_confusion_matrix(
     df: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generates and saves confusion matrix
 
@@ -575,21 +579,21 @@ def plot_confusion_matrix(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     cm = confusion_matrix(df["ML_prediction_1"], df["label"])
     cm_norm = cm / cm.sum(axis=0)
     plt.figure(figsize=(4, 3))
-    ax = sns.heatmap(cm_norm, annot=cm_norm, annot_kws={"size": fs})
+    ax = sns.heatmap(cm_norm, annot=cm_norm, annot_kws={"size": font_size})
     ax.set_xticks(ticks=[0.5, 1.5])
-    ax.set_xticklabels(labels=["FP", "TP"], fontsize=fs)
+    ax.set_xticklabels(labels=["FP", "TP"], fontsize=font_size)
     ax.set_yticks(ticks=[0.5, 1.5])
-    ax.set_yticklabels(labels=["FP", "TP"], fontsize=fs, rotation="horizontal")
+    ax.set_yticklabels(labels=["FP", "TP"], fontsize=font_size, rotation="horizontal")
     cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=fs)
+    cbar.ax.tick_params(labelsize=font_size)
 
-    title_handle = plt.title(title, fontsize=fs)
+    title_handle = plt.title(title, fontsize=font_size)
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
@@ -609,7 +613,7 @@ def plot_observed_vs_measured_qual(
     max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and saves a plot of observed ML qual vs measured FP rates
 
@@ -625,7 +629,7 @@ def plot_observed_vs_measured_qual(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     plt.figure(figsize=(8, 6))
@@ -637,10 +641,10 @@ def plot_observed_vs_measured_qual(
             max_score=max_score,
         )
     plt.plot([0, max_score], [0, max_score], "--")
-    plt.xlabel("ML qual", fontsize=fs)
-    plt.ylabel("measured qual", fontsize=fs)
-    legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
-    title_handle = plt.title(title, fontsize=fs)
+    plt.xlabel("ML qual", fontsize=font_size)
+    plt.ylabel("measured qual", fontsize=font_size)
+    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=font_size)
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
@@ -660,7 +664,7 @@ def plot_qual_density(
     max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and saves a plot of measured recall rates vs ML qual
 
@@ -676,7 +680,7 @@ def plot_qual_density(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     plt.figure(figsize=(8, 6))
@@ -689,10 +693,10 @@ def plot_qual_density(
             max_score=max_score,
         )
 
-    legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
-    title_handle = plt.title(title, fontsize=fs)
-    plt.xlabel("ML qual", fontsize=fs)
-    plt.ylabel("qual density", fontsize=fs)
+    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=font_size)
+    plt.xlabel("ML qual", fontsize=font_size)
+    plt.ylabel("qual density", fontsize=font_size)
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
@@ -712,7 +716,7 @@ def plot_precision_recall_vs_qual_thresh(
     max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and saves a plot of precision and recall rates vs ML qual threshold
 
@@ -728,7 +732,7 @@ def plot_precision_recall_vs_qual_thresh(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     plt.figure(figsize=(8, 6))
@@ -754,10 +758,10 @@ def plot_precision_recall_vs_qual_thresh(
             max_score=max_score,
         )
 
-    legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
-    title_handle = plt.title(title, fontsize=fs)
-    plt.xlabel("ML qual thresh", fontsize=fs)
-    plt.ylabel("precision/recall average", fontsize=fs)
+    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=font_size)
+    plt.xlabel("ML qual thresh", fontsize=font_size)
+    plt.ylabel("precision/recall average", fontsize=font_size)
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
@@ -777,7 +781,7 @@ def plot_ML_qual_hist(
     max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and save histogram of ML qual per label
 
@@ -793,7 +797,7 @@ def plot_ML_qual_hist(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     score = "ML_qual_1"
@@ -810,10 +814,10 @@ def plot_ML_qual_hist(
             density=True,
         )
 
-    plt.xlabel("ML qual", fontsize=fs)
-    plt.ylabel("Density", fontsize=fs)
-    legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
-    title_handle = plt.title(title, fontsize=fs)
+    plt.xlabel("ML qual", fontsize=font_size)
+    plt.ylabel("Density", fontsize=font_size)
+    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=font_size)
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
@@ -833,7 +837,7 @@ def plot_qual_per_feature(
     df: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and save distributions of ML qual per input feature
 
@@ -851,7 +855,7 @@ def plot_qual_per_feature(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     features = cls_features
@@ -868,9 +872,9 @@ def plot_qual_per_feature(
                 )
             else:
                 _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
-        legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
+        legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + feature
-        title_handle = plt.title(feature_title, fontsize=fs)
+        title_handle = plt.title(feature_title, fontsize=font_size)
         output_filename_feature = output_filename + feature
         if output_filename_feature is not None:
             if not output_filename_feature.endswith(".png"):
@@ -991,7 +995,7 @@ def plot_mixed(
     max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and save histograms of ML qual, separated by subsets: mixed/non mixed and cycle-skip/non cycle-skip
 
@@ -1013,7 +1017,7 @@ def plot_mixed(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     score = "ML_qual_1"
@@ -1029,9 +1033,9 @@ def plot_mixed(
         for label in labels_dict:
             _ = td[td["label"] == label][score].clip(upper=max_score).hist(bins=20, label=labels_dict[label])
         plt.xlim([0, max_score])
-        legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
+        legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + name
-        title_handle = plt.title(feature_title, fontsize=fs)
+        title_handle = plt.title(feature_title, fontsize=font_size)
         output_filename_feature = output_filename + name
         if output_filename_feature is not None:
             if not output_filename_feature.endswith(".png"):
@@ -1053,7 +1057,7 @@ def plot_mixed_fpr(
     max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and save a plot of FP rates per subset: mixed/non-mixed * cycle-skip/non cycle-skip
 
@@ -1073,7 +1077,7 @@ def plot_mixed_fpr(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     plt.figure(figsize=(8, 6))
@@ -1090,8 +1094,8 @@ def plot_mixed_fpr(
     )
     plt.plot([0, 40], [0, 40], "--")
     plt.xlim([0, max_score])
-    legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
-    title_handle = plt.title(title, fontsize=fs)
+    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=font_size)
     if output_filename is not None:
         if not output_filename.endswith(".png"):
             output_filename += ".png"
@@ -1112,7 +1116,7 @@ def plot_mixed_recall(
     max_score: float,
     title: str = "",
     output_filename: str = None,
-    fs: int = 14,
+    font_size: int = 14,
 ):
     """generate and save a plot of recall rates per subset: mixed/non-mixed * cycle-skip/non cycle-skip
 
@@ -1132,7 +1136,7 @@ def plot_mixed_recall(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    fs : int, optional
+    font_size : int, optional
         font size for the plot, by default 14
     """
     plt.figure(figsize=(8, 6))
@@ -1154,8 +1158,8 @@ def plot_mixed_recall(
     )
 
     plt.xlim([0, max_score])
-    legend_handle = plt.legend(fontsize=fs, fancybox=True, framealpha=0.95)
-    title_handle = plt.title(title, fontsize=fs)
+    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title, fontsize=font_size)
     if output_filename is not None:
         if not output_filename.endswith(".png"):
             output_filename += ".png"
@@ -1231,6 +1235,7 @@ def create_report_plots(
     lod_filters : dict, optional
         filters for LoD simulation, by default None (default_LoD_filters)
     """
+    # TODO: change the report so it produces metrics that are saved into a h5 table in addition to the plots
 
     # load model, data and params
     classifier = joblib.load(model_file)
@@ -1518,7 +1523,7 @@ def precision_recall_curve(score, max_score, y_true: np.ndarray, cumulative=Fals
     return fprs, recalls
 
 
-def plot_precision_recall(lists, labels, max_score, log_scale=False, fs=14):
+def plot_precision_recall(lists, labels, max_score, log_scale=False, font_size=14):
     """generate a plot of precision and recall rates per threshold
 
     Parameters
@@ -1531,11 +1536,11 @@ def plot_precision_recall(lists, labels, max_score, log_scale=False, fs=14):
         maximal model score for plot
     log_scale : bool, optional
         whether to plot in log scale, by default False
-    fs : int, optional
+    font_size : int, optional
         font size, by default 14
     """
     for lst, label in zip(lists, labels):
         plt.plot(lst[0:max_score], ".-", label=label)
         if log_scale:
             plt.yscale("log")
-        plt.xlabel("QUAL", fontsize=fs)
+        plt.xlabel("QUAL", fontsize=font_size)
