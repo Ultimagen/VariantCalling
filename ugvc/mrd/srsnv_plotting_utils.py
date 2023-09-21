@@ -497,14 +497,9 @@ def plot_LoD(
 
     if adapter_version in [av.value for av in BalancedStrandAdapterVersions]:
         filters_list.append(["BQ80_mixed_only"])
-        filters_list.append(["BQ80_mixed_CSKP_only"])
         markers_list.append(">")
-        markers_list.append("s")
         labels_list.append("BQ80 and Edit Dist <= 5 (mixed only)")
-        labels_list.append("BQ80 and Edit Dist <= 5 (mixed&cs only)")
         edgecolors_list.append("r")
-        edgecolors_list.append("r")
-        msize_list.append(150)
         msize_list.append(150)
 
     for f, marker, label, edgecolor, markersize in zip(
