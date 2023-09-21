@@ -57,7 +57,9 @@ def get_parser() -> argparse.ArgumentParser:
         "--min_af",
         type=float,
         default=0.7,
-        help="""Minimum allele fraction in the featuremap to be considered a HOM SNV""",
+        help="Minimum allele fraction in the featuremap to be considered a HOM SNV"
+        "The default is chosen as 0.7 and not higher because some SNVs are pre-filtered from the FeatureMap due to "
+        "MAPQ<60 or due to adjacent hmers.",
     )
 
     return parser

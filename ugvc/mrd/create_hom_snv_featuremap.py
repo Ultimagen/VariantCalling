@@ -37,6 +37,8 @@ def create_hom_snv_featuremap(
     min_af : float, optional
         Minimum allele fraction in the featuremap to be considered a HOM SNV
         Default 0.7
+        The default is chosen as 0.7 and not higher because some SNVs are pre-filtered from the FeatureMap due to
+        MAPQ<60 or due to adjacent hmers.
     """
 
     # check inputs
