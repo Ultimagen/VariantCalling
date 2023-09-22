@@ -22,6 +22,7 @@ import argparse
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.mrd.srsnv_plotting_utils import srsnv_report
 from ugvc.mrd.srsnv_training_utils import SRSNVTrain
 
 
@@ -48,7 +49,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--single_sub_regions",
         type=str,
-        required=False,
+        required=True,
         help="""Path to bed file containint regions for single substitution featuremap (FP)""",
     )
     parser.add_argument(
@@ -116,6 +117,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=DEFAULT_FLOW_ORDER,
         help="""flow order - required for cycle skip annotation """,
     )
+    parser.add_argument(
+        "--lod_filters",
+        type=str,
+        required=False,
+        default=None,
+        help="""json file with a dict of format 'filter name':'query' for LoD simulation """,
+    )
+    parser.add_argument(
+        "--balanced_strand_adapter_version",
+        type=str,
+        required=False,
+        default=None,
+        help="""adapter version, indicates if input featuremap is from balanced ePCR data """,
+    )
     return parser.parse_args(argv[1:])
 
 
@@ -132,7 +147,9 @@ def run(argv: list[str]):
 
     # TODO add the option to read from a json file         model_parameters: dict | str = None,
     # TODO add to args         classifier_class=xgb.XGBClassifier,
-    SRSNVTrain(
+    # TODO add to args         balanced_sampling_info_fields: list[str] = None,
+
+    s = SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
         tp_regions_bed_file=args.hom_snv_regions,
@@ -147,5 +164,26 @@ def run(argv: list[str]):
         test_set_size=args.test_set_size,
         out_path=args.output,
         out_basename=args.basename,
+        lod_filters=args.lod_filters,
+        balanced_strand_adapter_version=args.balanced_strand_adapter_version,
         simple_pipeline=sp,
     ).process()
+
+    # TODO: merge the two reports so train and test set results are presented together
+    srsnv_report(
+        out_path=args.output,
+        out_basename=args.basename,
+        report_name="test",
+        model_file=s.model_save_path,
+        params_file=s.params_save_path,
+        simple_pipeline=None,
+    )
+
+    srsnv_report(
+        out_path=args.output,
+        out_basename=args.basename,
+        report_name="train",
+        model_file=s.model_save_path,
+        params_file=s.params_save_path,
+        simple_pipeline=None,
+    )
