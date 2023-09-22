@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-import ugvc.filtering.training_prep as tprep
+import ugvc.filtering.multiallelics as tprep
 
 
 def test_select_overlapping_variants():
