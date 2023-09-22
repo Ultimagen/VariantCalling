@@ -693,7 +693,7 @@ def header_record_number(header: pysam.VariantHeader) -> dict:
     return result
 
 
-def subsample_to_alleles(field: tuple, number: str, alleles: list) -> tuple:
+def subsample_to_alleles(field: tuple, number: str, alleles: tuple) -> tuple:
     """Subsets
 
     Parameters
