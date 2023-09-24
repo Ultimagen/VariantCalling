@@ -21,7 +21,7 @@ import argparse
 
 from simppl.simple_pipeline import SimplePipeline
 
-from ugvc.mrd.create_hom_snv_featuremap import create_hom_snv_featuremap
+from ugvc.mrd.featuremap_utils import create_hom_snv_featuremap
 
 
 def get_parser() -> argparse.ArgumentParser:
