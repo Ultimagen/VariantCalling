@@ -37,6 +37,7 @@ from ugvc.pipelines.mrd import (
     collect_coverage_per_motif,
     concat_dataframes,
     create_control_signature,
+    create_hom_snv_featuremap,
     featuremap_to_dataframe,
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
@@ -50,8 +51,8 @@ from ugvc.pipelines.mrd import (
 
 # import pipeline modules implementing run(argv) method
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
-from ugvc.scripts import sorter_to_h5
 from ugvc.pipelines.vcfbed import annotate_contig
+from ugvc.scripts import sorter_to_h5
 from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.utils import cloud_sync
 
@@ -87,6 +88,7 @@ mrd_modules = [
     annotate_featuremap,
     srsnv_training,
     srsnv_inference,
+    create_hom_snv_featuremap,
 ]
 
 methylation_modules = [
