@@ -1,5 +1,15 @@
+from __future__ import annotations
+
 import os
+import shutil
+import subprocess
+import tempfile
 import warnings
+
+from simppl.simple_pipeline import SimplePipeline
+
+from ugvc import logger
+from ugvc.utils.exec_utils import print_and_execute
 
 warnings.filterwarnings("ignore")
 
@@ -53,3 +63,147 @@ def filter_by_length(bed_file, length_cutoff, prefix):
     os.system(cmd)
 
     return out_len_annotate_file
+
+
+def intersect_bed_regions(
+    include_regions: list[str],
+    exclude_regions: list[str] = None,
+    output_bed: str = "output.bed",
+    assume_input_sorted: bool = False,
+    max_mem: int = None,
+    sp: SimplePipeline = None,
+):
+    """
+    Intersect BED regions with the option to subtract exclude regions,
+    using bedops for the operations (must be installed).
+
+    Parameters
+    ----------
+    include_regions : list of str
+        List of paths to BED files to be intersected.
+    exclude_regions : list of str, optional
+        List of paths to BED or VCF files to be subtracted from the intersected result.
+    output_bed : str, optional
+        Path to the output BED file.
+    assume_input_sorted : bool, optional
+        If True, assume that the input files are already sorted. If False, the function will sort them on-the-fly.
+    max_mem : int, optional
+        Maximum memory in bytes allocated for the sort-bed operations.
+        If not specified, the function will allocate 80% of the available system memory.
+    sp : SimplePipeline, optional
+        SimplePipeline object to be used for printing and executing commands.
+
+    Returns
+    -------
+    None
+        The function saves the intersected (and optionally subtracted) regions to the output_bed file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If any of the input files do not exist.
+
+    """
+
+    # Checking if all input files exist
+    for region_file in include_regions + (exclude_regions if exclude_regions else []):
+        if not os.path.exists(region_file):
+            raise FileNotFoundError(f"File '{region_file}' does not exist.")
+
+    # Make sure bedops is installed
+    assert (
+        subprocess.call(["bedops", "--help"]) == 0
+    ), "bedops is not installed. Please install bedops and make sure it is in your PATH."
+
+    # If only one include region is provided and no exclude regions, just copy the file to the output
+    if len(include_regions) == 1 and exclude_regions is None and assume_input_sorted:
+        shutil.copy(include_regions[0], output_bed)
+        return
+
+    # If max_mem is not specified, set it to 80% of available memory
+    total_memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    if max_mem:
+        if max_mem < total_memory:
+            logger.warning(
+                f"max_mem ({max_mem}) cannot be larger than the total system memory ({total_memory}). "
+                f"Using {int(total_memory * 0.8)}."
+            )
+            max_mem = int(total_memory * 0.8)
+    else:
+        max_mem = int(total_memory * 0.8)
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        # Function to get a temp file path within the tempdir
+        def get_temp_file():
+            return os.path.join(tempdir, next(tempfile._get_candidate_names()))
+
+        # Process the include regions
+        if len(include_regions) == 1:
+            if not assume_input_sorted:
+                sorted_include = get_temp_file()
+                print_and_execute(
+                    f"sort-bed --max-mem {max_mem} {include_regions[0]} > {sorted_include}",
+                    simple_pipeline=sp,
+                    module_name=__name__,
+                )
+                intersected_include_file = sorted_include
+            else:
+                intersected_include_file = include_regions[0]
+        else:
+            sorted_includes = []
+            for bed in include_regions:
+                if not assume_input_sorted:
+                    sorted_include = get_temp_file()
+                    print_and_execute(
+                        f"sort-bed --max-mem {max_mem} {bed} > {sorted_include}",
+                        simple_pipeline=sp,
+                        module_name=__name__,
+                    )
+                    sorted_includes.append(sorted_include)
+                else:
+                    sorted_includes.append(bed)
+            intersected_include = get_temp_file()
+            print_and_execute(
+                f"bedops --intersect {' '.join(sorted_includes)} > {intersected_include}",
+                simple_pipeline=sp,
+                module_name=__name__,
+            )
+            intersected_include_file = intersected_include
+
+        # Process the exclude_regions similarly and get the subtracted regions
+        if exclude_regions:
+            excludes = []
+            for bed in exclude_regions:
+                if bed.endswith(".vcf") or bed.endswith(".vcf.gz"):
+                    bed_temp = get_temp_file()
+                    if not assume_input_sorted:
+                        print_and_execute(
+                            f"bcftools view {bed} | vcf2bed - | sort-bed --max-mem {max_mem} - > {bed_temp}",
+                            simple_pipeline=sp,
+                            module_name=__name__,
+                        )
+                    else:
+                        print_and_execute(
+                            f"bcftools view {bed} | vcf2bed - > {bed_temp}",
+                            simple_pipeline=sp,
+                            module_name=__name__,
+                        )
+                    excludes.append(bed_temp)
+                elif not assume_input_sorted:
+                    sorted_exclude = get_temp_file()
+                    print_and_execute(
+                        f"sort-bed --max-mem {max_mem} {bed} > {sorted_exclude}",
+                        simple_pipeline=sp,
+                        module_name=__name__,
+                    )
+                    excludes.append(sorted_exclude)
+                else:
+                    excludes.append(bed)
+
+            # Construct the final command
+            cmd = f"bedops --difference {intersected_include_file} {' '.join(excludes)} > {output_bed}"
+        else:
+            cmd = f"mv {intersected_include_file} {output_bed}"
+
+        # Execute the final command
+        print_and_execute(cmd, simple_pipeline=sp, module_name=__name__)
