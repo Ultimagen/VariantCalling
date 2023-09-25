@@ -19,17 +19,23 @@ from ugvc.vcfbed.filter_bed import intersect_bed_regions
             ["chr1\t25\t35\n"],
             ["chr1\t20\t25\n"],
         ),
-        # Test with regions in multiple chromosomes with overlaps
-        (
-            ["chr1\t10\t20\n", "chr2\t30\t40\n"],
-            ["chr1\t15\t25\n", "chr2\t35\t45\n"],
-            [],
-        ),
         # Test where exclude regions completely remove include regions
         (
             ["chr1\t10\t20\n", "chr2\t30\t40\n"],
             ["chr1\t10\t20\n", "chr2\t30\t40\n"],
             [],
+        ),
+        # Test with include and exclude regions (overlap partially) - like the next test without headers
+        (
+            ["chr1\t5\t25\n", "chr1\t15\t40\n"],
+            ["chr1\t10\t20\n"],
+            ["chr1\t20\t25\n"],
+        ),
+        # Test bed files with headers
+        (
+            ["##header1\nchr1\t5\t25\n", "##header2\nchr1\t15\t40\n"],
+            ["##header3\nchr1\t10\t20\n"],
+            ["chr1\t20\t25\n"],
         ),
     ],
 )

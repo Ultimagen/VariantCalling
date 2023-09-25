@@ -132,6 +132,7 @@ def intersect_bed_regions(
     else:
         max_mem = int(total_memory * 0.8)
 
+    sort_bed_cmd = f"sort-bed --max-mem {max_mem}"
     with tempfile.TemporaryDirectory() as tempdir:
         # Function to get a temp file path within the tempdir
         def get_temp_file():
@@ -142,7 +143,7 @@ def intersect_bed_regions(
             if not assume_input_sorted:
                 sorted_include = get_temp_file()
                 print_and_execute(
-                    f"sort-bed --max-mem {max_mem} {include_regions[0]} > {sorted_include}",
+                    f"{sort_bed_cmd} {include_regions[0]} > {sorted_include}",
                     simple_pipeline=sp,
                     module_name=__name__,
                 )
@@ -151,20 +152,20 @@ def intersect_bed_regions(
                 intersected_include_file = include_regions[0]
         else:
             sorted_includes = []
-            for exclude_bed_or_vcf in include_regions:
+            for include_bed_or_vcf in include_regions:
                 if not assume_input_sorted:
                     sorted_include = get_temp_file()
                     print_and_execute(
-                        f"sort-bed --max-mem {max_mem} {exclude_bed_or_vcf} > {sorted_include}",
+                        f"{sort_bed_cmd} {include_bed_or_vcf} > {sorted_include}",
                         simple_pipeline=sp,
                         module_name=__name__,
                     )
                     sorted_includes.append(sorted_include)
                 else:
-                    sorted_includes.append(exclude_bed_or_vcf)
+                    sorted_includes.append(include_bed_or_vcf)
             intersected_include = get_temp_file()
             print_and_execute(
-                f"bedops --intersect {' '.join(sorted_includes)} > {intersected_include}",
+                f"bedops --header --intersect {' '.join(sorted_includes)} > {intersected_include}",
                 simple_pipeline=sp,
                 module_name=__name__,
             )
@@ -191,7 +192,7 @@ def intersect_bed_regions(
                     excludes.append(sorted_exclude_bed)
                 elif not assume_input_sorted:
                     print_and_execute(
-                        f"sort-bed --max-mem {max_mem} {exclude_bed_or_vcf} > {sorted_exclude_bed}",
+                        f"{sort_bed_cmd} {exclude_bed_or_vcf} > {sorted_exclude_bed}",
                         simple_pipeline=sp,
                         module_name=__name__,
                     )
@@ -200,7 +201,7 @@ def intersect_bed_regions(
                     excludes.append(exclude_bed_or_vcf)
 
             # Construct the final command
-            cmd = f"bedops --difference {intersected_include_file} {' '.join(excludes)} > {output_bed}"
+            cmd = f"bedops --header --difference {intersected_include_file} {' '.join(excludes)} > {output_bed}"
         else:
             cmd = f"mv {intersected_include_file} {output_bed}"
 
