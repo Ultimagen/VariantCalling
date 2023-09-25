@@ -112,7 +112,7 @@ def intersect_bed_regions(
 
     # Make sure bedops is installed
     assert (
-        subprocess.call(["bedops", "--help"]) == 0
+        subprocess.call(["bedops", "--version"]) == 0
     ), "bedops is not installed. Please install bedops and make sure it is in your PATH."
 
     # If only one include region is provided and no exclude regions, just copy the file to the output
