@@ -27,7 +27,7 @@ def get_parser():
         "If not set, the function will sort them on-the-fly.",
     )
     parser.add_argument(
-        "--max_mem",
+        "--max-mem",
         type=int,
         default=None,
         help="Maximum memory in bytes allocated for the sort-bed operations. If not specified, "

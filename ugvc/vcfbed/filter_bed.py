@@ -151,17 +151,17 @@ def intersect_bed_regions(
                 intersected_include_file = include_regions[0]
         else:
             sorted_includes = []
-            for bed in include_regions:
+            for exclude_bed_or_vcf in include_regions:
                 if not assume_input_sorted:
                     sorted_include = get_temp_file()
                     print_and_execute(
-                        f"sort-bed --max-mem {max_mem} {bed} > {sorted_include}",
+                        f"sort-bed --max-mem {max_mem} {exclude_bed_or_vcf} > {sorted_include}",
                         simple_pipeline=sp,
                         module_name=__name__,
                     )
                     sorted_includes.append(sorted_include)
                 else:
-                    sorted_includes.append(bed)
+                    sorted_includes.append(exclude_bed_or_vcf)
             intersected_include = get_temp_file()
             print_and_execute(
                 f"bedops --intersect {' '.join(sorted_includes)} > {intersected_include}",
@@ -173,32 +173,31 @@ def intersect_bed_regions(
         # Process the exclude_regions similarly and get the subtracted regions
         if exclude_regions:
             excludes = []
-            for bed in exclude_regions:
-                if bed.endswith(".vcf") or bed.endswith(".vcf.gz"):
-                    bed_temp = get_temp_file()
+            for exclude_bed_or_vcf in exclude_regions:
+                sorted_exclude_bed = get_temp_file()
+                if exclude_bed_or_vcf.endswith(".vcf") or exclude_bed_or_vcf.endswith(".vcf.gz"):  # vcf file
                     if not assume_input_sorted:
                         print_and_execute(
-                            f"bcftools view {bed} | vcf2bed - | sort-bed --max-mem {max_mem} - > {bed_temp}",
+                            f"bcftools view {exclude_bed_or_vcf} | vcf2bed --max-mem {max_mem} > {sorted_exclude_bed}",
                             simple_pipeline=sp,
                             module_name=__name__,
                         )
                     else:
                         print_and_execute(
-                            f"bcftools view {bed} | vcf2bed - > {bed_temp}",
+                            f"bcftools view {exclude_bed_or_vcf} | vcf2bed --do-not-sort > {sorted_exclude_bed}",
                             simple_pipeline=sp,
                             module_name=__name__,
                         )
-                    excludes.append(bed_temp)
+                    excludes.append(sorted_exclude_bed)
                 elif not assume_input_sorted:
-                    sorted_exclude = get_temp_file()
                     print_and_execute(
-                        f"sort-bed --max-mem {max_mem} {bed} > {sorted_exclude}",
+                        f"sort-bed --max-mem {max_mem} {exclude_bed_or_vcf} > {sorted_exclude_bed}",
                         simple_pipeline=sp,
                         module_name=__name__,
                     )
-                    excludes.append(sorted_exclude)
-                else:
-                    excludes.append(bed)
+                    excludes.append(sorted_exclude_bed)
+                else:  # bed file and assume_input_sorted
+                    excludes.append(exclude_bed_or_vcf)
 
             # Construct the final command
             cmd = f"bedops --difference {intersected_include_file} {' '.join(excludes)} > {output_bed}"
