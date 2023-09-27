@@ -140,8 +140,12 @@ def srsnv_report(
         output_bepcr_recalls,
     ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
 
+    report_notebook = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "reports/srsnv_report.ipynb",
+    )
     commands = [
-        f"papermill ugvc/reports/srsnv_report.ipynb {reportfile} \
+        f"papermill {report_notebook} {reportfile} \
 -p report_name {report_name} \
 -p model_file {model_file} \
 -p params_file {params_file} \
