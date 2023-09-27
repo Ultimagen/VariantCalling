@@ -5,7 +5,9 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import pysam
+from pandas.api.types import CategoricalDtype
 
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
@@ -15,10 +17,11 @@ class MLQualAnnotator(VcfAnnotator):
     Annotate vcf with ml-qual score
     """
 
-    def __init__(self, model, categorical_features: list[str], numerical_features: list[str]):
+    def __init__(self, model, categorical_features: list[str], numerical_features: list[str], X_train_path: str):
         self.model = model
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
+        self.X_train_path = X_train_path
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
         """
@@ -66,8 +69,14 @@ class MLQualAnnotator(VcfAnnotator):
         data = [{column: variant.info[column] for column in columns} for variant in records]
         df = pd.DataFrame(data)[columns]
 
-        # Mark categorical features
-        df = df.astype({col: "category" for col in self.categorical_features})
+        parquet_path = self.X_train_path
+        categories = extract_categories_from_parquet(parquet_path)
+
+        # encode categorical features
+        for column, cat_values in categories.items():
+            if column in df.columns:
+                cat_dtype = CategoricalDtype(categories=cat_values, ordered=False)
+                df[column] = df[column].astype(cat_dtype)
 
         # TODO remove this patch (types should be read from header as in featuremap_to_dataframe)
         df = df.astype(
@@ -88,6 +97,16 @@ class MLQualAnnotator(VcfAnnotator):
         for i, variant in enumerate(records):
             variant.info["ML_QUAL"] = -10 * np.log10(predicted_qualities[i][0])
         return records
+
+
+def extract_categories_from_parquet(parquet_path):
+    parquet_file = pq.ParquetFile(parquet_path)
+    category_info = {}
+    for field in parquet_file.schema:
+        if isinstance(field, pq.lib.DictionaryType):
+            dictionary = parquet_file.dictionary(field.id)
+            category_info[field.name] = dictionary.to_pandas().tolist()
+    return category_info
 
 
 def single_read_snv_inference(
@@ -121,6 +140,7 @@ def single_read_snv_inference(
         model,
         categorical_features=params["categorical_features"],
         numerical_features=params["numerical_features"],
+        X_train_path=params["X_train_save_path"],
     )
     VcfAnnotator.process_vcf(
         annotators=[ml_qual_annotator],
