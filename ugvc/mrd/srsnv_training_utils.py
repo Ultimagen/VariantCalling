@@ -497,6 +497,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "lod_filters": self.lod_filters,
             "adapter_version": self.balanced_strand_adapter_version,
             "columns": self.columns,
+            "X_train_save_path": self.X_train_save_path,
         }
 
         with open(self.params_save_path, "w", encoding="utf-8") as f:
