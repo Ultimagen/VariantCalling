@@ -158,11 +158,7 @@ def prepare_featuremap_for_model(
         bcftools_view_command = bcftools_view_command + f" -T {regions_file} "
     bcftools_view_command = bcftools_view_command + f" -O z -o {intersect_featuremap_vcf}"
     bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
-    print_and_execute(
-        bcftools_view_command,
-        simple_pipeline=sp,
-        module_name=__name__,
-    )
+    print_and_execute(bcftools_view_command, simple_pipeline=sp, module_name=__name__, shell=True)
     print_and_execute(
         bcftools_index_command,
         simple_pipeline=sp,
@@ -539,6 +535,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
         # prepare TP featuremaps for training
+        logger.info("Preparing TP featuremaps for training and test")
         (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf, _,) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
@@ -548,8 +545,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             regions_file=self.tp_regions_bed_file,
             balanced_sampling_info_fields=self.balanced_sampling_info_fields,
             sorter_json_stats_file=self.sorter_json_stats_file,
+            sp=self.sp,
         )
         # prepare FP featuremaps for training
+        logger.info("Preparing FP featuremaps for training and test")
         (
             self.fp_train_featuremap_vcf,
             self.fp_test_featuremap_vcf,
@@ -562,6 +561,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
             regions_file=self.fp_regions_bed_file,
             sorter_json_stats_file=self.sorter_json_stats_file,
+            sp=self.sp,
         )
 
     def create_dataframes(self):

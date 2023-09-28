@@ -147,7 +147,6 @@ def run(argv: list[str]):
 
     # TODO add the option to read from a json file         model_parameters: dict | str = None,
     # TODO add to args         classifier_class=xgb.XGBClassifier,
-    # TODO add to args         balanced_sampling_info_fields: list[str] = None,
 
     s = SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
