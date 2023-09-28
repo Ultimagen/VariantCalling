@@ -103,6 +103,7 @@ def extract_categories_from_parquet(parquet_path):
 
 def single_read_snv_inference(
     featuremap_path: str,
+    X_train_path: str,
     params_path: str,
     model_path: str,
     out_path: str,
@@ -115,6 +116,8 @@ def single_read_snv_inference(
     ----------
     featuremap_path : str
         Path to featuremap
+    X_train_path : str
+        Path to X_train
     params_path : str
         Path to model parameters
     model_path : str
@@ -132,7 +135,7 @@ def single_read_snv_inference(
         model,
         categorical_features=params["categorical_features"],
         numerical_features=params["numerical_features"],
-        X_train_path=params["X_train_save_path"],
+        X_train_path=X_train_path,
     )
     VcfAnnotator.process_vcf(
         annotators=[ml_qual_annotator],
