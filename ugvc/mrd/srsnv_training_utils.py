@@ -157,10 +157,7 @@ def prepare_featuremap_for_model(
     if regions_file:
         bcftools_view_command = bcftools_view_command + f" -R {regions_file} "
     bcftools_view_command = bcftools_view_command + f" -O z -o {intersect_featuremap_vcf}"
-    bcftools_index_command = [
-        bcftools_view_command,
-        f"bcftools index -t {intersect_featuremap_vcf}",
-    ]
+    bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
     print_and_execute(
         bcftools_view_command,
         simple_pipeline=sp,
