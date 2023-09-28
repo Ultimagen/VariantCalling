@@ -20,8 +20,8 @@ from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 from ugvc.mrd.srsnv_plotting_utils import create_report_plots
 from ugvc.utils.consts import FileExtension
+from ugvc.utils.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
-from ugvc.utils.misc_utils import exec_command_list
 
 default_xgboost_model_params = {
     "n_estimators": 100,
@@ -47,7 +47,7 @@ default_categorical_features = [
 ]
 
 
-# pylint:disable=too-many-arguments,too-many-branches
+# pylint:disable=too-many-arguments,too-many-statements
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
@@ -139,24 +139,38 @@ def prepare_featuremap_for_model(
         isfile(downsampled_training_featuremap_vcf)
     ), f"sample_featuremap_vcf_sorted {downsampled_training_featuremap_vcf} already exists"
 
+    logger.info(f"Running prepare_featuremap_for_model for input_featuremap_vcf={input_featuremap_vcf}")
+
     # filter featuremap - intersect with bed file and require coverage in range
-    commandstr = f"bcftools view {input_featuremap_vcf}"
+    bcftools_view_command = f"bcftools view {input_featuremap_vcf}"
     if sorter_json_stats_file:
         # get min and max coverage from cram stats file
-        (_, _, _, min_coverage_for_fp, max_coverage_for_fp,) = read_effective_coverage_from_sorter_json(
+        (_, _, _, min_coverage, max_coverage,) = read_effective_coverage_from_sorter_json(
             sorter_json_stats_file, **read_effective_coverage_from_sorter_json_kwargs
         )
         # filter out variants with coverage outside of min and max coverage
-        commandstr = (
-            commandstr
-            + f" -i' (INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage_for_fp}) "
-            + f"&& (INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage_for_fp}) '"
+        bcftools_view_command = (
+            bcftools_view_command
+            + f" -i' (INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage}) "
+            + f"&& (INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage}) '"
         )
     if regions_file:
-        commandstr = commandstr + f" -R {regions_file} "
-    commandstr = commandstr + f" -O z -o {intersect_featuremap_vcf}"
-    commandslist = [commandstr, f"bcftools index -t {intersect_featuremap_vcf}"]
-    exec_command_list(commandslist, sp)
+        bcftools_view_command = bcftools_view_command + f" -R {regions_file} "
+    bcftools_view_command = bcftools_view_command + f" -O z -o {intersect_featuremap_vcf}"
+    bcftools_index_command = [
+        bcftools_view_command,
+        f"bcftools index -t {intersect_featuremap_vcf}",
+    ]
+    print_and_execute(
+        bcftools_view_command,
+        simple_pipeline=sp,
+        module_name=__name__,
+    )
+    print_and_execute(
+        bcftools_index_command,
+        simple_pipeline=sp,
+        module_name=__name__,
+    )
     assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
     # count entries in intersected featuremap and determine downsampling rate
@@ -296,6 +310,12 @@ def prepare_featuremap_for_model(
             os.remove(intersect_featuremap_vcf)
         if isfile(intersect_featuremap_vcf + ".tbi"):
             os.remove(intersect_featuremap_vcf + ".tbi")
+
+    logger.info(
+        f"Finished prepare_featuremap_for_model, outputting: "
+        f"downsampled_training_featuremap_vcf={downsampled_training_featuremap_vcf}, "
+        f"downsampled_test_featuremap_vcf={downsampled_test_featuremap_vcf}"
+    )
 
     return (
         downsampled_training_featuremap_vcf,
