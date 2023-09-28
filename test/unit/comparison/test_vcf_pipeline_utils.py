@@ -166,7 +166,9 @@ def test_intersect_bed_files(mocker, tmp_path):
     spy_subprocess = mocker.spy(subprocess, "call")
 
     VcfPipelineUtils().intersect_bed_files(bed1, bed2, output_path)
-    spy_subprocess.assert_called_once_with(["bedtools", "intersect", "-a", bed1, "-b", bed2], stdout=mocker.ANY)
+    spy_subprocess.assert_called_once_with(
+        ["bedtools", "intersect", "-a", bed1, "-b", bed2], stdout=mocker.ANY, shell=False
+    )
     assert exists(output_path)
 
 
