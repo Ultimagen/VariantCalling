@@ -5,7 +5,6 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
-import pyarrow.parquet as pq
 import pysam
 from pandas.api.types import CategoricalDtype
 
@@ -21,7 +20,7 @@ class MLQualAnnotator(VcfAnnotator):
         self.model = model
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
-        self.X_train_path = X_train_path
+        self.categories = extract_categories_from_parquet(X_train_path)
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
         """
@@ -65,15 +64,11 @@ class MLQualAnnotator(VcfAnnotator):
         """
         # Convert list of variant records to a pandas DataFrame
         columns = self.numerical_features + self.categorical_features
-        # TODO change this implementation to use modules from featuremap_to_dataframe - this is brittle
         data = [{column: variant.info[column] for column in columns} for variant in records]
         df = pd.DataFrame(data)[columns]
 
-        parquet_path = self.X_train_path
-        categories = extract_categories_from_parquet(parquet_path)
-
         # encode categorical features
-        for column, cat_values in categories.items():
+        for column, cat_values in self.categories.items():
             if column in df.columns:
                 cat_dtype = CategoricalDtype(categories=cat_values, ordered=False)
                 df[column] = df[column].astype(cat_dtype)
@@ -83,7 +78,6 @@ class MLQualAnnotator(VcfAnnotator):
             {
                 k: v
                 for k, v in {
-                    **{x: int for x in ("a3", "ae", "as", "s2", "s3", "te", "ts")},
                     **{"rq": float},
                 }.items()
                 if k in df.columns
@@ -100,13 +94,11 @@ class MLQualAnnotator(VcfAnnotator):
 
 
 def extract_categories_from_parquet(parquet_path):
-    parquet_file = pq.ParquetFile(parquet_path)
-    category_info = {}
-    for field in parquet_file.schema:
-        if isinstance(field, pq.lib.DictionaryType):
-            dictionary = parquet_file.dictionary(field.id)
-            category_info[field.name] = dictionary.to_pandas().tolist()
-    return category_info
+    df = pd.read_parquet(parquet_path)
+    category_mappings = {}
+    for column in df.select_dtypes(include=["category"]).columns:
+        category_mappings[column] = df[column].cat.categories.tolist()
+    return category_mappings
 
 
 def single_read_snv_inference(
