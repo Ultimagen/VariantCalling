@@ -140,7 +140,11 @@ def srsnv_report(
         output_bepcr_recalls,
     ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
 
-    papermill_command = f"papermill ugvc/reports/srsnv_report.ipynb {reportfile} \
+    template_notebook = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "reports/srsnv_report.ipynb",
+    )
+    papermill_command = f"papermill {template_notebook} {reportfile} \
 -p report_name {report_name} \
 -p model_file {model_file} \
 -p params_file {params_file} \
@@ -156,9 +160,7 @@ def srsnv_report(
 -p output_bepcr_fpr {output_bepcr_fpr} \
 -p output_bepcr_recalls {output_bepcr_recalls} \
 -k python3"
-    jupyter_nbconvert_command = (
-        f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --template classic --no-input",
-    )
+    jupyter_nbconvert_command = (f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --no-input",)
 
     print_and_execute(papermill_command, simple_pipeline=simple_pipeline, module_name=__name__)
     print_and_execute(jupyter_nbconvert_command, simple_pipeline=simple_pipeline, module_name=__name__)
