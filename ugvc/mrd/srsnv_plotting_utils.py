@@ -160,7 +160,7 @@ def srsnv_report(
 -p output_bepcr_fpr {output_bepcr_fpr} \
 -p output_bepcr_recalls {output_bepcr_recalls} \
 -k python3"
-    jupyter_nbconvert_command = (f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --no-input",)
+    jupyter_nbconvert_command = f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --no-input"
 
     print_and_execute(papermill_command, simple_pipeline=simple_pipeline, module_name=__name__)
     print_and_execute(jupyter_nbconvert_command, simple_pipeline=simple_pipeline, module_name=__name__)
