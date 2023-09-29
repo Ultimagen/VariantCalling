@@ -47,7 +47,7 @@ default_categorical_features = [
 ]
 
 
-# pylint:disable=too-many-arguments,too-many-branches
+# pylint:disable=too-many-arguments
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
@@ -440,8 +440,16 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.sorter_json_stats_file = sorter_json_stats_file
 
         # misc
-        with open(lod_filters, "r", encoding="utf-8") as f:
-            self.lod_filters = json.load(f)
+        if isinstance(lod_filters, str) and isfile(lod_filters) and lod_filters.endswith(".json"):
+            with open(lod_filters, "r", encoding="utf-8") as f:
+                self.lod_filters = json.load(f)
+        elif lod_filters is None:
+            self.lod_filters = None
+        elif isinstance(lod_filters, dict):
+            self.lod_filters = lod_filters
+        else:
+            raise RuntimeError("lod_filters should be json_file | dictionary | None")
+
         self.flow_order = flow_order
         self.balanced_strand_adapter_version = balanced_strand_adapter_version
         self.sp = simple_pipeline

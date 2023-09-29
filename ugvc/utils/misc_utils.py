@@ -332,6 +332,8 @@ def exec_command_list(commands: list[str], simple_pipeline: SimplePipeline = Non
         List of commands to execute
     simple_pipeline : SimplePipeline, optional
         SimplePipeline object to use for printing and running commands, by default None
+    logger : logging.Logger, optional
+        Logger to use for logging commands, by default None
     """
     if simple_pipeline:
         for command in commands:
@@ -340,4 +342,4 @@ def exec_command_list(commands: list[str], simple_pipeline: SimplePipeline = Non
         for command in commands:
             if logger:
                 logger.debug(command)
-            subprocess.call(command, shell=True)
+            subprocess.check_call(command, shell=True)
