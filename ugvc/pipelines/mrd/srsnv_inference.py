@@ -32,7 +32,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""input featuremap file""",
     )
     parser.add_argument(
-        "-p",
+        "-X",
         "--X_train_path",
         type=str,
         required=True,
