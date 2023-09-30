@@ -392,7 +392,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         ------
         ValueError
             If test_set_size < MIN_TEST_SIZE or train_set_size < MIN_TRAIN_SIZE
-        RuntimeError
             If model_params is not a json file, dictionary or None
 
         """
@@ -429,7 +428,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         elif isinstance(model_params, dict):
             pass
         else:
-            raise RuntimeError("model_params should be json_file | dictionary | None")
+            raise ValueError("model_params should be json_file | dictionary | None")
         self.model_parameters = model_params
         self.classifier = classifier_class(**self.model_parameters)
         self.numerical_features = numerical_features
@@ -453,8 +452,16 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.sorter_json_stats_file = sorter_json_stats_file
 
         # misc
-        with open(lod_filters, "r", encoding="utf-8") as f:
-            self.lod_filters = json.load(f)
+        if isinstance(lod_filters, str) and isfile(lod_filters) and lod_filters.endswith(".json"):
+            with open(lod_filters, "r", encoding="utf-8") as f:
+                self.lod_filters = json.load(f)
+        elif lod_filters is None:
+            self.lod_filters = None
+        elif isinstance(lod_filters, dict):
+            self.lod_filters = lod_filters
+        else:
+            raise ValueError("lod_filters should be json_file | dictionary | None")
+
         self.flow_order = flow_order
         self.balanced_strand_adapter_version = balanced_strand_adapter_version
         self.sp = simple_pipeline
