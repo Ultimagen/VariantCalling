@@ -6,6 +6,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import pysam
+from pandas.api.types import CategoricalDtype
 
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
@@ -15,10 +16,11 @@ class MLQualAnnotator(VcfAnnotator):
     Annotate vcf with ml-qual score
     """
 
-    def __init__(self, model, categorical_features: list[str], numerical_features: list[str]):
+    def __init__(self, model, categorical_features: list[str], numerical_features: list[str], X_train_path: str):
         self.model = model
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
+        self.categories = extract_categories_from_parquet(X_train_path)
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
         """
@@ -62,19 +64,20 @@ class MLQualAnnotator(VcfAnnotator):
         """
         # Convert list of variant records to a pandas DataFrame
         columns = self.numerical_features + self.categorical_features
-        # TODO change this implementation to use modules from featuremap_to_dataframe - this is brittle
         data = [{column: variant.info[column] for column in columns} for variant in records]
         df = pd.DataFrame(data)[columns]
 
-        # Mark categorical features
-        df = df.astype({col: "category" for col in self.categorical_features})
+        # encode categorical features
+        for column, cat_values in self.categories.items():
+            if column in df.columns:
+                cat_dtype = CategoricalDtype(categories=cat_values, ordered=False)
+                df[column] = df[column].astype(cat_dtype)
 
         # TODO remove this patch (types should be read from header as in featuremap_to_dataframe)
         df = df.astype(
             {
                 k: v
                 for k, v in {
-                    **{x: int for x in ("a3", "ae", "as", "s2", "s3", "te", "ts")},
                     **{"rq": float},
                 }.items()
                 if k in df.columns
@@ -90,8 +93,17 @@ class MLQualAnnotator(VcfAnnotator):
         return records
 
 
+def extract_categories_from_parquet(parquet_path):
+    df = pd.read_parquet(parquet_path)
+    category_mappings = {}
+    for column in df.select_dtypes(include=["category"]).columns:
+        category_mappings[column] = df[column].cat.categories.tolist()
+    return category_mappings
+
+
 def single_read_snv_inference(
     featuremap_path: str,
+    X_train_path: str,
     params_path: str,
     model_path: str,
     out_path: str,
@@ -104,6 +116,8 @@ def single_read_snv_inference(
     ----------
     featuremap_path : str
         Path to featuremap
+    X_train_path : str
+        Path to X_train
     params_path : str
         Path to model parameters
     model_path : str
@@ -121,6 +135,7 @@ def single_read_snv_inference(
         model,
         categorical_features=params["categorical_features"],
         numerical_features=params["numerical_features"],
+        X_train_path=X_train_path,
     )
     VcfAnnotator.process_vcf(
         annotators=[ml_qual_annotator],

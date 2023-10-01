@@ -21,7 +21,7 @@ import argparse
 
 from simppl.simple_pipeline import SimplePipeline
 
-from ugvc.mrd.create_hom_snv_featuremap import create_hom_snv_featuremap
+from ugvc.mrd.featuremap_utils import create_hom_snv_featuremap
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -67,7 +67,6 @@ def get_parser() -> argparse.ArgumentParser:
 
 def run(argv: list[str]):
     """Create a HOM SNV featuremap from a featuremap"""
-    print(argv)
     parser = get_parser()
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])

@@ -20,8 +20,8 @@ from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 from ugvc.mrd.srsnv_plotting_utils import create_report_plots
 from ugvc.utils.consts import FileExtension
+from ugvc.utils.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
-from ugvc.utils.misc_utils import exec_command_list
 
 default_xgboost_model_params = {
     "n_estimators": 100,
@@ -47,7 +47,7 @@ default_categorical_features = [
 ]
 
 
-# pylint:disable=too-many-arguments,too-many-branches
+# pylint:disable=too-many-arguments,too-many-statements
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
@@ -139,24 +139,31 @@ def prepare_featuremap_for_model(
         isfile(downsampled_training_featuremap_vcf)
     ), f"sample_featuremap_vcf_sorted {downsampled_training_featuremap_vcf} already exists"
 
+    logger.info(f"Running prepare_featuremap_for_model for input_featuremap_vcf={input_featuremap_vcf}")
+
     # filter featuremap - intersect with bed file and require coverage in range
-    commandstr = f"bcftools view {input_featuremap_vcf}"
+    bcftools_view_command = f"bcftools view {input_featuremap_vcf}"
     if sorter_json_stats_file:
         # get min and max coverage from cram stats file
-        (_, _, _, min_coverage_for_fp, max_coverage_for_fp,) = read_effective_coverage_from_sorter_json(
+        (_, _, _, min_coverage, max_coverage,) = read_effective_coverage_from_sorter_json(
             sorter_json_stats_file, **read_effective_coverage_from_sorter_json_kwargs
         )
         # filter out variants with coverage outside of min and max coverage
-        commandstr = (
-            commandstr
-            + f" -i' (INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage_for_fp}) "
-            + f"&& (INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage_for_fp}) '"
+        bcftools_view_command = (
+            bcftools_view_command
+            + f" -i' (INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage}) "
+            + f"&& (INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage}) '"
         )
     if regions_file:
-        commandstr = commandstr + f" -R {regions_file} "
-    commandstr = commandstr + f" -O z -o {intersect_featuremap_vcf}"
-    commandslist = [commandstr, f"bcftools index -t {intersect_featuremap_vcf}"]
-    exec_command_list(commandslist, sp)
+        bcftools_view_command = bcftools_view_command + f" -T {regions_file} "
+    bcftools_view_command = bcftools_view_command + f" -O z -o {intersect_featuremap_vcf}"
+    bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
+    print_and_execute(bcftools_view_command, simple_pipeline=sp, module_name=__name__, shell=True)
+    print_and_execute(
+        bcftools_index_command,
+        simple_pipeline=sp,
+        module_name=__name__,
+    )
     assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
     # count entries in intersected featuremap and determine downsampling rate
@@ -297,6 +304,12 @@ def prepare_featuremap_for_model(
         if isfile(intersect_featuremap_vcf + ".tbi"):
             os.remove(intersect_featuremap_vcf + ".tbi")
 
+    logger.info(
+        f"Finished prepare_featuremap_for_model, outputting: "
+        f"downsampled_training_featuremap_vcf={downsampled_training_featuremap_vcf}, "
+        f"downsampled_test_featuremap_vcf={downsampled_test_featuremap_vcf}"
+    )
+
     return (
         downsampled_training_featuremap_vcf,
         downsampled_test_featuremap_vcf,
@@ -379,7 +392,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         ------
         ValueError
             If test_set_size < MIN_TEST_SIZE or train_set_size < MIN_TRAIN_SIZE
-        RuntimeError
             If model_params is not a json file, dictionary or None
 
         """
@@ -416,7 +428,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         elif isinstance(model_params, dict):
             pass
         else:
-            raise RuntimeError("model_params should be json_file | dictionary | None")
+            raise ValueError("model_params should be json_file | dictionary | None")
         self.model_parameters = model_params
         self.classifier = classifier_class(**self.model_parameters)
         self.numerical_features = numerical_features
@@ -440,8 +452,16 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.sorter_json_stats_file = sorter_json_stats_file
 
         # misc
-        with open(lod_filters, "r", encoding="utf-8") as f:
-            self.lod_filters = json.load(f)
+        if isinstance(lod_filters, str) and isfile(lod_filters) and lod_filters.endswith(".json"):
+            with open(lod_filters, "r", encoding="utf-8") as f:
+                self.lod_filters = json.load(f)
+        elif lod_filters is None:
+            self.lod_filters = None
+        elif isinstance(lod_filters, dict):
+            self.lod_filters = lod_filters
+        else:
+            raise ValueError("lod_filters should be json_file | dictionary | None")
+
         self.flow_order = flow_order
         self.balanced_strand_adapter_version = balanced_strand_adapter_version
         self.sp = simple_pipeline
@@ -497,6 +517,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "lod_filters": self.lod_filters,
             "adapter_version": self.balanced_strand_adapter_version,
             "columns": self.columns,
+            "X_train_save_path": self.X_train_save_path,
         }
 
         with open(self.params_save_path, "w", encoding="utf-8") as f:
@@ -521,6 +542,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
         # prepare TP featuremaps for training
+        logger.info("Preparing TP featuremaps for training and test")
         (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf, _,) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
@@ -530,8 +552,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             regions_file=self.tp_regions_bed_file,
             balanced_sampling_info_fields=self.balanced_sampling_info_fields,
             sorter_json_stats_file=self.sorter_json_stats_file,
+            sp=self.sp,
         )
         # prepare FP featuremaps for training
+        logger.info("Preparing FP featuremaps for training and test")
         (
             self.fp_train_featuremap_vcf,
             self.fp_test_featuremap_vcf,
@@ -544,6 +568,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
             regions_file=self.fp_regions_bed_file,
             sorter_json_stats_file=self.sorter_json_stats_file,
+            sp=self.sp,
         )
 
     def create_dataframes(self):

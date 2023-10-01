@@ -32,6 +32,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""input featuremap file""",
     )
     parser.add_argument(
+        "-X",
+        "--X_train_path",
+        type=str,
+        required=True,
+        help="""X train file path""",
+    )
+    parser.add_argument(
         "-p",
         "--params_path",
         type=str,
@@ -70,6 +77,7 @@ def run(argv: list[str]):
 
     single_read_snv_inference(
         featuremap_path=args.featuremap_path,
+        X_train_path=args.X_train_path,
         params_path=args.params_path,
         model_path=args.model_path,
         out_path=args.output_path,
