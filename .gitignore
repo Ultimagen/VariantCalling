@@ -38,3 +38,7 @@ test/test_outputs
 .python-version
 .vscode/
 *.code-workspace
+
+# bioinformatics
+.tbi
+.crai
