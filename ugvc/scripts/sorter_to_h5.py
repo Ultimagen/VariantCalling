@@ -81,11 +81,22 @@ def sorter_to_h5(
     df_stats_coverage.index.names = [None, None]
     df_stats_coverage.columns = [0]
     df_stats_coverage = df_stats_coverage.T
+    # rename stats_coverage columns
+    df_stats_coverage.rename(columns={"Exome": "Exome (WG)", "ACMG59": "ACMG59 (WG)"}, inplace=True)
     h5_dict["stats_coverage"] = df_stats_coverage
 
-    # add the 5x coverage percentage to RawWgsMetrics
-    x5_coverage = df_coverage_histogram.loc[5:, "Genome"].sum() / df_coverage_histogram["Genome"].sum() * 100
-    h5_dict["RawWgsMetrics"]["PCT_5X"] = x5_coverage
+    # calculate coverage percetnages from the coverage histogram
+    coverge_list_str = df_metric_mapping.loc[
+        (df_metric_mapping["H5_key"] == "RawWgsMetrics")
+        & df_metric_mapping["H5_item"].str.startswith("PCT_")
+        & df_metric_mapping["H5_item"].str.endswith("X"),
+        "key",
+    ].tolist()
+    coverage_list = [int(x.split("=")[1].replace("x", "")) for x in coverge_list_str]
+    for coverage_int in coverage_list:
+        h5_dict["RawWgsMetrics"][f"PCT_{coverage_int}X"] = (
+            df_coverage_histogram.loc[coverage_int:, "Genome"].sum() / df_coverage_histogram["Genome"].sum() * 100
+        )
 
     # add the F80, F90, F95 metrics to RawWgsMetrics
     h5_dict["RawWgsMetrics"]["FOLD_80_BASE_PENALTY"] = (
@@ -106,7 +117,13 @@ def sorter_to_h5(
         "PCT_5X",
         "PCT_10X",
         "PCT_20X",
+        "PCT_30X",
+        "PCT_40X",
         "PCT_50X",
+        "PCT_60X",
+        "PCT_70X",
+        "PCT_80X",
+        "PCT_90X",
         "PCT_100X",
         "PCT_500X",
         "PCT_1000X",
@@ -118,6 +135,18 @@ def sorter_to_h5(
         "FOLD_95_BASE_PENALTY_AT_30X",
     ]
     h5_dict["RawWgsMetrics"] = {k: h5_dict["RawWgsMetrics"][k] for k in key_order}
+
+    # Q20_PF_BASES and Q30_PF_BASES
+    h5_dict["QualityYieldMetricsFlow"]["Q20_BASES"] = round(
+        float(h5_dict["QualityYieldMetricsFlow"]["PCT_PF_Q20_BASES"])
+        / 100
+        * h5_dict["QualityYieldMetricsFlow"]["PF_BASES"]
+    )
+    h5_dict["QualityYieldMetricsFlow"]["Q30_BASES"] = round(
+        float(h5_dict["QualityYieldMetricsFlow"]["PCT_PF_Q30_BASES"])
+        / 100
+        * h5_dict["QualityYieldMetricsFlow"]["PF_BASES"]
+    )
 
     # write to h5 file
     base_file_name = os.path.splitext(os.path.basename(input_csv_file))[0]
