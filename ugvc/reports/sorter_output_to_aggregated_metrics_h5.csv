@@ -9,6 +9,7 @@ Mean_quality,QualityYieldMetricsFlow/MEAN_QUALITY,csv
 Mismatch_Rate,AlignmentSummaryMetrics/PF_MISMATCH_RATE,csv
 Indel_Rate,AlignmentSummaryMetrics/PF_INDEL_RATE,csv
 Mean_Read_Length,AlignmentSummaryMetrics/MEAN_READ_LENGTH,csv
+Mean_Read_Length,4.	QualityYieldMetricsFlow/READ_LENGTH,csv
 Median_Read_Length,AlignmentSummaryMetrics/MEDIAN_READ_LENGTH,csv
 Mean_Aligned_Read_Length,AlignmentSummaryMetrics/MEAN_ALIGNED_READ_LENGTH,csv
 Failed_QC_reads,QualityYieldMetricsFlow/NON_PF_READS,csv
@@ -24,7 +25,13 @@ median_cvg,RawWgsMetrics/MEDIAN_COVERAGE,csv
 %>=5x,RawWgsMetrics/PCT_5X,csv
 %>=10x,RawWgsMetrics/PCT_10X,csv
 %>=20x,RawWgsMetrics/PCT_20X,csv
+%>=30x,RawWgsMetrics/PCT_20X,csv
+%>=40x,RawWgsMetrics/PCT_20X,csv
 %>=50x,RawWgsMetrics/PCT_50X,csv
+%>=60x,RawWgsMetrics/PCT_20X,csv
+%>=70x,RawWgsMetrics/PCT_20X,csv
+%>=80x,RawWgsMetrics/PCT_20X,csv
+%>=90x,RawWgsMetrics/PCT_20X,csv
 %>=100x,RawWgsMetrics/PCT_100X,csv
 %>=500x,RawWgsMetrics/PCT_500X,csv
 %>=1000x,RawWgsMetrics/PCT_1000X,csv
@@ -36,9 +43,11 @@ F80@30x,RawWgsMetrics/FOLD_80_BASE_PENALTY_AT_30X,csv
 F90@30x,RawWgsMetrics/FOLD_90_BASE_PENALTY_AT_30X,csv
 F95@30x,RawWgsMetrics/FOLD_95_BASE_PENALTY_AT_30X,csv
 total_reads,QualityYieldMetricsFlow/TOTAL_READS,json
+total_reads,AlignmentSummaryMetrics/TOTAL_READS,json
 total_bases,QualityYieldMetricsFlow/TOTAL_BASES,json
 pf_bases,QualityYieldMetricsFlow/PF_BASES,json
 pf_reads,QualityYieldMetricsFlow/PF_READS,json
+pf_reads,AlignmentSummaryMetrics/PF_READS,json
 pf_aligned_reads,AlignmentSummaryMetrics/PF_READS_ALIGNED,json
 pf_aligned_bases,AlignmentSummaryMetrics/PF_ALIGNED_BASES,json
 pf_hq_aligned_reads,AlignmentSummaryMetrics/PF_HQ_ALIGNED_READS,json
