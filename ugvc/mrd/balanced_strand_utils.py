@@ -25,6 +25,7 @@ class BalancedStrandAdapterVersions(Enum):
     LA_v5 = "LA_v5"
     LA_v5and6 = "LA_v5and6"
     LA_v6 = "LA_v6"
+    LA_v7 = "LA_v7"
 
 
 # Trimmer segment labels and tags
@@ -44,6 +45,10 @@ class TrimmerSegmentTags(Enum):
     A_HMER_END = "ae"
     NATIVE_ADAPTER = "a3"
     STEM_END = "s2"  # when native adapter trimming was done on-tool a modified format is used
+    START_LOOP_TAG = "st"
+    END_LOOP_TAG = "et"
+    START_LOOP_SEQUENCE = "ss"
+    END_LOOP_SEQUENCE = "es"
 
 
 class BalancedCategories(Enum):
