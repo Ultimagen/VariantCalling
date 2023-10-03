@@ -148,6 +148,9 @@ def sorter_to_h5(
         * h5_dict["QualityYieldMetricsFlow"]["PF_BASES"]
     )
 
+    # Fill in RawWgsMetrics/PCT_EXC_DUPE with the value that is in DuplicationMetrics/PERCENT_DUPLICATION
+    h5_dict["RawWgsMetrics"]["PCT_EXC_DUPE"] = h5_dict["DuplicationMetrics"]["PERCENT_DUPLICATION"]
+
     # write to h5 file
     base_file_name = os.path.splitext(os.path.basename(input_csv_file))[0]
     if output_dir is None:
