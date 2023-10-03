@@ -1190,6 +1190,9 @@ def plot_trimmer_histogram(
 
 
 def flatten_strand_ratio_category(h5_file: str, key: str) -> pd.DataFrame:
+    """ "
+    convert the 2D dataframe of strand ratio categories to a 1D dataframe that is readable by Papyrus
+    """
     df = pd.read_hdf(h5_file, key)
     df["index_col"] = df.index
     df.reset_index(drop=True, inplace=True)
@@ -1203,6 +1206,9 @@ def flatten_strand_ratio_category(h5_file: str, key: str) -> pd.DataFrame:
 
 
 def flatten_metrics(h5_file: str, key: str) -> pd.DataFrame:
+    """
+    Convert a 1D dataframe to a 1D dataframe that is readable by Papyrus
+    """
     df = pd.read_hdf(h5_file, key)
     df.index.names = [""]
     df = df.T
@@ -1218,23 +1224,15 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
         h5_file_keys = store.keys()
     flatten_dfs = {}
 
-    # strand_ratio_category_counts
-    flatten_dfs["strand_ratio_category_counts"] = flatten_strand_ratio_category(
-        h5_file, "/strand_ratio_category_counts"
-    )
+    # flatten strand ratio categories
+    strand_ratio_to_convert = ["strand_ratio_category_counts", "strand_ratio_category_norm"]
+    flatten_dfs = {
+        key: flatten_strand_ratio_category(h5_file, key) for key in strand_ratio_to_convert if f"/{key}" in h5_file_keys
+    }
 
-    # strand_ratio_category_norm
-    flatten_dfs["strand_ratio_category_norm"] = flatten_strand_ratio_category(h5_file, "/strand_ratio_category_norm")
-
-    # stats_shortlist
-    flatten_dfs["stats_shortlist"] = flatten_metrics(h5_file, "/stats_shortlist")
-
-    # sorter stats
-    flatten_dfs["sorter_stats"] = flatten_metrics(h5_file, "/sorter_stats")
-
-    # category consensus
-    if "/df_category_concordance" in h5_file_keys:
-        flatten_dfs["category_consensus"] = flatten_metrics(h5_file, "/df_category_consensus")
+    # flatten 1D dataframes
+    keys_to_convert = ["stats_shortlist", "sorter_stats", "df_category_consensus"]
+    flatten_dfs = {key: flatten_metrics(h5_file, key) for key in keys_to_convert if f"/{key}" in h5_file_keys}
 
     # category concordance
     if "/df_category_concordance" in h5_file_keys:
@@ -1247,13 +1245,10 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
     # wrap all in one json
     root_element = "metrics"
     new_json_dict = {root_element: {}}
-    for key, df in flatten_dfs.items():
-        df_to_json = df.to_json(orient="table")
-        json_dict = json.loads(df_to_json)
-        new_json_dict[root_element][key] = json_dict
+    new_json_dict[root_element] = {key: json.loads(df.to_json(orient="table")) for key, df in flatten_dfs.items()}
 
     with open(output_json, "w", encoding="utf-8") as f:
-        json.dump(new_json_dict, f)
+        json.dump(new_json_dict, f, indent=2)
 
 
 # pylint: disable=too-many-arguments
