@@ -1214,6 +1214,8 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
     """
     Convert a statistics HDF5 file to a Papyrus JSON file
     """
+    with pd.HDFStore(h5_file, "r") as store:
+        h5_file_keys = store.keys()
     flatten_dfs = {}
 
     # strand_ratio_category_counts
@@ -1231,14 +1233,16 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
     flatten_dfs["sorter_stats"] = flatten_metrics(h5_file, "/sorter_stats")
 
     # category consensus
-    flatten_dfs["category_consensus"] = flatten_metrics(h5_file, "/df_category_consensus")
+    if "/df_category_concordance" in h5_file_keys:
+        flatten_dfs["category_consensus"] = flatten_metrics(h5_file, "/df_category_consensus")
 
     # category concordance
-    df_category_concordance = pd.read_hdf(h5_file, "/df_category_concordance")
-    df_category_concordance.index = df_category_concordance.index.to_flat_index()
-    df_category_concordance.rename(columns={"count": 0}, inplace=True)
-    df_category_concordance = df_category_concordance.T
-    flatten_dfs["category_concordance"] = df_category_concordance
+    if "/df_category_concordance" in h5_file_keys:
+        df_category_concordance = pd.read_hdf(h5_file, "/df_category_concordance")
+        df_category_concordance.index = df_category_concordance.index.to_flat_index()
+        df_category_concordance.rename(columns={"count": 0}, inplace=True)
+        df_category_concordance = df_category_concordance.T
+        flatten_dfs["category_concordance"] = df_category_concordance
 
     # wrap all in one json
     root_element = "metrics"
