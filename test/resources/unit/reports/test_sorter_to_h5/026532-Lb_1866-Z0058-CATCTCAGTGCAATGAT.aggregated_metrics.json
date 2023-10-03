@@ -1,0 +1,1334 @@
+{
+    "metrics": {
+        "AlignmentSummaryMetrics": {
+            "schema": {
+                "fields": [
+                    {
+                        "name": "index",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PCT_PF_READS_ALIGNED",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_PF_HQ_ALIGNED",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PF_MISMATCH_RATE",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PF_INDEL_RATE",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MEAN_READ_LENGTH",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MEDIAN_READ_LENGTH",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MEAN_ALIGNED_READ_LENGTH",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MQ_GTE_1",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MQ_GTE_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MQ_GTE_20",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MQ_GTE_30",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_CHIMERAS",
+                        "type": "number"
+                    },
+                    {
+                        "name": "TOTAL_READS",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PF_READS",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PF_READS_ALIGNED",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PF_ALIGNED_BASES",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PF_HQ_ALIGNED_READS",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PF_HQ_ALIGNED_BASES",
+                        "type": "integer"
+                    }
+                ],
+                "primaryKey": [
+                    "index"
+                ],
+                "pandas_version": "1.4.0"
+            },
+            "data": [
+                {
+                    "index": 0,
+                    "PCT_PF_READS_ALIGNED": 99.85,
+                    "PCT_PF_HQ_ALIGNED": 91.68,
+                    "PF_MISMATCH_RATE": 0.38,
+                    "PF_INDEL_RATE": 0.44,
+                    "MEAN_READ_LENGTH": 260.07,
+                    "MEDIAN_READ_LENGTH": 284.0,
+                    "MEAN_ALIGNED_READ_LENGTH": 260.39,
+                    "MQ_GTE_1": 114614928.0,
+                    "MQ_GTE_10": 113380377.0,
+                    "MQ_GTE_20": 112006589.0,
+                    "MQ_GTE_30": 111216867.0,
+                    "PCT_CHIMERAS": 1.15,
+                    "TOTAL_READS": 122191864,
+                    "PF_READS": 122191864,
+                    "PF_READS_ALIGNED": 122010009,
+                    "PF_ALIGNED_BASES": 31297561923,
+                    "PF_HQ_ALIGNED_READS": 112006589,
+                    "PF_HQ_ALIGNED_BASES": 29135492280
+                }
+            ]
+        },
+        "DuplicationMetrics": {
+            "schema": {
+                "fields": [
+                    {
+                        "name": "index",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PERCENT_DUPLICATION",
+                        "type": "number"
+                    }
+                ],
+                "primaryKey": [
+                    "index"
+                ],
+                "pandas_version": "1.4.0"
+            },
+            "data": [
+                {
+                    "index": 0,
+                    "PERCENT_DUPLICATION": 7.72
+                }
+            ]
+        },
+        "QualityYieldMetricsFlow": {
+            "schema": {
+                "fields": [
+                    {
+                        "name": "index",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PF_READS",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PCT_PF_ALIGNED",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_PF_Q20_BASES",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_PF_Q30_BASES",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MEAN_QUALITY",
+                        "type": "number"
+                    },
+                    {
+                        "name": "READ_LENGTH",
+                        "type": "number"
+                    },
+                    {
+                        "name": "NON_PF_READS",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_NON_PF_READS",
+                        "type": "number"
+                    },
+                    {
+                        "name": "TOTAL_READS",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "TOTAL_BASES",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "PF_BASES",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "Q20_BASES",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "Q30_BASES",
+                        "type": "integer"
+                    }
+                ],
+                "primaryKey": [
+                    "index"
+                ],
+                "pandas_version": "1.4.0"
+            },
+            "data": [
+                {
+                    "index": 0,
+                    "PF_READS": 122191864,
+                    "PCT_PF_ALIGNED": 98.49,
+                    "PCT_PF_Q20_BASES": 93.76,
+                    "PCT_PF_Q30_BASES": 85.21,
+                    "MEAN_QUALITY": 36.63,
+                    "READ_LENGTH": 260.07,
+                    "NON_PF_READS": 0.0,
+                    "PCT_NON_PF_READS": 0.0,
+                    "TOTAL_READS": 122191864,
+                    "TOTAL_BASES": 31777881341,
+                    "PF_BASES": 31777881341,
+                    "Q20_BASES": 29794941545,
+                    "Q30_BASES": 27077932691
+                }
+            ]
+        },
+        "RawWgsMetrics": {
+            "schema": {
+                "fields": [
+                    {
+                        "name": "index",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "MEAN_COVERAGE",
+                        "type": "number"
+                    },
+                    {
+                        "name": "MEDIAN_COVERAGE",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_1X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_5X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_10X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_20X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_30X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_40X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_50X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_60X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_70X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_80X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_90X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_100X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_500X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_1000X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "FOLD_80_BASE_PENALTY",
+                        "type": "number"
+                    },
+                    {
+                        "name": "FOLD_90_BASE_PENALTY",
+                        "type": "number"
+                    },
+                    {
+                        "name": "FOLD_95_BASE_PENALTY",
+                        "type": "number"
+                    },
+                    {
+                        "name": "FOLD_80_BASE_PENALTY_AT_30X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "FOLD_90_BASE_PENALTY_AT_30X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "FOLD_95_BASE_PENALTY_AT_30X",
+                        "type": "number"
+                    },
+                    {
+                        "name": "PCT_EXC_DUPE",
+                        "type": "number"
+                    }
+                ],
+                "primaryKey": [
+                    "index"
+                ],
+                "pandas_version": "1.4.0"
+            },
+            "data": [
+                {
+                    "index": 0,
+                    "MEAN_COVERAGE": 9.98,
+                    "MEDIAN_COVERAGE": 10.0,
+                    "PCT_1X": 99.5175761982,
+                    "PCT_5X": 94.5184483265,
+                    "PCT_10X": 51.0302123565,
+                    "PCT_20X": 1.0320250383,
+                    "PCT_30X": 0.2908919829,
+                    "PCT_40X": 0.1697412061,
+                    "PCT_50X": 0.1146477946,
+                    "PCT_60X": 0.0848025385,
+                    "PCT_70X": 0.066381132,
+                    "PCT_80X": 0.0544689002,
+                    "PCT_90X": 0.0460918015,
+                    "PCT_100X": 0.039910109,
+                    "PCT_500X": 0.006645304,
+                    "PCT_1000X": 0.0022255681,
+                    "FOLD_80_BASE_PENALTY": 1.4333276139,
+                    "FOLD_90_BASE_PENALTY": 1.8169803947,
+                    "FOLD_95_BASE_PENALTY": 2.3829296536,
+                    "FOLD_80_BASE_PENALTY_AT_30X": 1.43,
+                    "FOLD_90_BASE_PENALTY_AT_30X": 1.67,
+                    "FOLD_95_BASE_PENALTY_AT_30X": 2.5,
+                    "PCT_EXC_DUPE": 7.72
+                }
+            ]
+        },
+        "stats_coverage": {
+            "schema": {
+                "fields": [
+                    {
+                        "name": "index",
+                        "type": "integer"
+                    },
+                    {
+                        "name": "Genome___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Genome___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Genome___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Genome___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Genome___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Genome___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Genome___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Genome___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exome (WG)___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "ACMG59 (WG)___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon 1___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Exon >1___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 10-20___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 20-30___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 30-40___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 40-50___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 50-60___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 60-70___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 70-80___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 80-90___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "GC 90-100___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Unique___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Non-unique___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "DNA repeats___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LINE___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "LTR___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Low complexity___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "SINE___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Alu only___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Satelite___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___percentile_5",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___percentile_10",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___median_coverage",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___median_coverage_normalized",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___percent_larger_than_05_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___percent_larger_than_025_of_genome_median",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___percent_over_or_equal_to_10x",
+                        "type": "number"
+                    },
+                    {
+                        "name": "Simple repeat___percent_over_or_equal_to_20x",
+                        "type": "number"
+                    }
+                ],
+                "primaryKey": [
+                    "index"
+                ],
+                "pandas_version": "1.4.0"
+            },
+            "data": [
+                {
+                    "index": 0,
+                    "Genome___percentile_5": 3.8141072055,
+                    "Genome___percentile_10": 5.0021173526,
+                    "Genome___median_coverage": 9.0887491617,
+                    "Genome___median_coverage_normalized": 1.0,
+                    "Genome___percent_larger_than_05_of_genome_median": 94.5184483265,
+                    "Genome___percent_larger_than_025_of_genome_median": 98.4335273757,
+                    "Genome___percent_over_or_equal_to_10x": 51.0302123565,
+                    "Genome___percent_over_or_equal_to_20x": 1.0320250383,
+                    "Exome (WG)___percentile_5": 4.2388900026,
+                    "Exome (WG)___percentile_10": 5.2847964976,
+                    "Exome (WG)___median_coverage": 9.2905046294,
+                    "Exome (WG)___median_coverage_normalized": 1.0221983756,
+                    "Exome (WG)___percent_larger_than_05_of_genome_median": 95.9848895227,
+                    "Exome (WG)___percent_larger_than_025_of_genome_median": 99.3002989488,
+                    "Exome (WG)___percent_over_or_equal_to_10x": 53.4865217578,
+                    "Exome (WG)___percent_over_or_equal_to_20x": 0.6782133994,
+                    "ACMG59 (WG)___percentile_5": 5.7576923077,
+                    "ACMG59 (WG)___percentile_10": 6.6024456522,
+                    "ACMG59 (WG)___median_coverage": 10.2406807131,
+                    "ACMG59 (WG)___median_coverage_normalized": 1.1267425837,
+                    "ACMG59 (WG)___percent_larger_than_05_of_genome_median": 98.4396333138,
+                    "ACMG59 (WG)___percent_larger_than_025_of_genome_median": 99.1417983226,
+                    "ACMG59 (WG)___percent_over_or_equal_to_10x": 67.1737858397,
+                    "ACMG59 (WG)___percent_over_or_equal_to_20x": 1.3068070997,
+                    "Exon 1___percentile_5": 3.5886021505,
+                    "Exon 1___percentile_10": 4.7963819172,
+                    "Exon 1___median_coverage": 8.9520178948,
+                    "Exon 1___median_coverage_normalized": 0.9849559863,
+                    "Exon 1___percent_larger_than_05_of_genome_median": 93.8137429418,
+                    "Exon 1___percent_larger_than_025_of_genome_median": 98.1393262034,
+                    "Exon 1___percent_over_or_equal_to_10x": 49.4444606563,
+                    "Exon 1___percent_over_or_equal_to_20x": 0.7764054452,
+                    "Exon >1___percentile_5": 4.1936243374,
+                    "Exon >1___percentile_10": 5.2359792184,
+                    "Exon >1___median_coverage": 9.2066653159,
+                    "Exon >1___median_coverage_normalized": 1.0129738595,
+                    "Exon >1___percent_larger_than_05_of_genome_median": 95.8200511331,
+                    "Exon >1___percent_larger_than_025_of_genome_median": 99.2838062336,
+                    "Exon >1___percent_over_or_equal_to_10x": 52.4757818968,
+                    "Exon >1___percent_over_or_equal_to_20x": 0.6360286086,
+                    "GC 10-20___percentile_5": 0.2148235241,
+                    "GC 10-20___percentile_10": 1.8104075263,
+                    "GC 10-20___median_coverage": 7.2525243566,
+                    "GC 10-20___median_coverage_normalized": 0.79796727,
+                    "GC 10-20___percent_larger_than_05_of_genome_median": 79.87158347,
+                    "GC 10-20___percent_larger_than_025_of_genome_median": 89.4087394896,
+                    "GC 10-20___percent_over_or_equal_to_10x": 32.1671841037,
+                    "GC 10-20___percent_over_or_equal_to_20x": 0.9528269551,
+                    "GC 20-30___percentile_5": 3.3507201207,
+                    "GC 20-30___percentile_10": 4.5101572169,
+                    "GC 20-30___median_coverage": 8.6826739738,
+                    "GC 20-30___median_coverage_normalized": 0.955321114,
+                    "GC 20-30___percent_larger_than_05_of_genome_median": 92.8126921825,
+                    "GC 20-30___percent_larger_than_025_of_genome_median": 98.0458210966,
+                    "GC 20-30___percent_over_or_equal_to_10x": 46.2957163581,
+                    "GC 20-30___percent_over_or_equal_to_20x": 1.34379634,
+                    "GC 30-40___percentile_5": 3.4473293447,
+                    "GC 30-40___percentile_10": 4.7670892901,
+                    "GC 30-40___median_coverage": 9.1202562111,
+                    "GC 30-40___median_coverage_normalized": 1.0034665991,
+                    "GC 30-40___percent_larger_than_05_of_genome_median": 93.4924228248,
+                    "GC 30-40___percent_larger_than_025_of_genome_median": 97.7619727613,
+                    "GC 30-40___percent_over_or_equal_to_10x": 51.3365337585,
+                    "GC 30-40___percent_over_or_equal_to_20x": 2.3526598622,
+                    "GC 40-50___percentile_5": 3.9877125744,
+                    "GC 40-50___percentile_10": 5.1204742914,
+                    "GC 40-50___median_coverage": 9.3103597481,
+                    "GC 40-50___median_coverage_normalized": 1.0243829577,
+                    "GC 40-50___percent_larger_than_05_of_genome_median": 94.9699859042,
+                    "GC 40-50___percent_larger_than_025_of_genome_median": 98.6684569048,
+                    "GC 40-50___percent_over_or_equal_to_10x": 53.5579702293,
+                    "GC 40-50___percent_over_or_equal_to_20x": 1.7089165108,
+                    "GC 50-60___percentile_5": 4.0389565541,
+                    "GC 50-60___percentile_10": 5.1265227275,
+                    "GC 50-60___median_coverage": 9.2541862583,
+                    "GC 50-60___median_coverage_normalized": 1.0182024054,
+                    "GC 50-60___percent_larger_than_05_of_genome_median": 95.1688209579,
+                    "GC 50-60___percent_larger_than_025_of_genome_median": 98.9193361119,
+                    "GC 50-60___percent_over_or_equal_to_10x": 52.932998442,
+                    "GC 50-60___percent_over_or_equal_to_20x": 1.3187348992,
+                    "GC 60-70___percentile_5": 3.6224580347,
+                    "GC 60-70___percentile_10": 4.8791621832,
+                    "GC 60-70___median_coverage": 9.1188110361,
+                    "GC 60-70___median_coverage_normalized": 1.003307592,
+                    "GC 60-70___percent_larger_than_05_of_genome_median": 93.9728173699,
+                    "GC 60-70___percent_larger_than_025_of_genome_median": 98.244339766,
+                    "GC 60-70___percent_over_or_equal_to_10x": 51.3630822739,
+                    "GC 60-70___percent_over_or_equal_to_20x": 1.2390383089,
+                    "GC 70-80___percentile_5": 1.2588983545,
+                    "GC 70-80___percentile_10": 3.079991627,
+                    "GC 70-80___median_coverage": 8.1386520737,
+                    "GC 70-80___median_coverage_normalized": 0.8954644835,
+                    "GC 70-80___percent_larger_than_05_of_genome_median": 86.1134411319,
+                    "GC 70-80___percent_larger_than_025_of_genome_median": 93.3955280445,
+                    "GC 70-80___percent_over_or_equal_to_10x": 40.5552046488,
+                    "GC 70-80___percent_over_or_equal_to_20x": 1.203890854,
+                    "GC 80-90___percentile_5": 0.0,
+                    "GC 80-90___percentile_10": 0.443001586,
+                    "GC 80-90___median_coverage": 5.8942584986,
+                    "GC 80-90___median_coverage_normalized": 0.6485225188,
+                    "GC 80-90___percent_larger_than_05_of_genome_median": 65.1736801836,
+                    "GC 80-90___percent_larger_than_025_of_genome_median": 78.7421576129,
+                    "GC 80-90___percent_over_or_equal_to_10x": 22.4185156848,
+                    "GC 80-90___percent_over_or_equal_to_20x": 0.5279265493,
+                    "GC 90-100___percentile_5": 0.0,
+                    "GC 90-100___percentile_10": 0.0,
+                    "GC 90-100___median_coverage": 0.2226123596,
+                    "GC 90-100___median_coverage_normalized": 0.0244931789,
+                    "GC 90-100___percent_larger_than_05_of_genome_median": 5.3653846154,
+                    "GC 90-100___percent_larger_than_025_of_genome_median": 16.9615384615,
+                    "GC 90-100___percent_over_or_equal_to_10x": 0.7307692308,
+                    "GC 90-100___percent_over_or_equal_to_20x": 0.0,
+                    "Unique___percentile_5": 3.8888971248,
+                    "Unique___percentile_10": 5.0229850689,
+                    "Unique___median_coverage": 9.1299752537,
+                    "Unique___median_coverage_normalized": 1.0045359478,
+                    "Unique___percent_larger_than_05_of_genome_median": 94.7071490769,
+                    "Unique___percent_larger_than_025_of_genome_median": 98.7061821153,
+                    "Unique___percent_over_or_equal_to_10x": 51.4930139231,
+                    "Unique___percent_over_or_equal_to_20x": 1.3857005567,
+                    "Non-unique___percentile_5": 0.3053940769,
+                    "Non-unique___percentile_10": 1.8180628578,
+                    "Non-unique___median_coverage": 9.0523628646,
+                    "Non-unique___median_coverage_normalized": 0.9959965561,
+                    "Non-unique___percent_larger_than_05_of_genome_median": 82.2571228589,
+                    "Non-unique___percent_larger_than_025_of_genome_median": 89.4256744204,
+                    "Non-unique___percent_over_or_equal_to_10x": 50.4071219847,
+                    "Non-unique___percent_over_or_equal_to_20x": 8.2187306711,
+                    "DNA repeats___percentile_5": 3.994218438,
+                    "DNA repeats___percentile_10": 5.0180842937,
+                    "DNA repeats___median_coverage": 8.9754241945,
+                    "DNA repeats___median_coverage_normalized": 0.9875312911,
+                    "DNA repeats___percent_larger_than_05_of_genome_median": 94.9841998763,
+                    "DNA repeats___percent_larger_than_025_of_genome_median": 99.0321372546,
+                    "DNA repeats___percent_over_or_equal_to_10x": 49.7022182672,
+                    "DNA repeats___percent_over_or_equal_to_20x": 1.0252172186,
+                    "LINE___percentile_5": 4.0561670817,
+                    "LINE___percentile_10": 5.1474668161,
+                    "LINE___median_coverage": 9.3101091799,
+                    "LINE___median_coverage_normalized": 1.0243553886,
+                    "LINE___percent_larger_than_05_of_genome_median": 95.2403738063,
+                    "LINE___percent_larger_than_025_of_genome_median": 98.9075750413,
+                    "LINE___percent_over_or_equal_to_10x": 53.5698517649,
+                    "LINE___percent_over_or_equal_to_20x": 1.7377875092,
+                    "LTR___percentile_5": 4.140757339,
+                    "LTR___percentile_10": 5.258475734,
+                    "LTR___median_coverage": 9.446458073,
+                    "LTR___median_coverage_normalized": 1.0393573312,
+                    "LTR___percent_larger_than_05_of_genome_median": 95.5566601467,
+                    "LTR___percent_larger_than_025_of_genome_median": 98.960966418,
+                    "LTR___percent_over_or_equal_to_10x": 55.1154542574,
+                    "LTR___percent_over_or_equal_to_20x": 1.9016189084,
+                    "Low complexity___percentile_5": 2.6018235717,
+                    "Low complexity___percentile_10": 4.0770042962,
+                    "Low complexity___median_coverage": 8.8779462276,
+                    "Low complexity___median_coverage_normalized": 0.9768061666,
+                    "Low complexity___percent_larger_than_05_of_genome_median": 90.4156267809,
+                    "Low complexity___percent_larger_than_025_of_genome_median": 96.3165445006,
+                    "Low complexity___percent_over_or_equal_to_10x": 48.7849549001,
+                    "Low complexity___percent_over_or_equal_to_20x": 2.7445123509,
+                    "SINE___percentile_5": 3.5609627343,
+                    "SINE___percentile_10": 4.7043530152,
+                    "SINE___median_coverage": 8.8311118497,
+                    "SINE___median_coverage_normalized": 0.9716531607,
+                    "SINE___percent_larger_than_05_of_genome_median": 93.6356926621,
+                    "SINE___percent_larger_than_025_of_genome_median": 98.4246537781,
+                    "SINE___percent_over_or_equal_to_10x": 47.9976274402,
+                    "SINE___percent_over_or_equal_to_20x": 1.0002070114,
+                    "Alu only___percentile_5": 3.3776251784,
+                    "Alu only___percentile_10": 4.5351323265,
+                    "Alu only___median_coverage": 8.7066535246,
+                    "Alu only___median_coverage_normalized": 0.9579594914,
+                    "Alu only___percent_larger_than_05_of_genome_median": 92.9088433884,
+                    "Alu only___percent_larger_than_025_of_genome_median": 98.1477079796,
+                    "Alu only___percent_over_or_equal_to_10x": 46.546791015,
+                    "Alu only___percent_over_or_equal_to_20x": 1.081345403,
+                    "Satelite___percentile_5": 0.0,
+                    "Satelite___percentile_10": 0.2561822907,
+                    "Satelite___median_coverage": 7.8266943196,
+                    "Satelite___median_coverage_normalized": 0.8611409755,
+                    "Satelite___percent_larger_than_05_of_genome_median": 67.6586967035,
+                    "Satelite___percent_larger_than_025_of_genome_median": 78.2765076746,
+                    "Satelite___percent_over_or_equal_to_10x": 45.2026920375,
+                    "Satelite___percent_over_or_equal_to_20x": 19.156148476,
+                    "Simple repeat___percentile_5": 0.0162496094,
+                    "Simple repeat___percentile_10": 1.663200952,
+                    "Simple repeat___median_coverage": 7.5321467925,
+                    "Simple repeat___median_coverage_normalized": 0.8287330477,
+                    "Simple repeat___percent_larger_than_05_of_genome_median": 79.7842614898,
+                    "Simple repeat___percent_larger_than_025_of_genome_median": 88.9472701925,
+                    "Simple repeat___percent_over_or_equal_to_10x": 36.0343486632,
+                    "Simple repeat___percent_over_or_equal_to_20x": 1.6161459174
+                }
+            ]
+        }
+    }
+}
