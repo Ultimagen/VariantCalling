@@ -1222,7 +1222,6 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
     """
     with pd.HDFStore(h5_file, "r") as store:
         h5_file_keys = store.keys()
-    flatten_dfs = {}
 
     # flatten strand ratio categories
     strand_ratio_to_convert = ["strand_ratio_category_counts", "strand_ratio_category_norm"]
@@ -1232,7 +1231,7 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
 
     # flatten 1D dataframes
     keys_to_convert = ["stats_shortlist", "sorter_stats", "df_category_consensus"]
-    flatten_dfs = {key: flatten_metrics(h5_file, key) for key in keys_to_convert if f"/{key}" in h5_file_keys}
+    flatten_dfs.update({key: flatten_metrics(h5_file, key) for key in keys_to_convert if f"/{key}" in h5_file_keys})
 
     # category concordance
     if "/df_category_concordance" in h5_file_keys:
