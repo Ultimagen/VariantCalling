@@ -2,14 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pyfaidx
-import pysam
 import tqdm.auto as tqdm
 
-import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.comparison.vcf_pipeline_utils as vpu
-import ugvc.filtering.multiallelics as multiallelics
-import ugvc.flow_format.flow_based_read as fbr
 from ugvc import logger
 from ugvc.vcfbed import vcftools
 
@@ -113,6 +108,7 @@ def prepare_ground_truth(input_vcf, base_vcf, hcr, reference, output_h5, chromos
         labeled_df = calculate_labeled_vcf(input_vcf, vcfeval_output, contig=chrom)
         labels = calculate_labels(labeled_df)
         labeled_df["label"] = labels
+        # labeled_df = process_multiallelic_spandel(labeled_df)
         labeled_df.to_hdf(output_h5, key=chrom, mode="a")
 
 
@@ -121,7 +117,6 @@ def encode_labels(ll):
 
 
 def encode_label(label):
-
     label = tuple(sorted(label))
     if label == (0, 0):
         return 2
@@ -135,3 +130,11 @@ def encode_label(label):
 def decode_label(label):
     decode_dct = {0: (0, 1), 1: (1, 1), 2: (0, 0)}
     return decode_dct[label]
+
+
+# TODO:
+# 1. Clean up RPA for hmer indels
+# 2. Clean up variant_type
+# 3. add field marking multiallelic variant
+# 4. Tests for various vcftools and multiallelics functions
+# 5.
