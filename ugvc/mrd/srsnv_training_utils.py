@@ -47,19 +47,84 @@ default_categorical_features = [
 ]
 
 
-# pylint:disable=too-many-arguments,too-many-statements
+def _filter_featuremap_with_bcftools_view(
+    input_featuremap_vcf: str,
+    intersect_featuremap_vcf: str,
+    sorter_json_stats_file: str = None,
+    read_effective_coverage_from_sorter_json_kwargs: dict = None,
+    regions_file: str = None,
+    pre_filter_bcftools_include: str = None,
+    sp: SimplePipeline = None,
+) -> str:
+    """
+    Create a bcftools view command to filter a featuremap vcf
+
+    Parameters
+    ----------
+    input_featuremap_vcf : str
+        Path to input featuremap vcf
+    intersect_featuremap_vcf : str
+        Path to output intersected featuremap vcf
+    sorter_json_stats_file : str, optional
+        Path to sorter stats json file, by default None
+    read_effective_coverage_from_sorter_json_kwargs : dict, optional
+        kwargs for read_effective_coverage_from_sorter_json, by default None
+    regions_file : str, optional
+        Path to regions file, by default None
+    pre_filter_bcftools_include: str, optional
+        bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter_bcftools_include'"
+        before sampling, by default None
+    sp : SimplePipeline, optional
+        SimplePipeline object to use for printing and running commands, by default None
+    """
+    bcftools_view_command = f"bcftools view {input_featuremap_vcf} -O z -o {intersect_featuremap_vcf} "
+    bcftools_include_string = ""
+    if sorter_json_stats_file:
+        # get min and max coverage from cram stats file
+        (_, _, _, min_coverage, max_coverage,) = read_effective_coverage_from_sorter_json(
+            sorter_json_stats_file, **read_effective_coverage_from_sorter_json_kwargs
+        )
+        # filter out variants with coverage outside of min and max coverage
+        bcftools_include_string += (
+            f"(INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage}) "
+            f"&& (INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage})"
+        )
+    if pre_filter_bcftools_include:
+        if bcftools_include_string:
+            bcftools_include_string += " && "
+        bcftools_include_string += pre_filter_bcftools_include
+    bcftools_include_string = bcftools_include_string.replace(" && && ", " && ").replace(
+        "&&&&", "&&"
+    )  # remove redundant &&s if input was problematic
+    if bcftools_include_string:
+        bcftools_view_command += f" -i '{bcftools_include_string}' "
+    if regions_file:
+        bcftools_view_command += f" -T {regions_file} "
+    bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
+
+    print_and_execute(bcftools_view_command, simple_pipeline=sp, module_name=__name__, shell=True)
+    print_and_execute(
+        bcftools_index_command,
+        simple_pipeline=sp,
+        module_name=__name__,
+    )
+    assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
+
+
+# pylint:disable=too-many-arguments
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
     train_set_size: int,
     test_set_size: int,
-    sp: SimplePipeline = None,
     regions_file: str = None,
     balanced_sampling_info_fields: list[str] = None,
     sorter_json_stats_file: str = None,
+    pre_filter_bcftools_include: str = None,
     read_effective_coverage_from_sorter_json_kwargs: dict = None,
     keep_temp_file: bool = False,
     random_seed: bool = None,
+    sp: SimplePipeline = None,
 ) -> (str, int):
     """
     Prepare a featuremap for training. This function takes an input featuremap and creates two downsampled dataframes,
@@ -80,12 +145,13 @@ def prepare_featuremap_for_model(
         Size of training set to create, must be at larger than 0
     test_set_size : int
         Size of test set to create, must be at larger than 0
-    sp : SimplePipeline, optional
-        SimplePipeline object to use for printing and running commands
     regions_file : str, optional
         Path to regions file, by default None
     sorter_json_stats_file : str, optional
         Path to cram stats file, by default None
+    pre_filter_bcftools_include: str, optional
+        bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter_bcftools_include'"
+        before sampling, by default None
     read_effective_coverage_from_sorter_json_kwargs : dict, optional
         kwargs for read_effective_coverage_from_sorter_json, by default None
     keep_temp_file: bool, optional
@@ -94,6 +160,8 @@ def prepare_featuremap_for_model(
         Random seed to use for sampling, by default None
     balanced_sampling_info_fields: list[str], optional
         List of info fields to balance the TP data by, default None (do not balance)
+    sp : SimplePipeline, optional
+        SimplePipeline object to use for printing and running commands
 
 
     Returns
@@ -141,30 +209,16 @@ def prepare_featuremap_for_model(
 
     logger.info(f"Running prepare_featuremap_for_model for input_featuremap_vcf={input_featuremap_vcf}")
 
-    # filter featuremap - intersect with bed file and require coverage in range
-    bcftools_view_command = f"bcftools view {input_featuremap_vcf}"
-    if sorter_json_stats_file:
-        # get min and max coverage from cram stats file
-        (_, _, _, min_coverage, max_coverage,) = read_effective_coverage_from_sorter_json(
-            sorter_json_stats_file, **read_effective_coverage_from_sorter_json_kwargs
-        )
-        # filter out variants with coverage outside of min and max coverage
-        bcftools_view_command = (
-            bcftools_view_command
-            + f" -i' (INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage}) "
-            + f"&& (INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage}) '"
-        )
-    if regions_file:
-        bcftools_view_command = bcftools_view_command + f" -T {regions_file} "
-    bcftools_view_command = bcftools_view_command + f" -O z -o {intersect_featuremap_vcf}"
-    bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
-    print_and_execute(bcftools_view_command, simple_pipeline=sp, module_name=__name__, shell=True)
-    print_and_execute(
-        bcftools_index_command,
-        simple_pipeline=sp,
-        module_name=__name__,
+    # filter featuremap - intersect with bed file, require coverage in range, apply pre_filter
+    _filter_featuremap_with_bcftools_view(
+        input_featuremap_vcf=input_featuremap_vcf,
+        intersect_featuremap_vcf=intersect_featuremap_vcf,
+        sorter_json_stats_file=sorter_json_stats_file,
+        read_effective_coverage_from_sorter_json_kwargs=read_effective_coverage_from_sorter_json_kwargs,
+        regions_file=regions_file,
+        pre_filter_bcftools_include=pre_filter_bcftools_include,
+        sp=sp,
     )
-    assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
     # count entries in intersected featuremap and determine downsampling rate
     # count the number of entries with each combination of info fields to balance by if balanced_sampling_info_fields
@@ -341,6 +395,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         balanced_sampling_info_fields: list[str] = None,
         lod_filters: str = None,
         balanced_strand_adapter_version: str = None,
+        pre_filter: str = None,
+        random_seed: int = None,
         simple_pipeline: SimplePipeline = None,
     ):
         """
@@ -385,6 +441,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             json file with a dict of format 'filter name':'query' for LoD simulation, by default None
         balanced_strand_adapter_version : str, optional
             adapter version, indicates if input featuremap is from balanced ePCR data, by default None
+        pre_filter : str, optional
+            bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter'"
+            before sampling, by default None
+        random_seed : int, optional
+            Random seed to use for sampling, by default None
         simple_pipeline : SimplePipeline, optional
             SimplePipeline object to use for printing and running commands, by default None
 
@@ -435,6 +496,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.categorical_features = categorical_features
         self.balanced_sampling_info_fields = balanced_sampling_info_fields
         self.columns = self.numerical_features + self.categorical_features
+        self.pre_filter = pre_filter
+        self.random_seed = random_seed
 
         # save input data file paths
         assert isfile(tp_featuremap), f"tp_featuremap {tp_featuremap} not found"
@@ -518,6 +581,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "adapter_version": self.balanced_strand_adapter_version,
             "columns": self.columns,
             "X_train_save_path": self.X_train_save_path,
+            "pre_filter": self.pre_filter,
+            "random_seed": self.random_seed,
         }
 
         with open(self.params_save_path, "w", encoding="utf-8") as f:
@@ -549,9 +614,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             train_set_size=self.train_set_size
             // 2,  # half the total training size because we want equal parts TP and FP
             test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
+            pre_filter_bcftools_include=self.pre_filter,
             regions_file=self.tp_regions_bed_file,
             balanced_sampling_info_fields=self.balanced_sampling_info_fields,
             sorter_json_stats_file=self.sorter_json_stats_file,
+            random_seed=self.random_seed,
             sp=self.sp,
         )
         # prepare FP featuremaps for training
@@ -566,8 +633,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             train_set_size=self.train_set_size
             // 2,  # half the total training size because we want equal parts TP and FP
             test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
+            pre_filter_bcftools_include=self.pre_filter,
             regions_file=self.fp_regions_bed_file,
             sorter_json_stats_file=self.sorter_json_stats_file,
+            random_seed=self.random_seed,
             sp=self.sp,
         )
 

@@ -131,6 +131,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="""adapter version, indicates if input featuremap is from balanced ePCR data """,
     )
+    parser.add_argument(
+        "--pre_filter",
+        type=str,
+        required=False,
+        default=None,
+        help="""bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter' command""",
+    )
+    parser.add_argument(
+        "--random_seed",
+        type=int,
+        required=False,
+        default=42,
+        help="""random seed for reproducibility""",
+    )
     return parser.parse_args(argv[1:])
 
 
@@ -165,6 +179,8 @@ def run(argv: list[str]):
         out_basename=args.basename,
         lod_filters=args.lod_filters,
         balanced_strand_adapter_version=args.balanced_strand_adapter_version,
+        pre_filter=args.pre_filter,
+        random_seed=args.random_seed,
         simple_pipeline=sp,
     ).process()
 
