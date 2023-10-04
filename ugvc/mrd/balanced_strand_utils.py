@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import subprocess
 from collections import defaultdict
@@ -1188,6 +1189,67 @@ def plot_trimmer_histogram(
     return axs
 
 
+def flatten_strand_ratio_category(h5_file: str, key: str) -> pd.DataFrame:
+    """ "
+    convert the 2D dataframe of strand ratio categories to a 1D dataframe that is readable by Papyrus
+    """
+    df = pd.read_hdf(h5_file, key)
+    df["index_col"] = df.index
+    df.reset_index(drop=True, inplace=True)
+    df1 = df.melt(id_vars=["index_col"])
+    df1[""] = df1["index_col"] + "_" + df1["variable"]
+    df2 = df1[["", "value"]]
+    df2.set_index("", inplace=True)
+    df2 = df2.T
+    df2.reset_index(drop=True, inplace=True)
+    return df2
+
+
+def flatten_metrics(h5_file: str, key: str) -> pd.DataFrame:
+    """
+    Convert a 1D dataframe to a 1D dataframe that is readable by Papyrus
+    """
+    df = pd.read_hdf(h5_file, key)
+    df.index.names = [""]
+    df = df.T
+    df.reset_index(drop=True, inplace=True)
+    return df
+
+
+def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
+    """
+    Convert a statistics HDF5 file to a Papyrus JSON file
+    """
+    with pd.HDFStore(h5_file, "r") as store:
+        h5_file_keys = store.keys()
+
+    # flatten strand ratio categories
+    strand_ratio_to_convert = ["strand_ratio_category_counts", "strand_ratio_category_norm"]
+    flatten_dfs = {
+        key: flatten_strand_ratio_category(h5_file, key) for key in strand_ratio_to_convert if f"/{key}" in h5_file_keys
+    }
+
+    # flatten 1D dataframes
+    keys_to_convert = ["stats_shortlist", "sorter_stats", "df_category_consensus"]
+    flatten_dfs.update({key: flatten_metrics(h5_file, key) for key in keys_to_convert if f"/{key}" in h5_file_keys})
+
+    # category concordance
+    if "/df_category_concordance" in h5_file_keys:
+        df_category_concordance = pd.read_hdf(h5_file, "/df_category_concordance")
+        df_category_concordance.index = df_category_concordance.index.to_flat_index()
+        df_category_concordance.rename(columns={"count": 0}, inplace=True)
+        df_category_concordance = df_category_concordance.T
+        flatten_dfs["category_concordance"] = df_category_concordance
+
+    # wrap all in one json
+    root_element = "metrics"
+    new_json_dict = {root_element: {}}
+    new_json_dict[root_element] = {key: json.loads(df.to_json(orient="table")) for key, df in flatten_dfs.items()}
+
+    with open(output_json, "w", encoding="utf-8") as f:
+        json.dump(new_json_dict, f, indent=2)
+
+
 # pylint: disable=too-many-arguments
 def balanced_strand_analysis(
     adapter_version: str | BalancedStrandAdapterVersions,
@@ -1247,7 +1309,8 @@ def balanced_strand_analysis(
     os.makedirs(output_path, exist_ok=True)
     if output_basename is None:
         output_basename = os.path.basename(trimmer_histogram_csv)
-    output_statistics_file = os.path.join(output_path, f"{output_basename}.statistics.h5")
+    output_statistics_h5 = os.path.join(output_path, f"{output_basename}.statistics.h5")
+    output_statistics_json = os.path.join(output_path, f"{output_basename}.aggregated_stats.json")
     output_trimmer_histogram_plot = os.path.join(output_path, f"{output_basename}.trimmer_histogram.png")
     output_strand_ratio_plot = os.path.join(output_path, f"{output_basename}.strand_ratio.png")
     output_strand_ratio_category_plot = os.path.join(output_path, f"{output_basename}.strand_ratio_category.png")
@@ -1261,7 +1324,7 @@ def balanced_strand_analysis(
     # create the input for collect statistics
     if collect_statistics_kwargs is None:
         collect_statistics_kwargs = {}
-    collect_statistics_kwargs.setdefault("output_filename", output_statistics_file)
+    collect_statistics_kwargs.setdefault("output_filename", output_statistics_h5)
     collect_statistics_kwargs.setdefault("adapter_version", adapter_version)
     collect_statistics_kwargs.setdefault("trimmer_histogram_csv", trimmer_histogram_csv)
     collect_statistics_kwargs.setdefault("sorter_stats_csv", sorter_stats_csv)
@@ -1273,7 +1336,10 @@ def balanced_strand_analysis(
     collect_statistics(**collect_statistics_kwargs)
 
     # read Trimmer histogram output from collect statistics
-    df_trimmer_histogram = pd.read_hdf(output_statistics_file, "trimmer_histogram")
+    df_trimmer_histogram = pd.read_hdf(output_statistics_h5, "trimmer_histogram")
+
+    # convert h5 to Papyrus json
+    convert_h5_to_papyrus_json(output_statistics_h5, output_statistics_json)
 
     # generate plots
     plot_trimmer_histogram(
@@ -1317,7 +1383,7 @@ def balanced_strand_analysis(
         )
         parameters = dict(
             adapter_version=adapter_version if isinstance(adapter_version, str) else adapter_version.value,
-            statistics_h5=output_statistics_file,
+            statistics_h5=output_statistics_h5,
             trimmer_histogram_png=output_trimmer_histogram_plot,
             strand_ratio_png=output_strand_ratio_plot,
             strand_ratio_category_png=output_strand_ratio_category_plot,
