@@ -146,15 +146,12 @@ def run(argv: list[str]):
             predictions_score = np.array(predictions_score)
             group = df["group"]
 
-        hmer_run = np.array(df.close_to_hmer_run | df.inside_hmer_run)
-
         logger.info("Writing")
         skipped_records = 0
 
         with pysam.VariantFile(args.input_file) as infile:
             hdr = infile.header
 
-            protected_add(hdr.info, "HPOL_RUN", 1, "Flag", "In or close to homopolymer run")
             if args.model_file is not None:
                 protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
             if args.blacklist is not None:
@@ -180,8 +177,6 @@ def run(argv: list[str]):
             )
             with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
                 for i, rec in tqdm.tqdm(enumerate(infile)):
-                    if hmer_run[i]:
-                        rec.info["HPOL_RUN"] = True
                     if args.model_file is not None:
                         if predictions[i] == "fp":
                             if "PASS" in rec.filter.keys():

@@ -1,3 +1,6 @@
+from test import get_resource_dir
+
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -5,8 +8,17 @@ import ugvc.filtering.multiallelics as tprep
 
 
 def test_select_overlapping_variants():
-    alleles = [["A", "T"], ["A", "T", "C"], ["A", "TA"], ["C", "A"], ["TA", "T"], ["T", "*", "A"]]
-    positions = [10, 20, 30, 31, 40, 41]
+    alleles = [
+        ["A", "T"],
+        ["A", "T", "C"],
+        ["A", "TA"],
+        ["C", "A"],
+        ["TA", "T"],
+        ["T", "*", "A"],
+        ["TAA", "T"],
+        ["A", "AAAT"],
+    ]
+    positions = [10, 20, 30, 31, 40, 41, 60, 62]
     df = pd.DataFrame({"alleles": alleles, "pos": positions})
     result = tprep.select_overlapping_variants(df)
     assert result == [[1], [4, 5]]
@@ -64,3 +76,41 @@ testdata = [
 @pytest.mark.parametrize("alleles,allele_indices,expected", testdata)
 def test_indel_classify_subset(alleles, allele_indices, expected):
     assert tprep.indel_classify_subset(alleles, allele_indices) == expected
+
+
+testdata = [
+    [(-1, -1), (0, 1), (-1, -1)],
+    [(-1, 2), (0, 1), (-1, 2)],
+    [(1, 1), (0, 1), (1, 1)],
+    [(1, 2), (0, 1), (1, 1)],
+    [(1, 2), (1, 2), (0, 1)],
+]
+
+
+@pytest.mark.parametrize("label,allele_indices,expected", testdata)
+def test_encode_label(label, allele_indices, expected):
+    assert tprep.encode_label(label, allele_indices) == expected
+
+
+def test_cleanup_multiallelics():
+    inputs_dir = get_resource_dir(__file__)
+
+    input = pd.read_hdf(f"{inputs_dir}/cleanup_multiallelics_input.h5")
+    expected = pd.read_hdf(f"{inputs_dir}/cleanup_multiallelics_expected.h5")
+    result = tprep.cleanup_multiallelics(input)
+    pd.testing.assert_frame_equal(result, expected)
+    result = result.loc[result["label"].apply(lambda x: x in {(0, 1), (1, 1), (0, 0)})]
+    assert np.all(result.loc[result["x_hil"] != (None,), "variant_type"] == "h-indel")
+    assert np.all(result.loc[result["x_hil"] == (None,), "variant_type"] != "h-indel")
+    select = ~pd.isnull(result["str"])
+    result = result.loc[select]
+    assert np.all(
+        (
+            (result["rpa"].apply(lambda x: x[0]) > result["rpa"].apply(lambda x: x[1]))
+            & (result["x_ic"].apply(lambda x: x[0]) == "del")
+        )
+        | (
+            (result["rpa"].apply(lambda x: x[0]) < result["rpa"].apply(lambda x: x[1]))
+            & (result["x_ic"].apply(lambda x: x[0]) == "ins")
+        )
+    )
