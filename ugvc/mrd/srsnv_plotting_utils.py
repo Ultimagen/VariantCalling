@@ -972,8 +972,10 @@ def plot_qual_per_feature(
                 _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
 
         xticks = plt.gca().get_xticks()
-        if len(xticks) > 30:
-            plt.xticks(rotation=90, fontsize=10)
+        if len(xticks) > 100:
+            plt.xticks(rotation=90, fontsize=6)
+        elif len(xticks) > 30:
+            plt.xticks(rotation=90, fontsize=9)
 
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         plt.xlabel(feature)
