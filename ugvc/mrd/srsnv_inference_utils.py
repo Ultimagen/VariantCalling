@@ -124,7 +124,8 @@ class MLQualAnnotator(VcfAnnotator):
                 # the bcftools filter should work as a query if applied on info fields because their names are the same
                 # in the vcf header and in the dataframe. However, the bcftools expression could explicitly contain
                 # INFO/, e.g INFO/X_SCORE>4, so we need to remove the INFO/ prefix before applying the filter
-                predicted_qualities[~df.eval(self.pre_filter.replace("INFO/", ""))] = 0
+                # We also replace && with & because the former is supported by bcftools and the latter by pandas
+                predicted_qualities[~df.eval(self.pre_filter.replace("INFO/", "").replace("&&", "&"))] = 0
             except Exception as e:
                 logger.error(f"Failed to apply pre-filter: {self.pre_filter}")
                 raise e
