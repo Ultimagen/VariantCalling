@@ -474,6 +474,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.X_train_save_path,
             self.y_train_save_path,
             self.params_save_path,
+            self.mrd_simulation_dataframe_file,
+            self.statistics_h5_file,
         ) = self._get_file_paths()
 
         # set up classifier
@@ -550,6 +552,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}", f"{self.out_basename}X_train.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}y_train.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}params.json"),
+            pjoin(f"{self.out_path}", f"{self.out_basename}df_mrd_simulation.parquet"),
+            pjoin(f"{self.out_path}", f"{self.out_basename}statistics.h5"),
         )
 
     def save_model_and_data(self):
@@ -588,12 +592,13 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
 
+    def create_report_plots(self):
         for X, y, name in zip(
             [self.X_test_save_path, self.X_train_save_path],
             [self.y_test_save_path, self.y_train_save_path],
             ["test", "train"],
         ):
-            create_report_plots(
+            create_report_plots(  # TRAIN VS TEST SAVE PATHS
                 self.model_save_path,
                 X,
                 y,
@@ -683,5 +688,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()
+
+        # create plots for report
+        self.create_report_plots()
 
         return self
