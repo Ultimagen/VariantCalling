@@ -8,19 +8,46 @@ import pandas as pd
 import pysam
 from pandas.api.types import CategoricalDtype
 
+from ugvc import logger
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
+
+# TODO add tests for the inference module
 
 
 class MLQualAnnotator(VcfAnnotator):
     """
     Annotate vcf with ml-qual score
+
+    Parameters
+    ----------
+    model : sklearn.BaseEstimator
+        Trained model
+    categorical_features : list[str]
+        List of categorical features
+    numerical_features : list[str]
+        List of numerical features
+    X_train_path : str
+        Path to X_train
+    pre_filter : str, optional
+        bcftools expression used to filter variants before training the model, as part of:
+        "bcftools view <vcf> -i 'pre_filter'"
+        Any variant that does not pass the filter will be assigned ML_QUAL=0 in inference.
+        Default None
     """
 
-    def __init__(self, model, categorical_features: list[str], numerical_features: list[str], X_train_path: str):
+    def __init__(
+        self,
+        model,
+        categorical_features: list[str],
+        numerical_features: list[str],
+        X_train_path: str,
+        pre_filter: str = None,
+    ):
         self.model = model
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
         self.categories = extract_categories_from_parquet(X_train_path)
+        self.pre_filter = pre_filter
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
         """
@@ -43,7 +70,7 @@ class MLQualAnnotator(VcfAnnotator):
                 ("ID", "ML_QUAL"),
                 ("Number", 1),
                 ("Type", "Float"),
-                ("Description", "single-read-SNV model phred score"),
+                ("Description", "Single-Read-SNV model Phred score"),
             ],
         )
 
@@ -51,6 +78,7 @@ class MLQualAnnotator(VcfAnnotator):
 
     def process_records(self, records: list[pysam.VariantRecord]) -> list[pysam.VariantRecord]:
         """
+        Apply trained model and annotate a list of VCF records with ML_QUAL scores
 
         Parameters
         ----------
@@ -61,6 +89,11 @@ class MLQualAnnotator(VcfAnnotator):
         -------
         list[pysam.VariantRecord]
             list of updated VCF records
+
+        Raises
+        ------
+        Exception
+            If the pre-filter is not valid
         """
         # Convert list of variant records to a pandas DataFrame
         columns = self.numerical_features + self.categorical_features
@@ -86,6 +119,15 @@ class MLQualAnnotator(VcfAnnotator):
 
         # Apply the provided model to assign a new quality value
         predicted_qualities = self.model.predict_proba(df)
+        if self.pre_filter:
+            try:
+                # the bcftools filter should work as a query if applied on info fields because their names are the same
+                # in the vcf header and in the dataframe. However, the bcftools expression could explicitly contain
+                # INFO/, e.g INFO/X_SCORE>4, so we need to remove the INFO/ prefix before applying the filter
+                predicted_qualities[~df.eval(self.pre_filter.replace("INFO/", ""))] = 0
+            except Exception as e:
+                logger.error(f"Failed to apply pre-filter: {self.pre_filter}")
+                raise e
 
         # Assign the new quality value to each variant record
         for i, variant in enumerate(records):
@@ -94,6 +136,20 @@ class MLQualAnnotator(VcfAnnotator):
 
 
 def extract_categories_from_parquet(parquet_path):
+    """
+    Extract explicit categories of categorical columns from a parquet file
+
+    Parameters
+    ----------
+    parquet_path : str
+        Path to parquet file
+
+    Returns
+    -------
+    dict
+        Dictionary of column names and categories
+
+    """
     df = pd.read_parquet(parquet_path)
     category_mappings = {}
     for column in df.select_dtypes(include=["category"]).columns:
@@ -136,6 +192,7 @@ def single_read_snv_inference(
         categorical_features=params["categorical_features"],
         numerical_features=params["numerical_features"],
         X_train_path=X_train_path,
+        pre_filter=params["pre_filter"],
     )
     VcfAnnotator.process_vcf(
         annotators=[ml_qual_annotator],
