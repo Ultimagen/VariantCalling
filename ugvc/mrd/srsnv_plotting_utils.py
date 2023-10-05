@@ -1325,6 +1325,8 @@ def create_report_plots(
     out_path: str,
     base_name: str = None,
     lod_filters: dict = None,
+    mrd_simulation_dataframe_file: str = None,
+    statistics_h5_file: str = None,
 ):
     """loads model, data, params and generate plots for report
 
@@ -1346,6 +1348,10 @@ def create_report_plots(
         base name for output files, by default None
     lod_filters : dict, optional
         filters for LoD simulation, by default None (default_LoD_filters)
+    mrd_simulation_dataframe_file : str, optional
+        path to output simulated data set, by default None
+    statistics_h5_file : str, optional
+        path to output h5 file with stats, by default None
     """
     # TODO: change the report so it produces metrics that are saved into a h5 table in addition to the plots
 
@@ -1424,11 +1430,11 @@ def create_report_plots(
             simulated_signature_size=LoD_params["simulated_signature_size"],
             simulated_coverage=LoD_params["simulated_coverage"],
             minimum_number_of_read_for_detection=LoD_params["minimum_number_of_read_for_detection"],
-            output_dataframe_file=params["mrd_simulation_dataframe_file"],
+            output_dataframe_file=mrd_simulation_dataframe_file,
         )
         min_LoD_filter = calculate_lod_stats(
             df_mrd_simulation=df_mrd_simulation,
-            output_h5=params["statistics_h5_file"],
+            output_h5=statistics_h5_file,
             lod_column=c_lod,
         )
 
