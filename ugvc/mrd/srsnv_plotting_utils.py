@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import xgboost as xgb
-from matplotlib import ticker
+from matplotlib import colors
+from scipy.interpolate import interp1d
 from scipy.stats import binom
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from tqdm import tqdm
@@ -19,7 +20,7 @@ from ugvc import logger
 from ugvc.mrd.balanced_strand_utils import BalancedStrandAdapterVersions
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.utils.exec_utils import print_and_execute
-from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
+from ugvc.utils.metrics_utils import convert_h5_to_json, read_effective_coverage_from_sorter_json
 from ugvc.utils.plotting_utils import set_default_plt_rc_params
 
 edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
@@ -139,9 +140,9 @@ def srsnv_report(
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_bepcr_hists,
-        output_bepcr_fpr,
-        output_bepcr_recalls,
+        output_balanced_strand_hists,
+        output_balanced_strand_fpr,
+        output_balanced_strand_recalls,
     ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
 
     template_notebook = os.path.join(
@@ -160,9 +161,9 @@ def srsnv_report(
 -p output_obsereved_qual_plot {output_obsereved_qual_plot} \
 -p output_ML_qual_hist {output_ML_qual_hist} \
 -p output_qual_per_feature {output_qual_per_feature} \
--p output_bepcr_hists {output_bepcr_hists} \
--p output_bepcr_fpr {output_bepcr_fpr} \
--p output_bepcr_recalls {output_bepcr_recalls} \
+-p output_bepcr_hists {output_balanced_strand_hists} \
+-p output_bepcr_fpr {output_balanced_strand_fpr} \
+-p output_bepcr_recalls {output_balanced_strand_recalls} \
 -k python3"
     jupyter_nbconvert_command = f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --no-input"
 
@@ -515,7 +516,6 @@ def plot_LoD(
     min_LoD_filter: str,
     title: str = "",
     output_filename: str = None,
-    font_size: int = 14,
 ):
     """generates and saves the LoD plot
 
@@ -537,8 +537,6 @@ def plot_LoD(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    font_size : int, optional
-        font size for the plot, by default 14
 
     """
     set_default_plt_rc_params()
@@ -551,12 +549,16 @@ def plot_LoD(
     # TODO: add a case for no mixed in data
 
     filters_list = [
+        list(ML_filters),
         ["no_filter"],
         ["HQ_SNV"],
-        list(ML_filters),
     ]
-    markers_list = ["*", "D", "<"]
-    labels_list = ["No filter", "HQ_SNV and Edit Dist <= 5", "ML model"]
+    markers_list = ["o", "*", "D"]
+    labels_list = [
+        "ML model",
+        "No filter",
+        "HQ_SNV and Edit Dist <= 5",
+    ]
     edgecolors_list = ["r", "r", "r"]
     msize_list = [150, 150, 150]
 
@@ -567,7 +569,15 @@ def plot_LoD(
         edgecolors_list.append("r")
         msize_list.append(150)
 
-    best_lod = df_mrd_sim.loc[filters_list, c_lod].min()
+        filters_list.append(["CSKP_mixed_only"])
+        markers_list.append("s")
+        labels_list.append("CSKP and Edit Dist <= 5 (mixed only)")
+        edgecolors_list.append("r")
+        msize_list.append(150)
+
+    best_lod = df_mrd_sim.loc[
+        [item for sublist in filters_list for item in sublist], c_lod
+    ].min()  # best LoD across all plotted results
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
@@ -585,33 +595,32 @@ def plot_LoD(
             c=df_tmp[c_lod],
             marker=marker,
             edgecolor=edgecolor,
-            label=label + ", best LoD: {:.1E}".format(best_lod_filter).replace("E-0", "E-"),
+            label=f"{label}, best LoD: {best_lod_filter:.1E}".replace("E-0", "E-"),
             s=markersize,
             zorder=markersize,
-            vmin=best_lod,
-            vmax=best_lod * 10,
+            norm=colors.LogNorm(
+                vmin=best_lod,
+                vmax=best_lod * 10,
+            ),
         )
 
-    plt.xlabel("Base retention ratio on HOM SNVs", fontsize=font_size)
-    plt.ylabel("Residual SNV rate", fontsize=font_size)
+    plt.xlabel("Base retention ratio on HOM SNVs")
+    plt.ylabel("Residual SNV rate")
     plt.yscale("log")
-    title_handle = plt.title(title, fontsize=font_size)
-    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title)
+    legend_handle = plt.legend(fancybox=True, framealpha=0.95)
 
-    def fmt(x, pos):
-        a, b = "{:.1e}".format(x).split("e")
-        b = int(b)
-        return r"{}${} \times 10^{{{}}}$".format(pos, a, b)
-
-    cb = plt.colorbar(format=ticker.FuncFormatter(fmt))
-    cb.set_label(label=lod_label, fontsize=20)
+    cbar = plt.colorbar()
+    cbar.set_label(label=lod_label, fontsize=20)
+    # formatter = ticker.ScalarFormatter(useMathText=True)
+    # formatter.set_scientific(True)
+    # cbar.ax.yaxis.set_major_formatter(formatter)
 
     fig.text(
         0.5,
         0.01,
         f"ML qual threshold for min LoD: {min_LoD_filter}",
         ha="center",
-        fontsize=font_size,
         bbox={"facecolor": "orange", "alpha": 0.5, "pad": 5},
     )
     if output_filename is not None:
@@ -885,7 +894,7 @@ def plot_ML_qual_hist(
 
     plt.figure(figsize=[8, 6])
     plt.title("ML qual distribution per label")
-    bins = np.linspace(0, max_score, 50)
+    bins = np.arange(0, max_score + 1)
     for label in labels_dict:
         plt.hist(
             df[df["label"] == label][score].clip(upper=max_score),
@@ -941,23 +950,34 @@ def plot_qual_per_feature(
     """
     set_default_plt_rc_params()
 
-    features = cls_features
     if "is_mixed" in df:
         df["is_mixed"] = df["is_mixed"].astype(int)
-    for feature in features:
-        plt.figure()
-        for label in labels_dict:
+    for feature in cls_features:
+        for j, label in enumerate(labels_dict):
             if df[feature].dtype == bool:
+                if j == 0:
+                    plt.figure(figsize=(6, 3))
                 _ = (
                     df[df["label"] == label][feature]
                     .astype(int)
                     .hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
                 )
-            else:
+            elif df[feature].dtype in {"category", "object"}:
+                if j == 0:
+                    plt.figure(figsize=(16, 4))
                 _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+            else:
+                if j == 0:
+                    plt.figure(figsize=(8, 4))
+                _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+
+        xticks = plt.gca().get_xticks()
+        if len(xticks) > 30:
+            plt.xticks(rotation=90, fontsize=10)
+
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
-        feature_title = title + feature
-        title_handle = plt.title(feature_title, fontsize=font_size)
+        plt.xlabel(feature)
+        title_handle = plt.title(title, fontsize=font_size)
         output_filename_feature = output_filename + feature
         if output_filename_feature is not None:
             if not output_filename_feature.endswith(".png"):
@@ -1106,6 +1126,7 @@ def plot_mixed(
     set_default_plt_rc_params()
 
     score = "ML_qual_1"
+    bins = np.arange(0, max_score + 1)
 
     for td, name in zip(
         [df_mixed_cs, df_mixed_non_cs, df_non_mixed_cs, df_non_mixed_non_cs],
@@ -1116,7 +1137,11 @@ def plot_mixed(
             title + name + "\nMean ML_QUAL: {:.2f}, Median ML_QUAL: {:.2f}".format(td[score].mean(), td[score].median())
         )
         for label in labels_dict:
-            _ = td[td["label"] == label][score].clip(upper=max_score).hist(bins=20, label=labels_dict[label], alpha=0.8)
+            _ = (
+                td[td["label"] == label][score]
+                .clip(upper=max_score)
+                .hist(bins=bins, label=labels_dict[label], alpha=0.8, density=True)
+            )
         plt.xlim([0, max_score])
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + name
@@ -1273,9 +1298,9 @@ def _get_plot_paths(report_name, out_path, out_basename):
     output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
     output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
     output_qual_per_feature = os.path.join(outdir, f"{basename}{report_name}.qual_per_")
-    output_bepcr_hists = os.path.join(outdir, f"{basename}{report_name}.bepcr_")
-    output_bepcr_fpr = os.path.join(outdir, f"{basename}{report_name}.bepcr_fpr")
-    output_bepcr_recalls = os.path.join(outdir, f"{basename}{report_name}.bepcr_recalls")
+    output_balanced_strand_hists = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_")
+    output_balanced_strand_fpr = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_fpr")
+    output_balanced_strand_recalls = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_recalls")
 
     return [
         output_roc_plot,
@@ -1286,13 +1311,18 @@ def _get_plot_paths(report_name, out_path, out_basename):
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_bepcr_hists,
-        output_bepcr_fpr,
-        output_bepcr_recalls,
+        output_balanced_strand_hists,
+        output_balanced_strand_fpr,
+        output_balanced_strand_recalls,
     ]
 
 
-def calculate_lod_stats(df_mrd_simulation: pd.DataFrame, output_h5: str, lod_column: str):
+def calculate_lod_stats(
+    df_mrd_simulation: pd.DataFrame,
+    output_h5: str,
+    lod_column: str,
+    qualities_to_interpolate: tuple | list | np.array = (30, 33, 40, 43, 50, 53, 60),
+):
     """Calculate noise and LoD stats from the simulated data
 
     Parameters
@@ -1303,17 +1333,46 @@ def calculate_lod_stats(df_mrd_simulation: pd.DataFrame, output_h5: str, lod_col
         path to output h5 file
     lod_column : str
         name of the LoD column in the data set
+    qualities_to_interpolate : tuple
+        list of qualities to interpolate what percent of bases surpass, by default (30, 33, 40, 43, 50, 53, 60)
 
     Returns
     -------
-    df_stats: pd.DataFrame
-        stats of the simulated data set
+    best_LoD_filter: str
+        name of the filter with the best LoD
     """
-    min_LoD_filter = df_mrd_simulation[lod_column].idxmin()  # TODO: do add the actual LoD
-    logger.info(f"min_LoD_filter {min_LoD_filter}")
-    df_stats = pd.DataFrame()  # TODO implement
-    df_stats.to_hdf(output_h5, key="lod_stats", mode="a")
-    return min_LoD_filter
+    df_mrd_simulation_ml = df_mrd_simulation.loc[df_mrd_simulation.index.str.startswith("ML")]
+    df_mrd_simulation_non_ml = df_mrd_simulation.loc[~df_mrd_simulation.index.str.startswith("ML")]
+    # Calculate percent of bases over each given quality threshold
+    x_interp = -10 * np.log10(df_mrd_simulation_ml["residual_snv_rate"])  # Phred score
+    y_interp = df_mrd_simulation_ml["tp_read_retention_ratio"]
+    base_stats = pd.Series(
+        index=qualities_to_interpolate,
+        data=interp1d(x_interp, y_interp, bounds_error=False, fill_value=(1, 0))(qualities_to_interpolate),
+    )  # fill_value=(1, 0) means that values under the minimal Qual will be 1 and values over the maximal will be 0
+    base_stats.index.name = "QualThreshold"
+    base_stats.name = "BasesOverQualThreshold"
+    base_stats.to_hdf(output_h5, key="bases_over_qual_threshold", mode="a")
+
+    # Calculate Optimal filter and LoD result
+    best_LoD_filter = df_mrd_simulation[lod_column].idxmin()
+    best_lod = df_mrd_simulation.loc[best_LoD_filter, lod_column]
+    best_ML_LoD_filter = df_mrd_simulation_ml[lod_column].idxmin()
+    best_ML_LoD = df_mrd_simulation_ml.loc[best_ML_LoD_filter, lod_column]
+    lod_stats_dict = {
+        "best_LoD_filter": best_LoD_filter,
+        "LoD_best": best_lod,
+        "best_ML_LoD_filter": best_ML_LoD_filter,
+        "LoD_best_ML": best_ML_LoD,
+    }
+    lod_stats_dict.update(
+        {f"LoD-{filter_name}": row[lod_column] for filter_name, row in df_mrd_simulation_non_ml.iterrows()}
+    )
+    logger.info(f"min_LoD_filter {best_LoD_filter} (LoD={best_lod:.1e})")
+    lod_stats = pd.Series(lod_stats_dict)
+    lod_stats.to_hdf(output_h5, key="lod_stats", mode="a")
+
+    return best_LoD_filter
 
 
 def create_report_plots(
@@ -1327,6 +1386,7 @@ def create_report_plots(
     lod_filters: dict = None,
     mrd_simulation_dataframe_file: str = None,
     statistics_h5_file: str = None,
+    statistics_json_file: str = None,
 ):
     """loads model, data, params and generate plots for report
 
@@ -1352,7 +1412,12 @@ def create_report_plots(
         path to output simulated data set, by default None
     statistics_h5_file : str, optional
         path to output h5 file with stats, by default None
+    statistics_json_file : str, optional
+        path to output json file with stats, by default None
     """
+    if statistics_json_file:
+        assert statistics_h5_file, "statistics_h5_file is required when statistics_json_file is provided"
+
     # TODO: change the report so it produces metrics that are saved into a h5 table in addition to the plots
 
     # load model, data and params
@@ -1406,9 +1471,9 @@ def create_report_plots(
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_bepcr_hists,
-        output_bepcr_fpr,
-        output_bepcr_recalls,
+        output_balanced_strand_hists,
+        output_balanced_strand_fpr,
+        output_balanced_strand_recalls,
     ] = _get_plot_paths(report_name, out_path=params["workdir"], out_basename=params["data_name"])
 
     LoD_params = {}
@@ -1497,7 +1562,7 @@ def create_report_plots(
         labels_dict,
         cls_features,
         df,
-        title=f"{params['data_name']}\nfeature distribution per ",
+        title=f"{params['data_name']}",
         output_filename=output_qual_per_feature,
     )
 
@@ -1532,8 +1597,8 @@ def create_report_plots(
             df_non_mixed_non_cs,
             df_non_mixed_cs,
             max_score,
-            title=f"{params['data_name']}\nbepcr: ",
-            output_filename=output_bepcr_hists,
+            title=f"{params['data_name']}\nbalanced_strand: ",
+            output_filename=output_balanced_strand_hists,
         )
 
         plot_mixed_fpr(
@@ -1542,8 +1607,8 @@ def create_report_plots(
             fprs_non_mixed_cs,
             fprs_non_mixed_non_cs,
             max_score,
-            title=f"{params['data_name']}\nbepcr fp rate vs. qual ",
-            output_filename=output_bepcr_fpr,
+            title=f"{params['data_name']}\nbalanced_strand fp rate vs. qual ",
+            output_filename=output_balanced_strand_fpr,
         )
         plot_mixed_recall(
             recalls_mixed_cs,
@@ -1551,9 +1616,17 @@ def create_report_plots(
             recalls_non_mixed_cs,
             recalls_non_mixed_non_cs,
             max_score,
-            title=f"{params['data_name']}\nbepcr recalls vs. qual ",
-            output_filename=output_bepcr_recalls,
+            title=f"{params['data_name']}\nbalanced_strand recalls vs. qual ",
+            output_filename=output_balanced_strand_recalls,
         )
+
+    # convert statistics to json
+    convert_h5_to_json(
+        input_h5_filename=statistics_h5_file,
+        root_element="metrics",
+        ignored_h5_key_substring=None,
+        output_json=statistics_json_file,
+    )
 
 
 def precision_score_with_mask(y_pred: np.ndarray, y_true: np.ndarray, mask: np.ndarray):
@@ -1649,7 +1722,7 @@ def precision_recall_curve(score, max_score, y_true: np.ndarray, cumulative=Fals
     return fprs, recalls
 
 
-def plot_precision_recall(lists, labels, max_score, log_scale=False, font_size=14):
+def plot_precision_recall(lists, labels, max_score, log_scale=False, font_size=22):
     """generate a plot of precision and recall rates per threshold
 
     Parameters

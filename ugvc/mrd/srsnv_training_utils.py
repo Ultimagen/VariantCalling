@@ -478,6 +478,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.train_mrd_simulation_dataframe_file,
             self.test_statistics_h5_file,
             self.train_statistics_h5_file,
+            self.test_statistics_json_file,
+            self.train_statistics_json_file,
         ) = self._get_file_paths()
 
         # set up classifier
@@ -558,6 +560,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}", f"{self.out_basename}train.df_mrd_simulation.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.statistics.h5"),
             pjoin(f"{self.out_path}", f"{self.out_basename}train.statistics.h5"),
+            pjoin(f"{self.out_path}", f"{self.out_basename}test.statistics.json"),
+            pjoin(f"{self.out_path}", f"{self.out_basename}train.statistics.json"),
         )
 
     def save_model_and_data(self):
@@ -597,14 +601,15 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             json.dump(params_to_save, f)
 
     def create_report_plots(self):
-        for X, y, mrd_simulation_dataframe_file, statistics_h5_file, name in zip(
+        for X, y, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name in zip(
             [self.X_test_save_path, self.X_train_save_path],
             [self.y_test_save_path, self.y_train_save_path],
             [self.test_mrd_simulation_dataframe_file, self.train_mrd_simulation_dataframe_file],
             [self.test_statistics_h5_file, self.train_statistics_h5_file],
+            [self.test_statistics_json_file, self.train_statistics_json_file],
             ["test", "train"],
         ):
-            create_report_plots(  # TRAIN VS TEST SAVE PATHS
+            create_report_plots(
                 model_file=self.model_save_path,
                 X_file=X,
                 y_file=y,
@@ -615,6 +620,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 lod_filters=self.lod_filters,
                 mrd_simulation_dataframe_file=mrd_simulation_dataframe_file,
                 statistics_h5_file=statistics_h5_file,
+                statistics_json_file=statistics_json_file,
             )
 
     def prepare_featuremap_for_model(self):
