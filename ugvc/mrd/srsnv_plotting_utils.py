@@ -589,6 +589,8 @@ def plot_confusion_matrix(
     ax.set_xticklabels(labels=["FP", "TP"], fontsize=font_size)
     ax.set_yticks(ticks=[0.5, 1.5])
     ax.set_yticklabels(labels=["FP", "TP"], fontsize=font_size, rotation="horizontal")
+    ax.set_xlabel("Predicted label", fontsize=font_size)
+    ax.set_ylabel("Input label", fontsize=font_size)
     cbar = ax.collections[0].colorbar
     cbar.ax.tick_params(labelsize=font_size)
 
@@ -1026,11 +1028,8 @@ def plot_mixed(
         ["mixed_cs", "mixed_non_cs", "non_mixed_cs", "non_mixed_non_cs"],
     ):
         plt.figure()
-        plt.title(
-            title + name + "\nMean ML_QUAL: {:.2f}, Median ML_QUAL: {:.2f}".format(td[score].mean(), td[score].median())
-        )
         for label in labels_dict:
-            _ = td[td["label"] == label][score].clip(upper=max_score).hist(bins=20, label=labels_dict[label])
+            _ = td[td["label"] == label][score].clip(upper=max_score).hist(bins=20, label=labels_dict[label], alpha=0.5)
         plt.xlim([0, max_score])
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + name
@@ -1374,7 +1373,7 @@ def create_report_plots(
         output_filename=output_qual_per_feature,
     )
 
-    if "is_mixed" in df:
+    if params["adapter_version"] in [av.value for av in BalancedStrandAdapterVersions]:
         (
             df_mixed_cs,
             df_mixed_non_cs,
@@ -1418,6 +1417,7 @@ def create_report_plots(
             title=f"{params['data_name']}\nbepcr fp rate vs. qual ",
             output_filename=output_bepcr_fpr,
         )
+
         plot_mixed_recall(
             recalls_mixed_cs,
             recalls_mixed_non_cs,
@@ -1480,7 +1480,7 @@ def precision_recall_curve(score, max_score, y_true: np.ndarray, cumulative=Fals
     ----------
     score : pd.dataframe
         model score
-    max_score : _type_
+    max_score : float
         maximal ML model score for threshold
     y_true : np.ndarray
         labels
