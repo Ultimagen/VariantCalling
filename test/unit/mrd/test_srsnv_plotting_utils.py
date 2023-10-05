@@ -1,5 +1,6 @@
 import json
 import os
+from os.path import basename
 from os.path import join as pjoin
 from test import get_resource_dir
 
@@ -47,7 +48,7 @@ def test_create_report_plots(tmpdir):
     )
     params["adapter_version"] = "LA_v5and6"
 
-    local_params_file = params_file.replace(".json", ".local.json")
+    local_params_file = pjoin(tmpdir, basename(params_file).replace(".json", ".local.json"))
     with open(local_params_file, "w", encoding="utf-8") as f:
         json.dump(params, f)
 
