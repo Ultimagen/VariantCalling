@@ -118,21 +118,22 @@ class MLQualAnnotator(VcfAnnotator):
         )
 
         # Apply the provided model to assign a new quality value
-        predicted_qualities = self.model.predict_proba(df)
+        predicted_probability = self.model.predict_proba(df)
         if self.pre_filter:
             try:
                 # the bcftools filter should work as a query if applied on info fields because their names are the same
                 # in the vcf header and in the dataframe. However, the bcftools expression could explicitly contain
                 # INFO/, e.g INFO/X_SCORE>4, so we need to remove the INFO/ prefix before applying the filter
                 # We also replace && with & because the former is supported by bcftools and the latter by pandas
-                predicted_qualities[~df.eval(self.pre_filter.replace("INFO/", "").replace("&&", "&"))] = 0
+                # We assign a value of 1 for error probability, translating to a quality of 0
+                predicted_probability[~df.eval(self.pre_filter.replace("INFO/", "").replace("&&", "&"))] = 1
             except Exception as e:
                 logger.error(f"Failed to apply pre-filter: {self.pre_filter}")
                 raise e
 
         # Assign the new quality value to each variant record
         for i, variant in enumerate(records):
-            variant.info["ML_QUAL"] = -10 * np.log10(predicted_qualities[i][0])
+            variant.info["ML_QUAL"] = -10 * np.log10(predicted_probability[i][0])
         return records
 
 
