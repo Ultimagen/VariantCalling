@@ -7,11 +7,19 @@ import numpy as np
 import pandas as pd
 import pysam
 from pandas.api.types import CategoricalDtype
+from scipy.interpolate import interp1d
 
 from ugvc import logger
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # TODO add tests for the inference module
+
+ML_QUAL = "ML_QUAL"
+PASS = "PASS"
+LOW_QUAL = "LowQual"
+PRE_FILTERED = "PreFiltered"
+
+LOW_QUAL_THRESHOLD = 40
 
 
 class MLQualAnnotator(VcfAnnotator):
@@ -42,12 +50,16 @@ class MLQualAnnotator(VcfAnnotator):
         numerical_features: list[str],
         X_train_path: str,
         pre_filter: str = None,
+        test_set_mrd_simulation_dataframe_file: str = None,
+        low_qual_threshold: float = LOW_QUAL_THRESHOLD,
     ):
         self.model = model
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
         self.categories = extract_categories_from_parquet(X_train_path)
         self.pre_filter = pre_filter
+        self.quality_interpolation_function = get_quality_interpolation_function(test_set_mrd_simulation_dataframe_file)
+        self.low_qual_threshold = low_qual_threshold
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
         """
@@ -67,12 +79,25 @@ class MLQualAnnotator(VcfAnnotator):
         header.add_meta(
             "INFO",
             items=[
-                ("ID", "ML_QUAL"),
+                ("ID", ML_QUAL),
                 ("Number", 1),
                 ("Type", "Float"),
                 ("Description", "Single-Read-SNV model Phred score"),
             ],
         )
+        header.filters.add(
+            id=LOW_QUAL,
+            number=None,
+            type=None,
+            description=f"SNV quality is below {self.low_qual_threshold}",
+        )
+        if self.pre_filter:
+            header.filters.add(
+                id=PRE_FILTERED,
+                number=None,
+                type=None,
+                description=f"Variant failed SRSNV pre-filter: {self.pre_filter}",
+            )
 
         return header
 
@@ -133,7 +158,22 @@ class MLQualAnnotator(VcfAnnotator):
 
         # Assign the new quality value to each variant record
         for i, variant in enumerate(records):
-            variant.info["ML_QUAL"] = -10 * np.log10(predicted_probability[i][0])
+            ml_qual = (-10 * np.log10(predicted_probability[i][0])).clip(
+                min=0
+            )  # clippiing to avoid rounding errors (-0)
+            variant.info[ML_QUAL] = ml_qual
+            if self.quality_interpolation_function:
+                # assign quality based on the residual SNV rate
+                qual = np.around(self.quality_interpolation_function(ml_qual), decimals=2)
+                variant.qual = qual
+
+                # Add a filter
+                if qual >= self.low_qual_threshold:
+                    variant.filter.add(PASS)
+                elif qual > 0 or not self.pre_filter:
+                    variant.filter.add(LOW_QUAL)
+                else:
+                    variant.filter.add(PRE_FILTERED)
         return records
 
 
@@ -159,12 +199,49 @@ def extract_categories_from_parquet(parquet_path):
     return category_mappings
 
 
+def get_quality_interpolation_function(mrd_simulation_dataframe: str):
+    """
+    Create a function that interpolates between residual_snv_rate and ML_QUAL
+
+    Parameters
+    ----------
+    mrd_simulation_dataframe : str
+        Path to MRD simulation dataframe
+
+    Returns
+    -------
+    interp1d
+        Interpolation function
+    """
+    # read data, filter for ML_QUAL filters only
+    df = pd.read_parquet(mrd_simulation_dataframe)
+    df.index = df.index.str.upper()
+    df = df[df.index.str.startswith(ML_QUAL)]
+    df.loc[:, ML_QUAL] = df.index.str.replace(ML_QUAL + "_", "").astype(int)
+    # Calculate Phred scores matching the residual SNV rate
+    phread_residual_snv_rate = -10 * np.log10(df["residual_snv_rate"])
+    # Create interpolation function
+    quality_interpolation_function = interp1d(
+        df[ML_QUAL] + 1e-10,  # add a small number so ML_QUAL=0 is outside the interpolation range
+        phread_residual_snv_rate,
+        kind="linear",
+        bounds_error=False,
+        fill_value=(
+            0,
+            phread_residual_snv_rate[-1],
+        ),  # below ML_QUAL=1E-10 assign 0, above max assign max
+    )
+    return quality_interpolation_function
+
+
 def single_read_snv_inference(
     featuremap_path: str,
     X_train_path: str,
     params_path: str,
     model_path: str,
+    test_set_mrd_simulation_dataframe_file: str,
     out_path: str,
+    low_qual_threshold: float = LOW_QUAL_THRESHOLD,
     process_number: int = 0,
 ) -> None:
     """
@@ -180,8 +257,12 @@ def single_read_snv_inference(
         Path to model parameters
     model_path : str
         Path to model
+    test_set_mrd_simulation_dataframe_file : str
+        Path to MRD simulation dataframe
     out_path : str
         Path to output featuremap
+    low_qual_threshold : float
+        Threshold for low quality variants, default 40
     process_number: int, optional
         Number of processes to use for parallelization. If N < 1, use all-available - abs(N) cores. Default 0
 
@@ -195,6 +276,8 @@ def single_read_snv_inference(
         numerical_features=params["numerical_features"],
         X_train_path=X_train_path,
         pre_filter=params["pre_filter"],
+        test_set_mrd_simulation_dataframe_file=test_set_mrd_simulation_dataframe_file,
+        low_qual_threshold=low_qual_threshold,
     )
     VcfAnnotator.process_vcf(
         annotators=[ml_qual_annotator],
