@@ -255,6 +255,7 @@ def LoD_training_summary(
     sampling_rate: float,
     df: pd.DataFrame,
     lod_filters: dict,
+    adapter_version: str,
     df_summary_file: str,
     output_params_file: str,
 ):
@@ -272,6 +273,8 @@ def LoD_training_summary(
         data set with features, labels and quals of the model
     lod_filters : dict
         filters for LoD simulation
+    adapter_version : str
+        adapter version, indicates if input featuremap is from balanced ePCR data
     df_summary_file : str
         output file path for df_summary
     output_params_file : str
@@ -280,7 +283,8 @@ def LoD_training_summary(
     """
 
     # apply filters to data
-    if not ("is_mixed" in df):
+    if not (adapter_version in [av.value for av in BalancedStrandAdapterVersions]):
+        # if not ("is_mixed" in df):
         filters_no_mixed = {}
         for f in lod_filters.items():
             if f[1].find("mixed") == -1:
@@ -294,6 +298,7 @@ def LoD_training_summary(
             if filter_query is not None
         }
     )
+
     df_fp = df.query("label == 0")
     df_tp = df.query("label == 1")
 
@@ -498,7 +503,6 @@ def plot_LoD(
     labels_list = ["No filter", "BQ80 and Edit Dist <= 5", "ML model"]
     edgecolors_list = ["r", "r", "r"]
     msize_list = [150, 150, 150]
-
     if adapter_version in [av.value for av in BalancedStrandAdapterVersions]:
         filters_list.append(["BQ80_mixed_only"])
         markers_list.append(">")
@@ -509,24 +513,27 @@ def plot_LoD(
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
-        df_tmp = df_mrd_sim.loc[f]
-        plt.plot(
-            df_tmp["read_retention_ratio"],
-            df_tmp["residual_snv_rate"],
-            c="k",
-            alpha=0.3,
-        )
-        best_lod = df_tmp[c_lod].min()
-        plt.scatter(
-            df_tmp["read_retention_ratio"],
-            df_tmp["residual_snv_rate"],
-            c=df_tmp[c_lod],
-            marker=marker,
-            edgecolor=edgecolor,
-            label=label + ", best LoD: {:.1E}".format(best_lod).replace("E-0", "E-"),
-            s=markersize,
-            zorder=markersize,
-        )
+        if f in df_mrd_sim.index.values:
+            df_tmp = df_mrd_sim.loc[f]
+            plt.plot(
+                df_tmp["read_retention_ratio"],
+                df_tmp["residual_snv_rate"],
+                c="k",
+                alpha=0.3,
+            )
+            best_lod = df_tmp[c_lod].min()
+            plt.scatter(
+                df_tmp["read_retention_ratio"],
+                df_tmp["residual_snv_rate"],
+                c=df_tmp[c_lod],
+                marker=marker,
+                edgecolor=edgecolor,
+                label=label + ", best LoD: {:.1E}".format(best_lod).replace("E-0", "E-"),
+                s=markersize,
+                zorder=markersize,
+            )
+        else:
+            logger.info(f"filter {f} not in df_mrd_sim")
 
     plt.xlabel("Read retention ratio on HOM SNVs", fontsize=font_size)
     plt.ylabel("Residual SNV rate", fontsize=font_size)
@@ -1264,6 +1271,7 @@ def create_report_plots(
     labels_dict = {0: "FP", 1: "TP"}
 
     lod_basic_filters = lod_filters or default_LoD_filters
+    logger.info(f"lod_basic_filters {lod_basic_filters}")
     ML_filters = {f"ML_qual_{q}": f"ML_qual_1 >= {q}" for q in range(0, max_score + 1)}
 
     lod_filters = {
@@ -1307,6 +1315,7 @@ def create_report_plots(
             sampling_rate,
             df,
             lod_filters,
+            params["adapter_version"],
             LoD_params["df_summary_file"],
             LoD_params["summary_params_file"],
         )
