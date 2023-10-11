@@ -581,29 +581,31 @@ def plot_LoD(
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
-        df_tmp = df_mrd_sim.loc[f]
-        plt.plot(
-            df_tmp[TP_READ_RETENTION_RATIO],
-            df_tmp[RESIDUAL_SNV_RATE],
-            c="k",
-            alpha=0.3,
-        )
-        best_lod_filter = df_tmp[c_lod].min()
-        plt.scatter(
-            df_tmp[TP_READ_RETENTION_RATIO],
-            df_tmp[RESIDUAL_SNV_RATE],
-            c=df_tmp[c_lod],
-            marker=marker,
-            edgecolor=edgecolor,
-            label=f"{label}, best LoD: {best_lod_filter:.1E}".replace("E-0", "E-"),
-            s=markersize,
-            zorder=markersize,
-            norm=colors.LogNorm(
-                vmin=best_lod,
-                vmax=best_lod * 10,
-            ),
-        )
-
+        if f in df_mrd_sim.index.values:
+            df_tmp = df_mrd_sim.loc[f]
+            plt.plot(
+                df_tmp[TP_READ_RETENTION_RATIO],
+                df_tmp[RESIDUAL_SNV_RATE],
+                c="k",
+                alpha=0.3,
+            )
+            best_lod_filter = df_tmp[c_lod].min()
+            plt.scatter(
+                df_tmp[TP_READ_RETENTION_RATIO],
+                df_tmp[RESIDUAL_SNV_RATE],
+                c=df_tmp[c_lod],
+                marker=marker,
+                edgecolor=edgecolor,
+                label=f"{label}, best LoD: {best_lod_filter:.1E}".replace("E-0", "E-"),
+                s=markersize,
+                zorder=markersize,
+                norm=colors.LogNorm(
+                    vmin=best_lod,
+                    vmax=best_lod * 10,
+                ),
+            )
+        else:
+            logger.warning(f"{f}: Filter not in index")
     plt.xlabel("Base retention ratio on HOM SNVs")
     plt.ylabel("Residual SNV rate")
     plt.yscale("log")
