@@ -16,23 +16,23 @@ def test_create_report_plots(tmpdir):
 
     # TODO: add train with a small model (low tree num)
 
-    base_name = "balanced_ePCR_LA5_LA6_333_LuNgs_08"
+    base_name = "balanced_ePCR_LA5_LA6_333_LuNgs_08."
 
     model_file = pjoin(
         inputs_dir,
-        f"{base_name}.model.joblib",
+        f"{base_name}model.joblib",
     )
     y_file = pjoin(
         inputs_dir,
-        f"{base_name}.y_test.parquet",
+        f"{base_name}y_test.parquet",
     )
     X_file = pjoin(
         inputs_dir,
-        f"{base_name}.X_test.parquet",
+        f"{base_name}X_test.parquet",
     )
     params_file = pjoin(
         inputs_dir,
-        f"{base_name}.params.json",
+        f"{base_name}params.json",
     )
 
     with open(params_file, "r", encoding="utf-8") as f:
@@ -44,13 +44,23 @@ def test_create_report_plots(tmpdir):
     )
     params["sorter_json_stats_file"] = pjoin(
         inputs_dir,
-        f"{base_name}.json",
+        f"{base_name}json",
     )
     params["adapter_version"] = "LA_v5and6"
 
     local_params_file = pjoin(tmpdir, basename(params_file).replace(".json", ".local.json"))
     with open(local_params_file, "w", encoding="utf-8") as f:
         json.dump(params, f)
+
+    statistics_h5_file = pjoin(
+        tmpdir,
+        f"{base_name}test.statistics.h5",
+    )
+
+    statistics_json_file = pjoin(
+        tmpdir,
+        f"{base_name}test.statistics.json",
+    )
 
     report_name = "test"
     create_report_plots(
@@ -61,6 +71,10 @@ def test_create_report_plots(tmpdir):
         report_name=report_name,
         out_path=tmpdir,
         base_name=base_name,
+        lod_filters=None,
+        mrd_simulation_dataframe_file=None,
+        statistics_h5_file=statistics_h5_file,
+        statistics_json_file=statistics_json_file,
     )
 
     # check if all plots are created
@@ -82,12 +96,15 @@ def test_create_report_plots(tmpdir):
         "strand_ratio_category_end" in model.feature_names_in_
         and "strand_ratio_category_start" in model.feature_names_in_
     ):
-        report_plots.append(f"{base_name}{report_name}.bepcr_mixed_cs.png")
-        report_plots.append(f"{base_name}{report_name}.bepcr_mixed_non_cs.png")
-        report_plots.append(f"{base_name}{report_name}.bepcr_non_mixed_cs.png")
-        report_plots.append(f"{base_name}{report_name}.bepcr_non_mixed_non_cs.png")
-        report_plots.append(f"{base_name}{report_name}.bepcr_fpr.png")
-        report_plots.append(f"{base_name}{report_name}.bepcr_recalls.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cs.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_non_cs.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cs.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_non_mixed_non_cs.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_fpr.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_recalls.png")
 
     for pname in report_plots:
         assert os.path.isfile(pjoin(tmpdir, f"{pname}")), f"Missing report plot: {pname}"
+
+    for pname in [statistics_h5_file, statistics_json_file]:
+        assert os.path.isfile(pname), f"Missing statistics file: {pname}"

@@ -440,7 +440,7 @@ def retention_noise_and_mrd_lod_simulation(
     if output_dataframe_file:
         df_mrd_simulation.to_parquet(output_dataframe_file)
 
-    return df_mrd_simulation, lod_label, c_lod
+    return df_mrd_simulation, lod_filters, lod_label, c_lod
 
 
 def plot_LoD(
@@ -539,7 +539,6 @@ def plot_LoD(
                 vmax=best_lod * 10,
             ),
         )
-
     plt.xlabel("Base retention ratio on HOM SNVs")
     plt.ylabel("Residual SNV rate")
     plt.yscale("log")
@@ -1422,7 +1421,7 @@ def create_report_plots(
     LoD_params["minimum_number_of_read_for_detection"] = 2
 
     if params["fp_regions_bed_file"] is not None:
-        (df_mrd_simulation, lod_label, c_lod,) = retention_noise_and_mrd_lod_simulation(
+        (df_mrd_simulation, lod_filters_filtered, lod_label, c_lod,) = retention_noise_and_mrd_lod_simulation(
             df=df,
             single_sub_regions=params["fp_regions_bed_file"],
             sorter_json_stats_file=sorter_json_stats_file,
@@ -1445,7 +1444,7 @@ def create_report_plots(
             df_mrd_simulation,
             lod_label,
             c_lod,
-            lod_filters,
+            lod_filters_filtered,
             params["adapter_version"],
             min_LoD_filter,
             title=f"{params['data_name']}\nLoD curve",
