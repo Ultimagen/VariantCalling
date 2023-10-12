@@ -7,8 +7,11 @@ from os.path import dirname
 from os.path import join as pjoin
 
 import numpy as np
+import pandas as pd
 import pysam
 from matplotlib import pyplot as plt
+
+from ugvc import logger
 
 SMALL_SIZE = 12
 MEDIUM_SIZE = 18
@@ -317,3 +320,35 @@ def modify_jupyter_notebook_html(
     output_html = output_html if output_html else input_html
     with open(output_html, "w", encoding="utf-8") as file:
         file.write(html)
+
+
+def filter_valid_queries(df_test: pd.DataFrame, queries: dict, verbose: bool = False) -> dict:
+    """
+    Test each filter query on the DataFrame and remove any that cause exceptions.
+
+    Parameters:
+    ----------
+    df_test: pd.DataFrame
+        The input DataFrame to test on.
+    queries: dict
+        A dictionary of filter name to filter query, keys are names and values are query strings.
+    verbose: bool
+        Whether to print the filter queries that caused an exception.
+
+    Returns
+    - A dictionary of valid filters that didn't cause exceptions.
+    """
+
+    # Start with an empty dictionary to store filters that don't cause an exception
+    valid_filters = {}
+
+    # Test each filter
+    for filter_name, filter_query in queries.items():
+        try:
+            df_test.eval(filter_query)
+            valid_filters[filter_name] = filter_query
+        except Exception:  # pylint: disable=broad-except
+            if verbose:
+                logger.warning(f"Filter query {filter_query} caused an exception, skipping.")
+
+    return valid_filters
