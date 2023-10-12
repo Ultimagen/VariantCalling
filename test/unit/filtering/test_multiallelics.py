@@ -52,6 +52,18 @@ def test_select_pl_for_allele_subset(orig_pl, allele_indices, expected):
 
 
 testdata = [
+    [("A", "*", "C"), (0, 1), pd.Series([0]), True],
+    [("A", "*", "C"), (0, 2), pd.Series([0]), False],
+    [("A", "AG", "*"), (1, 2), pd.Series([0]), True],
+]
+
+
+@pytest.mark.parametrize("alleles,allele_indices,spandel,expected", testdata)
+def test_is_indel_subset_with_spandel(alleles, allele_indices, spandel, expected):
+    assert tprep.is_indel_subset(alleles, allele_indices, spandel=spandel) == expected
+
+
+testdata = [
     [("A", "G", "C"), (0, 1), False],
     [("A", "AG", "C"), (0, 1), True],
     [("A", "AG", "AC"), (1, 2), False],
@@ -76,6 +88,35 @@ testdata = [
 @pytest.mark.parametrize("alleles,allele_indices,expected", testdata)
 def test_indel_classify_subset(alleles, allele_indices, expected):
     assert tprep.indel_classify_subset(alleles, allele_indices) == expected
+
+
+testdata = [
+    [("A", "G", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), ((None,), (None,))],
+    [("A", "AG", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), (("ins",), (1,))],
+    [("A", "C", "*"), (0, 2), pd.Series({"x_il": (4, 5)}), (("del",), (4,))],
+    [("A", "AC", "*"), (1, 2), pd.Series({"x_il": (4, 5)}), (("del",), (4,))],
+]
+
+
+@pytest.mark.parametrize("alleles,allele_indices,spandel, expected", testdata)
+def test_indel_classify_subset_with_spandel(alleles, allele_indices, spandel, expected):
+    assert tprep.indel_classify_subset(alleles, allele_indices, spandel=spandel) == expected
+
+
+ref = "A" * 20 + "G" + "ACCGCT" + "A" * 20
+spandel = pd.Series({"alleles": ("GA", "G"), "pos": 21})
+testdata = [
+    [("A", "C"), (0, 1), ref, 22, spandel, ((0,), (".",))],
+    [("A", "C", "CA"), (1, 2), ref, 22, spandel, ((0,), (".",))],
+    [("A", "C", "CC"), (1, 2), ref, 22, spandel, ((3,), ("C",))],
+    [("A", "CC", "C"), (1, 2), ref, 22, spandel, ((3,), ("C",))],
+    [("A", "C", "*"), (1, 2), ref, 22, spandel, ((2,), ("C",))],
+]
+
+
+@pytest.mark.parametrize("alleles,allele_indices,ref,pos,spandel,expected", testdata)
+def test_classify_hmer_indel_relative(alleles, allele_indices, ref, pos, spandel, expected):
+    assert tprep.classify_hmer_indel_relative(alleles, allele_indices, ref, pos, spandel=spandel) == expected
 
 
 testdata = [
