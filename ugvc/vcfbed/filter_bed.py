@@ -207,3 +207,37 @@ def intersect_bed_regions(
 
         # Execute the final command
         print_and_execute(cmd, simple_pipeline=sp, module_name=__name__)
+
+
+def count_bases_in_bed_file(file_path: str) -> int:
+    """
+    Count the number of bases in a given region from a file.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the bed file containing region data. interval_list files are also supported.
+
+    Returns
+    -------
+    int
+        Total number of bases in the provided region.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the provided file path does not exist.
+    """
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    # count the # of bases in region
+    n_bases_in_region = 0
+    with open(file_path, encoding="utf-8") as fh:
+        for line in fh:
+            if not line.startswith("@") and not line.startswith("#"):  # handle handles and interval_list files
+                spl = line.rstrip().split("\t")
+                n_bases_in_region += int(spl[2]) - int(spl[1])
+
+    return n_bases_in_region

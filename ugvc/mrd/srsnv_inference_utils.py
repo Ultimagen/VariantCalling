@@ -57,7 +57,11 @@ class MLQualAnnotator(VcfAnnotator):
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
         self.categories = extract_categories_from_parquet(X_train_path)
-        self.pre_filter = pre_filter
+        if pre_filter:
+            self.pre_filter = pre_filter.replace("INFO/", "").replace("&&", "&")
+            logger.debug(f"Using pre-filter query: {self.pre_filter} (original: {pre_filter})")
+        else:
+            self.pre_filter = None
         self.quality_interpolation_function = get_quality_interpolation_function(test_set_mrd_simulation_dataframe_file)
         self.low_qual_threshold = low_qual_threshold
 
@@ -151,7 +155,7 @@ class MLQualAnnotator(VcfAnnotator):
                 # INFO/, e.g INFO/X_SCORE>4, so we need to remove the INFO/ prefix before applying the filter
                 # We also replace && with & because the former is supported by bcftools and the latter by pandas
                 # We assign a value of 1 for error probability, translating to a quality of 0
-                predicted_probability[~df.eval(self.pre_filter.replace("INFO/", "").replace("&&", "&"))] = 1
+                predicted_probability[~df.eval(self.pre_filter)] = 1
             except Exception as e:
                 logger.error(f"Failed to apply pre-filter: {self.pre_filter}")
                 raise e
@@ -160,7 +164,7 @@ class MLQualAnnotator(VcfAnnotator):
         for i, variant in enumerate(records):
             ml_qual = (-10 * np.log10(predicted_probability[i][0])).clip(
                 min=0
-            )  # clippiing to avoid rounding errors (-0)
+            )  # clipping to avoid rounding errors (-0)
             variant.info[ML_QUAL] = ml_qual
             if self.quality_interpolation_function:
                 # assign quality based on the residual SNV rate
@@ -199,25 +203,28 @@ def extract_categories_from_parquet(parquet_path):
     return category_mappings
 
 
-def get_quality_interpolation_function(mrd_simulation_dataframe: str):
+def get_quality_interpolation_function(mrd_simulation_dataframe: str = None):
     """
     Create a function that interpolates between residual_snv_rate and ML_QUAL
 
     Parameters
     ----------
-    mrd_simulation_dataframe : str
+    mrd_simulation_dataframe : str, None
         Path to MRD simulation dataframe
+        If None then None is returned and nothing is done
 
     Returns
     -------
     interp1d
         Interpolation function
     """
+    if not mrd_simulation_dataframe:
+        return None
     # read data, filter for ML_QUAL filters only
     df = pd.read_parquet(mrd_simulation_dataframe)
     df.index = df.index.str.upper()
     df = df[df.index.str.startswith(ML_QUAL)]
-    df.loc[:, ML_QUAL] = df.index.str.replace(ML_QUAL + "_", "").astype(int)
+    df.loc[:, ML_QUAL] = df.index.str.replace(ML_QUAL + "_", "").astype(float)
     # Calculate Phred scores matching the residual SNV rate
     phread_residual_snv_rate = -10 * np.log10(df["residual_snv_rate"])
     # Create interpolation function

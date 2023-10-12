@@ -21,7 +21,9 @@ from ugvc.mrd.balanced_strand_utils import BalancedStrandAdapterVersions
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.utils.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import convert_h5_to_json, read_effective_coverage_from_sorter_json
+from ugvc.utils.misc_utils import filter_valid_queries
 from ugvc.utils.plotting_utils import set_default_plt_rc_params
+from ugvc.vcfbed.filter_bed import count_bases_in_bed_file
 
 edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
 HQ_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 7.9"
@@ -259,72 +261,6 @@ def plot_ROC_curve(
         )
 
 
-def filter_valid_queries(df_test: pd.DataFrame, lod_filters: dict, verbose: bool = False) -> dict:
-    """
-    Test each filter query on the DataFrame and remove any that cause exceptions.
-
-    Parameters:
-    ----------
-    df_test: pd.DataFrame
-        The input DataFrame to test on.
-    lod_filters: dict
-        A dictionary of filter name to filter query.
-    verbose: bool
-        Whether to print the filter queries that caused an exception.
-
-    Returns
-    - A dictionary of valid filters that didn't cause exceptions.
-    """
-
-    # Start with an empty dictionary to store filters that don't cause an exception
-    valid_filters = {}
-
-    # Test each filter
-    for filter_name, filter_query in lod_filters.items():
-        try:
-            df_test.eval(filter_query)
-            valid_filters[filter_name] = filter_query
-        except Exception:  # pylint: disable=broad-except
-            if verbose:
-                logger.warning(f"Filter query {filter_query} caused an exception, skipping.")
-
-    return valid_filters
-
-
-def count_bases_in_bed_file(file_path: str) -> int:
-    """
-    Count the number of bases in a given region from a file.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the bed file containing region data. interval_list files are also supported.
-
-    Returns
-    -------
-    int
-        Total number of bases in the provided region.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the provided file path does not exist.
-    """
-
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File not found: {file_path}")
-
-    # count the # of bases in region
-    n_bases_in_region = 0
-    with open(file_path, encoding="utf-8") as fh:
-        for line in fh:
-            if not line.startswith("@") and not line.startswith("#"):  # handle handles and interval_list files
-                spl = line.rstrip().split("\t")
-                n_bases_in_region += int(spl[2]) - int(spl[1])
-
-    return n_bases_in_region
-
-
 # pylint: disable=too-many-arguments
 def retention_noise_and_mrd_lod_simulation(
     df: pd.DataFrame,
@@ -377,7 +313,7 @@ def retention_noise_and_mrd_lod_simulation(
     """
 
     # Filter queries in LoD dict that raise an error (e.g. contain non existing fields like "is_mixed")
-    lod_filters = filter_valid_queries(df.head(10), lod_filters)
+    lod_filters = filter_valid_queries(df_test=df.head(10), queries=lod_filters)
 
     # apply filters
     df = df.assign(
