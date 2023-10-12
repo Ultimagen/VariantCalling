@@ -516,13 +516,13 @@ def _fix_zero_mer_indels(_df: pd.DataFrame) -> pd.DataFrame:
     return _df
 
 
-def get_reference_from_region(refidx: pyfaidx.Fasta, region: tuple) -> str:
+def get_reference_from_region(refidx: pyfaidx.Fasta | str, region: tuple) -> str:
     """Get the reference sequence of the region
 
     Parameters
     ----------
 
-    refidx : pyfaidx.Fasta
+    refidx : pyfaidx.Fasta or str
         Indexed fasta (`pyfaidx.Fasta`) - single chromosome
     region : tuple
         [start, end), 1-based coordinates of the region!

@@ -8,9 +8,8 @@ import pysam
 import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.filtering.training_prep as tprep
 import ugvc.flow_format.flow_based_read as fbr
+from ugvc.filtering.spandel import SPAN_DEL
 from ugvc.vcfbed import vcftools
-
-SPAN_DEL = "*"
 
 
 def select_overlapping_variants(df: pd.DataFrame) -> list:
@@ -113,6 +112,25 @@ def split_multiallelic_variants(
 def extract_allele_subset_from_multiallelic(
     multiallelic_variant: pd.Series, alleles: tuple, record_to_nbr_dict: dict, ref: pyfaidx.Fasta
 ) -> pd.Series:
+    """When analyzing multiallelic variants, we split them into pairs of alleles. Each pair of alleles
+    need to have the updated columns (GT/PL etc.). This function updates those columns
+
+    Parameters
+    ----------
+    multiallelic_variant : pd.Series
+        The series that represent the multiallelic variant
+    alleles : tuple
+        The allele tuple to fetch from the multiallelic variant
+    record_to_nbr_dict : dict
+        Dictionary that says what is the encoding in the VCF of each column
+    ref : pyfaidx.Fasta
+        Reference FASTA
+
+    Returns
+    -------
+    pd.Series
+        Updated subsetted variant
+    """
     pos = multiallelic_variant["pos"]
     SPECIAL_TREATMENT_COLUMNS = {
         "sb": lambda x: x,
@@ -246,7 +264,7 @@ def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: 
     return tuple(pltake)
 
 
-def is_indel_subset(alleles: tuple, allele_indices: tuple) -> bool:
+def is_indel_subset(alleles: tuple, allele_indices: tuple, spandel: pd.Series = None) -> bool:
     """Checks if the variant is an indel
 
     Parameters
@@ -255,16 +273,30 @@ def is_indel_subset(alleles: tuple, allele_indices: tuple) -> bool:
         Alleles tuple
     allele_indices : tuple
         Indices of alleles that are being selected
+    spandel : pd.Series, optional
+        The variant at the position that generates the spanning deletion, by default None (not used), relevant only if
+        the selected tuple of alleles contains spanning deletion.
 
     Returns
     -------
     bool
         True if indel, False otherwise
+
+    Raises
+    ------
+    RuntimeError
+        If alleles contain spanning deletion but the spanning deletion series is None
     """
+    if spandel is not None and _contain_spandel(alleles, allele_indices):
+        return True  # spanning deletion always is an indel
+    if spandel is None and _contain_spandel(alleles, allele_indices):
+        raise RuntimeError("Can't deal with spanning deletion allele without the spandel")
     return any(len(alleles[x]) != len(alleles[allele_indices[0]]) for x in allele_indices)
 
 
-def indel_classify_subset(alleles: tuple, allele_indices: tuple) -> tuple[tuple[str | None], tuple[int | None]]:
+def indel_classify_subset(
+    alleles: tuple, allele_indices: tuple, spandel: pd.Series = None
+) -> tuple[tuple[str | None], tuple[int | None]]:
     """Checks if the variant is insertion or deletion
 
     Parameters
@@ -273,23 +305,46 @@ def indel_classify_subset(alleles: tuple, allele_indices: tuple) -> tuple[tuple[
         Alleles tuple
     allele_indices : tuple
         Indices of alleles that are being selected
+    spandel: pd.Series, optional
+        The variant at the position that generates the spanning deletion, by default None (not used),
+        relevant only if the alleles contains spanning deletion
 
     Returns
     -------
-    tuple[str|None]
-        ('ins',) or ('del',)
+    tuple[tuple[str|None], tuple[int]]
+        (('ins', ), (length,)) or (('del',), (length,)). The reason for the awkward
+        output format is that this is the format of x_il and x_ic tags in the VCF
+
+    Raises
+    ------
+    RuntimeError
+        If alleles contain spanning deletion but the spanning deletion series is None
+
     """
-    if not is_indel_subset(alleles, allele_indices):
+    if not is_indel_subset(alleles, allele_indices, spandel):
         return ((None,), (None,))
     ref_allele = alleles[allele_indices[0]]
     alt_allele = alleles[allele_indices[1]]
+    if spandel is not None and _contain_spandel(alleles, allele_indices):
+        return (
+            ("del",),
+            (spandel["x_il"][0],),
+        )  # spanning deletion always is a deletion, length determined by the spanning deletion
+    if spandel is None and _contain_spandel(alleles, allele_indices):
+        raise RuntimeError("Unable to parse spanning deletion without the variant that contains the deletion allele")
+
     if len(ref_allele) > len(alt_allele):
         return (("del",), (len(ref_allele) - len(alt_allele),))
     return (("ins",), (len(alt_allele) - len(ref_allele),))
 
 
 def classify_hmer_indel_relative(
-    alleles: tuple, allele_indices: tuple, ref: pyfaidx.Fasta, pos: int, flow_order: str = "TGCA"
+    alleles: tuple,
+    allele_indices: tuple,
+    ref: pyfaidx.Fasta | str,
+    pos: int,
+    flow_order: str = "TGCA",
+    spandel: pd.Series = None,
 ) -> tuple:
     """Checks if one allele is hmer indel relative to the other
 
@@ -299,29 +354,72 @@ def classify_hmer_indel_relative(
         Tuple of all alleles
     allele_indices : tuple
         Pair of allele indices, the second one is measured relative to the first one
-    ref : pyfaidx.Fasta
+    ref : pyfaidx.Fasta or str
         Reference sequence
     pos: int
         Position of the variant (one-based)
     flow_order: str
         Flow order, default is TGCA
+    spandel: pd.Series, optional
+        The variant at the position that generates the spanning deletion, by default None (not used),
+        relevant only if the alleles contain spanning deletion.
+
     Returns
     -------
     tuple
         Pair of hmer indel length and hmer indel nucleotide
+
+    Raises
+    ------
+    RuntimeError
+        If the allele indices point to spanning deletion but spandel variable is not given
     """
-    refstr = fbc.get_reference_from_region(ref, (pos - 10, pos + 10))
+    refstr = fbc.get_reference_from_region(ref, (max(0, pos - 20), min(pos + 20, len(ref))))
     refstr = refstr.upper()
-    fake_series = pd.DataFrame(pd.Series({"alleles": alleles, "gt": allele_indices, "pos": pos, "ref": alleles[0]})).T
-    haplotypes = fbc.apply_variants_to_reference(refstr, fake_series, pos - 10, genotype_col="gt", include_ref=False)
+    # case of spanning deletion
+    if spandel is not None and _contain_spandel(alleles, allele_indices):
+        spandel_idx = alleles.index(SPAN_DEL)
+        fake_series = pd.DataFrame(
+            pd.Series(
+                {
+                    "alleles": [alleles[i] for i in range(len(alleles)) if alleles[i] != SPAN_DEL],
+                    "gt": [ai for ai in allele_indices if ai != spandel_idx],
+                    "pos": pos,
+                    "ref": alleles[0],
+                }
+            )
+        ).T
+        haplotypes = fbc.apply_variants_to_reference(
+            refstr, fake_series, pos - 20, genotype_col="gt", include_ref=False
+        )
+        fake_series = pd.DataFrame(
+            pd.Series(
+                {"alleles": spandel["alleles"][0:2], "gt": (0, 1), "pos": spandel["pos"], "ref": spandel["alleles"][0]}
+            )
+        ).T
+        haplotypes = (
+            haplotypes
+            + fbc.apply_variants_to_reference(refstr, fake_series, pos - 20, genotype_col="gt", include_ref=False)[1:2]
+        )
+    elif spandel is None and _contain_spandel(alleles, allele_indices):
+        raise RuntimeError(
+            "when the alleles contain spanning deletion, the line containing the variant that is a deletion is required"
+        )
+    else:
+        fake_series = pd.DataFrame(
+            pd.Series({"alleles": alleles, "gt": allele_indices, "pos": pos, "ref": alleles[0]})
+        ).T
+        haplotypes = fbc.apply_variants_to_reference(
+            refstr, fake_series, pos - 20, genotype_col="gt", include_ref=False
+        )
     fhaplotypes = [fbr.generate_key_from_sequence(x, flow_order) for x in haplotypes]
     compare = fbc.compare_haplotypes(fhaplotypes[0:1], fhaplotypes[1:2])
     if compare[0] != 1:
-        return (0, None)
+        return ((0,), (".",))
     flow_location = np.nonzero(fhaplotypes[0] - fhaplotypes[1])[0]
     nucleotide = flow_order[flow_location[0] % 4]
     length = min(int(fhaplotypes[0][flow_location]), int(fhaplotypes[1][flow_location]))
-    return (nucleotide, length)
+    return ((length,), (nucleotide,))
 
 
 def encode_label(original_label: tuple, allele_indices: tuple) -> tuple:
@@ -393,3 +491,21 @@ def cleanup_multiallelics(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[select, "variant_type"] = "non-h-indel"
 
     return df
+
+
+def _contain_spandel(alleles: tuple, allele_indices: tuple) -> bool:
+    """Returns if the allele_indices point to spanning deletion
+
+    Parameters
+    ----------
+    alleles : tuple
+        Tuple of alleles
+    allele_indices : tuple
+        Tuple of allele indices that are being queried (length = 2)
+
+    Returns
+    -------
+    bool
+        True if SPAN_DEL is in the alleles
+    """
+    return SPAN_DEL in (alleles[allele_indices[0]], alleles[allele_indices[1]])

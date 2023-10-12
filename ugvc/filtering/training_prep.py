@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pyfaidx
 import tqdm.auto as tqdm
 
 import ugvc.comparison.vcf_pipeline_utils as vpu
+import ugvc.filtering.multiallelics as mu
 from ugvc import logger
 from ugvc.vcfbed import vcftools
 
@@ -108,7 +110,7 @@ def prepare_ground_truth(input_vcf, base_vcf, hcr, reference, output_h5, chromos
         labeled_df = calculate_labeled_vcf(input_vcf, vcfeval_output, contig=chrom)
         labels = calculate_labels(labeled_df)
         labeled_df["label"] = labels
-        # labeled_df = process_multiallelic_spandel(labeled_df)
+        labeled_df = process_multiallelic_spandel(labeled_df, reference, chrom, input_vcf)
         labeled_df.to_hdf(output_h5, key=chrom, mode="a")
 
 
@@ -132,9 +134,51 @@ def decode_label(label):
     return decode_dct[label]
 
 
-# TODO:
-# 1. Clean up RPA for hmer indels
-# 2. Clean up variant_type
-# 3. add field marking multiallelic variant
-# 4. Tests for various vcftools and multiallelics functions
-# 5.
+def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: str, vcf: str) -> pd.DataFrame:
+    """Process multiallelic variants and spanning deletions
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataframe
+    reference : str
+        Reference FASTA
+    chromosome : str
+        Chromosome to process
+    vcf : str
+        VCF file of the callset (to extract the header)
+
+    Returns
+    -------
+    pd.DataFrame
+        Re-processed dataframe, multiallelic variants replaced by multiple biallelic rows
+        Spanning deletion variants replaced
+        The corresponding row of the dataframe is marked by "multiallelic_group column"
+    """
+    df = df.copy()
+    overlaps = mu.select_overlapping_variants(df)
+    combined_overlaps = sum(overlaps, [])
+    multiallelics = [x for x in overlaps if len(x) == 1]
+    # spandels = [x for x in overlaps if len(x) > 1]
+    fasta = pyfaidx.Fasta(reference)
+    multiallelic_groups = [
+        mu.split_multiallelic_variants(df.iloc[olp[0]], vcf, fasta[chromosome]) for olp in tqdm.tqdm(multiallelics)
+    ]
+    for n in multiallelic_groups:
+        n.loc[:, "multiallelic_group"] = (n["chrom"], [n["pos"]]) * (n.shape[0])
+    multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
+
+    idx_multi_spandels = df.index[combined_overlaps]
+    df.drop(idx_multi_spandels, axis=0, inplace=True)
+
+    # spanning_deletions = [
+    #    mu.split_multiallelic_variants(df.iloc[olp[0]], vcf, fasta[chromosome]) for olp in tqdm.tqdm(multiallelics)
+    # ]
+    for n in multiallelic_groups:
+        n.loc[:, "multiallelic_group"] = (n["chrom"], [n["pos"]]) * (n.shape[0])
+    multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
+
+    idx_multi_spandels = df.index[combined_overlaps]
+    df.drop(idx_multi_spandels, axis=0, inplace=True)
+
+    return pd.concat((df, multiallelic_groups))
