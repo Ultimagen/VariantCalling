@@ -16,11 +16,10 @@ from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.mrd.featuremap_utils import FeatureMapFields
+from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 from ugvc.mrd.srsnv_plotting_utils import create_report_plots
 from ugvc.utils.consts import FileExtension
-from ugvc.utils.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
 default_xgboost_model_params = {
@@ -45,70 +44,6 @@ default_categorical_features = [
     FeatureMapFields.IS_CYCLE_SKIP.value,
     FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value,
 ]
-
-
-def _filter_featuremap_with_bcftools_view(
-    input_featuremap_vcf: str,
-    intersect_featuremap_vcf: str,
-    sorter_json_stats_file: str = None,
-    read_effective_coverage_from_sorter_json_kwargs: dict = None,
-    regions_file: str = None,
-    pre_filter_bcftools_include: str = None,
-    sp: SimplePipeline = None,
-) -> str:
-    """
-    Create a bcftools view command to filter a featuremap vcf
-
-    Parameters
-    ----------
-    input_featuremap_vcf : str
-        Path to input featuremap vcf
-    intersect_featuremap_vcf : str
-        Path to output intersected featuremap vcf
-    sorter_json_stats_file : str, optional
-        Path to sorter stats json file, by default None
-    read_effective_coverage_from_sorter_json_kwargs : dict, optional
-        kwargs for read_effective_coverage_from_sorter_json, by default None
-    regions_file : str, optional
-        Path to regions file, by default None
-    pre_filter_bcftools_include: str, optional
-        bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter_bcftools_include'"
-        before sampling, by default None
-    sp : SimplePipeline, optional
-        SimplePipeline object to use for printing and running commands, by default None
-    """
-    bcftools_view_command = f"bcftools view {input_featuremap_vcf} -O z -o {intersect_featuremap_vcf} "
-    bcftools_include_string = ""
-    if sorter_json_stats_file:
-        # get min and max coverage from cram stats file
-        (_, _, _, min_coverage, max_coverage,) = read_effective_coverage_from_sorter_json(
-            sorter_json_stats_file, **read_effective_coverage_from_sorter_json_kwargs
-        )
-        # filter out variants with coverage outside of min and max coverage
-        bcftools_include_string += (
-            f"(INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage}) "
-            f"&& (INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage})"
-        )
-    if pre_filter_bcftools_include:
-        if bcftools_include_string:
-            bcftools_include_string += " && "
-        bcftools_include_string += pre_filter_bcftools_include
-    bcftools_include_string = bcftools_include_string.replace(" && && ", " && ").replace(
-        "&&&&", "&&"
-    )  # remove redundant &&s if input was problematic
-    if bcftools_include_string:
-        bcftools_view_command += f" -i '{bcftools_include_string}' "
-    if regions_file:
-        bcftools_view_command += f" -T {regions_file} "
-    bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
-
-    print_and_execute(bcftools_view_command, simple_pipeline=sp, module_name=__name__, shell=True)
-    print_and_execute(
-        bcftools_index_command,
-        simple_pipeline=sp,
-        module_name=__name__,
-    )
-    assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
 
 # pylint:disable=too-many-arguments
@@ -210,13 +145,17 @@ def prepare_featuremap_for_model(
     logger.info(f"Running prepare_featuremap_for_model for input_featuremap_vcf={input_featuremap_vcf}")
 
     # filter featuremap - intersect with bed file, require coverage in range, apply pre_filter
-    _filter_featuremap_with_bcftools_view(
+    # get min and max coverage from cram stats file
+    (_, _, _, min_coverage, max_coverage,) = read_effective_coverage_from_sorter_json(
+        sorter_json_stats_file, **read_effective_coverage_from_sorter_json_kwargs
+    )
+    filter_featuremap_with_bcftools_view(
         input_featuremap_vcf=input_featuremap_vcf,
         intersect_featuremap_vcf=intersect_featuremap_vcf,
-        sorter_json_stats_file=sorter_json_stats_file,
-        read_effective_coverage_from_sorter_json_kwargs=read_effective_coverage_from_sorter_json_kwargs,
+        min_coverage=min_coverage,
+        max_coverage=max_coverage,
         regions_file=regions_file,
-        pre_filter_bcftools_include=pre_filter_bcftools_include,
+        bcftools_include_filter=pre_filter_bcftools_include,
         sp=sp,
     )
 
@@ -557,7 +496,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}", f"{self.out_basename}y_train.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}params.json"),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.df_mrd_simulation.parquet"),
-            pjoin(f"{self.out_path}", f"{self.out_basename}train.df_mrd_simulation.parquet"),
+            pjoin(
+                f"{self.out_path}",
+                f"{self.out_basename}train.df_mrd_simulation.parquet",
+            ),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.statistics.h5"),
             pjoin(f"{self.out_path}", f"{self.out_basename}train.statistics.h5"),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.statistics.json"),
@@ -601,10 +543,13 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             json.dump(params_to_save, f)
 
     def create_report_plots(self):
-        for X, y, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name in zip(
+        for (X, y, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name,) in zip(
             [self.X_test_save_path, self.X_train_save_path],
             [self.y_test_save_path, self.y_train_save_path],
-            [self.test_mrd_simulation_dataframe_file, self.train_mrd_simulation_dataframe_file],
+            [
+                self.test_mrd_simulation_dataframe_file,
+                self.train_mrd_simulation_dataframe_file,
+            ],
             [self.test_statistics_h5_file, self.train_statistics_h5_file],
             [self.test_statistics_json_file, self.train_statistics_json_file],
             ["test", "train"],
