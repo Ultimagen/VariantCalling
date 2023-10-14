@@ -1258,7 +1258,7 @@ def calculate_lod_stats(
     df_mrd_simulation: pd.DataFrame,
     output_h5: str,
     lod_column: str,
-    qualities_to_interpolate: tuple | list | np.array = (30, 33, 40, 43, 50, 53, 60),
+    qualities_to_interpolate: tuple | list | np.array = (30, 33, 40, 43, 50, 53, 60, 63, 70),
 ):
     """Calculate noise and LoD stats from the simulated data
 
@@ -1302,9 +1302,14 @@ def calculate_lod_stats(
         "best_ML_LoD_filter": best_ML_LoD_filter,
         "LoD_best_ML": best_ML_LoD,
     }
-    lod_stats_dict.update(
-        {f"LoD-{filter_name}": row[lod_column] for filter_name, row in df_mrd_simulation_non_ml.iterrows()}
-    )
+    for column, stat_name in zip(
+        (lod_column, RESIDUAL_SNV_RATE, TP_READ_RETENTION_RATIO),
+        ("LoD", RESIDUAL_SNV_RATE, TP_READ_RETENTION_RATIO),
+    ):
+        lod_stats_dict.update(
+            {f"{stat_name}-{filter_name}": row[column] for filter_name, row in df_mrd_simulation_non_ml.iterrows()}
+        )
+
     logger.info(f"min_LoD_filter {best_LoD_filter} (LoD={best_lod:.1e})")
     lod_stats = pd.Series(lod_stats_dict)
     lod_stats.to_hdf(output_h5, key="lod_stats", mode="a")
