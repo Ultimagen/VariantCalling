@@ -482,8 +482,6 @@ def plot_LoD(
 
     fig = plt.figure(figsize=(20, 12))
 
-    # TODO: add a case for no mixed in data
-
     filters_list = [
         list(ML_filters),
         ["no_filter"],
@@ -497,7 +495,6 @@ def plot_LoD(
     ]
     edgecolors_list = ["r", "r", "r"]
     msize_list = [150, 150, 150]
-
     if adapter_version in [av.value for av in BalancedStrandAdapterVersions]:
         filters_list.append(["HQ_SNV_mixed_only"])
         markers_list.append(">")
@@ -512,8 +509,9 @@ def plot_LoD(
         msize_list.append(150)
 
     best_lod = df_mrd_sim.loc[
-        [item for sublist in filters_list for item in sublist], c_lod
+        [item for sublist in filters_list for item in sublist if item in df_mrd_sim.index.values], c_lod
     ].min()  # best LoD across all plotted results
+
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
@@ -1444,7 +1442,6 @@ def create_report_plots(
             output_h5=statistics_h5_file,
             lod_column=c_lod,
         )
-
         plot_LoD(
             df_mrd_simulation,
             lod_label,
