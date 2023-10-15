@@ -169,10 +169,18 @@ def collect_coverage_per_locus(coverage_bw_files, df_sig):
     return df_list
 
 
+def collect_coverage_per_locus_gatk(coverage_csv, df_sig):
+    coverage_gatk = pd.read_csv(coverage_csv, usecols=["Chrom", "Pos", "Total_Depth"])
+    coverage_gatk.rename(columns={"Chrom": "chrom", "Pos": "pos", "Total_Depth": "coverage"}, inplace=True)
+    coverage_gatk.set_index(["chrom", "pos"], inplace=True)
+    df_sig = df_sig.join(coverage_gatk, how="left")
+    return df_sig
+
+
 def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
     signature_vcf_files: list[str],
     output_parquet: str = None,
-    coverage_bw_files: list[str] = None,
+    coverage_csv: str = None,
     tumor_sample: str = None,
     x_columns_name_dict: dict = None,
     columns_to_drop: list = None,
@@ -190,8 +198,6 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
     output_parquet: str, optional
         File name to save result to, unless None (default).
         If this file exists and concat_to_existing_output_parquet is True data is appended
-    coverage_bw_files: list[str], optional
-        Coverage bigwig files generated with "coverage_analysis full_analysis", defualt None
     tumor_sample: str, optional
         tumor sample name in the vcf to take allele fraction (AF) from. If not given then a line starting with
         '##tumor_sample=' is looked for in the header, and if it's not found sample data is not read.
@@ -386,9 +392,8 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
 
     df_sig = df_sig.sort_index()
 
-    if coverage_bw_files:  # collect coverage per locus
-        df_list = collect_coverage_per_locus(coverage_bw_files, df_sig)
-        df_sig = pd.concat(df_list).astype({"coverage": int})
+    if coverage_csv:
+        df_sig = collect_coverage_per_locus_gatk(coverage_csv, df_sig)
 
     logger.debug("Calculating reference hmer")
     try:
@@ -829,7 +834,7 @@ def prepare_data_from_mrd_pipeline(
     matched_signatures_vcf_files=None,
     control_signatures_vcf_files=None,
     db_control_signatures_vcf_files=None,
-    coverage_bw_files=None,
+    coverage_csv=None,
     tumor_sample=None,
     output_dir=None,
     output_basename=None,
@@ -847,6 +852,8 @@ def prepare_data_from_mrd_pipeline(
         File name or a list of file names, signature vcf files of db (synthetic) control signature/s
     coverage_bw_files: list[str]
         Coverage bigwig files generated with "coverage_analysis full_analysis", disabled (None) by default
+    coverage_csv: str
+        Coverage csv file generated with "ExtractCoverageOverVcfFiles", disabled (None) by default
     tumor_sample: str
         sample name in the vcf to take allele fraction (AF) from.
     output_dir: str
@@ -891,7 +898,7 @@ def prepare_data_from_mrd_pipeline(
     )
     signature_dataframe = read_signature(
         matched_signatures_vcf_files,
-        coverage_bw_files=coverage_bw_files,
+        coverage_csv=coverage_csv,
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         signature_type="matched",
@@ -900,7 +907,7 @@ def prepare_data_from_mrd_pipeline(
     )
     signature_dataframe = read_signature(
         control_signatures_vcf_files,
-        coverage_bw_files=coverage_bw_files,
+        coverage_csv=coverage_csv,
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         signature_type="control",
@@ -908,7 +915,7 @@ def prepare_data_from_mrd_pipeline(
     )
     signature_dataframe = read_signature(
         db_control_signatures_vcf_files,
-        coverage_bw_files=coverage_bw_files,
+        coverage_csv=coverage_csv,
         output_parquet=signatures_dataframe_fname,
         tumor_sample=tumor_sample,
         signature_type="db_control",

@@ -56,13 +56,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Input signature vcf file/s (db control)",
     )
     parser.add_argument(
-        "-c",
-        "--coverage-bw",
+        "--coverage-csv",
         type=str,
-        nargs="+",
         default=None,
         required=False,
-        help="Coverage bigwig files generated with 'coverage_analysis full_analysis'",
+        help="Coverage csv file generated with ExtractCoverageOverVcfFiles",
     )
     parser.add_argument(
         "--tumor-sample",
@@ -97,7 +95,7 @@ def run(argv: list[str]):
         matched_signatures_vcf_files=args_in.matched_signatures_vcf,
         control_signatures_vcf_files=args_in.control_signatures_vcf,
         db_control_signatures_vcf_files=args_in.db_control_signatures_vcf,
-        coverage_bw_files=args_in.coverage_bw,
+        coverage_csv=args_in.coverage_csv,
         tumor_sample=args_in.tumor_sample,
         output_dir=args_in.output_dir,
         output_basename=args_in.output_basename,
