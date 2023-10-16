@@ -95,7 +95,7 @@ def sorter_to_h5(
     coverage_list = [int(x.split("=")[1].replace("x", "")) for x in coverge_list_str]
     for coverage_int in coverage_list:
         h5_dict["RawWgsMetrics"][f"PCT_{coverage_int}X"] = (
-            df_coverage_histogram.loc[coverage_int:, "Genome"].sum() / df_coverage_histogram["Genome"].sum() * 100
+            df_coverage_histogram.loc[coverage_int:, "Genome"].sum() / df_coverage_histogram["Genome"].sum()
         )
 
     # add the F80, F90, F95 metrics to RawWgsMetrics
