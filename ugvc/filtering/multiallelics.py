@@ -40,23 +40,11 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
                         multiallelic_locations.remove(c)
                 results.append(cluster[:])
             cluster = []
-        cluster.append(i)
+        if len(cluster) == 0:
+            cluster.append(i)
+        elif len(cluster) > 0 and SPAN_DEL in df.iloc[i]["alleles"]:
+            cluster.append(i)
         current_span = max(current_span, del_length[i] + df.iloc[i]["pos"])
-    if len(cluster) > 1:
-        # Fixing notorious cases that happen in the GATK when the variant overlaps deletion but does not contain it.
-        # not sure why this is happening
-        first = True
-        non_span = []
-        for c in cluster:
-            if not first and SPAN_DEL not in df.iloc[c]["alleles"]:
-                non_span.append(c)
-            first = False
-        cluster = [x for x in cluster if x not in non_span]
-        if len(cluster) > 1:
-            for c in cluster:
-                if c in multiallelic_locations:
-                    multiallelic_locations.remove(c)
-            results.append(cluster)
     for m in multiallelic_locations:
         results.append([m])
     sorted_results = sorted(results)
@@ -378,12 +366,11 @@ def classify_hmer_indel_relative(
     refstr = refstr.upper()
     # case of spanning deletion
     if spandel is not None and _contain_spandel(alleles, allele_indices):
-        spandel_idx = alleles.index(SPAN_DEL)
         fake_series = pd.DataFrame(
             pd.Series(
                 {
-                    "alleles": [alleles[i] for i in range(len(alleles)) if alleles[i] != SPAN_DEL],
-                    "gt": [ai for ai in allele_indices if ai != spandel_idx],
+                    "alleles": alleles,
+                    "gt": [a for a in allele_indices if alleles[a] != SPAN_DEL],
                     "pos": pos,
                     "ref": alleles[0],
                 }
