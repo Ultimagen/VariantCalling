@@ -7,6 +7,7 @@ import tqdm.auto as tqdm
 
 import ugvc.comparison.vcf_pipeline_utils as vpu
 import ugvc.filtering.multiallelics as mu
+import ugvc.filtering.spandel as sp
 from ugvc import logger
 from ugvc.vcfbed import vcftools
 
@@ -159,24 +160,31 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     overlaps = mu.select_overlapping_variants(df)
     combined_overlaps = sum(overlaps, [])
     multiallelics = [x for x in overlaps if len(x) == 1]
-    # spandels = [x for x in overlaps if len(x) > 1]
+    spandels = [x for x in overlaps if len(x) > 1]
     fasta = pyfaidx.Fasta(reference)
     multiallelic_groups = [
         mu.split_multiallelic_variants(df.iloc[olp[0]], vcf, fasta[chromosome]) for olp in tqdm.tqdm(multiallelics)
     ]
     for n in multiallelic_groups:
-        n.loc[:, "multiallelic_group"] = (n["chrom"], [n["pos"]]) * (n.shape[0])
+        n.loc[:, "multiallelic_group"] = [(n.iloc[0]["chrom"], n.iloc[0]["pos"])] * (n.shape[0])
     multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
 
-    idx_multi_spandels = df.index[combined_overlaps]
-    df.drop(idx_multi_spandels, axis=0, inplace=True)
+    spanning_deletions = [
+        pd.concat(
+            [df.iloc[olp[0] : olp[0] + 1]]
+            + [
+                sp.split_multiallelic_variants_with_spandel(df.iloc[olp[i]], df.iloc[olp[0]], vcf, fasta[chromosome])
+                for i in range(1, len(olp))
+            ]
+        )
+        for olp in tqdm.tqdm(spandels)
+    ]
 
-    # spanning_deletions = [
-    #    mu.split_multiallelic_variants(df.iloc[olp[0]], vcf, fasta[chromosome]) for olp in tqdm.tqdm(multiallelics)
-    # ]
-    for n in multiallelic_groups:
-        n.loc[:, "multiallelic_group"] = (n["chrom"], [n["pos"]]) * (n.shape[0])
-    multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
+    for i, n in enumerate(spanning_deletions):
+        n.loc[:, "multiallelic_group"] = [(df.iloc[spandels[i][0]]["chrom"], df.iloc[spandels[i][0]]["pos"])] * (
+            n.shape[0]
+        )
+    spanning_deletions = pd.concat(spanning_deletions, ignore_index=True)
 
     idx_multi_spandels = df.index[combined_overlaps]
     df.drop(idx_multi_spandels, axis=0, inplace=True)
