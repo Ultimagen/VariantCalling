@@ -45,15 +45,12 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         type=str,
         required=False,
         default=None,
-        help="""Comma-separated list of input info fields to include in dataframe,
+        help="""Space-separated list of input info fields to include in dataframe,
         If None (default) then all the info fields are read to columns""",
     )
 
     parser.add_argument(
-        "--input-format-fields",
-        type=str,
-        default=None,
-        help="comma-separated list of fields to extract from the vcf FORMAT fields, by default none are read",
+        "--input-format-fields", type=str, nargs="+", default=None, help="Fields to extract from the vcf FORMAT fields"
     )
     return parser.parse_args(argv[1:])
 

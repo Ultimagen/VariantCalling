@@ -170,9 +170,17 @@ def collect_coverage_per_locus(coverage_bw_files, df_sig):
 
 
 def collect_coverage_per_locus_gatk(coverage_csv, df_sig):
+    """
+    Merge coverage data from gatk "ExtractCoverageOverVcfFiles" output to signature dataframe
+    """
     coverage_gatk = pd.read_csv(coverage_csv, usecols=["Chrom", "Pos", "Total_Depth"])
     coverage_gatk.rename(columns={"Chrom": "chrom", "Pos": "pos", "Total_Depth": "coverage"}, inplace=True)
     coverage_gatk.set_index(["chrom", "pos"], inplace=True)
+    if df_sig.index.names != coverage_gatk.index.names:
+        raise ValueError(
+            f"df_sig index names {df_sig.index.names} \
+            do not match coverage_gatk index names {coverage_gatk.index.names}"
+        )
     df_sig = df_sig.join(coverage_gatk, how="left")
     return df_sig
 
@@ -850,10 +858,8 @@ def prepare_data_from_mrd_pipeline(
         File name or a list of file names, signature vcf files of control signature/s
     db_control_signatures_vcf_files: list[str]
         File name or a list of file names, signature vcf files of db (synthetic) control signature/s
-    coverage_bw_files: list[str]
-        Coverage bigwig files generated with "coverage_analysis full_analysis", disabled (None) by default
     coverage_csv: str
-        Coverage csv file generated with "ExtractCoverageOverVcfFiles", disabled (None) by default
+        Coverage csv file generated with gatk "ExtractCoverageOverVcfFiles", disabled (None) by default
     tumor_sample: str
         sample name in the vcf to take allele fraction (AF) from.
     output_dir: str
@@ -981,7 +987,7 @@ def generate_synthetic_signatures(
         trinuc_dict[trinucsub] = {}
         trinuc_dict[trinucsub]["index_to_sample"] = {}
         trinuc_dict[trinucsub]["trinuc_counter"] = {}
-        random_choice_replace = bool(n_subs_db < n_subs_signature)
+        random_choice_replace = n_subs_db < n_subs_signature
         for i in range(n_synthetic_signatures):
             trinuc_dict[trinucsub]["index_to_sample"][i] = np.random.choice(
                 range(0, n_subs_db), n_subs_signature, replace=random_choice_replace

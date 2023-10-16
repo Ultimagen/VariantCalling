@@ -60,7 +60,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         type=str,
         default=None,
         required=False,
-        help="Coverage csv file generated with ExtractCoverageOverVcfFiles",
+        help="Coverage csv file generated with gatk ExtractCoverageOverVcfFiles",
     )
     parser.add_argument(
         "--tumor-sample",
