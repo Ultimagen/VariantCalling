@@ -782,6 +782,9 @@ def parse_trinuc_sub(rec):
     # obtained from AnnotateVcf.wdl pipeline
     motif_ref = rec.info["X_LM"][0][-1] + rec.ref + rec.info["X_RM"][0][0]
     motif_alt = rec.info["X_LM"][0][-1] + rec.alts[0] + rec.info["X_RM"][0][0]
+    # if motif has an unknown base, return None
+    if "N" in motif_ref or "N" in motif_alt:
+        return None
     return motif_ref + ">" + motif_alt
 
 
@@ -793,5 +796,6 @@ def get_trinuc_substitution_dist(vcf_file):
             # check if rec is a SNP
             if len(rec.ref) == 1 and len(rec.alts) == 1 and len(rec.alts[0]) == 1:
                 trinuc_sub = parse_trinuc_sub(rec)
-                trinuc_dict[trinuc_sub] += 1
+                if trinuc_sub is not None:
+                    trinuc_dict[trinuc_sub] += 1
     return trinuc_dict
