@@ -1256,7 +1256,7 @@ def calculate_lod_stats(
     df_mrd_simulation: pd.DataFrame,
     output_h5: str,
     lod_column: str,
-    qualities_to_interpolate: tuple | list | np.array = (30, 33, 40, 43, 50, 53, 60, 63, 70),
+    qualities_to_interpolate: tuple | list | np.array = tuple(range(30, 71)),
 ):
     """Calculate noise and LoD stats from the simulated data
 
@@ -1269,7 +1269,7 @@ def calculate_lod_stats(
     lod_column : str
         name of the LoD column in the data set
     qualities_to_interpolate : tuple
-        list of qualities to interpolate what percent of bases surpass, by default (30, 33, 40, 43, 50, 53, 60)
+        list of qualities to interpolate what percent of bases surpass, by default all integers in [30,70]
 
     Returns
     -------
