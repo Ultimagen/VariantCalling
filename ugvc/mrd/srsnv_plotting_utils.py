@@ -515,6 +515,8 @@ def plot_LoD(
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
+        if f not in df_mrd_sim.index:
+            continue
         df_tmp = df_mrd_sim.loc[f]
         plt.plot(
             df_tmp[TP_READ_RETENTION_RATIO],
