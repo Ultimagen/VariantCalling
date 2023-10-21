@@ -515,20 +515,18 @@ def plot_LoD(
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
-        if f not in df_mrd_sim.index:
-            continue
-        df_tmp = df_mrd_sim.loc[f]
+        df_plot = df_mrd_sim.loc[df_mrd_sim.index.isin(f)]
         plt.plot(
-            df_tmp[TP_READ_RETENTION_RATIO],
-            df_tmp[RESIDUAL_SNV_RATE],
+            df_plot[TP_READ_RETENTION_RATIO],
+            df_plot[RESIDUAL_SNV_RATE],
             c="k",
             alpha=0.3,
         )
-        best_lod_filter = df_tmp[c_lod].min()
+        best_lod_filter = df_plot[c_lod].min()
         plt.scatter(
-            df_tmp[TP_READ_RETENTION_RATIO],
-            df_tmp[RESIDUAL_SNV_RATE],
-            c=df_tmp[c_lod],
+            df_plot[TP_READ_RETENTION_RATIO],
+            df_plot[RESIDUAL_SNV_RATE],
+            c=df_plot[c_lod],
             marker=marker,
             edgecolor=edgecolor,
             label=f"{label}, best LoD: {best_lod_filter:.1E}".replace("E-0", "E-"),
