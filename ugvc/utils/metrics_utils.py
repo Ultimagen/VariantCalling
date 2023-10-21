@@ -40,7 +40,12 @@ def preprocess_columns(dataframe):
             dataframe.columns = [flatten_multi_index(col, "___") for col in dataframe.columns.values]
 
 
-def convert_h5_to_json(input_h5_filename: str, root_element: str, ignored_h5_key_substring: str):
+def convert_h5_to_json(
+    input_h5_filename: str,
+    root_element: str,
+    ignored_h5_key_substring: str = None,
+    output_json: str = None,
+):
     """Convert an .h5 metrics file to .json with control over the root element and the processing
 
     Parameters
@@ -51,8 +56,11 @@ def convert_h5_to_json(input_h5_filename: str, root_element: str, ignored_h5_key
     root_element: str
         Root element of the returned json
 
-    ignored_h5_key_substring: str
-        A way to filter some of the keys using substring match
+    ignored_h5_key_substring: str, optional
+        A way to filter some of the keys using substring match, if None (default) none are filtered
+
+    output_json : str, optional
+        Output json file name to create if not None (default)
 
     Returns
     -------
@@ -74,6 +82,9 @@ def convert_h5_to_json(input_h5_filename: str, root_element: str, ignored_h5_key
         json_dict = json.loads(df_to_json)
         new_json_dict[root_element][preprocess_h5_key(h5_key)] = json_dict
 
+    if output_json:
+        with open(output_json, "w", encoding="utf-8") as outfile:
+            json.dump(new_json_dict, outfile, indent=4)
     json_string = json.dumps(new_json_dict, indent=4)
     return json_string
 

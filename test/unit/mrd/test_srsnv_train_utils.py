@@ -1,4 +1,5 @@
 import os
+import subprocess
 from collections import defaultdict
 from os.path import join as pjoin
 from test import get_resource_dir
@@ -38,6 +39,40 @@ def test_prepare_featuremap_for_model(tmpdir):
     # Since we use random downsampling the train_set_size might differ slightly from expected
     n_variants = __count_variants(downsampled_training_featuremap_vcf)
     assert n_variants >= 8 and n_variants <= 16
+
+
+def test_prepare_featuremap_for_model_with_prefilter(tmpdir):
+    """Test that downsampling training-set works as expected"""
+
+    input_featuremap_vcf = pjoin(
+        inputs_dir,
+        "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
+    )
+    pre_filter_bcftools_include = "(X_SCORE>4) && (X_EDIST<10)"
+    (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf, _,) = prepare_featuremap_for_model(
+        workdir=tmpdir,
+        input_featuremap_vcf=input_featuremap_vcf,
+        train_set_size=100,
+        test_set_size=100,
+        balanced_sampling_info_fields=None,
+        pre_filter_bcftools_include=pre_filter_bcftools_include,
+        random_seed=0,
+    )
+    # In this scenario we are pre-filtering the test data so that only 4 FeatureMap entries pass:
+    total_variants = int(
+        subprocess.check_output(
+            f"bcftools view -H {input_featuremap_vcf} -i '{pre_filter_bcftools_include}' | wc -l",
+            shell=True,
+        )
+        .decode()
+        .strip()
+    )
+    assert total_variants == 4
+    # and since we are asking for more entries than are available, we should get all of them in equal ratios
+    n_variants = __count_variants(downsampled_training_featuremap_vcf)
+    assert n_variants == 2
+    n_variants = __count_variants(downsampled_test_featuremap_vcf)
+    assert n_variants == 2
 
 
 def test_prepare_featuremap_for_model_with_motif_balancing(tmpdir):

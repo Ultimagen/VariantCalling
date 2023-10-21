@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import xgboost as xgb
-from matplotlib import ticker
+from matplotlib import colors
+from scipy.interpolate import interp1d
 from scipy.stats import binom
 from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from tqdm import tqdm
@@ -19,27 +20,33 @@ from ugvc import logger
 from ugvc.mrd.balanced_strand_utils import BalancedStrandAdapterVersions
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.utils.exec_utils import print_and_execute
-from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
+from ugvc.utils.metrics_utils import convert_h5_to_json, read_effective_coverage_from_sorter_json
+from ugvc.utils.misc_utils import filter_valid_queries
+from ugvc.utils.plotting_utils import set_default_plt_rc_params
+from ugvc.vcfbed.filter_bed import count_bases_in_bed_file
 
-# TODO: use constants instead of X_EDIST etc.
+edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
+HQ_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 7.9"
+CSKP_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 10"
+read_end_filter = (
+    f"{FeatureMapFields.X_INDEX.value} > 12 and "
+    f"{FeatureMapFields.X_INDEX.value} < ({FeatureMapFields.X_LENGTH.value} - 12)"
+)
+mixed_read_filter = "is_mixed"  # TODO use adapter_version
 default_LoD_filters = {
     "no_filter": f"{FeatureMapFields.X_SCORE.value} >= 0",
-    "edit_distance_5": f"{FeatureMapFields.X_SCORE.value} >= 0 and X_EDIST <= 5",
-    "BQ60": f"{FeatureMapFields.X_SCORE.value} >= 6 and X_EDIST <= 5",
-    "BQ80": f"{FeatureMapFields.X_SCORE.value} >= 7.9 and X_EDIST <= 5",
-    "CSKP": f"{FeatureMapFields.X_SCORE.value} >= 10 and X_EDIST <= 5",
-    "BQ80_trim_ends": f"{FeatureMapFields.X_SCORE.value} >= 7.9 and X_EDIST <= 5 and X_INDEX > 12 \
-        and X_INDEX < (X_LENGTH - 12)",
-    "CSKP_trim_ends": f"{FeatureMapFields.X_SCORE.value} >= 10 and X_EDIST <= 5 and X_INDEX > 12 \
-        and X_INDEX < (X_LENGTH - 12)",
-    "BQ60_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 6 and X_EDIST <= 5 and is_mixed",
-    "BQ80_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 7.9 and X_EDIST <= 5 and is_mixed",
-    "CSKP_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 10 and X_EDIST <= 5 and is_mixed",
-    "BQ80_trim_ends_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 7.9 and X_EDIST <= 5 and X_INDEX > 12 \
-        and X_INDEX < (X_LENGTH - 12) and is_mixed",
-    "CSKP_trim_ends_mixed_only": f"{FeatureMapFields.X_SCORE.value} >= 10 and X_EDIST <= 5 and X_INDEX > 12 \
-        and X_INDEX < (X_LENGTH - 12) and is_mixed",
+    "HQ_SNV": f"{HQ_SNV_filter} and {edist_filter}",
+    "CSKP": f"{CSKP_SNV_filter} and {edist_filter}",
+    "HQ_SNV_trim_ends": f"{HQ_SNV_filter} and {edist_filter} and {read_end_filter}",
+    "CSKP_trim_ends": f"{CSKP_SNV_filter} and {edist_filter} and {read_end_filter}",
+    "HQ_SNV_mixed_only": f"{HQ_SNV_filter} and {edist_filter} and {mixed_read_filter}",
+    "CSKP_mixed_only": f"{CSKP_SNV_filter} and {edist_filter} and {mixed_read_filter}",
+    "HQ_SNV_trim_ends_mixed_only": f"{HQ_SNV_filter} and {edist_filter} and {read_end_filter} and {mixed_read_filter}",
+    "CSKP_trim_ends_mixed_only": f"{CSKP_SNV_filter} and {edist_filter} and {read_end_filter} and {mixed_read_filter}",
 }
+TP_READ_RETENTION_RATIO = "tp_read_retention_ratio"
+FP_READ_RETENTION_RATIO = "fp_read_retention_ratio"
+RESIDUAL_SNV_RATE = "residual_snv_rate"
 
 
 def create_data_for_report(
@@ -135,9 +142,9 @@ def srsnv_report(
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_bepcr_hists,
-        output_bepcr_fpr,
-        output_bepcr_recalls,
+        output_balanced_strand_hists,
+        output_balanced_strand_fpr,
+        output_balanced_strand_recalls,
     ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
 
     template_notebook = os.path.join(
@@ -156,9 +163,9 @@ def srsnv_report(
 -p output_obsereved_qual_plot {output_obsereved_qual_plot} \
 -p output_ML_qual_hist {output_ML_qual_hist} \
 -p output_qual_per_feature {output_qual_per_feature} \
--p output_bepcr_hists {output_bepcr_hists} \
--p output_bepcr_fpr {output_bepcr_fpr} \
--p output_bepcr_recalls {output_bepcr_recalls} \
+-p output_bepcr_hists {output_balanced_strand_hists} \
+-p output_bepcr_fpr {output_balanced_strand_fpr} \
+-p output_bepcr_recalls {output_balanced_strand_recalls} \
 -k python3"
     jupyter_nbconvert_command = f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --no-input"
 
@@ -194,13 +201,18 @@ def plot_ROC_curve(
     output_filename : str, optional
         path to which the plot will be saved, by default None
     """
+    set_default_plt_rc_params()
+
     label_dict = {
         f"{FeatureMapFields.X_SCORE.value}": "FeatureMap",
         ML_score: "ML model",
     }
 
     xvars = [f"{FeatureMapFields.X_SCORE.value}", ML_score]
-    querystrs = [f"{FeatureMapFields.X_SCORE.value}>-1", f"{FeatureMapFields.X_SCORE.value}>-1"]
+    querystrs = [
+        f"{FeatureMapFields.X_SCORE.value}>-1",
+        f"{FeatureMapFields.X_SCORE.value}>-1",
+    ]
     namestrs = [f"{FeatureMapFields.X_SCORE.value}", ML_score]
 
     recall = {}
@@ -249,44 +261,61 @@ def plot_ROC_curve(
         )
 
 
-def LoD_training_summary(
+# pylint: disable=too-many-arguments
+def retention_noise_and_mrd_lod_simulation(
+    df: pd.DataFrame,
     single_sub_regions: str,
     sorter_json_stats_file: str,
-    sampling_rate: float,
-    df: pd.DataFrame,
+    training_set_downsampling_rate: float,
     lod_filters: dict,
-    df_summary_file: str,
-    output_params_file: str,
+    sensitivity_at_lod: float = 0.90,
+    specificity_at_lod: float = 0.99,
+    simulated_signature_size: int = 10_000,
+    simulated_coverage: int = 30,
+    minimum_number_of_read_for_detection: int = 2,
+    output_dataframe_file: str = None,
 ):
-    """generate summary of the training reults for LoD estimation WRT a set of pre-defined filters
+    """Estimate the MRD LoD based on the FeatureMap dataframe and the LoD simulation params
 
     Parameters
     ----------
-    single_sub_regions : str
-        a path to the single substitutions (FP) regions file
-    sorter_json_stats_file : str
-        a path to the cram statistics file
-    sampling_rate : float
-        the size of the data set / # of reads in single sub featuremap after intersection with single_sub_regions
     df : pd.DataFrame
-        data set with features, labels and quals of the model
+        dataset with features, labels, and quals of the model.
+    single_sub_regions : str
+        a path to the single substitutions (FP) regions bed file.
+    sorter_json_stats_file : str
+        a path to the cram statistics file.
+    training_set_downsampling_rate : float
+        the size of the dataset / # of reads in single sub featuremap after intersection with single_sub_regions.
     lod_filters : dict
-        filters for LoD simulation
-    df_summary_file : str
-        output file path for df_summary
-    output_params_file : str
-        output file path for a list of params for LoD estimation
+        filters for LoD simulation.
+    sensitivity_at_lod: float
+        The sensitivity at which LoD is estimated.
+    specificity_at_lod: float
+        The specificity at which LoD is estimated.
+    simulated_signature_size: int
+        The size of the simulated signature.
+    simulated_coverage: int
+        The simulated coverage.
+    minimum_number_of_read_for_detection: int
+        The minimum number of reads required for detection in the LoD simulation. Default 2.
+    output_dataframe_file: str, optional
+        Path to output dataframe file. If None, don't save.
 
+    Returns
+    -------
+    df_mrd_sim: pd.DataFrame
+        The estimated LoD parameters per filter.
+    lod_label: str
+        Label for the legend in the Lod plot.
+    c_lod: str
+        lod column name
     """
 
-    # apply filters to data
-    if not ("is_mixed" in df):
-        filters_no_mixed = {}
-        for f in lod_filters.items():
-            if f[1].find("mixed") == -1:
-                filters_no_mixed[f[0]] = f[1]
-        lod_filters = filters_no_mixed
+    # Filter queries in LoD dict that raise an error (e.g. contain non existing fields like "is_mixed")
+    lod_filters = filter_valid_queries(df_test=df.head(10), queries=lod_filters)
 
+    # apply filters
     df = df.assign(
         **{
             filter_name: df.eval(filter_query)
@@ -298,12 +327,7 @@ def LoD_training_summary(
     df_tp = df.query("label == 1")
 
     # count the # of bases in region
-    n_bases_in_region = 0
-    with open(single_sub_regions, encoding="utf-8") as fh:
-        for line in fh:
-            if not line.startswith("@") and not line.startswith("#"):
-                spl = line.rstrip().split("\t")
-                n_bases_in_region += int(spl[2]) - int(spl[1])
+    n_bases_in_region = count_bases_in_bed_file(single_sub_regions)
 
     # get coverage statistics
     (
@@ -314,6 +338,7 @@ def LoD_training_summary(
         _,
     ) = read_effective_coverage_from_sorter_json(sorter_json_stats_file)
 
+    # calculate the read filter correction factor (TP reads pre-filtered from the FeatureMap)
     read_filter_correction_factor = 1
     if (f"{FeatureMapFields.FILTERED_COUNT.value}" in df_tp) and (f"{FeatureMapFields.READ_COUNT.value}" in df_tp):
         read_filter_correction_factor = (df_tp[f"{FeatureMapFields.FILTERED_COUNT.value}"]).sum() / df_tp[
@@ -325,126 +350,97 @@ def LoD_training_summary(
                 read_filter_correction_factor = 1 in LoD"
         )
 
+    # calculate the error rate (residual SNV rate) normalization factors
     n_noise_reads = df_fp.shape[0]
     n_signal_reads = df_tp.shape[0]
-    logger.info(f"n_noise_reads {n_noise_reads}, n_signal_reads {n_signal_reads}")
-
     effective_bases_covered = (
         mean_coverage
         * n_bases_in_region
-        * sampling_rate
+        * training_set_downsampling_rate
         * ratio_of_reads_over_mapq
         * ratio_of_bases_in_coverage_range
         * read_filter_correction_factor
     )
     residual_snv_rate_no_filter = n_noise_reads / effective_bases_covered
     ratio_filtered_prior_to_featuremap = ratio_of_reads_over_mapq * read_filter_correction_factor
+    logger.info(
+        f"n_noise_reads {n_noise_reads}, n_signal_reads {n_signal_reads}"
+        f", effective_bases_covered {effective_bases_covered}, "
+        f"residual_snv_rate_no_filter {residual_snv_rate_no_filter}"
+    )
 
-    df_summary = pd.concat(
+    # Calculate simulated LoD definitions and correction factors
+    effective_signature_bases_covered = int(
+        simulated_coverage * simulated_signature_size
+    )  # The ratio_filtered_prior_to_featuremap is not taken into account here, but later in the binomial calculation
+
+    # create a dataframe with the LoD parameters per filter
+    df_mrd_simulation = pd.concat(
         (
-            (df_fp[list(lod_filters.keys())].sum() / n_noise_reads).rename("FP"),
-            (df_tp[list(lod_filters.keys())].sum() / n_signal_reads * ratio_filtered_prior_to_featuremap).rename("TP"),
+            (df_fp[list(lod_filters.keys())].sum() / n_noise_reads).rename(FP_READ_RETENTION_RATIO),
+            (df_tp[list(lod_filters.keys())].sum() / n_signal_reads * ratio_filtered_prior_to_featuremap).rename(
+                TP_READ_RETENTION_RATIO
+            ),
         ),
         axis=1,
     )
 
-    df_summary = df_summary.assign(precision=df_summary["TP"] / (df_summary["FP"] + df_summary["TP"]))
+    # remove filters with a low TP read retention ratio
+    MIN_TP_RETENTION = 0.01
+    df_mrd_simulation = df_mrd_simulation[df_mrd_simulation[TP_READ_RETENTION_RATIO] > MIN_TP_RETENTION]
 
-    # save outputs
-    params_for_save = {"residual_snv_rate_no_filter": residual_snv_rate_no_filter}
-    with open(output_params_file, "w", encoding="utf-8") as f:
-        json.dump(params_for_save, f)
-
-    df_summary.to_parquet(df_summary_file)
-
-
-def LoD_simulation_on_signature(
-    LoD_params: dict,
-):
-    """estimate the LoD based on the LoD params
-
-    Parameters
-    ----------
-    LoD_params : dict
-        a dict of parameters required for the LoD estimation
-
-    Returns
-    -------
-    df_mrd_sim: pd.DataFrame,
-        the estimated LoD parameters per filter
-
-    lod_label: str,
-        label for the LoD axis in the Lod plot
-
-    c_lod: str,
-        lod column name
-
-    min_LoD_filter: str,
-        the filter which minimizes the LoD
-    """
-
-    df_summary = pd.read_parquet(LoD_params["df_summary_file"])
-
-    with open(LoD_params["summary_params_file"], "r", encoding="utf-8") as f:
-        summary_params = json.load(f)
-
-    residual_snv_rate_no_filter = summary_params["residual_snv_rate_no_filter"]
-
-    sensitivity_at_lod = LoD_params["sensitivity_at_lod"]  # 0.90
-    specificity_at_lod = LoD_params["specificity_at_lod"]  # 0.99
-
-    # simulated LoD definitions and correction factors
-    simulated_signature_size = LoD_params["simulated_signature_size"]  # 10_000
-    simulated_coverage = LoD_params["simulated_coverage"]  # 30
-    effective_signature_bases_covered = (
-        simulated_coverage * simulated_signature_size
-    )  # * ratio_of_reads_over_mapq * read_filter_correction_factor
-
-    # TODO: it makes more sense to calculate the error rate column here
-    # than to carry it over to another function and save a single scalar value separately.
-    df_mrd_sim = (df_summary[["TP"]]).rename(columns={"TP": "read_retention_ratio"})
-    df_mrd_sim = df_mrd_sim.assign(
-        residual_snv_rate=df_summary["FP"] * residual_snv_rate_no_filter / df_mrd_sim["read_retention_ratio"]
+    # Assign the residual SNV rate per filter
+    df_mrd_simulation.loc[:, RESIDUAL_SNV_RATE] = (
+        df_mrd_simulation[FP_READ_RETENTION_RATIO]
+        * residual_snv_rate_no_filter
+        / df_mrd_simulation[TP_READ_RETENTION_RATIO]
     )
-    df_mrd_sim = df_mrd_sim.assign(
+
+    # Calculate the minimum number of reads required for detection, per filter, assuming a binomial distribution
+    # The probability of success is the product of the read retention ratio and the residual SNV rate
+    df_mrd_simulation = df_mrd_simulation.assign(
         min_reads_for_detection=np.ceil(
             binom.ppf(
                 n=int(effective_signature_bases_covered),
-                p=df_mrd_sim["read_retention_ratio"] * df_mrd_sim["residual_snv_rate"],
+                p=df_mrd_simulation[TP_READ_RETENTION_RATIO] * df_mrd_simulation[RESIDUAL_SNV_RATE],
                 q=specificity_at_lod,
             )
         )
-        .clip(min=2)  # TODO: change to input parameter
+        .clip(min=minimum_number_of_read_for_detection)
         .astype(int),
     )
 
+    # Simulate the LoD per filter, assuming a binomial distribution
+    # The simulation is done by drawing the expected number of reads in the Qth percentile, where the percentile is
+    # (1-sensitivity), for a range of tumor frequencies (tf_sim). The lowest tumor fraction that passes the prescribed
+    # minimum number of reads for detection is the LoD.
     tf_sim = np.logspace(-8, 0, 500)
-
-    df_mrd_sim = df_mrd_sim.join(
-        df_mrd_sim.apply(
+    c_lod = f"LoD_{sensitivity_at_lod*100:.0f}"
+    df_mrd_simulation = df_mrd_simulation.join(
+        df_mrd_simulation.apply(
             lambda row: tf_sim[
                 np.argmax(
                     binom.ppf(
                         q=1 - sensitivity_at_lod,
                         n=int(effective_signature_bases_covered),
-                        p=row["read_retention_ratio"] * (tf_sim + row["residual_snv_rate"]),
+                        p=row[TP_READ_RETENTION_RATIO] * (tf_sim + row[RESIDUAL_SNV_RATE]),
                     )
                     >= row["min_reads_for_detection"]
                 )
             ],
             axis=1,
-        ).rename(f"LoD_{sensitivity_at_lod*100:.0f}")
+        ).rename(c_lod)
     )
 
-    df_mrd_sim = df_mrd_sim[df_mrd_sim["read_retention_ratio"] > 0.01]
     lod_label = f"LoD @ {specificity_at_lod*100:.0f}% specificity, \
     {sensitivity_at_lod*100:.0f}% sensitivity (estimated)\
     \nsignature size {simulated_signature_size}, \
     {simulated_coverage}x coverage"
-    c_lod = f"LoD_{sensitivity_at_lod*100:.0f}"
-    min_LoD_filter = df_mrd_sim["LoD_90"].idxmin()
 
-    return df_mrd_sim, lod_label, c_lod, min_LoD_filter
+    if output_dataframe_file:
+        df_mrd_simulation.to_parquet(output_dataframe_file)
+
+    return df_mrd_simulation, lod_filters, lod_label, c_lod
 
 
 def plot_LoD(
@@ -456,7 +452,6 @@ def plot_LoD(
     min_LoD_filter: str,
     title: str = "",
     output_filename: str = None,
-    font_size: int = 14,
 ):
     """generates and saves the LoD plot
 
@@ -478,76 +473,87 @@ def plot_LoD(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    font_size : int, optional
-        font size for the plot, by default 14
 
     """
+    set_default_plt_rc_params()
+
     # TODO: a less patchy solution, perhaps accept ml_filters as a separate input
     ML_filters = {i: filters[i] for i in filters if i[:2] == "ML" and i in df_mrd_sim.index}
 
     fig = plt.figure(figsize=(20, 12))
 
-    # TODO: add a case for no mixed in data
-
     filters_list = [
-        ["no_filter"],
-        ["BQ80"],
         list(ML_filters),
+        ["no_filter"],
+        ["HQ_SNV"],
     ]
-    markers_list = ["*", "D", "<"]
-    labels_list = ["No filter", "BQ80 and Edit Dist <= 5", "ML model"]
+    markers_list = ["o", "*", "D"]
+    labels_list = [
+        "ML model",
+        "No filter",
+        "HQ_SNV and Edit Dist <= 5",
+    ]
     edgecolors_list = ["r", "r", "r"]
     msize_list = [150, 150, 150]
-
     if adapter_version in [av.value for av in BalancedStrandAdapterVersions]:
-        filters_list.append(["BQ80_mixed_only"])
+        filters_list.append(["HQ_SNV_mixed_only"])
         markers_list.append(">")
-        labels_list.append("BQ80 and Edit Dist <= 5 (mixed only)")
+        labels_list.append("HQ_SNV and Edit Dist <= 5 (mixed only)")
         edgecolors_list.append("r")
         msize_list.append(150)
+
+        filters_list.append(["CSKP_mixed_only"])
+        markers_list.append("s")
+        labels_list.append("CSKP and Edit Dist <= 5 (mixed only)")
+        edgecolors_list.append("r")
+        msize_list.append(150)
+
+    best_lod = df_mrd_sim.loc[
+        [item for sublist in filters_list for item in sublist if item in df_mrd_sim.index.values], c_lod
+    ].min()  # best LoD across all plotted results
 
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
-        df_tmp = df_mrd_sim.loc[f]
+        df_plot = df_mrd_sim.loc[df_mrd_sim.index.isin(f)]
         plt.plot(
-            df_tmp["read_retention_ratio"],
-            df_tmp["residual_snv_rate"],
+            df_plot[TP_READ_RETENTION_RATIO],
+            df_plot[RESIDUAL_SNV_RATE],
             c="k",
             alpha=0.3,
         )
-        best_lod = df_tmp[c_lod].min()
+        best_lod_filter = df_plot[c_lod].min()
         plt.scatter(
-            df_tmp["read_retention_ratio"],
-            df_tmp["residual_snv_rate"],
-            c=df_tmp[c_lod],
+            df_plot[TP_READ_RETENTION_RATIO],
+            df_plot[RESIDUAL_SNV_RATE],
+            c=df_plot[c_lod],
             marker=marker,
             edgecolor=edgecolor,
-            label=label + ", best LoD: {:.1E}".format(best_lod).replace("E-0", "E-"),
+            label=f"{label}, best LoD: {best_lod_filter:.1E}".replace("E-0", "E-"),
             s=markersize,
             zorder=markersize,
+            norm=colors.LogNorm(
+                vmin=best_lod,
+                vmax=best_lod * 10,
+            ),
         )
-
-    plt.xlabel("Read retention ratio on HOM SNVs", fontsize=font_size)
-    plt.ylabel("Residual SNV rate", fontsize=font_size)
+    plt.xlabel("Base retention ratio on HOM SNVs")
+    plt.ylabel("Residual SNV rate")
     plt.yscale("log")
-    title_handle = plt.title(title, fontsize=font_size)
-    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    title_handle = plt.title(title)
+    legend_handle = plt.legend(fancybox=True, framealpha=0.95)
 
-    def fmt(x, pos):
-        a, b = "{:.1e}".format(x).split("e")
-        b = int(b)
-        return r"{}${} \times 10^{{{}}}$".format(pos, a, b)
-
-    cb = plt.colorbar(format=ticker.FuncFormatter(fmt))
-    cb.set_label(label=lod_label, fontsize=20)
+    cbar = plt.colorbar()
+    cbar.set_label(label=lod_label, fontsize=20)
+    # formatter = ticker.ScalarFormatter(useMathText=True)
+    # formatter.set_scientific(True)
+    # cbar.ax.yaxis.set_major_formatter(formatter)
 
     fig.text(
         0.5,
         0.01,
         f"ML qual threshold for min LoD: {min_LoD_filter}",
         ha="center",
-        fontsize=font_size,
         bbox={"facecolor": "orange", "alpha": 0.5, "pad": 5},
     )
     if output_filename is not None:
@@ -566,7 +572,7 @@ def plot_confusion_matrix(
     df: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
-    font_size: int = 14,
+    prediction_column_name="ML_prediction_1",
 ):
     """generates and saves confusion matrix
 
@@ -578,21 +584,31 @@ def plot_confusion_matrix(
         title for the generated plot, by default ""
     output_filename : str, optional
         path to which the plot will be saved, by default None
-    font_size : int, optional
-        font size for the plot, by default 14
+    prediction_column_name : str, optional
+        column name of the model predictions, by default "ML_prediction_1"
     """
-    cm = confusion_matrix(df["ML_prediction_1"], df["label"])
-    cm_norm = cm / cm.sum(axis=0)
-    plt.figure(figsize=(4, 3))
-    ax = sns.heatmap(cm_norm, annot=cm_norm, annot_kws={"size": font_size})
-    ax.set_xticks(ticks=[0.5, 1.5])
-    ax.set_xticklabels(labels=["FP", "TP"], fontsize=font_size)
-    ax.set_yticks(ticks=[0.5, 1.5])
-    ax.set_yticklabels(labels=["FP", "TP"], fontsize=font_size, rotation="horizontal")
-    cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=font_size)
+    set_default_plt_rc_params()
 
-    title_handle = plt.title(title, fontsize=font_size)
+    cm = confusion_matrix(y_true=df["label"], y_pred=df[prediction_column_name])
+    cm_norm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]  # normalize by rows - true labels
+    plt.figure(figsize=(4, 3))
+    plt.grid(False)
+    ax = sns.heatmap(
+        cm_norm,
+        annot=cm_norm,
+        annot_kws={"size": 16},
+        cmap="Blues",
+        cbar=False,
+        fmt=".2%" if cm_norm.min() < 0.01 else ".1%",
+    )
+    ax.set_xticks(ticks=[0.5, 1.5])
+    ax.set_xticklabels(labels=["FP", "TP"])
+    ax.set_xlabel("Predicted label")
+    ax.set_yticks(ticks=[0.5, 1.5])
+    ax.set_yticklabels(labels=["FP", "TP"], rotation="horizontal")
+    ax.set_ylabel("True label")
+
+    title_handle = plt.title(title)
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
@@ -631,6 +647,8 @@ def plot_observed_vs_measured_qual(
     font_size : int, optional
         font size for the plot, by default 14
     """
+    set_default_plt_rc_params()
+
     plt.figure(figsize=(8, 6))
     for label in labels_dict:
         plot_precision_recall(
@@ -682,6 +700,8 @@ def plot_qual_density(
     font_size : int, optional
         font size for the plot, by default 14
     """
+    set_default_plt_rc_params()
+
     plt.figure(figsize=(8, 6))
 
     for label in labels_dict:
@@ -734,6 +754,8 @@ def plot_precision_recall_vs_qual_thresh(
     font_size : int, optional
         font size for the plot, by default 14
     """
+    set_default_plt_rc_params()
+
     plt.figure(figsize=(8, 6))
     plt.title("precision/recall average as a function of min-qual")
     for label in labels_dict:
@@ -799,11 +821,13 @@ def plot_ML_qual_hist(
     font_size : int, optional
         font size for the plot, by default 14
     """
+    set_default_plt_rc_params()
+
     score = "ML_qual_1"
 
     plt.figure(figsize=[8, 6])
     plt.title("ML qual distribution per label")
-    bins = np.linspace(0, max_score, 50)
+    bins = np.arange(0, max_score + 1)
     for label in labels_dict:
         plt.hist(
             df[df["label"] == label][score].clip(upper=max_score),
@@ -857,23 +881,38 @@ def plot_qual_per_feature(
     font_size : int, optional
         font size for the plot, by default 14
     """
-    features = cls_features
+    set_default_plt_rc_params()
+
     if "is_mixed" in df:
         df["is_mixed"] = df["is_mixed"].astype(int)
-    for feature in features:
-        plt.figure()
-        for label in labels_dict:
+    for feature in cls_features:
+        for j, label in enumerate(labels_dict):
             if df[feature].dtype == bool:
+                if j == 0:
+                    plt.figure(figsize=(6, 3))
                 _ = (
                     df[df["label"] == label][feature]
                     .astype(int)
                     .hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
                 )
-            else:
+            elif df[feature].dtype in {"category", "object"}:
+                if j == 0:
+                    plt.figure(figsize=(16, 4))
                 _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+            else:
+                if j == 0:
+                    plt.figure(figsize=(8, 4))
+                _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+
+        xticks = plt.gca().get_xticks()
+        if len(xticks) > 100:
+            plt.xticks(rotation=90, fontsize=6)
+        elif len(xticks) > 30:
+            plt.xticks(rotation=90, fontsize=9)
+
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
-        feature_title = title + feature
-        title_handle = plt.title(feature_title, fontsize=font_size)
+        plt.xlabel(feature)
+        title_handle = plt.title(title, fontsize=font_size)
         output_filename_feature = output_filename + feature
         if output_filename_feature is not None:
             if not output_filename_feature.endswith(".png"):
@@ -1019,7 +1058,10 @@ def plot_mixed(
     font_size : int, optional
         font size for the plot, by default 14
     """
+    set_default_plt_rc_params()
+
     score = "ML_qual_1"
+    bins = np.arange(0, max_score + 1)
 
     for td, name in zip(
         [df_mixed_cs, df_mixed_non_cs, df_non_mixed_cs, df_non_mixed_non_cs],
@@ -1030,7 +1072,11 @@ def plot_mixed(
             title + name + "\nMean ML_QUAL: {:.2f}, Median ML_QUAL: {:.2f}".format(td[score].mean(), td[score].median())
         )
         for label in labels_dict:
-            _ = td[td["label"] == label][score].clip(upper=max_score).hist(bins=20, label=labels_dict[label])
+            _ = (
+                td[td["label"] == label][score]
+                .clip(upper=max_score)
+                .hist(bins=bins, label=labels_dict[label], alpha=0.8, density=True)
+            )
         plt.xlim([0, max_score])
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + name
@@ -1079,6 +1125,8 @@ def plot_mixed_fpr(
     font_size : int, optional
         font size for the plot, by default 14
     """
+    set_default_plt_rc_params()
+
     plt.figure(figsize=(8, 6))
     plot_precision_recall(
         [fprs_mixed_cs, fprs_mixed_non_cs, fprs_non_mixed_cs, fprs_non_mixed_non_cs],
@@ -1138,6 +1186,8 @@ def plot_mixed_recall(
     font_size : int, optional
         font size for the plot, by default 14
     """
+    set_default_plt_rc_params()
+
     plt.figure(figsize=(8, 6))
     plot_precision_recall(
         [
@@ -1172,7 +1222,6 @@ def plot_mixed_recall(
 
 
 def _get_plot_paths(report_name, out_path, out_basename):
-
     outdir = out_path
     basename = out_basename
 
@@ -1184,9 +1233,9 @@ def _get_plot_paths(report_name, out_path, out_basename):
     output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
     output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
     output_qual_per_feature = os.path.join(outdir, f"{basename}{report_name}.qual_per_")
-    output_bepcr_hists = os.path.join(outdir, f"{basename}{report_name}.bepcr_")
-    output_bepcr_fpr = os.path.join(outdir, f"{basename}{report_name}.bepcr_fpr")
-    output_bepcr_recalls = os.path.join(outdir, f"{basename}{report_name}.bepcr_recalls")
+    output_balanced_strand_hists = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_")
+    output_balanced_strand_fpr = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_fpr")
+    output_balanced_strand_recalls = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_recalls")
 
     return [
         output_roc_plot,
@@ -1197,10 +1246,73 @@ def _get_plot_paths(report_name, out_path, out_basename):
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_bepcr_hists,
-        output_bepcr_fpr,
-        output_bepcr_recalls,
+        output_balanced_strand_hists,
+        output_balanced_strand_fpr,
+        output_balanced_strand_recalls,
     ]
+
+
+def calculate_lod_stats(
+    df_mrd_simulation: pd.DataFrame,
+    output_h5: str,
+    lod_column: str,
+    qualities_to_interpolate: tuple | list | np.array = tuple(range(30, 71)),
+):
+    """Calculate noise and LoD stats from the simulated data
+
+    Parameters
+    ----------
+    df_mrd_simulation : pd.DataFrame
+        simulated data set with noise and LoD stats
+    output_h5 : str
+        path to output h5 file
+    lod_column : str
+        name of the LoD column in the data set
+    qualities_to_interpolate : tuple
+        list of qualities to interpolate what percent of bases surpass, by default all integers in [30,70]
+
+    Returns
+    -------
+    best_LoD_filter: str
+        name of the filter with the best LoD
+    """
+    df_mrd_simulation_ml = df_mrd_simulation.loc[df_mrd_simulation.index.str.startswith("ML")]
+    df_mrd_simulation_non_ml = df_mrd_simulation.loc[~df_mrd_simulation.index.str.startswith("ML")]
+    # Calculate percent of bases over each given quality threshold
+    x_interp = -10 * np.log10(df_mrd_simulation_ml["residual_snv_rate"])  # Phred score
+    y_interp = df_mrd_simulation_ml["tp_read_retention_ratio"]
+    base_stats = pd.Series(
+        index=qualities_to_interpolate,
+        data=interp1d(x_interp, y_interp, bounds_error=False, fill_value=(1, 0))(qualities_to_interpolate),
+    )  # fill_value=(1, 0) means that values under the minimal Qual will be 1 and values over the maximal will be 0
+    base_stats.index.name = "QualThreshold"
+    base_stats.name = "BasesOverQualThreshold"
+    base_stats.to_hdf(output_h5, key="bases_over_qual_threshold", mode="a")
+
+    # Calculate Optimal filter and LoD result
+    best_LoD_filter = df_mrd_simulation[lod_column].idxmin()
+    best_lod = df_mrd_simulation.loc[best_LoD_filter, lod_column]
+    best_ML_LoD_filter = df_mrd_simulation_ml[lod_column].idxmin()
+    best_ML_LoD = df_mrd_simulation_ml.loc[best_ML_LoD_filter, lod_column]
+    lod_stats_dict = {
+        "best_LoD_filter": best_LoD_filter,
+        "LoD_best": best_lod,
+        "best_ML_LoD_filter": best_ML_LoD_filter,
+        "LoD_best_ML": best_ML_LoD,
+    }
+    for column, stat_name in zip(
+        (lod_column, RESIDUAL_SNV_RATE, TP_READ_RETENTION_RATIO),
+        ("LoD", RESIDUAL_SNV_RATE, TP_READ_RETENTION_RATIO),
+    ):
+        lod_stats_dict.update(
+            {f"{stat_name}-{filter_name}": row[column] for filter_name, row in df_mrd_simulation_non_ml.iterrows()}
+        )
+
+    logger.info(f"min_LoD_filter {best_LoD_filter} (LoD={best_lod:.1e})")
+    lod_stats = pd.Series(lod_stats_dict)
+    lod_stats.to_hdf(output_h5, key="lod_stats", mode="a")
+
+    return best_LoD_filter
 
 
 def create_report_plots(
@@ -1212,6 +1324,9 @@ def create_report_plots(
     out_path: str,
     base_name: str = None,
     lod_filters: dict = None,
+    mrd_simulation_dataframe_file: str = None,
+    statistics_h5_file: str = None,
+    statistics_json_file: str = None,
 ):
     """loads model, data, params and generate plots for report
 
@@ -1233,13 +1348,22 @@ def create_report_plots(
         base name for output files, by default None
     lod_filters : dict, optional
         filters for LoD simulation, by default None (default_LoD_filters)
+    mrd_simulation_dataframe_file : str, optional
+        path to output simulated data set, by default None
+    statistics_h5_file : str, optional
+        path to output h5 file with stats, by default None
+    statistics_json_file : str, optional
+        path to output json file with stats, by default None
     """
+    if statistics_json_file:
+        assert statistics_h5_file, "statistics_h5_file is required when statistics_json_file is provided"
+
     # TODO: change the report so it produces metrics that are saved into a h5 table in addition to the plots
 
     # load model, data and params
     classifier = joblib.load(model_file)
-    X_test = pd.read_parquet(X_file)
-    y_test = pd.read_parquet(y_file)
+    X = pd.read_parquet(X_file)
+    y = pd.read_parquet(y_file)
     with open(params_file, "r", encoding="utf-8") as f:
         params = json.load(f)
 
@@ -1259,7 +1383,7 @@ def create_report_plots(
         cls_features,
         fprs,
         recalls,
-    ) = create_data_for_report(classifier, X_test, y_test)
+    ) = create_data_for_report(classifier, X, y)
 
     labels_dict = {0: "FP", 1: "TP"}
 
@@ -1287,36 +1411,42 @@ def create_report_plots(
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_bepcr_hists,
-        output_bepcr_fpr,
-        output_bepcr_recalls,
+        output_balanced_strand_hists,
+        output_balanced_strand_fpr,
+        output_balanced_strand_recalls,
     ] = _get_plot_paths(report_name, out_path=params["workdir"], out_basename=params["data_name"])
 
     LoD_params = {}
-    LoD_params["df_summary_file"] = pjoin(params["workdir"], "df_summary.parquet")
-    LoD_params["summary_params_file"] = pjoin(params["workdir"], "summary_params.json")
     LoD_params["sensitivity_at_lod"] = 0.90
     LoD_params["specificity_at_lod"] = 0.99
     LoD_params["simulated_signature_size"] = 10_000
     LoD_params["simulated_coverage"] = 30
+    LoD_params["minimum_number_of_read_for_detection"] = 2
 
     if params["fp_regions_bed_file"] is not None:
-        LoD_training_summary(
-            params["fp_regions_bed_file"],
-            sorter_json_stats_file,
-            sampling_rate,
-            df,
-            lod_filters,
-            LoD_params["df_summary_file"],
-            LoD_params["summary_params_file"],
+        (df_mrd_simulation, lod_filters_filtered, lod_label, c_lod,) = retention_noise_and_mrd_lod_simulation(
+            df=df,
+            single_sub_regions=params["fp_regions_bed_file"],
+            sorter_json_stats_file=sorter_json_stats_file,
+            training_set_downsampling_rate=sampling_rate,
+            lod_filters=lod_filters,
+            sensitivity_at_lod=LoD_params["sensitivity_at_lod"],
+            specificity_at_lod=LoD_params["specificity_at_lod"],
+            simulated_signature_size=LoD_params["simulated_signature_size"],
+            simulated_coverage=LoD_params["simulated_coverage"],
+            minimum_number_of_read_for_detection=LoD_params["minimum_number_of_read_for_detection"],
+            output_dataframe_file=mrd_simulation_dataframe_file,
         )
-        df_mrd_sim, lod_label, c_lod, min_LoD_filter = LoD_simulation_on_signature(LoD_params)
-        logger.info(f"min_LoD_filter {min_LoD_filter}")
+        min_LoD_filter = calculate_lod_stats(
+            df_mrd_simulation=df_mrd_simulation,
+            output_h5=statistics_h5_file,
+            lod_column=c_lod,
+        )
         plot_LoD(
-            df_mrd_sim,
+            df_mrd_simulation,
             lod_label,
             c_lod,
-            lod_filters,
+            lod_filters_filtered,
             params["adapter_version"],
             min_LoD_filter,
             title=f"{params['data_name']}\nLoD curve",
@@ -1335,7 +1465,8 @@ def create_report_plots(
 
     plot_confusion_matrix(
         df,
-        title=f"{params['data_name']}\nconfusion matrix",
+        title=f"{params['data_name']}\nConfusion matrix",
+        prediction_column_name="ML_prediction_1",
         output_filename=output_cm_plot,
     )
     plot_precision_recall_vs_qual_thresh(
@@ -1370,7 +1501,7 @@ def create_report_plots(
         labels_dict,
         cls_features,
         df,
-        title=f"{params['data_name']}\nfeature distribution per ",
+        title=f"{params['data_name']}",
         output_filename=output_qual_per_feature,
     )
 
@@ -1405,8 +1536,8 @@ def create_report_plots(
             df_non_mixed_non_cs,
             df_non_mixed_cs,
             max_score,
-            title=f"{params['data_name']}\nbepcr: ",
-            output_filename=output_bepcr_hists,
+            title=f"{params['data_name']}\nbalanced_strand: ",
+            output_filename=output_balanced_strand_hists,
         )
 
         plot_mixed_fpr(
@@ -1415,8 +1546,8 @@ def create_report_plots(
             fprs_non_mixed_cs,
             fprs_non_mixed_non_cs,
             max_score,
-            title=f"{params['data_name']}\nbepcr fp rate vs. qual ",
-            output_filename=output_bepcr_fpr,
+            title=f"{params['data_name']}\nbalanced_strand fp rate vs. qual ",
+            output_filename=output_balanced_strand_fpr,
         )
         plot_mixed_recall(
             recalls_mixed_cs,
@@ -1424,9 +1555,17 @@ def create_report_plots(
             recalls_non_mixed_cs,
             recalls_non_mixed_non_cs,
             max_score,
-            title=f"{params['data_name']}\nbepcr recalls vs. qual ",
-            output_filename=output_bepcr_recalls,
+            title=f"{params['data_name']}\nbalanced_strand recalls vs. qual ",
+            output_filename=output_balanced_strand_recalls,
         )
+
+    # convert statistics to json
+    convert_h5_to_json(
+        input_h5_filename=statistics_h5_file,
+        root_element="metrics",
+        ignored_h5_key_substring=None,
+        output_json=statistics_json_file,
+    )
 
 
 def precision_score_with_mask(y_pred: np.ndarray, y_true: np.ndarray, mask: np.ndarray):
@@ -1522,7 +1661,7 @@ def precision_recall_curve(score, max_score, y_true: np.ndarray, cumulative=Fals
     return fprs, recalls
 
 
-def plot_precision_recall(lists, labels, max_score, log_scale=False, font_size=14):
+def plot_precision_recall(lists, labels, max_score, log_scale=False, font_size=22):
     """generate a plot of precision and recall rates per threshold
 
     Parameters
@@ -1538,6 +1677,8 @@ def plot_precision_recall(lists, labels, max_score, log_scale=False, font_size=1
     font_size : int, optional
         font size, by default 14
     """
+    set_default_plt_rc_params()
+
     for lst, label in zip(lists, labels):
         plt.plot(lst[0:max_score], ".-", label=label)
         if log_scale:

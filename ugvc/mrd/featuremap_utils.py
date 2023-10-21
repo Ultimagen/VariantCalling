@@ -414,3 +414,57 @@ def create_hom_snv_featuremap(
         # remove temp file
         if os.path.isfile(hom_snv_bed):
             os.remove(hom_snv_bed)
+
+
+def filter_featuremap_with_bcftools_view(
+    input_featuremap_vcf: str,
+    intersect_featuremap_vcf: str,
+    min_coverage: int = None,
+    max_coverage: int = None,
+    regions_file: str = None,
+    bcftools_include_filter: str = None,
+    sp: SimplePipeline = None,
+) -> str:
+    """
+    Create a bcftools view command to filter a featuremap vcf
+
+    Parameters
+    ----------
+    input_featuremap_vcf : str
+        Path to input featuremap vcf
+    intersect_featuremap_vcf : str
+        Path to output intersected featuremap vcf
+    min_coverage : int, optional
+        Minimum coverage to include, by default None
+    max_coverage : int, optional
+        Maximum coverage to include, by default None
+    regions_file : str, optional
+        Path to regions file, by default None
+    bcftools_include_filter: str, optional
+        bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter_bcftools_include'"
+        before sampling, by default None
+    sp : SimplePipeline, optional
+        SimplePipeline object to use for printing and running commands, by default None
+    """
+    bcftools_view_command = f"bcftools view {input_featuremap_vcf} -O z -o {intersect_featuremap_vcf} "
+    include_filters = [bcftools_include_filter.replace("'", '"')] if bcftools_include_filter else []
+    # filter out variants with coverage outside of min and max coverage
+    if min_coverage is not None:
+        include_filters.append(f"(INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage})")
+    if max_coverage is not None:
+        include_filters.append(f"(INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage})")
+
+    bcftools_include_string = " && ".join(include_filters)
+    if bcftools_include_string:
+        bcftools_view_command += f" -i '{bcftools_include_string}' "
+    if regions_file:
+        bcftools_view_command += f" -T {regions_file} "
+    bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
+
+    print_and_execute(bcftools_view_command, simple_pipeline=sp, module_name=__name__, shell=True)
+    print_and_execute(
+        bcftools_index_command,
+        simple_pipeline=sp,
+        module_name=__name__,
+    )
+    assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"

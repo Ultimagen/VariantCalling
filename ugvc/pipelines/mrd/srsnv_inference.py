@@ -60,6 +60,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Path to which output files will be written to""",
     )
     parser.add_argument(
+        "-d",
+        "--test_set_mrd_simulation_dataframe_file",
+        type=str,
+        required=False,
+        help="""Path to MRD simulation dataframe, required to assign qualities and filters""",
+    )
+    parser.add_argument(
         "-@",
         "--process_number",
         type=int,
@@ -81,5 +88,6 @@ def run(argv: list[str]):
         params_path=args.params_path,
         model_path=args.model_path,
         out_path=args.output_path,
+        test_set_mrd_simulation_dataframe_file=args.test_set_mrd_simulation_dataframe_file,
         process_number=args.process_number,
     )
