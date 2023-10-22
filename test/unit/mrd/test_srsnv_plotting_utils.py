@@ -82,8 +82,6 @@ def test_create_report_plots(tmpdir):
         f"{base_name}{report_name}.LoD_curve.png",
         f"{base_name}{report_name}.ROC_curve.png",
         f"{base_name}{report_name}.confusion_matrix.png",
-        f"{base_name}{report_name}.precision_recall_qual.png",
-        f"{base_name}{report_name}.qual_density.png",
         f"{base_name}{report_name}.observed_qual.png",
         f"{base_name}{report_name}.ML_qual_hist.png",
     ]
@@ -96,12 +94,15 @@ def test_create_report_plots(tmpdir):
         "strand_ratio_category_end" in model.feature_names_in_
         and "strand_ratio_category_start" in model.feature_names_in_
     ):
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cs.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_non_cs.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cs.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_non_mixed_non_cs.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_non_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_non_mixed_non_cycle_skip.png")
         report_plots.append(f"{base_name}{report_name}.balanced_strand_fpr.png")
         report_plots.append(f"{base_name}{report_name}.balanced_strand_recalls.png")
+    else:
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.balanced_strand_non_cycle_skip.png")
 
     for pname in report_plots:
         assert os.path.isfile(pjoin(tmpdir, f"{pname}")), f"Missing report plot: {pname}"
