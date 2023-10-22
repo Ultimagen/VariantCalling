@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_BASE_NAME="gcr.io/ultima-data-307918/ugvc:"
+DOCKER_BASE_NAME="us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/ugvc:"
 
 function usage () {
   echo -e "
