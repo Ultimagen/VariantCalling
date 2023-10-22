@@ -508,8 +508,6 @@ def plot_LoD(
         [item for sublist in filters_list for item in sublist if item in df_mrd_sim.index.values], c_lod
     ].min()  # best LoD across all plotted results
 
-    df_mrd_sim.to_parquet(pjoin(os.path.dirname(output_filename), "df_mrd_sim.parquet"))
-
     for f, marker, label, edgecolor, markersize in zip(
         filters_list, markers_list, labels_list, edgecolors_list, msize_list
     ):
@@ -892,12 +890,15 @@ def plot_qual_per_feature(
                 _ = (
                     df[df["label"] == label][feature]
                     .astype(int)
-                    .hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+                    .hist(bins=2, alpha=0.5, label=labels_dict[label], density=True)
                 )
-            elif df[feature].dtype in {"category", "object"}:
+            elif df[feature].dtype in ("category", "object"):  # pylint: disable=use-set-for-membership
                 if j == 0:
                     plt.figure(figsize=(8, 6))
-                _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+                nbins = len(df[feature].unique())
+                _ = df[df["label"] == label][feature].hist(
+                    bins=nbins, alpha=0.5, label=labels_dict[label], density=True
+                )
             else:
                 if j == 0:
                     plt.figure(figsize=(8, 6))
@@ -1078,12 +1079,8 @@ def plot_mixed_fpr(
 
     plt.figure(figsize=(8, 6))
     plot_precision_recall(
-        [
-            fpr_dict[item] for item in fpr_dict
-        ],  # fprs_mixed_cs, fprs_mixed_non_cs, fprs_non_mixed_cs, fprs_non_mixed_non_cs],
-        [
-            item.replace("_", " ") for item in fpr_dict
-        ],  # ["fprs (mixed & cs)", "fprs (mixed & ~cs)", "fprs (~mixed & cs)", "fprs (~mixed & ~cs)"
+        [fpr_dict[item] for item in fpr_dict],
+        [item.replace("_", " ") for item in fpr_dict],
         log_scale=False,
         max_score=max_score,
     )
@@ -1376,7 +1373,6 @@ def create_report_plots(
             lod_filters_filtered,
             params["adapter_version"],
             min_LoD_filter,
-            # title=f"{params['data_name']}\nLoD curve",
             output_filename=output_LoD_plot,
         )
 
@@ -1386,13 +1382,11 @@ def create_report_plots(
         df_fp,
         ML_score="ML_qual_1",
         adapter_version=params["adapter_version"],
-        # title=f"{params['data_name']}\nROC curve",
         output_filename=output_roc_plot,
     )
 
     plot_confusion_matrix(
         df,
-        # title=f"{params['data_name']}\nConfusion matrix",
         prediction_column_name="ML_prediction_1",
         output_filename=output_cm_plot,
     )
@@ -1401,21 +1395,18 @@ def create_report_plots(
         labels_dict,
         fprs,
         max_score,
-        # title=f"{params['data_name']}\nobserved qual vs. measured qual",
         output_filename=output_obsereved_qual_plot,
     )
     plot_ML_qual_hist(
         labels_dict,
         df,
         max_score,
-        # title=f"{params['data_name']}\nML qual distribution",
         output_filename=output_ML_qual_hist,
     )
     plot_qual_per_feature(
         labels_dict,
         cls_features,
         df,
-        # title=f"{params['data_name']}",
         output_filename=output_qual_per_feature,
     )
 
@@ -1428,20 +1419,17 @@ def create_report_plots(
         labels_dict,
         df_dict,
         max_score,
-        # title=f"{params['data_name']}\nbalanced_strand: ",
         output_filename=output_balanced_strand_hists,
     )
 
     plot_mixed_fpr(
         fpr_dict,
         max_score,
-        # title=f"{params['data_name']}\nbalanced_strand fp rate vs. qual ",
         output_filename=output_balanced_strand_fpr,
     )
     plot_mixed_recall(
         recall_dict,
         max_score,
-        # title=f"{params['data_name']}\nbalanced_strand recalls vs. qual ",
         output_filename=output_balanced_strand_recalls,
     )
 
