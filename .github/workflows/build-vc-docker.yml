@@ -34,9 +34,6 @@ jobs:
         id: short-sha
         with:
           length: 6
-      - run: export $SHA
-        env:
-          SHA: ${{ steps.short-sha.outputs.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
@@ -74,7 +71,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag || env.SHA }}
-            us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/${{ env.IMAGE }}:${{ inputs.image-tag || env.SHA}}
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag || steps.short-sha.outputs.sha }}
+            us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/${{ env.IMAGE }}:${{ inputs.image-tag || steps.short-sha.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
