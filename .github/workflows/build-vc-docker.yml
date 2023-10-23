@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       image-tag:
-        description: "Docker image tag"
+        description: "Docker image tag, If omitted will use github short sha"
         required: false
-        default: latest
         type: string
 
 permissions:
@@ -30,6 +29,14 @@ jobs:
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4
+
+      - uses: benjlevesque/short-sha@v2.2
+        id: short-sha
+        with:
+          length: 6
+      - run: export $SHA
+        env:
+          SHA: ${{ steps.short-sha.outputs.sha }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
@@ -67,7 +74,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag }}
-            us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/${{ env.IMAGE }}:${{ inputs.image-tag }}
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag | env.SHA }}
+            us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/${{ env.IMAGE }}:${{ inputs.image-tag | env.SHA}}
           cache-from: type=gha
           cache-to: type=gha,mode=max
