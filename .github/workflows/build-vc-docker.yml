@@ -69,6 +69,7 @@ jobs:
         with:
           file: Dockerfile.jbvc
           context: .
+          driver-opts: 'image=moby/buildkit:v0.10.5'
           push: true
           tags: |
             ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag || steps.short-sha.outputs.sha }}
