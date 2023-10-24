@@ -1,10 +1,10 @@
 #!/bin/bash
 
-DOCKER_BASE_NAME="gcr.io/ultima-data-307918/ugvc:"
+DOCKER_BASE_NAME="us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/ugvc:"
 
 function usage () {
   echo -e "
-  ./build_vc_image.sh -v <git_tag_or_hash> -t <docker_tag> (-h | --help)
+  ./build_vc_docker.sh -v <git_tag_or_hash> -t <docker_tag> (-h | --help)
 
   -v | --version    git tag or hash to checkout VariantCalling
   -t | --tag        tag with the version number for resulting docker (e.g. 1.1)
