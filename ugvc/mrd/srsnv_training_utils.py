@@ -319,6 +319,8 @@ def prepare_featuremap_for_model(
         downsampled_training_featuremap_vcf,
         downsampled_test_featuremap_vcf,
         featuremap_entry_number,
+        train_set_size,
+        test_set_size,
     )
 
 
@@ -543,6 +545,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "train_set_size": self.train_set_size,
             "test_set_size": self.test_set_size,
             "fp_featuremap_entry_number": self.fp_featuremap_entry_number,
+            "tp_featuremap_entry_number": self.tp_featuremap_entry_number,
+            "fp_test_set_size": self.fp_test_set_size,
+            "fp_train_set_size": self.fp_train_set_size,
+            "tp_test_set_size": self.tp_test_set_size,
+            "tp_train_set_size": self.tp_train_set_size,
             "lod_filters": self.lod_filters,
             "adapter_version": self.balanced_strand_adapter_version,
             "columns": self.columns,
@@ -584,7 +591,13 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
         # prepare TP featuremaps for training
         logger.info("Preparing TP featuremaps for training and test")
-        (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf, _,) = prepare_featuremap_for_model(
+        (
+            self.tp_train_featuremap_vcf,
+            self.tp_test_featuremap_vcf,
+            self.tp_featuremap_entry_number,
+            self.tp_train_set_size,
+            self.tp_test_set_size,
+        ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
             train_set_size=self.train_set_size
@@ -603,6 +616,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.fp_train_featuremap_vcf,
             self.fp_test_featuremap_vcf,
             self.fp_featuremap_entry_number,
+            self.fp_train_set_size,
+            self.fp_test_set_size,
         ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.single_substitution_featuremap,

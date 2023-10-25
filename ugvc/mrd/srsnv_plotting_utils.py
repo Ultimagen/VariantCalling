@@ -100,6 +100,8 @@ def create_data_for_report(
         df = df.assign(
             is_mixed=((df["strand_ratio_category_end"] == "MIXED") & (df["strand_ratio_category_start"] == "MIXED"))
         )
+    elif "st" in df and "et" in df:
+        df = df.assign(is_mixed=((df["st"] == "MIXED") & (df["et"] == "MIXED")))
 
     df_tp = df.query("label == True")
     df_fp = df.query("label == False")
@@ -1339,7 +1341,7 @@ def create_report_plots(
     }
 
     sorter_json_stats_file = params["sorter_json_stats_file"]
-    data_size = params[f"{report_name}_set_size"]
+    data_size = params[f"fp_{report_name}_set_size"]
     total_n = params["fp_featuremap_entry_number"]
     sampling_rate = (
         data_size / total_n

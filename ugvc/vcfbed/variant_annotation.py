@@ -337,6 +337,42 @@ def get_motif_around_snv(record: pysam.VariantRecord, size: int, faidx: pyfaidx.
     return chrom[pos - size - 1 : pos + size].seq.upper()
 
 
+def get_motif_around_snp(record: pysam.VariantRecord, size: int, faidx: pyfaidx.Fasta):
+    """
+    Extract sequence around an SNV, of size "size" on each side with the central base being the ref base
+
+    Parameters
+    ----------
+    record: pysam.VariantRecord
+        PySam Record, must be an SNV
+    size: int
+        Size of motif on each side
+    faidx: pyfaidx.Fasta
+        Fasta index
+
+    Returns
+    -------
+    tuple
+        (left_motif, right_motif) - left and right motifs
+
+    """
+    # make sure the input is a vcf record of an SNV
+    assert isinstance(record, pysam.VariantRecord), f"record must be pysam.VariantRecord, got {type(record)}"
+    assert len(record.ref) == 1 and len(record.alts) >= 1 and len(record.alts[0]) == 1, "Not an SNV"
+    # make sure the size is positive
+    size = int(size)
+    assert size > 0, f"size must be positive, got {size}"
+    # make sure the fasta index is valid
+    assert isinstance(faidx, pyfaidx.Fasta), f"faidx must be pyfaidx.Fasta, got {type(faidx)}"
+    # extract the sequence
+    chrom = faidx[record.chrom]
+    pos = record.pos
+    return (
+        chrom[pos - size - 1 : pos - 1].seq.upper(),
+        chrom[pos : pos + size].seq.upper(),
+    )
+
+
 def get_motif_around(concordance: pd.DataFrame, motif_size: int, fasta: str) -> pd.DataFrame:
     """Extract sequence around the indel
 
@@ -777,25 +813,98 @@ def get_trinuc_sub_list():
     return trinuc_sub
 
 
-def parse_trinuc_sub(rec):
-    # X_LM and X_RM are the left and right motif sequences, respectively
-    # obtained from AnnotateVcf.wdl pipeline
-    motif_ref = rec.info["X_LM"][0][-1] + rec.ref + rec.info["X_RM"][0][0]
-    motif_alt = rec.info["X_LM"][0][-1] + rec.alts[0] + rec.info["X_RM"][0][0]
+def parse_trinuc_sub(rec: pysam.VariantRecord, faidx: pyfaidx.Fasta = None):
+    """
+    Parse the trinucleotide substitution from a pysam VariantRecord
+
+    Parameters
+    ----------
+    rec: pysam.VariantRecord
+        pysam VariantRecord of an SNV
+    faidx: pyfaidx.Fasta, optional
+        pyfaidx.Fasta object
+
+    Returns
+    -------
+    str
+        trinucleotide substitution in the format "ref>alt" or None if the motif contains an unknown base
+
+    Raises
+    ------
+    AssertionError
+        If rec is not a pysam VariantRecord of an SNV
+    AssertionError
+        If faidx is not a pyfaidx.Fasta object
+    ValueError
+        If faidx is None and X_LM and X_RM are not in the VCF
+    """
+    # check inputs
+    assert isinstance(rec, pysam.VariantRecord), f"rec must be pysam.VariantRecord, got {type(rec)}"
+    assert len(rec.ref) == 1 and len(rec.alts) == 1 and len(rec.alts[0]) == 1, "Not an SNV"
+    if faidx is not None:
+        assert isinstance(faidx, pyfaidx.Fasta), f"faidx must be pyfaidx.Fasta, got {type(faidx)}"
+    # get left and right bases in the reference
+    if "X_LM" in rec.info and "X_RM" in rec.info:
+        # Pre-annotated mode: X_LM and X_RM are the left and right motif sequences, respectively
+        # obtained from AnnotateVcf.wdl pipeline
+        left_motif = rec.info["X_LM"][0][-1]
+        right_motif = rec.info["X_RM"][0][0]
+    else:
+        # Non-pre-annotated mode: get the left and right bases from the fasta index
+        if faidx is None:
+            raise ValueError("faidx must be provided if X_LM and X_RM are not in the VCF")
+        left_motif, right_motif = get_motif_around_snp(rec, 1, faidx)
+    motif_ref = left_motif + rec.ref + right_motif
+    motif_alt = left_motif + rec.alts[0] + right_motif
     # if motif has an unknown base, return None
     if "N" in motif_ref or "N" in motif_alt:
         return None
     return motif_ref + ">" + motif_alt
 
 
-def get_trinuc_substitution_dist(vcf_file):
+def get_trinuc_substitution_dist(vcf_file, ref_fasta: str = None):
+    """
+    Get the SNV trinucleotide substitution distribution from a VCF file
+
+    Parameters
+    ----------
+    vcf_file: str
+        Path to VCF file
+    ref_fasta: str, optional
+        Path to reference fasta file
+
+    Returns
+    -------
+    dict
+        Dictionary of trinucleotide substitutions and their counts
+
+    Raises
+    ------
+    AssertionError
+        If vcf_file is not a string
+    AssertionError
+        If vcf_file is not a valid path
+    AssertionError
+        If ref_fasta is not a string
+    AssertionError
+        If ref_fasta is not a valid path
+    """
+    # check inputs
+    assert isinstance(vcf_file, str), f"vcf_file must be string, got {type(vcf_file)}"
+    assert os.path.exists(vcf_file), f"vcf_file {vcf_file} does not exist"
+    if ref_fasta is not None:
+        assert isinstance(ref_fasta, str), f"ref_fasta must be string, got {type(ref_fasta)}"
+        assert os.path.exists(ref_fasta), f"ref_fasta {ref_fasta} does not exist"
+    # initialize trinuc_sub dictionary
     trinuc_sub = get_trinuc_sub_list()
     trinuc_dict = {k: 0 for k in trinuc_sub}
+    # initialize fasta index if given
+    faidx = pyfaidx.Fasta(ref_fasta, build_index=False, rebuild=False) if ref_fasta is not None else None
     with pysam.VariantFile(vcf_file, "rb") as infh:
         for rec in infh.fetch():
-            # check if rec is a SNP
+            # check if rec is a biallelic SNV
             if len(rec.ref) == 1 and len(rec.alts) == 1 and len(rec.alts[0]) == 1:
-                trinuc_sub = parse_trinuc_sub(rec)
+                trinuc_sub = parse_trinuc_sub(rec, faidx)
                 if trinuc_sub is not None:
                     trinuc_dict[trinuc_sub] += 1
     return trinuc_dict

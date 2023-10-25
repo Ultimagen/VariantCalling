@@ -176,11 +176,6 @@ def collect_coverage_per_locus_gatk(coverage_csv, df_sig):
     coverage_gatk = pd.read_csv(coverage_csv, usecols=["Chrom", "Pos", "Total_Depth"])
     coverage_gatk.rename(columns={"Chrom": "chrom", "Pos": "pos", "Total_Depth": "coverage"}, inplace=True)
     coverage_gatk.set_index(["chrom", "pos"], inplace=True)
-    if df_sig.index.names != coverage_gatk.index.names:
-        raise ValueError(
-            f"df_sig index names {df_sig.index.names} \
-            do not match coverage_gatk index names {coverage_gatk.index.names}"
-        )
     df_sig = df_sig.join(coverage_gatk, how="left")
     return df_sig
 
@@ -399,6 +394,7 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
         logger.debug("Done converting to dataframe")
 
     df_sig = df_sig.sort_index()
+    df_sig.to_parquet("df_sig.parquet")
 
     if coverage_csv:
         df_sig = collect_coverage_per_locus_gatk(coverage_csv, df_sig)
@@ -879,14 +875,16 @@ def prepare_data_from_mrd_pipeline(
     ValueError
         may be raised
     """
+    matched_exists = matched_signatures_vcf_files is not None and len(matched_signatures_vcf_files) > 0
+    control_exists = control_signatures_vcf_files is not None and len(control_signatures_vcf_files) > 0
+    db_control_exists = db_control_signatures_vcf_files is not None and len(db_control_signatures_vcf_files) > 0
+
     if output_dir is not None and output_basename is None:
         raise ValueError(f"output_dir is not None ({output_dir}) but output_basename is")
     if output_dir is not None:
         os.makedirs(output_dir, exist_ok=True)
-    if matched_signatures_vcf_files is None:
-        raise ValueError("matched_signatures_vcf_files must be defined")
-    if control_signatures_vcf_files is None and db_control_signatures_vcf_files is None:
-        raise ValueError("Either control_signatures_vcf_files or db_control_signatures_vcf_files must be defined")
+    if not matched_exists and not control_exists and not db_control_exists:
+        raise ValueError("No signatures files were provided")
 
     intersection_dataframe_fname = (
         pjoin(output_dir, f"{output_basename}.features{FileExtension.PARQUET.value}")
@@ -902,32 +900,37 @@ def prepare_data_from_mrd_pipeline(
     intersection_dataframe = read_intersection_dataframes(
         intersected_featuremaps_parquet, output_parquet=intersection_dataframe_fname, return_dataframes=True
     )
-    signature_dataframe = read_signature(
-        matched_signatures_vcf_files,
-        coverage_csv=coverage_csv,
-        output_parquet=signatures_dataframe_fname,
-        tumor_sample=tumor_sample,
-        signature_type="matched",
-        return_dataframes=return_dataframes,
-        concat_to_existing_output_parquet=False,
-    )
-    signature_dataframe = read_signature(
-        control_signatures_vcf_files,
-        coverage_csv=coverage_csv,
-        output_parquet=signatures_dataframe_fname,
-        tumor_sample=tumor_sample,
-        signature_type="control",
-        concat_to_existing_output_parquet=True,
-    )
-    signature_dataframe = read_signature(
-        db_control_signatures_vcf_files,
-        coverage_csv=coverage_csv,
-        output_parquet=signatures_dataframe_fname,
-        tumor_sample=tumor_sample,
-        signature_type="db_control",
-        return_dataframes=return_dataframes,
-        concat_to_existing_output_parquet=True,
-    )
+    if matched_exists:
+        signature_dataframe = read_signature(
+            matched_signatures_vcf_files,
+            coverage_csv=coverage_csv,
+            output_parquet=signatures_dataframe_fname,
+            tumor_sample=tumor_sample,
+            signature_type="matched",
+            return_dataframes=return_dataframes,
+            concat_to_existing_output_parquet=False,
+        )
+    if control_exists:
+        concat_to_existing_output_parquet = bool(matched_exists)
+        signature_dataframe = read_signature(
+            control_signatures_vcf_files,
+            coverage_csv=coverage_csv,
+            output_parquet=signatures_dataframe_fname,
+            tumor_sample=tumor_sample,
+            signature_type="control",
+            concat_to_existing_output_parquet=concat_to_existing_output_parquet,
+        )
+    if db_control_exists:
+        concat_to_existing_output_parquet = bool(matched_exists or control_exists)
+        signature_dataframe = read_signature(
+            db_control_signatures_vcf_files,
+            coverage_csv=coverage_csv,
+            output_parquet=signatures_dataframe_fname,
+            tumor_sample=tumor_sample,
+            signature_type="db_control",
+            return_dataframes=return_dataframes,
+            concat_to_existing_output_parquet=concat_to_existing_output_parquet,
+        )
 
     intersection_dataframe = read_intersection_dataframes(
         intersected_featuremaps_parquet,
@@ -950,7 +953,7 @@ def concat_dataframes(dataframes: list, outfile: str, n_jobs: int = 1):
 
 
 def generate_synthetic_signatures(
-    signature_vcf: str, db_vcf: str, n_synthetic_signatures: int, output_dir: str
+    signature_vcf: str, db_vcf: str, n_synthetic_signatures: int, output_dir: str, ref_fasta: str = None
 ) -> list[str]:
     """
     Generate synthetic signatures from a signature vcf file and a db vcf file
@@ -965,6 +968,9 @@ def generate_synthetic_signatures(
         number of synthetic signatures to generate
     output_dir: str
         output directory
+    ref_fasta: str, optional
+        reference fasta file, default None. Required if input vcf is not annotated with left and right motifs
+        X_LM and X_RM
 
     Returns
     -------
@@ -973,8 +979,8 @@ def generate_synthetic_signatures(
 
     """
     # parse trinuc substitution distribution from signature vcf and db vcf
-    trinuc_signature = get_trinuc_substitution_dist(signature_vcf)
-    trinuc_db = get_trinuc_substitution_dist(db_vcf)
+    trinuc_signature = get_trinuc_substitution_dist(signature_vcf, ref_fasta)
+    trinuc_db = get_trinuc_substitution_dist(db_vcf, ref_fasta)
 
     # allocate index and counter per synthetic signature
     trinuc_dict = {}
