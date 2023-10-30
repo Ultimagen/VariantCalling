@@ -37,4 +37,5 @@ srcvm/
 test/test_outputs
 .python-version
 .vscode/
+work/
 *.code-workspace
