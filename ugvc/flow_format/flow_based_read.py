@@ -421,17 +421,21 @@ class FlowBasedRead:
 
         # repeat each value k (hmer-size) k times, e.g [0, 1, 2, 1, 3] -> [1, 2, 2, 1, 3, 3, 3]
         # This results in hmer_sizes in base-space
-        # Notice a trimmed hmer will result in the wrong original hmer-size 
+        # Notice a trimmed hmer will result in the wrong original hmer-size
         hmer_sizes = np.repeat(key, key.astype(int))
-        
+
         # place_to_locate[i] is the hmer-size which the probability in base[i] refers to
         # This size will be used to locate the probability in the flow-matrix
         place_to_locate = tp_tag + hmer_sizes
 
         place_to_locate = np.clip(place_to_locate, None, max_hmer_size)
         if spread_edge_probs:
-            place_to_locate[0] = np.clip(place_to_locate[0], 0, None)
-            place_to_locate[-1] = np.clip(place_to_locate[-1], 0, None)
+            first_call = key[np.nonzero(key)[0][0]]
+            place_to_locate[:first_call] = np.clip(place_to_locate[:first_call], 0, None)
+            last_call = key[np.nonzero(key)[0][-1]]
+            place_to_locate[last_call - 1 :] = np.clip(place_to_locate[last_call - 1 :], 0, None)
+            # place_to_locate[0] = np.clip(place_to_locate[0], 0, None)
+            # place_to_locate[-1] = np.clip(place_to_locate[-1], 0, None)
 
         assert np.all(place_to_locate >= 0), "Wrong position to place"
         flat_loc = np.ravel_multi_index((place_to_locate, base_to_flow_index), flow_matrix.shape)
