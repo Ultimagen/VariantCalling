@@ -63,7 +63,7 @@ def sorter_to_h5(
             h5_dict[row["H5_key"]][row["H5_item"]] = json_data[row["key"]]
 
     # extract coverage stats
-    if not json_data["base_coverage"] == {}:  # if base_coverage is not empty
+    if "base_coverage" in json_data and len(json_data["base_coverage"]) > 0:  # if base_coverage is not empty
         df_coverage_histogram = (
             pd.concat(
                 (
