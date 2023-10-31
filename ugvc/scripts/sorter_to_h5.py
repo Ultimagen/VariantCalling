@@ -63,51 +63,56 @@ def sorter_to_h5(
             h5_dict[row["H5_key"]][row["H5_item"]] = json_data[row["key"]]
 
     # extract coverage stats
-    df_coverage_histogram = (
-        pd.concat(
-            (pd.DataFrame(json_data["base_coverage"][key], columns=[key]) for key in json_data["base_coverage"].keys()),
-            axis=1,
+    if not json_data["base_coverage"] == {}:  # if base_coverage is not empty
+        df_coverage_histogram = (
+            pd.concat(
+                (
+                    pd.DataFrame(json_data["base_coverage"][key], columns=[key])
+                    for key in json_data["base_coverage"].keys()
+                ),
+                axis=1,
+            )
+            .fillna(0)
+            .astype(int)
         )
-        .fillna(0)
-        .astype(int)
-    )
-    df_coverage_histogram.index.name = "coverage"
-    df_percentiles, df_stats = generate_stats_from_histogram(
-        df_coverage_histogram / df_coverage_histogram.sum(), quantiles=[0.05, 0.1, 0.2, 0.5]
-    )
-    df_stats["metric"] = df_stats.index
-    df_stats_coverage = df_stats.melt(id_vars="metric")
-    df_stats_coverage = df_stats_coverage.set_index(["variable", "metric"])
-    df_stats_coverage.index.names = [None, None]
-    df_stats_coverage.columns = [0]
-    df_stats_coverage = df_stats_coverage.T
-    # rename stats_coverage columns
-    df_stats_coverage.rename(columns={"Exome": "Exome (WG)", "ACMG59": "ACMG59 (WG)"}, inplace=True)
-    h5_dict["stats_coverage"] = df_stats_coverage
-
-    # calculate coverage percetnages from the coverage histogram
-    coverge_list_str = df_metric_mapping.loc[
-        (df_metric_mapping["H5_key"] == "RawWgsMetrics")
-        & df_metric_mapping["H5_item"].str.startswith("PCT_")
-        & df_metric_mapping["H5_item"].str.endswith("X"),
-        "key",
-    ].tolist()
-    coverage_list = [int(x.split("=")[1].replace("x", "")) for x in coverge_list_str]
-    for coverage_int in coverage_list:
-        h5_dict["RawWgsMetrics"][f"PCT_{coverage_int}X"] = (
-            df_coverage_histogram.loc[coverage_int:, "Genome"].sum() / df_coverage_histogram["Genome"].sum()
+        df_coverage_histogram.index.name = "coverage"
+        df_percentiles, df_stats = generate_stats_from_histogram(
+            df_coverage_histogram / df_coverage_histogram.sum(), quantiles=[0.05, 0.1, 0.2, 0.5]
         )
 
-    # add the F80, F90, F95 metrics to RawWgsMetrics
-    h5_dict["RawWgsMetrics"]["FOLD_80_BASE_PENALTY"] = (
-        df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q20", "Genome"]
-    )
-    h5_dict["RawWgsMetrics"]["FOLD_90_BASE_PENALTY"] = (
-        df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q10", "Genome"]
-    )
-    h5_dict["RawWgsMetrics"]["FOLD_95_BASE_PENALTY"] = (
-        df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q5", "Genome"]
-    )
+        df_stats["metric"] = df_stats.index
+        df_stats_coverage = df_stats.melt(id_vars="metric")
+        df_stats_coverage = df_stats_coverage.set_index(["variable", "metric"])
+        df_stats_coverage.index.names = [None, None]
+        df_stats_coverage.columns = [0]
+        df_stats_coverage = df_stats_coverage.T
+        # rename stats_coverage columns
+        df_stats_coverage.rename(columns={"Exome": "Exome (WG)", "ACMG59": "ACMG59 (WG)"}, inplace=True)
+        h5_dict["stats_coverage"] = df_stats_coverage
+
+        # calculate coverage percetnages from the coverage histogram
+        coverge_list_str = df_metric_mapping.loc[
+            (df_metric_mapping["H5_key"] == "RawWgsMetrics")
+            & df_metric_mapping["H5_item"].str.startswith("PCT_")
+            & df_metric_mapping["H5_item"].str.endswith("X"),
+            "key",
+        ].tolist()
+        coverage_list = [int(x.split("=")[1].replace("x", "")) for x in coverge_list_str]
+        for coverage_int in coverage_list:
+            h5_dict["RawWgsMetrics"][f"PCT_{coverage_int}X"] = (
+                df_coverage_histogram.loc[coverage_int:, "Genome"].sum() / df_coverage_histogram["Genome"].sum()
+            )
+
+        # add the F80, F90, F95 metrics to RawWgsMetrics
+        h5_dict["RawWgsMetrics"]["FOLD_80_BASE_PENALTY"] = (
+            df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q20", "Genome"]
+        )
+        h5_dict["RawWgsMetrics"]["FOLD_90_BASE_PENALTY"] = (
+            df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q10", "Genome"]
+        )
+        h5_dict["RawWgsMetrics"]["FOLD_95_BASE_PENALTY"] = (
+            df_percentiles.loc["Q50", "Genome"] / df_percentiles.loc["Q5", "Genome"]
+        )
 
     # order the keys in RawWgsMetrics
     key_order = [
@@ -134,7 +139,7 @@ def sorter_to_h5(
         "FOLD_90_BASE_PENALTY_AT_30X",
         "FOLD_95_BASE_PENALTY_AT_30X",
     ]
-    h5_dict["RawWgsMetrics"] = {k: h5_dict["RawWgsMetrics"][k] for k in key_order}
+    h5_dict["RawWgsMetrics"] = {k: h5_dict["RawWgsMetrics"][k] for k in key_order if k in h5_dict["RawWgsMetrics"]}
 
     # Q20_PF_BASES and Q30_PF_BASES
     h5_dict["QualityYieldMetricsFlow"]["Q20_BASES"] = round(
