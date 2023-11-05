@@ -327,20 +327,20 @@
                     "index": 0,
                     "MEAN_COVERAGE": 9.98,
                     "MEDIAN_COVERAGE": 10.0,
-                    "PCT_1X": 0.995175761982,
-                    "PCT_5X": 0.945184483265,
-                    "PCT_10X": 0.510302123565,
-                    "PCT_20X": 0.010320250383,
-                    "PCT_30X": 0.002908919829,
-                    "PCT_40X": 0.001697412061,
-                    "PCT_50X": 0.001146477946,
-                    "PCT_60X": 0.000848025385,
-                    "PCT_70X": 0.00066381132,
-                    "PCT_80X": 0.000544689002,
-                    "PCT_90X": 0.000460918015,
-                    "PCT_100X": 0.00039910109,
-                    "PCT_500X": 0.00006645304,
-                    "PCT_1000X": 0.000022255681,
+                    "PCT_1X": 0.995175762,
+                    "PCT_5X": 0.9451844833,
+                    "PCT_10X": 0.5103021236,
+                    "PCT_20X": 0.0103202504,
+                    "PCT_30X": 0.0029089198,
+                    "PCT_40X": 0.0016974121,
+                    "PCT_50X": 0.0011464779,
+                    "PCT_60X": 0.0008480254,
+                    "PCT_70X": 0.0006638113,
+                    "PCT_80X": 0.000544689,
+                    "PCT_90X": 0.000460918,
+                    "PCT_100X": 0.0003991011,
+                    "PCT_500X": 6.6453e-05,
+                    "PCT_1000X": 2.22557e-05,
                     "FOLD_80_BASE_PENALTY": 1.4333276139,
                     "FOLD_90_BASE_PENALTY": 1.8169803947,
                     "FOLD_95_BASE_PENALTY": 2.3829296536,
@@ -1031,67 +1031,67 @@
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___percentile_5",
+                        "name": "Alu repeats___percentile_5",
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___percentile_10",
+                        "name": "Alu repeats___percentile_10",
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___median_coverage",
+                        "name": "Alu repeats___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___median_coverage_normalized",
+                        "name": "Alu repeats___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___percent_larger_than_05_of_genome_median",
+                        "name": "Alu repeats___percent_larger_than_05_of_genome_median",
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___percent_larger_than_025_of_genome_median",
+                        "name": "Alu repeats___percent_larger_than_025_of_genome_median",
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___percent_over_or_equal_to_10x",
+                        "name": "Alu repeats___percent_over_or_equal_to_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Alu only___percent_over_or_equal_to_20x",
+                        "name": "Alu repeats___percent_over_or_equal_to_20x",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___percentile_5",
+                        "name": "Satellite___percentile_5",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___percentile_10",
+                        "name": "Satellite___percentile_10",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___median_coverage",
+                        "name": "Satellite___median_coverage",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___median_coverage_normalized",
+                        "name": "Satellite___median_coverage_normalized",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___percent_larger_than_05_of_genome_median",
+                        "name": "Satellite___percent_larger_than_05_of_genome_median",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___percent_larger_than_025_of_genome_median",
+                        "name": "Satellite___percent_larger_than_025_of_genome_median",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___percent_over_or_equal_to_10x",
+                        "name": "Satellite___percent_over_or_equal_to_10x",
                         "type": "number"
                     },
                     {
-                        "name": "Satelite___percent_over_or_equal_to_20x",
+                        "name": "Satellite___percent_over_or_equal_to_20x",
                         "type": "number"
                     },
                     {
@@ -1303,22 +1303,22 @@
                     "SINE___percent_larger_than_025_of_genome_median": 98.4246537781,
                     "SINE___percent_over_or_equal_to_10x": 47.9976274402,
                     "SINE___percent_over_or_equal_to_20x": 1.0002070114,
-                    "Alu only___percentile_5": 3.3776251784,
-                    "Alu only___percentile_10": 4.5351323265,
-                    "Alu only___median_coverage": 8.7066535246,
-                    "Alu only___median_coverage_normalized": 0.9579594914,
-                    "Alu only___percent_larger_than_05_of_genome_median": 92.9088433884,
-                    "Alu only___percent_larger_than_025_of_genome_median": 98.1477079796,
-                    "Alu only___percent_over_or_equal_to_10x": 46.546791015,
-                    "Alu only___percent_over_or_equal_to_20x": 1.081345403,
-                    "Satelite___percentile_5": 0.0,
-                    "Satelite___percentile_10": 0.2561822907,
-                    "Satelite___median_coverage": 7.8266943196,
-                    "Satelite___median_coverage_normalized": 0.8611409755,
-                    "Satelite___percent_larger_than_05_of_genome_median": 67.6586967035,
-                    "Satelite___percent_larger_than_025_of_genome_median": 78.2765076746,
-                    "Satelite___percent_over_or_equal_to_10x": 45.2026920375,
-                    "Satelite___percent_over_or_equal_to_20x": 19.156148476,
+                    "Alu repeats___percentile_5": 3.3776251784,
+                    "Alu repeats___percentile_10": 4.5351323265,
+                    "Alu repeats___median_coverage": 8.7066535246,
+                    "Alu repeats___median_coverage_normalized": 0.9579594914,
+                    "Alu repeats___percent_larger_than_05_of_genome_median": 92.9088433884,
+                    "Alu repeats___percent_larger_than_025_of_genome_median": 98.1477079796,
+                    "Alu repeats___percent_over_or_equal_to_10x": 46.546791015,
+                    "Alu repeats___percent_over_or_equal_to_20x": 1.081345403,
+                    "Satellite___percentile_5": 0.0,
+                    "Satellite___percentile_10": 0.2561822907,
+                    "Satellite___median_coverage": 7.8266943196,
+                    "Satellite___median_coverage_normalized": 0.8611409755,
+                    "Satellite___percent_larger_than_05_of_genome_median": 67.6586967035,
+                    "Satellite___percent_larger_than_025_of_genome_median": 78.2765076746,
+                    "Satellite___percent_over_or_equal_to_10x": 45.2026920375,
+                    "Satellite___percent_over_or_equal_to_20x": 19.156148476,
                     "Simple repeat___percentile_5": 0.0162496094,
                     "Simple repeat___percentile_10": 1.663200952,
                     "Simple repeat___median_coverage": 7.5321467925,
