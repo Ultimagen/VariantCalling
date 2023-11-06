@@ -87,7 +87,15 @@ def sorter_to_h5(
         df_stats_coverage.columns = [0]
         df_stats_coverage = df_stats_coverage.T
         # rename stats_coverage columns
-        df_stats_coverage.rename(columns={"Exome": "Exome (WG)", "ACMG59": "ACMG59 (WG)"}, inplace=True)
+        df_stats_coverage.rename(
+            columns={
+                "Exome": "Exome (WG)",
+                "ACMG59": "ACMG59 (WG)",
+                "Alu only": "Alu repeats",
+                "Satelite": "Satellite",
+            },
+            inplace=True,
+        )
         h5_dict["stats_coverage"] = df_stats_coverage
 
         # calculate coverage percetnages from the coverage histogram
