@@ -1107,7 +1107,8 @@ def plot_mixed_fpr(
     plt.plot([0, 40], [0, 40], "--")
     plt.xlim([0, max_score])
     plt.xlabel("ML qual", fontsize=font_size)
-    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    plt.ylabel("Observed qual", fontsize=font_size)
+    legend_handle = plt.legend(fontsize=font_size - 4, fancybox=True, framealpha=0.95)
     title_handle = plt.title(title, fontsize=font_size)
     if output_filename is not None:
         if not output_filename.endswith(".png"):
@@ -1633,6 +1634,7 @@ def plot_LoD_vs_qual(
     ax1.set_yscale("log")
     ax2.yaxis.grid(True)
     ax1.xaxis.grid(True)
+    ax1.yaxis.grid(False)
     ax1.set_ylabel("LoD", fontsize=font_size)
     ax1.set_xlabel("ML qual", fontsize=font_size)
     ax2.set_ylabel("Base retention ratio \non HOM SNVs (TP)", fontsize=font_size)
