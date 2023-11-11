@@ -156,7 +156,6 @@ def get_vcf_df(
         "SGB",
         "MQ0F",
         "MinDP",
-        "MQ",
         "ADF",
         "ADR",
         "SCR",
