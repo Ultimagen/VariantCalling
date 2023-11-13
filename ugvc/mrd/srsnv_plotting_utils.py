@@ -913,10 +913,8 @@ def plot_qual_per_feature(
             elif df[feature].dtype in ("category", "object"):  # pylint: disable=use-set-for-membership
                 if j == 0:
                     plt.figure(figsize=(8, 6))
-                nbins = len(df[feature].unique())
-                _ = df[df["label"] == label][feature].hist(
-                    bins=nbins, alpha=0.5, label=labels_dict[label], density=True
-                )
+                category_counts = df[df["label"] == label][feature].value_counts().sort_index()
+                plt.bar(category_counts.index, category_counts, alpha=0.5, label=labels_dict[label])
                 xticks = plt.gca().get_xticks()
                 if len(xticks) > 100:
                     plt.xticks(rotation=90, fontsize=6)
