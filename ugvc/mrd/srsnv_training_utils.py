@@ -26,12 +26,13 @@ default_xgboost_model_params = {
     "n_estimators": 100,
     "objective": "multi:softprob",
     "tree_method": "hist",
-    "eta": 0.1,
+    "eta": 0.15,
     "max_depth": 10,
     "n_jobs": 16,
-    "subsample": 0.35,
+    "subsample": 0.9,
     "num_class": 2,
     "enable_categorical": True,
+    "colsample_bytree": 0.65,
 }
 default_numerical_features = [
     FeatureMapFields.X_SCORE.value,
