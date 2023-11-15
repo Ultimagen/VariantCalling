@@ -126,7 +126,13 @@ class MLQualAnnotator(VcfAnnotator):
         """
         # Convert list of variant records to a pandas DataFrame
         columns = self.numerical_features + self.categorical_features
-        data = [{column: variant.info[column] for column in columns} for variant in records]
+        data = [
+            {
+                **{column: variant.info[column] for column in columns if column not in ["ref", "alt"]},
+                **{"ref": variant.ref, "alt": variant.alts[0]},
+            }
+            for variant in records
+        ]
         df = pd.DataFrame(data)[columns]
 
         # encode categorical features

@@ -43,6 +43,12 @@ class FeatureMapFields(Enum):
     X_CIGAR = "X_CIGAR"
     PREV_3bp = "prev_3bp"
     NEXT_3bp = "next_3bp"
+    PREV_1 = "next_1sbp"
+    PREV_2 = "next_2sbp"
+    PREV_3 = "next_3sbp"
+    NEXT_1 = "prev_1sbp"
+    NEXT_2 = "prev_2sbp"
+    NEXT_3 = "prev_3sbp"
 
 
 def get_hmer_of_central_base(sequence: str) -> int:
@@ -211,12 +217,24 @@ class RefContextVcfAnnotator(VcfAnnotator):
         self.CYCLE_SKIP_FLAG = FeatureMapFields.IS_CYCLE_SKIP.value
         self.PREV_N_BP = f"prev_{self.motif_length_to_annotate}bp"
         self.NEXT_N_BP = f"next_{self.motif_length_to_annotate}bp"
+        self.NEXT_1 = "next_1sbp"
+        self.NEXT_2 = "next_2sbp"
+        self.NEXT_3 = "next_3sbp"
+        self.PREV_1 = "prev_1sbp"
+        self.PREV_2 = "prev_2sbp"
+        self.PREV_3 = "prev_3sbp"
         self.info_fields_to_add = [
             self.TRINUC_CONTEXT_WITH_ALT,
             self.HMER_CONTEXT_REF,
             self.HMER_CONTEXT_ALT,
             self.PREV_N_BP,
             self.NEXT_N_BP,
+            self.NEXT_1,
+            self.NEXT_2,
+            self.NEXT_3,
+            self.PREV_1,
+            self.PREV_2,
+            self.PREV_3,
         ]  # self.CYCLE_SKIP_FLAG not included because it's a flag, only there if True
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
@@ -253,6 +271,24 @@ class RefContextVcfAnnotator(VcfAnnotator):
             f"##INFO=<ID={self.NEXT_N_BP},"
             f'Number=1,Type=String,Description="{self.motif_length_to_annotate}'
             'bases in the reference after variant">'
+        )
+        header.add_line(
+            f"##INFO=<ID={self.NEXT_1}," f'Number=1,Type=String,Description="1 base in the reference after variant">'
+        )
+        header.add_line(
+            f"##INFO=<ID={self.NEXT_2}," f'Number=1,Type=String,Description="2 bases in the reference after variant">'
+        )
+        header.add_line(
+            f"##INFO=<ID={self.NEXT_3}," f'Number=1,Type=String,Description="3 bases in the reference after variant">'
+        )
+        header.add_line(
+            f"##INFO=<ID={self.PREV_1}," f'Number=1,Type=String,Description="1 base in the reference before variant">'
+        )
+        header.add_line(
+            f"##INFO=<ID={self.PREV_2}," f'Number=1,Type=String,Description="2 bases in the reference before variant">'
+        )
+        header.add_line(
+            f"##INFO=<ID={self.PREV_3}," f'Number=1,Type=String,Description="3 bases in the reference before variant">'
         )
         header.add_line(
             f"##INFO=<ID={self.HMER_CONTEXT_REF},"
@@ -305,6 +341,12 @@ class RefContextVcfAnnotator(VcfAnnotator):
                 record.info[self.NEXT_N_BP] = ref_around_snv[
                     central_base_ind + 1 : central_base_ind + self.motif_length_to_annotate + 1
                 ]
+                record.info[self.NEXT_1] = ref_around_snv[central_base_ind + 1]
+                record.info[self.NEXT_2] = ref_around_snv[central_base_ind + 2]
+                record.info[self.NEXT_3] = ref_around_snv[central_base_ind + 3]
+                record.info[self.PREV_1] = ref_around_snv[central_base_ind - 1]
+                record.info[self.PREV_2] = ref_around_snv[central_base_ind - 2]
+                record.info[self.PREV_3] = ref_around_snv[central_base_ind - 3]
                 is_cycle_skip = self.cycle_skip_dataframe.loc[(trinuc_ref, trinuc_alt), IS_CYCLE_SKIP]
                 record.info[self.CYCLE_SKIP_FLAG] = is_cycle_skip
 
