@@ -41,8 +41,12 @@ class FeatureMapFields(Enum):
     MAX_SOFTCLIP_LENGTH = "max_softclip_length"
     X_FLAGS = "X_FLAGS"
     X_CIGAR = "X_CIGAR"
-    PREV_3bp = "prev_3bp"
-    NEXT_3bp = "next_3bp"
+    PREV_1 = "prev_1"
+    PREV_2 = "prev_2"
+    PREV_3 = "prev_3"
+    NEXT_1 = "next_1"
+    NEXT_2 = "next_2"
+    NEXT_3 = "next_3"
 
 
 def get_hmer_of_central_base(sequence: str) -> int:
@@ -173,8 +177,8 @@ class RefContextVcfAnnotator(VcfAnnotator):
         Annotator to add reference context to VCF records, only modifies biallelic SNVs.
         The following are added to the INFO field:
         - trinuc_context_with_alt: reference trinucleotide context
-        - prev_Nbp: N bases in the reference before the variant, N=length motif_length_to_annotate
-        - next_Nnp: N bases in the reference after the variant, N=length motif_length_to_annotate
+        - prev_N: base i in the reference before the variant, i in range 1 to N=length motif_length_to_annotate
+        - next_N: base i in the reference after the variant, i in range 1 to N=length motif_length_to_annotate
         - hmer_context_ref: reference homopolymer context, up to length max_hmer_length
         - hmer_context_alt: homopolymer context in the ref allele (assuming the variant considered only),
             up to length max_hmer_length
@@ -187,7 +191,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
         flow_order : str
             Flow order of the flow cell.
         motif_length_to_annotate : int, optional
-            The length of the motif to annotate context up to (prev_Nbp / next_Nbp). Defaults to 4.
+            The length of the motif to annotate context up to (prev_N / next_N). Defaults to 3.
         max_hmer_length : int, optional
             The maximum length of the homopolymer to annotate context up to. Defaults to 20.
         """
@@ -209,15 +213,17 @@ class RefContextVcfAnnotator(VcfAnnotator):
         self.HMER_CONTEXT_REF = FeatureMapFields.HMER_CONTEXT_REF.value
         self.HMER_CONTEXT_ALT = FeatureMapFields.HMER_CONTEXT_ALT.value
         self.CYCLE_SKIP_FLAG = FeatureMapFields.IS_CYCLE_SKIP.value
-        self.PREV_N_BP = f"prev_{self.motif_length_to_annotate}bp"
-        self.NEXT_N_BP = f"next_{self.motif_length_to_annotate}bp"
+        self.SINGLE_REF_BASES = []
+        for i in range(self.motif_length_to_annotate):
+            self.SINGLE_REF_BASES.append(f"prev_{i + 1}")
+            self.SINGLE_REF_BASES.append(f"next_{i + 1}")
+
         self.info_fields_to_add = [
             self.TRINUC_CONTEXT_WITH_ALT,
             self.HMER_CONTEXT_REF,
             self.HMER_CONTEXT_ALT,
-            self.PREV_N_BP,
-            self.NEXT_N_BP,
-        ]  # self.CYCLE_SKIP_FLAG not included because it's a flag, only there if True
+        ] + self.SINGLE_REF_BASES
+        # self.CYCLE_SKIP_FLAG not included because it's a flag, only there if True
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
         """
@@ -240,32 +246,69 @@ class RefContextVcfAnnotator(VcfAnnotator):
             f"_motif_length_to_annotate:{self.motif_length_to_annotate}"
             f"_max_hmer_length:{self.max_hmer_length}"
         )
-        header.add_line(
-            f"##INFO=<ID={self.TRINUC_CONTEXT_WITH_ALT},"
-            'Number=1,Type=String,Description="reference trinucleotide context and alt base">'
+
+        header.add_meta(
+            "INFO",
+            items=[
+                ("ID", self.TRINUC_CONTEXT_WITH_ALT),
+                ("Number", 1),
+                ("Type", "String"),
+                ("Description", "reference trinucleotide context and alt base"),
+            ],
         )
-        header.add_line(
-            f"##INFO=<ID={self.PREV_N_BP},"
-            f'Number=1,Type=String,Description="{self.motif_length_to_annotate}'
-            'bases in the reference before variant">'
+
+        for i in range(self.motif_length_to_annotate):
+            header.add_meta(
+                "INFO",
+                items=[
+                    ("ID", f"prev_{i + 1}"),
+                    ("Number", 1),
+                    ("Type", "String"),
+                    ("Description", f"{i + 1} bases in the reference before variant"),
+                ],
+            )
+            header.add_meta(
+                "INFO",
+                items=[
+                    ("ID", f"next_{i + 1}"),
+                    ("Number", 1),
+                    ("Type", "String"),
+                    ("Description", f"{i + 1} bases in the reference after variant"),
+                ],
+            )
+
+        header.add_meta(
+            "INFO",
+            items=[
+                ("ID", self.HMER_CONTEXT_REF),
+                ("Number", 1),
+                ("Type", "Integer"),
+                ("Description", f"reference homopolymer context, up to length {self.max_hmer_length}"),
+            ],
         )
-        header.add_line(
-            f"##INFO=<ID={self.NEXT_N_BP},"
-            f'Number=1,Type=String,Description="{self.motif_length_to_annotate}'
-            'bases in the reference after variant">'
+
+        header.add_meta(
+            "INFO",
+            items=[
+                ("ID", self.HMER_CONTEXT_ALT),
+                ("Number", 1),
+                ("Type", "Integer"),
+                (
+                    "Description",
+                    f"homopolymer context in the ref allele (assuming the variant considered only), "
+                    f"up to length {self.max_hmer_length}",
+                ),
+            ],
         )
-        header.add_line(
-            f"##INFO=<ID={self.HMER_CONTEXT_REF},"
-            f'Number=1,Type=Integer,Description="reference homopolymer context, '
-            f'up to length {self.max_hmer_length}">'
-        )
-        header.add_line(
-            f"##INFO=<ID={self.HMER_CONTEXT_ALT},"
-            f'Number=1,Type=Integer,Description="homopolymer context in the ref allele '
-            f'(assuming the variant considered only), up to length {self.max_hmer_length}">'
-        )
-        header.add_line(
-            f"##INFO=<ID={self.CYCLE_SKIP_FLAG}," f'Number=0,Type=Flag,Description="True if the SNV is a cycle skip">'
+
+        header.add_meta(
+            "INFO",
+            items=[
+                ("ID", self.CYCLE_SKIP_FLAG),
+                ("Number", 0),
+                ("Type", "Flag"),
+                ("Description", "True if the SNV is a cycle skip"),
+            ],
         )
 
         return header
@@ -299,12 +342,13 @@ class RefContextVcfAnnotator(VcfAnnotator):
                 record.info[self.HMER_CONTEXT_REF] = get_hmer_of_central_base(ref_around_snv)
                 record.info[self.HMER_CONTEXT_ALT] = get_hmer_of_central_base(alt_around_snv)
                 record.info[self.TRINUC_CONTEXT_WITH_ALT] = trinuc_ref + record.alts[0]
-                record.info[self.PREV_N_BP] = ref_around_snv[
-                    central_base_ind - self.motif_length_to_annotate : central_base_ind
-                ]
-                record.info[self.NEXT_N_BP] = ref_around_snv[
-                    central_base_ind + 1 : central_base_ind + self.motif_length_to_annotate + 1
-                ]
+
+                for index in range(1, self.motif_length_to_annotate + 1):
+                    field_name = f"next_{index}"
+                    record.info[field_name] = ref_around_snv[central_base_ind + index]
+                    field_name = f"prev_{index}"
+                    record.info[field_name] = ref_around_snv[central_base_ind - index]
+
                 is_cycle_skip = self.cycle_skip_dataframe.loc[(trinuc_ref, trinuc_alt), IS_CYCLE_SKIP]
                 record.info[self.CYCLE_SKIP_FLAG] = is_cycle_skip
 
