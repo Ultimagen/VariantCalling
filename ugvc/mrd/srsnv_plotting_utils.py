@@ -1044,13 +1044,13 @@ def plot_subsets_hists(
         name = item
 
         plt.figure(figsize=(8, 6))
-
+        logflag = False
         for label in labels_dict:
-            _ = (
-                td[td["label"] == label][score]
-                .clip(upper=max_score)
-                .hist(bins=bins, label=labels_dict[label], alpha=0.8, density=True)
-            )
+            h, bin_edges = np.histogram(td[td["label"] == label][score].clip(upper=max_score), bins=bins, density=True)
+            bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+            plt.bar(bin_centers, h, label=labels_dict[label], alpha=0.8, width=1, align="center")
+            if any(h > 0):
+                plt.yscale("log")
         plt.xlim([0, max_score])
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + name
@@ -1061,7 +1061,8 @@ def plot_subsets_hists(
                 output_filename_feature += ".png"
         plt.xlabel("ML qual", fontsize=font_size)
         plt.ylabel("Density", fontsize=font_size)
-        plt.yscale("log")
+        if logflag:
+            plt.yscale("log")
         plt.savefig(
             output_filename_feature,
             facecolor="w",
@@ -1435,8 +1436,7 @@ def create_report_plots(
         output_filename=output_qual_per_feature,
     )
 
-    if "is_mixed" in df:
-        is_mixed_flag = True
+    is_mixed_flag = "is_mixed" in df
     df_dict = get_data_subsets(df, is_mixed_flag)
     fpr_dict, recall_dict = get_fpr_recalls_subsets(df_dict, max_score)
 
