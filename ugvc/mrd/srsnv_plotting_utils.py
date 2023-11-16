@@ -1435,8 +1435,7 @@ def create_report_plots(
         output_filename=output_qual_per_feature,
     )
 
-    if "is_mixed" in df:
-        is_mixed_flag = True
+    is_mixed_flag = "is_mixed" in df
     df_dict = get_data_subsets(df, is_mixed_flag)
     fpr_dict, recall_dict = get_fpr_recalls_subsets(df_dict, max_score)
 
