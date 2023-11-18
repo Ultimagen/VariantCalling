@@ -1044,13 +1044,15 @@ def plot_subsets_hists(
         name = item
 
         plt.figure(figsize=(8, 6))
-
+        logflag = False
         for label in labels_dict:
-            _ = (
+            n, _, _ = (
                 td[td["label"] == label][score]
                 .clip(upper=max_score)
                 .hist(bins=bins, label=labels_dict[label], alpha=0.8, density=True)
             )
+            if any(n[0] > 0):
+                logflag = True
         plt.xlim([0, max_score])
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + name
@@ -1061,7 +1063,8 @@ def plot_subsets_hists(
                 output_filename_feature += ".png"
         plt.xlabel("ML qual", fontsize=font_size)
         plt.ylabel("Density", fontsize=font_size)
-        plt.yscale("log")
+        if logflag:
+            plt.yscale("log")
         plt.savefig(
             output_filename_feature,
             facecolor="w",
