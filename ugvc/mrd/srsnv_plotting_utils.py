@@ -1046,13 +1046,11 @@ def plot_subsets_hists(
         plt.figure(figsize=(8, 6))
         logflag = False
         for label in labels_dict:
-            n, _, _ = (
-                td[td["label"] == label][score]
-                .clip(upper=max_score)
-                .hist(bins=bins, label=labels_dict[label], alpha=0.8, density=True)
-            )
-            if any(n[0] > 0):
-                logflag = True
+            h, bin_edges = np.histogram(td[td["label"] == label][score].clip(upper=max_score), bins=bins, density=True)
+            bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+            plt.bar(bin_centers, h, label=labels_dict[label], alpha=0.8, width=1, align="center")
+            if any(h > 0):
+                plt.yscale("log")
         plt.xlim([0, max_score])
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         feature_title = title + name
