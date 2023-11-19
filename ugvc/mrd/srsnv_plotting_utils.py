@@ -1044,7 +1044,6 @@ def plot_subsets_hists(
         name = item
 
         plt.figure(figsize=(8, 6))
-        logflag = False
         for label in labels_dict:
             h, bin_edges = np.histogram(td[td["label"] == label][score].clip(upper=max_score), bins=bins, density=True)
             bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
@@ -1061,8 +1060,6 @@ def plot_subsets_hists(
                 output_filename_feature += ".png"
         plt.xlabel("ML qual", fontsize=font_size)
         plt.ylabel("Density", fontsize=font_size)
-        if logflag:
-            plt.yscale("log")
         plt.savefig(
             output_filename_feature,
             facecolor="w",
