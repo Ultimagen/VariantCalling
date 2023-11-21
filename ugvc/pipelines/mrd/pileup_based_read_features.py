@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import subprocess
 import sys
 from collections import defaultdict
 from enum import Enum
@@ -89,6 +90,26 @@ class PileupBasedReadFeatures:
         output_pref: str,
         simple_pipeline_args=(0, 10000, False),
     ):
+        self.sp = SimplePipeline(
+            simple_pipeline_args[0], simple_pipeline_args[1], debug=simple_pipeline_args[2], print_timing=True
+        )
+
+        # Run the shell command to get the access token
+        result = subprocess.run(
+            ["gcloud", "auth", "application-default", "print-access-token"],
+            stdout=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        access_token = result.stdout.strip()  # Extract the access token from the command output
+
+        # Set the environment variable 'GCS_OAUTH_TOKEN' with the obtained access token
+        os.environ["GCS_OAUTH_TOKEN"] = access_token
+
+        if "GCS_OAUTH_TOKEN" in os.environ:
+            print("Google Cloud credentials environment variable is set.")
+        else:
+            print("Google Cloud credentials environment variable is not set.")
         self.input_bam = input_bam
         self.input_bed = input_bed
         self.ref = reference_fasta
@@ -115,9 +136,6 @@ class PileupBasedReadFeatures:
 
         self.output_featuremap = pysam.VariantFile(
             f"{output_pref}.output_featuremap.vcf.gz", "w", header=self.featuremap.header
-        )
-        self.sp = SimplePipeline(
-            simple_pipeline_args[0], simple_pipeline_args[1], debug=simple_pipeline_args[2], print_timing=True
         )
 
     def process(self):
@@ -159,6 +177,7 @@ class PileupBasedReadFeatures:
                 # sys.stderr.write(f'{read_alts}\n')
 
                 for chrom, start, end in tmp_regions:
+                    print("working on region: chrom,start,end:", chrom, start, end)
                     self.__add_features_to_featuremap(chrom, start, end, read_features, events_per_read)
 
             # if last region was very large, break it into smaller regions
