@@ -1,4 +1,4 @@
-name: ucsc1
+name: ucsc
 channels:
   - defaults
   - conda-forge
