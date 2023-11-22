@@ -302,8 +302,8 @@ class PileupBasedReadFeatures:
                 of.write("\t".join(record))
                 of.write("\n")
                 read_features[read] = vtype_counts
-        for read, info in events_per_read.items():
-            print(read, info)
+        # for read, info in events_per_read.items():
+        #     print(read, info)
         return read_features, events_per_read
 
     def __add_features_to_featuremap(
@@ -314,6 +314,23 @@ class PileupBasedReadFeatures:
         (using events_per_read to re-catagorize it)
         write the finalized feature counts as info feilds in the output vcf featuremap
         """
+        # Run the shell command to get the access token
+        result = subprocess.run(
+            ["gcloud", "auth", "application-default", "print-access-token"],
+            stdout=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+        access_token = result.stdout.strip()  # Extract the access token from the command output
+
+        # Set the environment variable 'GCS_OAUTH_TOKEN' with the obtained access token
+        os.environ["GCS_OAUTH_TOKEN"] = access_token
+
+        if "GCS_OAUTH_TOKEN" in os.environ:
+            print("Google Cloud credentials environment variable is set.")
+        else:
+            print("Google Cloud credentials environment variable is not set.")
+
         for record in self.featuremap.fetch(chrom, start, end):
             if record.chrom == self.last_chr and record.pos < self.last_position:
                 continue
