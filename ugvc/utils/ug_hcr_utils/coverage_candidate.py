@@ -75,7 +75,7 @@ def filer_gaps(bed_file, GAPS):
     return out_file
 
 
-def generate_lcr_candidate(df_mean_std_all, q_comparison, min_cov_q0, min_frac, min_cov, max_cv, out_dir):
+def generate_lcr_candidate(df_mean_std_all, q_comparison, min_cov_q0, min_frac, min_cov, max_cv, out_dir,GAPS):
     """
     generate coverage lcr candidate
     Parameters
