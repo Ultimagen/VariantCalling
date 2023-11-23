@@ -106,10 +106,11 @@ class PileupBasedReadFeatures:
         # Set the environment variable 'GCS_OAUTH_TOKEN' with the obtained access token
         os.environ["GCS_OAUTH_TOKEN"] = access_token
 
-        if "GCS_OAUTH_TOKEN" in os.environ:
-            print("Google Cloud credentials environment variable is set.")
-        else:
-            print("Google Cloud credentials environment variable is not set.")
+        # if "GCS_OAUTH_TOKEN" in os.environ:
+        #     print("Google Cloud credentials environment variable is set.")
+        # else:
+        #     print("Google Cloud credentials environment variable is not set.")
+
         self.input_bam = input_bam
         self.input_bed = input_bed
         self.ref = reference_fasta
@@ -326,10 +327,10 @@ class PileupBasedReadFeatures:
         # Set the environment variable 'GCS_OAUTH_TOKEN' with the obtained access token
         os.environ["GCS_OAUTH_TOKEN"] = access_token
 
-        if "GCS_OAUTH_TOKEN" in os.environ:
-            print("Google Cloud credentials environment variable is set.")
-        else:
-            print("Google Cloud credentials environment variable is not set.")
+        # if "GCS_OAUTH_TOKEN" in os.environ:
+        #     print("Google Cloud credentials environment variable is set.")
+        # else:
+        #     print("Google Cloud credentials environment variable is not set.")
 
         for record in self.featuremap.fetch(chrom, start, end):
             if record.chrom == self.last_chr and record.pos < self.last_position:
