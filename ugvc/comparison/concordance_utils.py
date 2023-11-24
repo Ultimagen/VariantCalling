@@ -131,7 +131,28 @@ def calc_accuracy_metrics(
             ignore_index=True,
         )
     accuracy_df = pd.concat((accuracy_df, all_indels), ignore_index=True)
+
+    # Add summary for h-indels
+    df_indels = df.copy()
+    df_indels["group_testing"] = np.where(df_indels["hmer_indel_length"] > 0, "H-INDELS", "SNP")
+    all_indels = variant_filtering_utils.eval_decision_tree_model(
+        df_indels,
+        trivial_classifier_set,
+        classify_column_name,
+        add_testing_group_column=False,
+    )
+
+    # fix boundary case when there are no indels
+    all_indels = all_indels.query("group=='H-INDELS'")
+    if all_indels.shape[0] == 0:
+        all_indels.append(
+            variant_filtering_utils.get_empty_recall_precision("H-INDELS"),
+            ignore_index=True,
+        )
+    accuracy_df = pd.concat((accuracy_df, all_indels), ignore_index=True)
+
     accuracy_df = accuracy_df.round(5)
+
     return accuracy_df
 
 
