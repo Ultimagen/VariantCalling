@@ -355,7 +355,7 @@ def classify_hmer_indel_relative(
     Returns
     -------
     tuple
-        Pair of hmer indel length and hmer indel nucleotide
+        Pair of hmer indel nucleotide and hmer indel length
 
     Raises
     ------
@@ -402,11 +402,11 @@ def classify_hmer_indel_relative(
     fhaplotypes = [fbr.generate_key_from_sequence(x, flow_order) for x in haplotypes]
     compare = fbc.compare_haplotypes(fhaplotypes[0:1], fhaplotypes[1:2])
     if compare[0] != 1:
-        return ((0,), (".",))
+        return (".", 0)
     flow_location = np.nonzero(fhaplotypes[0] - fhaplotypes[1])[0]
     nucleotide = flow_order[flow_location[0] % 4]
     length = min(int(fhaplotypes[0][flow_location]), int(fhaplotypes[1][flow_location]))
-    return ((length,), (nucleotide,))
+    return (nucleotide, length)
 
 
 def encode_label(original_label: tuple, allele_indices: tuple) -> tuple:
@@ -448,6 +448,7 @@ def cleanup_multiallelics(df: pd.DataFrame) -> pd.DataFrame:
     """Fixes multiallelics in the training set dataframe. Converts non-h-indels that
         are hmer indels into h-indel variant type. Adjust the values of the RU/RPA/STR
     when the variant is convered to hmer indel. (I.e. A -> CCA or CA, CCA is hmer indel of CA).
+    Recalculates gq, qual and qd
 
         Parameters
         ----------
@@ -460,22 +461,36 @@ def cleanup_multiallelics(df: pd.DataFrame) -> pd.DataFrame:
             Output dataframe
     """
     df = df.copy()
-    select = (df["variant_type"] == "non-h-indel") & (df["x_hil"].apply(lambda x: x[0] is not None))
+    select = (df["variant_type"] == "non-h-indel") & (df["x_hil"].apply(lambda x: x[0] is not None and x[0] > 0))
     df.loc[select, "variant_type"] = "h-indel"
-    df.loc[select, "str"] = True
-    df.loc[select, "ru"] = df.loc[select, "x_hin"].apply(lambda x: x[0])
-    ins_or_del = df.loc[select, "x_ic"].apply(lambda x: x[0])
-    df.loc[select, "ins_or_del"] = ins_or_del
 
-    def _alleles_lengths(v: pd.Series) -> tuple:
-        if v["ins_or_del"] == "ins":
-            return (v["x_hil"][0], v["x_hil"][0] + v["x_il"][0])
-        return (v["x_hil"][0] + v["x_il"][0], v["x_hil"][0])
+    fix_str = "str" in df.columns  # in some cases we do not have this annotation
 
-    df.loc[select, "rpa"] = df.loc[select].apply(_alleles_lengths, axis=1)
-    df.drop("ins_or_del", axis=1, inplace=True)
-    select = (df["variant_type"] == "h-indel") & (df["x_hil"].apply(lambda x: x[0] is None))
+    if fix_str:
+        df.loc[select, "str"] = True
+        df.loc[select, "ru"] = df.loc[select, "x_hin"].apply(lambda x: x[0])
+        ins_or_del = df.loc[select, "x_ic"].apply(lambda x: x[0])
+        df.loc[select, "ins_or_del"] = ins_or_del
+
+        def _alleles_lengths(v: pd.Series) -> tuple:
+            inslen = v["x_il"][0]
+            if inslen is None:
+                inslen = 0
+            if v["ins_or_del"] == "ins":
+                return (v["x_hil"][0], v["x_hil"][0] + inslen)
+            return (v["x_hil"][0] + inslen, v["x_hil"][0])
+
+        df.loc[select, "rpa"] = df.loc[select].apply(_alleles_lengths, axis=1)
+        df.drop("ins_or_del", axis=1, inplace=True)
+    select = (df["variant_type"] == "h-indel") & (df["x_hil"].apply(lambda x: x[0] is None or x[0] == 0))
     df.loc[select, "variant_type"] = "non-h-indel"
+    print("Cleaning up multiallelics")
+    pls = df["pl"].apply(sorted)
+    df["gq"] = np.clip(pls.apply(lambda x: x[1] - x[0]), 0, 99)
+    mq = df["pl"].apply(lambda x: sorted(x[1:])[0])
+    qref = df["pl"].apply(lambda x: x[0])
+    df["qual"] = np.clip(mq - qref, 0, None)
+    df["qd"] = df["qual"] / df["dp"]
 
     return df
 

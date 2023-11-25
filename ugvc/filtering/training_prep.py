@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import pyfaidx
@@ -13,6 +15,7 @@ from ugvc.vcfbed import vcftools
 
 IGNORE = -1
 MISS = -2
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 def calculate_labeled_vcf(call_vcf: str, vcfeval_vcf: str, contig: str) -> pd.DataFrame:
@@ -168,7 +171,7 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     for n in multiallelic_groups:
         n.loc[:, "multiallelic_group"] = [(n.iloc[0]["chrom"], n.iloc[0]["pos"])] * (n.shape[0])
     multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
-
+    multiallelic_groups = mu.cleanup_multiallelics(multiallelic_groups)
     spanning_deletions = [
         pd.concat(
             [df.iloc[olp[0] : olp[0] + 1]]
@@ -185,8 +188,9 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
             n.shape[0]
         )
     spanning_deletions = pd.concat(spanning_deletions, ignore_index=True)
+    spanning_deletions = mu.cleanup_multiallelics(spanning_deletions)
 
     idx_multi_spandels = df.index[combined_overlaps]
     df.drop(idx_multi_spandels, axis=0, inplace=True)
 
-    return pd.concat((df, multiallelic_groups))
+    return pd.concat((df, multiallelic_groups, spanning_deletions))
