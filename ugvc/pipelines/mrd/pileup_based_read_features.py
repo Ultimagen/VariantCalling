@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from collections import defaultdict
 from enum import Enum
 
@@ -170,16 +171,24 @@ class PileupBasedReadFeatures:
                 with open(self.tmp_region_bed, "w", encoding="utf-8") as tmp_bed:
                     for chrom, start, end in tmp_regions:
                         tmp_bed.write(f"{chrom}\t{start - self.PADDING}\t{end + self.PADDING}\n")
+
                 self.sp.print_and_run(
                     f'samtools mpileup {self.input_bam} -Q 0 --ff "" -l {self.tmp_region_bed} '
                     f"-f {self.ref} --output-extra QNAME -o {self.tmp_pileup_file}"
                 )
+
+                start_time = time.time()
                 read_features, events_per_read = self.__calc_read_features_from_pileup()
                 # sys.stderr.write(f'{read_alts}\n')
+                end_time = time.time()
+                print(f"\n --- rina \n calc_read_features_from_pileup took {end_time - start_time} seconds\n")
 
                 for chrom, start, end in tmp_regions:
+                    start_time = time.time()
                     print("working on region: chrom,start,end:", chrom, start, end)
                     self.__add_features_to_featuremap(chrom, start, end, read_features, events_per_read)
+                    end_time = time.time()
+                    print(f"\n --- rina \n add_features_to_featuremap took {end_time - start_time} seconds\n")
 
             # if last region was very large, break it into smaller regions
             if region_size > self.MAX_REGION_SIZE * 1.5:
