@@ -2,8 +2,6 @@ import filecmp
 import subprocess
 from os.path import join as pjoin
 from test import get_resource_dir
-import pandas as pd
-import numpy as np
 from ugvc import base_dir
 
 resources_dir = get_resource_dir(__file__)
