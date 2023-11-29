@@ -2,7 +2,6 @@ name: ucsc
 channels:
   - defaults
   - conda-forge
-  - default
   - bioconda
 dependencies:
   - _libgcc_mutex=0.1=main
@@ -17,5 +16,7 @@ dependencies:
   - mysql-connector-c=6.1.6=2
   - openssl=1.0.2u=h7b6447c_0
   - ucsc-bedgraphtobigwig=377=h199ee4e_0
+  - ucsc-bigwigtobedgraph=377=h199ee4e_0
   - zlib=1.2.11=h7b6447c_3
+  - bedtools=2.30.0=h7d7f7ad_1
 prefix: /home/ec2-user/miniconda3/envs/ucsc
