@@ -12,6 +12,8 @@ from enum import Enum
 import pysam
 from simppl.simple_pipeline import SimplePipeline
 
+DEBUG_PRINTS = False
+
 
 class VariantType(Enum):
     SNV = 1
@@ -145,6 +147,10 @@ class PileupBasedReadFeatures:
         main loop iterating input regions, breaking to chuncks that fit in memory,
         running pileup on each chunk, and counting events of each type from pileups (per read)
         """
+
+        # profiler = cProfile.Profile()
+        # profiler.enable()
+
         regions = self.__load_regions()
 
         regions_index = 0
@@ -171,7 +177,7 @@ class PileupBasedReadFeatures:
                 with open(self.tmp_region_bed, "w", encoding="utf-8") as tmp_bed:
                     for chrom, start, end in tmp_regions:
                         tmp_bed.write(f"{chrom}\t{start - self.PADDING}\t{end + self.PADDING}\n")
-
+                # TODO: add gcs authorization
                 self.sp.print_and_run(
                     f'samtools mpileup {self.input_bam} -Q 0 --ff "" -l {self.tmp_region_bed} '
                     f"-f {self.ref} --output-extra QNAME -o {self.tmp_pileup_file}"
@@ -181,14 +187,15 @@ class PileupBasedReadFeatures:
                 read_features, events_per_read = self.__calc_read_features_from_pileup()
                 # sys.stderr.write(f'{read_alts}\n')
                 end_time = time.time()
-                print(f"\n --- rina \n calc_read_features_from_pileup took {end_time - start_time} seconds\n")
+                if DEBUG_PRINTS:
+                    print(f"\n --- rina \n calc_read_features_from_pileup took {end_time - start_time} seconds\n")
 
                 for chrom, start, end in tmp_regions:
                     start_time = time.time()
-                    print("working on region: chrom,start,end:", chrom, start, end)
                     self.__add_features_to_featuremap(chrom, start, end, read_features, events_per_read)
                     end_time = time.time()
-                    print(f"\n --- rina \n add_features_to_featuremap took {end_time - start_time} seconds\n")
+                    if DEBUG_PRINTS:
+                        print(f"\n --- rina \n add_features_to_featuremap took {end_time - start_time} seconds\n")
 
             # if last region was very large, break it into smaller regions
             if region_size > self.MAX_REGION_SIZE * 1.5:
@@ -203,6 +210,11 @@ class PileupBasedReadFeatures:
                     )
                     read_features, events_per_read = self.__calc_read_features_from_pileup()
                     self.__add_features_to_featuremap(chrom, start_, end_, read_features, events_per_read)
+
+        # profiler.disable()
+        # profiler.dump_stats(f'/data1/work/rinas/231128_run_pileup/process.prof')
+        # stats = pstats.Stats(profiler).sort_stats('cumtime')
+        # stats.print_stats()
 
     @staticmethod
     def parse_pileup(
@@ -270,6 +282,7 @@ class PileupBasedReadFeatures:
         """
         events_per_read = defaultdict(list)
         read_features = defaultdict(dict)
+
         with open(self.tmp_pileup_file, encoding="utf-8") as pu:
             for line in pu:
                 chrom, pos, _, _, alleles_str, _, read_names = line.split("\t")
@@ -324,23 +337,35 @@ class PileupBasedReadFeatures:
         (using events_per_read to re-catagorize it)
         write the finalized feature counts as info feilds in the output vcf featuremap
         """
-        # Run the shell command to get the access token
-        result = subprocess.run(
-            ["gcloud", "auth", "application-default", "print-access-token"],
-            stdout=subprocess.PIPE,
-            text=True,
-            check=False,
-        )
-        access_token = result.stdout.strip()  # Extract the access token from the command output
+        # start_time = time.time()
 
-        # Set the environment variable 'GCS_OAUTH_TOKEN' with the obtained access token
-        os.environ["GCS_OAUTH_TOKEN"] = access_token
+        # # Run the shell command to get the access token
+        # result = subprocess.run(
+        #     ["gcloud", "auth", "application-default", "print-access-token"],
+        #     stdout=subprocess.PIPE,
+        #     text=True,
+        #     check=False,
+        # )
+        # access_token = result.stdout.strip()  # Extract the access token from the command output
 
-        # if "GCS_OAUTH_TOKEN" in os.environ:
-        #     print("Google Cloud credentials environment variable is set.")
-        # else:
-        #     print("Google Cloud credentials environment variable is not set.")
+        # # Set the environment variable 'GCS_OAUTH_TOKEN' with the obtained access token
+        # os.environ["GCS_OAUTH_TOKEN"] = access_token
 
+        # end_time = time.time()
+        # print(f"\n --- rina \n GCS_OAUTH_TOKEN took {end_time - start_time} seconds\n")
+
+        # start_time = time.time()
+        # n_records = 0
+        # for record in self.featuremap.fetch(chrom, start, end):
+        #     n_records = n_records + 1
+        # end_time = time.time()
+        # if DEBUG_PRINTS:
+        #     print(f"\n --- rina \n fetch took {end_time - start_time} seconds\n")
+
+        # profiler = cProfile.Profile()
+        # profiler.enable()
+
+        # start_time = time.time()
         for record in self.featuremap.fetch(chrom, start, end):
             if record.chrom == self.last_chr and record.pos < self.last_position:
                 continue
@@ -374,6 +399,15 @@ class PileupBasedReadFeatures:
                 sys.stderr.write(f"missing read info {read_name} at {record.chrom} {record.pos}\n")
                 for feature_name in self.FEATURE_NAMES:
                     record.info[feature_name] = 0
+
+        # profiler.disable()
+        # # profiler.dump_stats(f'{chrom}_{start}_{end}.prof')
+        # stats = pstats.Stats(profiler).sort_stats('ncalls')
+        # stats.print_stats()
+
+        # end_time = time.time()
+        # if DEBUG_PRINTS:
+        #     print(f"\n --- rina \n main loop took {end_time - start_time} seconds\n")
 
 
 def run(argv):
