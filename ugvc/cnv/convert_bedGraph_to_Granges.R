@@ -11,7 +11,7 @@ parser$add_argument("-sample_name", "--sample_name",
 args <- parser$parse_args()
 
 
-bg <- read.table(args$input_bedGraph, sep="\t", skip=1)
+bg <- read.table(args$input_bedGraph, sep="\t", skip=0)
 colnames(bg) <- c("seqnames", "start", "end", args$sample_name)
 gr <- makeGRangesFromDataFrame(bg, ignore.strand=TRUE, keep.extra.columns=TRUE)
 out_file_name <- paste(args$sample_name, ".ReadCounts.rds", sep="")
