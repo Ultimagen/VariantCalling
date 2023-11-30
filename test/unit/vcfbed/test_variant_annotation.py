@@ -148,8 +148,9 @@ class TestVariantAnnotation:
         assert FeatureMapFields.HMER_CONTEXT_REF.value in annotated_variants.header.info
         assert FeatureMapFields.HMER_CONTEXT_ALT.value in annotated_variants.header.info
         assert FeatureMapFields.IS_CYCLE_SKIP.value in annotated_variants.header.info
-        assert f"prev_{motif_length}bp" in annotated_variants.header.info
-        assert f"next_{motif_length}bp" in annotated_variants.header.info
+        for i in range(motif_length):
+            assert f"prev_{i+1}" in annotated_variants.header.info
+            assert f"next_{i+1}" in annotated_variants.header.info
 
         cycle_skips = 0
         non_cycle_skips = 0
@@ -158,8 +159,6 @@ class TestVariantAnnotation:
         for variant in annotated_variants:
             assert len(variant.info[FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]) == motif_length + 1
             assert len(variant.info[FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value]) == motif_length + 1
-            assert len(variant.info[f"prev_{motif_length}bp"]) == motif_length
-            assert len(variant.info[f"next_{motif_length}bp"]) == motif_length
             if variant.info[FeatureMapFields.IS_CYCLE_SKIP.value]:
                 cycle_skips += 1
             else:

@@ -51,7 +51,11 @@ def test_annotate_featuremap(tmpdir):
         "hmer_context_ref",
         "hmer_context_alt",
         "is_cycle_skip",
-        "prev_3bp",
-        "next_3bp",
+        "prev_1",
+        "prev_2",
+        "prev_3",
+        "next_1",
+        "next_2",
+        "next_3",
     ]:
         assert str(info_field) in out.header.info

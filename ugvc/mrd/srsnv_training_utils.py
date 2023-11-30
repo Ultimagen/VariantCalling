@@ -43,7 +43,14 @@ default_numerical_features = [
 ]
 default_categorical_features = [
     FeatureMapFields.IS_CYCLE_SKIP.value,
-    FeatureMapFields.TRINUC_CONTEXT_WITH_ALT.value,
+    FeatureMapFields.ALT.value,
+    FeatureMapFields.REF.value,
+    FeatureMapFields.PREV_1.value,
+    FeatureMapFields.PREV_2.value,
+    FeatureMapFields.PREV_3.value,
+    FeatureMapFields.NEXT_1.value,
+    FeatureMapFields.NEXT_2.value,
+    FeatureMapFields.NEXT_3.value,
 ]
 
 

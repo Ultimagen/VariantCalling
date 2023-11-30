@@ -10,6 +10,7 @@ from pandas.api.types import CategoricalDtype
 from scipy.interpolate import interp1d
 
 from ugvc import logger
+from ugvc.dna.format import ALT, CHROM, FILTER, POS, QUAL, REF
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # TODO add tests for the inference module
@@ -20,6 +21,22 @@ LOW_QUAL = "LowQual"
 PRE_FILTERED = "PreFiltered"
 
 LOW_QUAL_THRESHOLD = 40
+
+
+def _vcf_getter(variant, field):
+    if field == ALT:
+        return variant.alts[0]
+    if field == REF:
+        return variant.ref
+    if field == CHROM:
+        return variant.chrom
+    if field == POS:
+        return variant.pos
+    if field == FILTER:
+        return variant.filter
+    if field == QUAL:
+        return variant.qual
+    return variant.info.get(field, None)
 
 
 class MLQualAnnotator(VcfAnnotator):
@@ -126,7 +143,7 @@ class MLQualAnnotator(VcfAnnotator):
         """
         # Convert list of variant records to a pandas DataFrame
         columns = self.numerical_features + self.categorical_features
-        data = [{column: variant.info[column] for column in columns} for variant in records]
+        data = [{column: _vcf_getter(variant, column) for column in columns} for variant in records]
         df = pd.DataFrame(data)[columns]
 
         # encode categorical features
