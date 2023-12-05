@@ -159,7 +159,6 @@ def get_vcf_df(
         "MinDP",
         "ADF",
         "ADR",
-        "SCR",
         "GP",
         "SYNC",
         "ML_PROB",

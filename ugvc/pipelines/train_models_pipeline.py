@@ -159,16 +159,17 @@ def run(argv: list[str]):
         raise af_var
 
     try:
-        FIELDS_TO_IGNORE = [
-            "X_IC",
-            "X_IL",
-            "X_HIL",
-            "X_HIN",
-            "X_LM",
-            "X_RM",
-            "X_GCC",
-            "X_CSS",
-        ]
+        # FIELDS_TO_IGNORE = [
+        #     "X_IC",
+        #     "X_IL",
+        #     "X_HIL",
+        #     "X_HIN",
+        #     "X_LM",
+        #     "X_RM",
+        #     "X_GCC",
+        #     "X_CSS",
+        # ]
+        FIELDS_TO_IGNORE = []
         with_dbsnp_bl = args.input_file.endswith("vcf.gz")
         if with_dbsnp_bl:
             if args.list_of_contigs_to_read != []:

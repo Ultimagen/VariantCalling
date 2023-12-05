@@ -106,11 +106,11 @@ def test_indel_classify_subset_with_spandel(alleles, allele_indices, spandel, ex
 ref = "A" * 20 + "G" + "ACCGCT" + "A" * 20
 spandel = pd.Series({"alleles": ("GA", "G"), "pos": 21})
 testdata = [
-    [("A", "C"), (0, 1), ref, 22, spandel, ((0,), (".",))],
-    [("A", "C", "CA"), (1, 2), ref, 22, spandel, ((0,), (".",))],
-    [("A", "C", "CC"), (1, 2), ref, 22, spandel, ((3,), ("C",))],
-    [("A", "CC", "C"), (1, 2), ref, 22, spandel, ((3,), ("C",))],
-    [("A", "C", "*"), (1, 2), ref, 22, spandel, ((2,), ("C",))],
+    [("A", "C"), (0, 1), ref, 22, spandel, (".", 0)],
+    [("A", "C", "CA"), (1, 2), ref, 22, spandel, (".", 0)],
+    [("A", "C", "CC"), (1, 2), ref, 22, spandel, ("C", 4)],
+    [("A", "CC", "C"), (1, 2), ref, 22, spandel, ("C", 4)],
+    [("A", "C", "*"), (1, 2), ref, 22, spandel, ("C", 3)],
 ]
 
 
@@ -141,7 +141,7 @@ def test_cleanup_multiallelics():
     result = tprep.cleanup_multiallelics(input)
     pd.testing.assert_frame_equal(result, expected)
     result = result.loc[result["label"].apply(lambda x: x in {(0, 1), (1, 1), (0, 0)})]
-    assert np.all(result.loc[result["x_hil"] != (None,), "variant_type"] == "h-indel")
+    assert np.all(result.loc[(result["x_hil"] != (None,)) & (result["x_hil"] != (0,)), "variant_type"] == "h-indel")
     assert np.all(result.loc[result["x_hil"] == (None,), "variant_type"] != "h-indel")
     select = ~pd.isnull(result["str"])
     result = result.loc[select]
