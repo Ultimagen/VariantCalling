@@ -405,7 +405,7 @@ def classify_hmer_indel_relative(
         return (".", 0)
     flow_location = np.nonzero(fhaplotypes[0] - fhaplotypes[1])[0]
     nucleotide = flow_order[flow_location[0] % 4]
-    length = min(int(fhaplotypes[0][flow_location]), int(fhaplotypes[1][flow_location]))
+    length = max(int(fhaplotypes[0][flow_location]), int(fhaplotypes[1][flow_location]))
     return (nucleotide, length)
 
 
@@ -484,7 +484,6 @@ def cleanup_multiallelics(df: pd.DataFrame) -> pd.DataFrame:
         df.drop("ins_or_del", axis=1, inplace=True)
     select = (df["variant_type"] == "h-indel") & (df["x_hil"].apply(lambda x: x[0] is None or x[0] == 0))
     df.loc[select, "variant_type"] = "non-h-indel"
-    print("Cleaning up multiallelics")
     pls = df["pl"].apply(sorted)
     df["gq"] = np.clip(pls.apply(lambda x: x[1] - x[0]), 0, 99)
     mq = df["pl"].apply(lambda x: sorted(x[1:])[0])
