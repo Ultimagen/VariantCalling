@@ -22,6 +22,7 @@ from ugvc.utils.stats_utils import get_f1, get_precision, get_recall, precision_
 
 class VcfType(Enum):
     SINGLE_SAMPLE = 1
+    SINGLE_SAMPLE_OLD_VC = 3
     JOINT = 2
 
 
@@ -31,7 +32,7 @@ class SingleModel:
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
 
-    def predict(self, df: pd.DataFrame) -> pd.Series:
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
         result_vec = np.ones(df.shape[0], dtype=bool)
         for var in self.threshold_dict:
             result_vec = result_vec & ((df[var] > self.threshold_dict[var]) == self.is_greater_then[var])
@@ -487,7 +488,7 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
         return pd.DataFrame(np.array([y[:2] for y in s]).reshape((-1, 2)), index=s.index)
 
     def tuple_uniform_encode(s):
-        return pd.DataFrame(list(s), index=s.index)
+        return pd.DataFrame(list(s), index=s.index).fillna(1000)
 
     def motif_encode_left_df(s):
         return pd.DataFrame(np.array([motif_encode_left(y) for y in s]).reshape((-1, 1)), index=s.index)
@@ -509,8 +510,6 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     left_motif_filter = preprocessing.FunctionTransformer(motif_encode_left_df)
 
     right_motif_filter = preprocessing.FunctionTransformer(motif_encode_right_df)
-
-    # trinucleotide_filter = preprocessing.FunctionTransformer(trinucleotide_encode)
 
     def allele_encode_df(s):
         return pd.DataFrame(np.array([x[:2] for x in s]), index=s.index).applymap(allele_encode)
@@ -636,6 +635,43 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
                 ("scl", tuple_encode_doublet_df_transformer, "scl"),
                 ("scr", tuple_encode_doublet_df_transformer, "scr"),
                 ("nmc", tuple_encode_doublet_df_transformer, "nmc"),
+            ]
+        )
+    elif vtype == "single_sample_old_vc":  # needs to just be able to work with old vc
+        qual_column = "qual"
+        features.extend(
+            [
+                "qual",
+                "ps",
+                "ac",
+                "ad",
+                "gt",
+                "gq",
+                "pl",
+                "af",
+                "mleac",
+                "mleaf",
+            ]
+        )
+        transform_list.extend(
+            [
+                ("qual", "passthrough", ["qual"]),
+                ("fs", default_filler, ["fs"]),
+                ("qd", default_filler, ["qd"]),
+                ("mq", default_filler, ["mq"]),
+                ("an", default_filler, ["an"]),
+                ("baseqranksum", default_filler, ["baseqranksum"]),
+                ("excesshet", default_filler, ["excesshet"]),
+                ("mqranksum", default_filler, ["mqranksum"]),
+                ("readposranksum", default_filler, ["readposranksum"]),
+                ("ac", tuple_encode_df_transformer, "ac"),
+                ("ad", tuple_encode_doublet_df_transformer, "ad"),
+                ("gt", gt_filter, "gt"),
+                ("gq", default_filler, ["gq"]),
+                ("pl", tuple_uniform_encode_df_transformer, "pl"),
+                ("af", tuple_encode_df_transformer, "af"),
+                ("mleac", tuple_encode_df_transformer, "mleac"),
+                ("mleaf", tuple_encode_df_transformer, "mleaf"),
             ]
         )
     elif vtype == "joint":
