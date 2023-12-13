@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="ugvc",
-    version="0.16",
+    version="0.17",
     packages=find_packages(),
     install_requires=[],
     scripts=[
