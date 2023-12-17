@@ -13,6 +13,7 @@ import pandas as pd
 import pysam
 import seaborn as sns
 
+from ugvc.flow_format.flow_based_read import generate_key_from_sequence
 from ugvc.utils.metrics_utils import read_sorter_statistics_csv
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html, set_pyplot_defaults
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
@@ -1169,6 +1170,7 @@ def plot_strand_ratio_category_concordnace(
 
 # pylint: disable=differing-param-doc
 # pylint: disable=differing-type-doc
+# pylint: disable=cell-var-from-loop
 def plot_trimmer_histogram(
     adapter_version: str | BalancedStrandAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
@@ -1208,34 +1210,22 @@ def plot_trimmer_histogram(
     _assert_adapter_version_supported(adapter_version)
     # display settings
     set_pyplot_defaults()
-    # generate axs
+
     if adapter_version in (
         BalancedStrandAdapterVersions.LA_v5and6,
         BalancedStrandAdapterVersions.LA_v5and6.value,
+        BalancedStrandAdapterVersions.LA_v5,
+        BalancedStrandAdapterVersions.LA_v5.value,
+        BalancedStrandAdapterVersions.LA_v6,
+        BalancedStrandAdapterVersions.LA_v6.value,
     ):
-        fig, axs = plt.subplots(1, 2, figsize=(14, 6), sharey=True, sharex=True)
-        fig.subplots_adjust(wspace=0.3)
-        plot_iter = (
-            (
-                TrimmerSegmentLabels.A_HMER_START.value,
-                TrimmerSegmentLabels.T_HMER_START.value,
-                HistogramColumnNames.COUNT_NORM.value,
-                "Start tag",
-            ),
-            (
-                TrimmerSegmentLabels.A_HMER_END.value,
-                TrimmerSegmentLabels.T_HMER_END.value,
-                HistogramColumnNames.COUNT_NORM.value,
-                "End tag",
-            ),
-        )
-    else:
-        fig, axs = plt.subplots(1, 1, figsize=(8, 6))
-        axs = [axs]
+        # generate axs
         if adapter_version in (
-            BalancedStrandAdapterVersions.LA_v5,
-            BalancedStrandAdapterVersions.LA_v5.value,
+            BalancedStrandAdapterVersions.LA_v5and6,
+            BalancedStrandAdapterVersions.LA_v5and6.value,
         ):
+            fig_x, axs = plt.subplots(1, 2, figsize=(14, 6), sharey=True, sharex=True)
+            fig_x.subplots_adjust(wspace=0.3)
             plot_iter = (
                 (
                     TrimmerSegmentLabels.A_HMER_START.value,
@@ -1243,12 +1233,6 @@ def plot_trimmer_histogram(
                     HistogramColumnNames.COUNT_NORM.value,
                     "Start tag",
                 ),
-            )
-        elif adapter_version in (
-            BalancedStrandAdapterVersions.LA_v6,
-            BalancedStrandAdapterVersions.LA_v6.value,
-        ):
-            plot_iter = (
                 (
                     TrimmerSegmentLabels.A_HMER_END.value,
                     TrimmerSegmentLabels.T_HMER_END.value,
@@ -1256,31 +1240,140 @@ def plot_trimmer_histogram(
                     "End tag",
                 ),
             )
+        else:
+            fig_x, axs = plt.subplots(1, 1, figsize=(8, 6))
+            axs = [axs]
+            if adapter_version in (
+                BalancedStrandAdapterVersions.LA_v5,
+                BalancedStrandAdapterVersions.LA_v5.value,
+            ):
+                plot_iter = (
+                    (
+                        TrimmerSegmentLabels.A_HMER_START.value,
+                        TrimmerSegmentLabels.T_HMER_START.value,
+                        HistogramColumnNames.COUNT_NORM.value,
+                        "Start tag",
+                    ),
+                )
+            elif adapter_version in (
+                BalancedStrandAdapterVersions.LA_v6,
+                BalancedStrandAdapterVersions.LA_v6.value,
+            ):
+                plot_iter = (
+                    (
+                        TrimmerSegmentLabels.A_HMER_END.value,
+                        TrimmerSegmentLabels.T_HMER_END.value,
+                        HistogramColumnNames.COUNT_NORM.value,
+                        "End tag",
+                    ),
+                )
 
-    # plot
-    title_handle = plt.suptitle(title, y=1.03)
-    for ax, (xcol, ycol, zcol, subtitle) in zip(axs, plot_iter):
-        # group by strand ratio and strand ratio category for non-undetermined reads
-        df_plot = df_trimmer_histogram.groupby([xcol, ycol]).agg({zcol: "sum"}).reset_index()
-        df_hmer_sum = df_plot[[xcol, ycol]].sum(axis=1)
-        df_plot = df_plot[
-            (min_total_hmer_lengths_in_tags <= df_hmer_sum) & (df_hmer_sum <= max_total_hmer_lengths_in_tags)
-        ]
-        df_plot.loc[:, zcol] = df_plot[zcol] / df_plot[zcol].sum()
-        # plot
-        plt.sca(ax)
-        plt.scatter(df_plot[xcol], df_plot[ycol], s=500 * df_plot[zcol], c=df_plot[zcol])
-        plt.colorbar()
-        plt.xticks(range(int(plt.gca().get_xlim()[1]) + 1))
-        plt.yticks(range(int(plt.gca().get_ylim()[1]) + 1))
-        plt.xlabel(xcol.replace("_", " "))
-        plt.ylabel(ycol.replace("_", " "))
-        plt.title(subtitle, fontsize=22)
+            # plot
+            title_handle = plt.suptitle(title, y=1.03)
+            for ax, (xcol, ycol, zcol, subtitle) in zip(axs, plot_iter):
+                # group by strand ratio and strand ratio category for non-undetermined reads
+                df_plot = df_trimmer_histogram.groupby([xcol, ycol]).agg({zcol: "sum"}).reset_index()
+                df_hmer_sum = df_plot[[xcol, ycol]].sum(axis=1)
+                df_plot = df_plot[
+                    (min_total_hmer_lengths_in_tags <= df_hmer_sum) & (df_hmer_sum <= max_total_hmer_lengths_in_tags)
+                ]
+                df_plot.loc[:, zcol] = df_plot[zcol] / df_plot[zcol].sum()
+                # plot
+                plt.sca(ax)
+                plt.scatter(df_plot[xcol], df_plot[ycol], s=500 * df_plot[zcol], c=df_plot[zcol])
+                plt.colorbar()
+                plt.xticks(range(int(plt.gca().get_xlim()[1]) + 1))
+                plt.yticks(range(int(plt.gca().get_ylim()[1]) + 1))
+                plt.xlabel(xcol.replace("_", " "))
+                plt.ylabel(ycol.replace("_", " "))
+                plt.title(subtitle, fontsize=22)
+    elif adapter_version in (
+        BalancedStrandAdapterVersions.LA_v7,
+        BalancedStrandAdapterVersions.LA_v7.value,
+    ):
+        fig, axs_all_both = plt.subplots(3, 9, figsize=(18, 5), sharex=False, sharey=True)
+        fig.subplots_adjust(wspace=0.2, hspace=0.6)
+        title_handle = fig.suptitle(title, y=1.25)
+        for ax in axs_all_both[:, 4]:
+            ax.axis("off")
+        axs_all_both[0, 1].text(0, 2, "Start loop", fontsize=24)
+        axs_all_both[0, 6].text(0, 2, "End loop", fontsize=24)
+        flow_order_start = "ATGC"
+        flow_order_end = "GCAT"
+        for m, (loop, loop_category, flow_order) in enumerate(
+            zip(
+                (
+                    HistogramColumnNames.LOOP_SEQUENCE_START.value,
+                    HistogramColumnNames.LOOP_SEQUENCE_END.value,
+                ),
+                (
+                    HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+                    HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+                ),
+                (flow_order_start, flow_order_end),
+            )
+        ):
+            df_calls = (
+                df_trimmer_histogram.groupby(
+                    [
+                        loop_category,
+                        loop,
+                    ]
+                )
+                .agg({HistogramColumnNames.COUNT_NORM.value: "sum"})
+                .query(f"{HistogramColumnNames.COUNT_NORM.value} > 0.0001")
+            )
+            axs_all = axs_all_both[:, m * 5 : m * 5 + 4]
+
+            for k, cat in enumerate(
+                [
+                    BalancedCategories.MIXED.value,
+                    BalancedCategories.MINUS.value,
+                    BalancedCategories.PLUS.value,
+                ]
+            ):
+                df_calls_x = df_calls.loc[cat].reset_index()
+                df_calls_x = df_calls_x.assign(
+                    flow_signal=df_calls_x[loop].apply(lambda x: generate_key_from_sequence(x, flow_order=flow_order))
+                )
+                df_calls_x = (
+                    df_calls_x["flow_signal"]
+                    .apply(pd.Series)
+                    .assign(
+                        **{HistogramColumnNames.COUNT_NORM.value: df_calls_x[HistogramColumnNames.COUNT_NORM.value]}
+                    )
+                )
+                axs = axs_all[k, :]
+                axs[0].set_ylabel(cat, fontsize=20)
+                for ax, (j, base) in zip(axs, enumerate(flow_order)):
+                    x = (
+                        df_calls_x.groupby(j)
+                        .agg({HistogramColumnNames.COUNT_NORM.value: "sum"})
+                        .reindex(range(5))
+                        .fillna(0)
+                        .reset_index()
+                    )
+                    ax.bar(
+                        x[j],
+                        x[HistogramColumnNames.COUNT_NORM.value] / x[HistogramColumnNames.COUNT_NORM.value].sum(),
+                        colors=[
+                            "blue",
+                            "#90EE90",
+                            "red",
+                            (0.5, 0, 0.5),
+                            (1, 0.65, 0, 0.5),
+                        ],
+                    )
+                    ax.set_xticks(range(5))
+                    if k == 0:
+                        ax.set_title(base)
+                    if k == 2:
+                        ax.set_xlabel("hmer")
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
             output_filename += ".png"
-        plt.savefig(
+        fig.savefig(
             output_filename,
             facecolor="w",
             dpi=300,
