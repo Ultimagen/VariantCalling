@@ -18,7 +18,7 @@ from ugvc.utils.misc_utils import modify_jupyter_notebook_html, set_pyplot_defau
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # Display defaults
-STRAND_RATIO_AXIS_LABEL = "LIG/HYB strands ratio"
+STRAND_RATIO_AXIS_LABEL = "MINUS/PLUS strand ratio"
 
 
 # Supported adapter versions
@@ -53,8 +53,8 @@ class TrimmerSegmentTags(Enum):
 class BalancedCategories(Enum):
     # Category names
     MIXED = "MIXED"
-    LIG = "LIG"
-    HYB = "HYB"
+    MINUS = "MINUS"
+    PLUS = "PLUS"
     END_UNREACHED = "END_UNREACHED"
     UNDETERMINED = "UNDETERMINED"
 
@@ -62,8 +62,8 @@ class BalancedCategories(Enum):
 class BalancedCategoriesConsensus(Enum):
     # Category names
     MIXED = "MIXED"
-    LIG = "LIG"
-    HYB = "HYB"
+    MINUS = "MINUS"
+    PLUS = "PLUS"
     DISCORDANT = "DISCORDANT"
     UNDETERMINED = "UNDETERMINED"
 
@@ -131,23 +131,23 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
         )
         header.add_line(
             f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_START.value},"
-            'Number=1,Type=Float,Description="Ratio of LIG and HYB strands '
+            'Number=1,Type=Float,Description="Ratio of MINUS and PLUS strands '
             'measured from the tag in the start of the read">'
         )
         header.add_line(
             f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_END.value},"
-            'Number=1,Type=Float,Description="Ratio of LIG and HYB strands '
+            'Number=1,Type=Float,Description="Ratio of MINUS and PLUS strands '
             'measured from the tag in the end of the read">'
         )
         header.add_line(
             f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value},"
-            'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
+            'Number=1,Type=String,Description="Balanced read category derived from the ratio of MINUS and PLUS strands '
             "measured from the tag in the start of the read, options: "
             f'{", ".join(balanced_category_list)}">'
         )
         header.add_line(
             f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value},"
-            'Number=1,Type=String,Description="Balanced read category derived from the ratio of LIG and HYB strands '
+            'Number=1,Type=String,Description="Balanced read category derived from the ratio of MINUS and PLUS strands '
             "measured from the tag in the end of the read, options: "
             f'{", ".join(balanced_category_list)}">'
         )
@@ -282,9 +282,9 @@ def get_strand_ratio_category(strand_ratio, sr_lower, sr_upper):
         strand ratio category
     """
     if strand_ratio == 0:
-        return BalancedCategories.HYB.value
+        return BalancedCategories.PLUS.value
     if strand_ratio == 1:
-        return BalancedCategories.LIG.value
+        return BalancedCategories.MINUS.value
     if sr_lower <= strand_ratio <= sr_upper:
         return BalancedCategories.MIXED.value
     return BalancedCategories.UNDETERMINED.value
