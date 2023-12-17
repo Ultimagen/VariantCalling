@@ -354,6 +354,9 @@ def read_balanced_strand_trimmer_histogram(
     # Handle v5 and v6 loops
     if adapter_version in [
         BalancedStrandAdapterVersions.LA_v5,
+        BalancedStrandAdapterVersions.LA_v6,
+        BalancedStrandAdapterVersions.LA_v5and6,
+        BalancedStrandAdapterVersions.LA_v5.value,
         BalancedStrandAdapterVersions.LA_v6.value,
         BalancedStrandAdapterVersions.LA_v5and6.value,
     ]:
@@ -1031,6 +1034,7 @@ def plot_strand_ratio_category(
 
     df_trimmer_histogram_by_strand_ratio_category = (
         (group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram))
+        .drop(BalancedCategories.END_UNREACHED.value, errors="ignore")
         .drop(
             columns=[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value],
             errors="ignore",
@@ -1231,13 +1235,13 @@ def plot_trimmer_histogram(
                     TrimmerSegmentLabels.A_HMER_START.value,
                     TrimmerSegmentLabels.T_HMER_START.value,
                     HistogramColumnNames.COUNT_NORM.value,
-                    "Start tag",
+                    "Start loop",
                 ),
                 (
                     TrimmerSegmentLabels.A_HMER_END.value,
                     TrimmerSegmentLabels.T_HMER_END.value,
                     HistogramColumnNames.COUNT_NORM.value,
-                    "End tag",
+                    "End loop",
                 ),
             )
         else:
@@ -1252,7 +1256,7 @@ def plot_trimmer_histogram(
                         TrimmerSegmentLabels.A_HMER_START.value,
                         TrimmerSegmentLabels.T_HMER_START.value,
                         HistogramColumnNames.COUNT_NORM.value,
-                        "Start tag",
+                        "Start loop",
                     ),
                 )
             elif adapter_version in (
@@ -1264,7 +1268,7 @@ def plot_trimmer_histogram(
                         TrimmerSegmentLabels.A_HMER_END.value,
                         TrimmerSegmentLabels.T_HMER_END.value,
                         HistogramColumnNames.COUNT_NORM.value,
-                        "End tag",
+                        "End loop",
                     ),
                 )
 
@@ -1545,12 +1549,20 @@ def balanced_strand_analysis(
         title=f"{output_basename} hmer calls",
         output_filename=output_trimmer_histogram_plot,
     )
-    plot_balanced_strand_ratio(
-        adapter_version,
-        df_trimmer_histogram,
-        title=f"{output_basename} strand ratio",
-        output_filename=output_strand_ratio_plot,
-    )
+    if adapter_version in [
+        BalancedStrandAdapterVersions.LA_v5,
+        BalancedStrandAdapterVersions.LA_v6,
+        BalancedStrandAdapterVersions.LA_v5and6,
+        BalancedStrandAdapterVersions.LA_v5.value,
+        BalancedStrandAdapterVersions.LA_v6.value,
+        BalancedStrandAdapterVersions.LA_v5and6.value,
+    ]:  # not possible in v7
+        plot_balanced_strand_ratio(
+            adapter_version,
+            df_trimmer_histogram,
+            title=f"{output_basename} strand ratio",
+            output_filename=output_strand_ratio_plot,
+        )
     plot_strand_ratio_category(
         adapter_version,
         df_trimmer_histogram,
