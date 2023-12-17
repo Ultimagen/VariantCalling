@@ -26,6 +26,7 @@ class BalancedStrandAdapterVersions(Enum):
     LA_v5 = "LA_v5"
     LA_v5and6 = "LA_v5and6"
     LA_v6 = "LA_v6"
+    LA_v7 = "LA_v7"
 
 
 # Trimmer segment labels and tags
@@ -45,6 +46,8 @@ class TrimmerSegmentTags(Enum):
     A_HMER_END = "ae"
     NATIVE_ADAPTER = "a3"
     STEM_END = "s2"  # when native adapter trimming was done on-tool a modified format is used
+    START_LOOP = "Start_loop"
+    END_LOOP = "End_loop"
 
 
 class BalancedCategories(Enum):
@@ -75,6 +78,8 @@ class HistogramColumnNames(Enum):
     STRAND_RATIO_CATEGORY_END = "strand_ratio_category_end"
     STRAND_RATIO_CATEGORY_END_NO_UNREACHED = "strand_ratio_category_end_no_unreached"
     STRAND_RATIO_CATEGORY_CONSENSUS = "strand_ratio_category_consensus"
+    LOOP_SEQUENCE_START = "loop_sequence_start"
+    LOOP_SEQUENCE_END = "loop_sequence_end"
 
 
 # Input parameter defaults for LAv5+6, LAv5 and LAv6
@@ -337,97 +342,135 @@ def read_balanced_strand_trimmer_histogram(
     _assert_adapter_version_supported(adapter_version)
     # read histogram
     df_trimmer_histogram = pd.read_csv(trimmer_histogram_csv)
-    # change legacy segment names
-    df_trimmer_histogram = df_trimmer_histogram.rename(
-        columns={
-            "T hmer": TrimmerSegmentLabels.T_HMER_START.value,
-            "A hmer": TrimmerSegmentLabels.A_HMER_START.value,
-            "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value,
-            "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value,
-            "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value,
-            "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value,
-        }
+
+    # determine if end was reached - at least 1bp native adapter or all of the end stem were found
+    is_end_reached = (
+        df_trimmer_histogram[TrimmerSegmentLabels.NATIVE_ADAPTER.value] >= 1
+        if TrimmerSegmentLabels.NATIVE_ADAPTER.value in df_trimmer_histogram.columns
+        else df_trimmer_histogram[TrimmerSegmentLabels.STEM_END.value] >= min_stem_end_matched_length
     )
-    # make sure expected columns exist
-    for col in (
-        HistogramColumnNames.COUNT.value,
-        TrimmerSegmentLabels.T_HMER_START.value,
-        TrimmerSegmentLabels.A_HMER_START.value,
-    ):
-        if col not in df_trimmer_histogram.columns:
-            raise ValueError(f"Missing expected column {col} in {trimmer_histogram_csv}")
-    if (
-        TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
-        or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
-    ) and (
-        TrimmerSegmentLabels.NATIVE_ADAPTER.value not in df_trimmer_histogram.columns
-        and TrimmerSegmentLabels.STEM_END.value not in df_trimmer_histogram.columns
-    ):
-        # If an end tag exists (LA-v6)
-        raise ValueError(
-            f"Missing expected column {TrimmerSegmentLabels.NATIVE_ADAPTER.value} "
-            f"or {TrimmerSegmentLabels.STEM_END.value} in {trimmer_histogram_csv}"
+
+    # Handle v5 and v6 loops
+    if adapter_version in [
+        BalancedStrandAdapterVersions.LA_v5,
+        BalancedStrandAdapterVersions.LA_v6.value,
+        BalancedStrandAdapterVersions.LA_v5and6.value,
+    ]:
+        # change legacy segment names
+        df_trimmer_histogram = df_trimmer_histogram.rename(
+            columns={
+                "T hmer": TrimmerSegmentLabels.T_HMER_START.value,
+                "A hmer": TrimmerSegmentLabels.A_HMER_START.value,
+                "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value,
+                "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value,
+                "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value,
+                "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value,
+            }
         )
-
-    df_trimmer_histogram.index.name = sample_name
-
-    # add normalized count column
-    df_trimmer_histogram = df_trimmer_histogram.assign(
-        count_norm=df_trimmer_histogram[HistogramColumnNames.COUNT.value]
-        / df_trimmer_histogram[HistogramColumnNames.COUNT.value].sum()
-    )
-    # add strand ratio columns and determine categories
-    tags_sum_start = (
-        df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value]
-        + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_START.value]
-    )
-    df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_START.value] = (
-        (df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value] / tags_sum_start)
-        .where((tags_sum_start >= min_total_hmer_lengths_in_tags) & (tags_sum_start <= max_total_hmer_lengths_in_tags))
-        .round(2)
-    )
-    # determine strand ratio category
-    df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value] = df_trimmer_histogram[
-        HistogramColumnNames.STRAND_RATIO_START.value
-    ].apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
-    if (
-        TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
-        or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
-    ):
-        # if only one of the end tags exists (maybe a small subsample) assign the other to 0
-        for c in (
-            TrimmerSegmentLabels.A_HMER_END.value,
-            TrimmerSegmentLabels.T_HMER_END.value,
+        # make sure expected columns exist
+        for col in (
+            HistogramColumnNames.COUNT.value,
+            TrimmerSegmentLabels.T_HMER_START.value,
+            TrimmerSegmentLabels.A_HMER_START.value,
         ):
-            if c not in df_trimmer_histogram.columns:
-                df_trimmer_histogram.loc[:, c] = 0
-
-        tags_sum_end = (
-            df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
-            + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value]
-        )
-        df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_END.value] = (
-            (
-                df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
-                / (
-                    df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
-                    + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value]
-                )
+            if col not in df_trimmer_histogram.columns:
+                raise ValueError(f"Missing expected column {col} in {trimmer_histogram_csv}")
+        if (
+            TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
+            or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
+        ) and (
+            TrimmerSegmentLabels.NATIVE_ADAPTER.value not in df_trimmer_histogram.columns
+            and TrimmerSegmentLabels.STEM_END.value not in df_trimmer_histogram.columns
+        ):
+            # If an end tag exists (LA-v6)
+            raise ValueError(
+                f"Missing expected column {TrimmerSegmentLabels.NATIVE_ADAPTER.value} "
+                f"or {TrimmerSegmentLabels.STEM_END.value} in {trimmer_histogram_csv}"
             )
-            .where((tags_sum_end >= min_total_hmer_lengths_in_tags) & (tags_sum_end <= max_total_hmer_lengths_in_tags))
+
+        df_trimmer_histogram.index.name = sample_name
+
+        # add normalized count column
+        df_trimmer_histogram = df_trimmer_histogram.assign(
+            count_norm=df_trimmer_histogram[HistogramColumnNames.COUNT.value]
+            / df_trimmer_histogram[HistogramColumnNames.COUNT.value].sum()
+        )
+        # add strand ratio columns and determine categories
+        tags_sum_start = (
+            df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value]
+            + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_START.value]
+        )
+        df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_START.value] = (
+            (df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value] / tags_sum_start)
+            .where(
+                (tags_sum_start >= min_total_hmer_lengths_in_tags) & (tags_sum_start <= max_total_hmer_lengths_in_tags)
+            )
             .round(2)
         )
-        # determine if end was reached - at least 1bp native adapter or all of the end stem were found
-        is_end_reached = (
-            df_trimmer_histogram[TrimmerSegmentLabels.NATIVE_ADAPTER.value] >= 1
-            if TrimmerSegmentLabels.NATIVE_ADAPTER.value in df_trimmer_histogram.columns
-            else df_trimmer_histogram[TrimmerSegmentLabels.STEM_END.value] >= min_stem_end_matched_length
+        # determine strand ratio category
+        df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value] = df_trimmer_histogram[
+            HistogramColumnNames.STRAND_RATIO_START.value
+        ].apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
+        if (
+            TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
+            or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
+        ):
+            # if only one of the end tags exists (maybe a small subsample) assign the other to 0
+            for c in (
+                TrimmerSegmentLabels.A_HMER_END.value,
+                TrimmerSegmentLabels.T_HMER_END.value,
+            ):
+                if c not in df_trimmer_histogram.columns:
+                    df_trimmer_histogram.loc[:, c] = 0
+
+            tags_sum_end = (
+                df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
+                + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value]
+            )
+            df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_END.value] = (
+                (
+                    df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
+                    / (
+                        df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
+                        + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value]
+                    )
+                )
+                .where(
+                    (tags_sum_end >= min_total_hmer_lengths_in_tags) & (tags_sum_end <= max_total_hmer_lengths_in_tags)
+                )
+                .round(2)
+            )
+            # determine strand ratio category
+            df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = (
+                df_trimmer_histogram[HistogramColumnNames.STRAND_RATIO_END.value]
+                .apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
+                .where(is_end_reached, BalancedCategories.END_UNREACHED.value)
+            )
+    # Handle v7 loops
+    elif adapter_version in [BalancedStrandAdapterVersions.LA_v7.value]:
+        # rename columns
+        df_trimmer_histogram = df_trimmer_histogram.rename(
+            columns={
+                TrimmerSegmentTags.START_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+                f"{TrimmerSegmentTags.START_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_START.value,
+                TrimmerSegmentTags.END_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+                f"{TrimmerSegmentTags.END_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_END.value,
+            }
+        )
+        # In LA-v7 the tags are explicitly detected from the loop sequences
+        # an unmatched start tag indicates an undetermined call
+        df_trimmer_histogram = df_trimmer_histogram.fillna(
+            {HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value: BalancedCategories.UNDETERMINED.value}
         )
         # determine strand ratio category
         df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = (
-            df_trimmer_histogram[HistogramColumnNames.STRAND_RATIO_END.value]
-            .apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
+            df_trimmer_histogram[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+            .fillna(BalancedCategories.UNDETERMINED.value)
             .where(is_end_reached, BalancedCategories.END_UNREACHED.value)
+        )
+    else:
+        raise ValueError(
+            f"Unknown adapter version: {adapter_version if isinstance(adapter_version, str) else adapter_version.value}"
         )
 
     # assign normalized column
@@ -597,6 +640,8 @@ def collect_statistics(
     adapter_in_both_ends = adapter_version in (
         BalancedStrandAdapterVersions.LA_v5and6,
         BalancedStrandAdapterVersions.LA_v5and6.value,
+        BalancedStrandAdapterVersions.LA_v7,
+        BalancedStrandAdapterVersions.LA_v7.value,
     )
     if adapter_in_both_ends:
         df_category_concordance = get_strand_ratio_category_concordance(adapter_version, df_trimmer_histogram)
@@ -677,6 +722,8 @@ def collect_statistics(
     elif adapter_version in (
         BalancedStrandAdapterVersions.LA_v5and6,
         BalancedStrandAdapterVersions.LA_v5and6.value,
+        BalancedStrandAdapterVersions.LA_v7,
+        BalancedStrandAdapterVersions.LA_v7.value,
     ):
         df_tags = df_category_consensus * 100
         df_tags.index = [f"% {x} reads (both tags)" for x in df_tags.index]
@@ -1224,7 +1271,10 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
         h5_file_keys = store.keys()
 
     # flatten strand ratio categories
-    strand_ratio_to_convert = ["strand_ratio_category_counts", "strand_ratio_category_norm"]
+    strand_ratio_to_convert = [
+        "strand_ratio_category_counts",
+        "strand_ratio_category_norm",
+    ]
     flatten_dfs = {
         key: flatten_strand_ratio_category(h5_file, key) for key in strand_ratio_to_convert if f"/{key}" in h5_file_keys
     }
