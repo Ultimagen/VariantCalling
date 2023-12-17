@@ -657,15 +657,43 @@ def collect_statistics(
             columns={HistogramColumnNames.COUNT.value: HistogramColumnNames.COUNT_NORM.value}
         ).reset_index()
         x = HistogramColumnNames.STRAND_RATIO_CATEGORY_CONSENSUS.value  # otherwise flake8 fails on line length
+        # sum consensus categories where both ends are not UNDETERMINED
         df_category_consensus = (
             df_category_concordance_no_end_unreached[
-                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
-                == df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+                (
+                    df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
+                    == df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+                )
+                & (
+                    df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
+                    != BalancedCategories.UNDETERMINED.value
+                )
+                & (
+                    df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+                    != BalancedCategories.UNDETERMINED.value
+                )
             ]
             .drop(columns=[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value])
             .rename(columns={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value: x})
             .set_index(x)
         )
+        # Set UNDETERMINED where at least one is
+        df_category_consensus.loc[
+            BalancedCategoriesConsensus.UNDETERMINED.value,
+            HistogramColumnNames.COUNT_NORM.value,
+        ] = df_category_concordance_no_end_unreached[
+            (
+                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
+                == BalancedCategories.UNDETERMINED.value
+            )
+            | (
+                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+                == BalancedCategories.UNDETERMINED.value
+            )
+        ][
+            HistogramColumnNames.COUNT_NORM.value
+        ].sum()
+        # the remainder is DISCORDANT - both not UNDETERMINED but do not match
         df_category_consensus.loc[
             BalancedCategoriesConsensus.DISCORDANT.value,
             HistogramColumnNames.COUNT_NORM.value,
@@ -726,7 +754,21 @@ def collect_statistics(
         BalancedStrandAdapterVersions.LA_v7.value,
     ):
         df_tags = df_category_consensus * 100
-        df_tags.index = [f"% {x} reads (both tags)" for x in df_tags.index]
+        undetermined = BalancedCategoriesConsensus.UNDETERMINED.value
+        df_tags = df_tags.rename(
+            {
+                **{
+                    x: f"% {x} reads (both tags) where end was reached"
+                    for x in (
+                        BalancedCategories.MIXED.value,
+                        BalancedCategories.MINUS.value,
+                        BalancedCategories.PLUS.value,
+                    )
+                },
+                undetermined: f"% {undetermined} (either tag)",
+                BalancedCategoriesConsensus.DISCORDANT.value: f"% {BalancedCategoriesConsensus.DISCORDANT.value}",
+            }
+        )
         df_tags.columns = ["value"]
         df_strand_ratio_category_norm = (
             df_strand_ratio_category.loc[
@@ -736,20 +778,32 @@ def collect_statistics(
             * 100
             / df_strand_ratio_category[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value].sum()
         ).T.to_frame()
-        df_strand_ratio_category_norm.index = ["% end tag not reached"]
+        df_strand_ratio_category_norm.index = ["% read end unreached"]
         df_strand_ratio_category_norm.columns = ["value"]
         df_tags = pd.concat((df_tags, df_strand_ratio_category_norm)).rename(
             {
-                HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value: "% end tag not reached",
+                HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value: "% read end unreached",
             }
         )
+        # Calculate mixed reads of total (including end unreached) and mixed read coverage
+        mixed_tot = df_category_concordance.loc[
+            (BalancedCategories.MIXED.value, BalancedCategories.MIXED.value),
+            HistogramColumnNames.COUNT.value,
+        ]
+        df_mixed_cov = pd.DataFrame(
+            {
+                "MIXED read mean coverage": mixed_tot * df_sorter_stats.loc["Mean_cvg", "value"],
+                "% MIXED (both tags) of all reads": mixed_tot,
+            },
+            index=["value"],
+        ).T
     else:
         raise ValueError(
             f"Unknown adapter version: {adapter_version if isinstance(adapter_version, str) else adapter_version.value}"
         )
 
     df_tags.index.name = "metric"
-    df_stats_shortlist = pd.concat((df_tags, df_stats_shortlist))
+    df_stats_shortlist = pd.concat((df_mixed_cov, df_tags, df_stats_shortlist))
 
     # save
     if not output_filename.endswith(".h5"):
