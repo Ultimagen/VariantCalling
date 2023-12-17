@@ -20,9 +20,9 @@ from __future__ import annotations
 import argparse
 
 from ugvc.mrd.balanced_strand_utils import (
-    MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+    MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     MIN_STEM_END_MATCHED_LENGTH,
-    MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
+    MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
     STRAND_RATIO_LOWER_THRESH,
     STRAND_RATIO_UPPER_THRESH,
     balanced_strand_analysis,
@@ -81,13 +81,13 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--min-tot-hmer",
         type=int,
-        default=MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
+        default=MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
         help="minimum total hmer lengths in tags for determining strand ratio category",
     )
     parser.add_argument(
         "--max-tot-hmer",
         type=int,
-        default=MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+        default=MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
         help="maximum total hmer lengths in tags for determining strand ratio category",
     )
     parser.add_argument(

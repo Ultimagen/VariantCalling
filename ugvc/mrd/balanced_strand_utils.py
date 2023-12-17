@@ -38,6 +38,8 @@ class TrimmerSegmentLabels(Enum):
     A_HMER_END = "A_hmer_end"
     NATIVE_ADAPTER = "native_adapter_with_leading_C"
     STEM_END = "Stem_end"  # when native adapter trimming was done on-tool a modified format is used
+    START_LOOP = "Start_loop"
+    END_LOOP = "End_loop"
 
 
 class TrimmerSegmentTags(Enum):
@@ -47,8 +49,6 @@ class TrimmerSegmentTags(Enum):
     A_HMER_END = "ae"
     NATIVE_ADAPTER = "a3"
     STEM_END = "s2"  # when native adapter trimming was done on-tool a modified format is used
-    START_LOOP = "Start_loop"
-    END_LOOP = "End_loop"
 
 
 class BalancedCategories(Enum):
@@ -86,8 +86,8 @@ class HistogramColumnNames(Enum):
 # Input parameter defaults for LAv5+6, LAv5 and LAv6
 STRAND_RATIO_LOWER_THRESH = 0.27
 STRAND_RATIO_UPPER_THRESH = 0.73
-MIN_TOTAL_HMER_LENGTHS_IN_TAGS = 4
-MAX_TOTAL_HMER_LENGTHS_IN_TAGS = 8
+MIN_TOTAL_HMER_LENGTHS_IN_LOOPS = 4
+MAX_TOTAL_HMER_LENGTHS_IN_LOOPS = 8
 MIN_STEM_END_MATCHED_LENGTH = 11  # the stem is 12bp, 1 indel allowed as tolerance
 
 
@@ -97,8 +97,8 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
         adapter_version: str | BalancedStrandAdapterVersions,
         sr_lower: float = STRAND_RATIO_LOWER_THRESH,
         sr_upper: float = STRAND_RATIO_UPPER_THRESH,
-        min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
-        max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+        min_total_hmer_lengths_in_loops: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
+        max_total_hmer_lengths_in_loops: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
         min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
     ):
         _assert_adapter_version_supported(adapter_version)
@@ -107,8 +107,8 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
         )
         self.sr_lower = sr_lower
         self.sr_upper = sr_upper
-        self.min_total_hmer_lengths_in_tags = min_total_hmer_lengths_in_tags
-        self.max_total_hmer_lengths_in_tags = max_total_hmer_lengths_in_tags
+        self.min_total_hmer_lengths_in_loops = min_total_hmer_lengths_in_loops
+        self.max_total_hmer_lengths_in_loops = max_total_hmer_lengths_in_loops
         self.min_stem_end_matched_length = min_stem_end_matched_length
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
@@ -185,7 +185,7 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
                 A_hmer_start = balanced_tags[TrimmerSegmentTags.A_HMER_START.value]
                 # determine ratio and category
                 tags_sum_start = T_hmer_start + A_hmer_start
-                if self.min_total_hmer_lengths_in_tags <= tags_sum_start <= self.max_total_hmer_lengths_in_tags:
+                if self.min_total_hmer_lengths_in_loops <= tags_sum_start <= self.max_total_hmer_lengths_in_loops:
                     record.info[HistogramColumnNames.STRAND_RATIO_START.value] = T_hmer_start / (
                         T_hmer_start + A_hmer_start
                     )
@@ -216,7 +216,7 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
                         HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value
                     ] = BalancedCategories.END_UNREACHED.value
                 else:
-                    if self.min_total_hmer_lengths_in_tags <= tags_sum_end <= self.max_total_hmer_lengths_in_tags:
+                    if self.min_total_hmer_lengths_in_loops <= tags_sum_end <= self.max_total_hmer_lengths_in_loops:
                         record.info[HistogramColumnNames.STRAND_RATIO_END.value] = T_hmer_end / (
                             T_hmer_end + A_hmer_end
                         )
@@ -296,8 +296,8 @@ def read_balanced_strand_trimmer_histogram(
     trimmer_histogram_csv: str,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
     sr_upper: float = STRAND_RATIO_UPPER_THRESH,
-    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
-    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
+    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
     sample_name: str = "",
     output_filename: str = None,
@@ -455,10 +455,10 @@ def read_balanced_strand_trimmer_histogram(
         # rename columns
         df_trimmer_histogram = df_trimmer_histogram.rename(
             columns={
-                TrimmerSegmentTags.START_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
-                f"{TrimmerSegmentTags.START_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_START.value,
-                TrimmerSegmentTags.END_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
-                f"{TrimmerSegmentTags.END_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_END.value,
+                TrimmerSegmentLabels.START_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+                f"{TrimmerSegmentLabels.START_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_START.value,
+                TrimmerSegmentLabels.END_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+                f"{TrimmerSegmentLabels.END_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_END.value,
             }
         )
         # In LA-v7 the tags are explicitly detected from the loop sequences
@@ -829,8 +829,8 @@ def add_strand_ratios_and_categories_to_featuremap(
     output_featuremap_vcf: str,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
     sr_upper: float = STRAND_RATIO_UPPER_THRESH,
-    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
-    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
+    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
     chunk_size: int = 10000,
     process_number: int = 1,
@@ -870,8 +870,8 @@ def add_strand_ratios_and_categories_to_featuremap(
         adapter_version=adapter_version,
         sr_lower=sr_lower,
         sr_upper=sr_upper,
-        min_total_hmer_lengths_in_tags=min_total_hmer_lengths_in_tags,
-        max_total_hmer_lengths_in_tags=max_total_hmer_lengths_in_tags,
+        min_total_hmer_lengths_in_loops=min_total_hmer_lengths_in_tags,
+        max_total_hmer_lengths_in_loops=max_total_hmer_lengths_in_tags,
         min_stem_end_matched_length=min_stem_end_matched_length,
     )
     BalancedStrandVcfAnnotator.process_vcf(
@@ -1180,8 +1180,8 @@ def plot_trimmer_histogram(
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
-    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
-    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
+    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
 ) -> list[plt.Axes]:
     """
     Plot the trimmer hmer calls on a heatmap
@@ -1295,13 +1295,20 @@ def plot_trimmer_histogram(
         BalancedStrandAdapterVersions.LA_v7,
         BalancedStrandAdapterVersions.LA_v7.value,
     ):
-        fig, axs_all_both = plt.subplots(3, 9, figsize=(18, 5), sharex=False, sharey=True)
-        fig.subplots_adjust(wspace=0.2, hspace=0.6)
+
+        fig, axs_all_both = plt.subplots(3, 10, figsize=(18, 5), sharex=False, sharey=True)
+        fig.subplots_adjust(wspace=0.25, hspace=0.6)
         title_handle = fig.suptitle(title, y=1.25)
-        for ax in axs_all_both[:, 4]:
+        for ax in axs_all_both.flatten():
+            ax.grid(False)
+        for ax in axs_all_both[:, 4:6].flatten():
             ax.axis("off")
-        axs_all_both[0, 1].text(0, 2, "Start loop", fontsize=24)
-        axs_all_both[0, 6].text(0, 2, "End loop", fontsize=24)
+        axs_all_both[0, 4].text(0.5, 1.2, "Expected\nsignal", fontsize=20)
+        axs_all_both[0, 4].text(0.5, 0.5, "1  1  1  1", fontsize=18)
+        axs_all_both[1, 4].text(0.5, 0.5, "0  2  0  2", fontsize=18)
+        axs_all_both[2, 4].text(0.5, 0.5, "2  0  2  0", fontsize=18)
+        axs_all_both[0, 1].text(0, 2, "Start loop", fontsize=28)
+        axs_all_both[0, 6].text(0, 2, "End loop", fontsize=28)
         flow_order_start = "ATGC"
         flow_order_end = "GCAT"
         for m, (loop, loop_category, flow_order) in enumerate(
@@ -1327,14 +1334,21 @@ def plot_trimmer_histogram(
                 .agg({HistogramColumnNames.COUNT_NORM.value: "sum"})
                 .query(f"{HistogramColumnNames.COUNT_NORM.value} > 0.0001")
             )
-            axs_all = axs_all_both[:, m * 5 : m * 5 + 4]
+            axs_all = axs_all_both[:, m * 6 : m * 6 + 4]
 
-            for k, cat in enumerate(
-                [
-                    BalancedCategories.MIXED.value,
-                    BalancedCategories.MINUS.value,
-                    BalancedCategories.PLUS.value,
-                ]
+            for k, (cat, expected_signal) in enumerate(
+                zip(
+                    (
+                        BalancedCategories.MIXED.value,
+                        BalancedCategories.MINUS.value,
+                        BalancedCategories.PLUS.value,
+                    ),
+                    (
+                        [1, 1, 1, 1],
+                        [0, 2, 0, 2],
+                        [2, 0, 2, 0],
+                    ),
+                )
             ):
                 df_calls_x = df_calls.loc[cat].reset_index()
                 df_calls_x = df_calls_x.assign(
@@ -1368,6 +1382,7 @@ def plot_trimmer_histogram(
                             "xkcd:violet",
                         ],
                     )
+                    ax.bar(expected_signal[j], 1, facecolor="none", edgecolor="k", alpha=1, linewidth=2)
                     ax.set_xticks(range(5))
                     if k == 0:
                         ax.set_title(base)
@@ -1462,8 +1477,8 @@ def balanced_strand_analysis(
     generate_report: bool = True,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
     sr_upper: float = STRAND_RATIO_UPPER_THRESH,
-    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
-    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+    min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
+    max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
 ):
     """
@@ -1572,6 +1587,8 @@ def balanced_strand_analysis(
     if adapter_version in (
         BalancedStrandAdapterVersions.LA_v5and6,
         BalancedStrandAdapterVersions.LA_v5and6.value,
+        BalancedStrandAdapterVersions.LA_v7,
+        BalancedStrandAdapterVersions.LA_v7.value,
     ):
         plot_strand_ratio_category_concordnace(
             adapter_version,
@@ -1584,17 +1601,16 @@ def balanced_strand_analysis(
     if generate_report:
         template_notebook = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/balanced_strand/balanced_strand_qc_report.ipynb",
+            "reports/ppm_seq/ppm_seq_qc_report.ipynb",
         )
         illustration_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/balanced_strand/balanced_strand_sequencing_illustration.png",
+            "reports/ppm_seq/PPM-seq_illustration.png",
         )
         parameters = dict(
             adapter_version=adapter_version if isinstance(adapter_version, str) else adapter_version.value,
             statistics_h5=output_statistics_h5,
             trimmer_histogram_png=output_trimmer_histogram_plot,
-            strand_ratio_png=output_strand_ratio_plot,
             strand_ratio_category_png=output_strand_ratio_category_plot,
             sr_lower=sr_lower,
             sr_upper=sr_upper,
@@ -1602,6 +1618,15 @@ def balanced_strand_analysis(
             max_total_hmer_lengths_in_tags=max_total_hmer_lengths_in_tags,
             illustration_file=illustration_file,
         )
+        if adapter_version in (
+            BalancedStrandAdapterVersions.LA_v5and6,
+            BalancedStrandAdapterVersions.LA_v5and6.value,
+            BalancedStrandAdapterVersions.LA_v5,
+            BalancedStrandAdapterVersions.LA_v5.value,
+            BalancedStrandAdapterVersions.LA_v6,
+            BalancedStrandAdapterVersions.LA_v6.value,
+        ):  # not available in v7
+            parameters["strand_ratio_png"] = output_strand_ratio_plot
         if adapter_version in (
             BalancedStrandAdapterVersions.LA_v5and6,
             BalancedStrandAdapterVersions.LA_v5and6.value,
