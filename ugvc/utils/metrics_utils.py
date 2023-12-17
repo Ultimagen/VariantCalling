@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import json
+import os
 import re
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.interpolate import interp1d
 
 from ugvc import logger
 from ugvc.comparison.concordance_utils import read_hdf
+from ugvc.utils.misc_utils import set_pyplot_defaults
 
 
 def get_h5_keys(h5_filename: str):
@@ -177,8 +183,10 @@ def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = 
     )
     # add convenient metric
     if "Failed_QC_reads" in df_sorter_stats.index and "PF_Barcode_reads" in df_sorter_stats.index:
-        df_sorter_stats.loc["PCT_Failed_QC_reads"] = df_sorter_stats.loc["Failed_QC_reads"] / (
-            df_sorter_stats.loc["Failed_QC_reads"] + df_sorter_stats.loc["PF_Barcode_reads"]
+        df_sorter_stats.loc["PCT_Failed_QC_reads"] = (
+            100
+            * df_sorter_stats.loc["Failed_QC_reads"]
+            / (df_sorter_stats.loc["Failed_QC_reads"] + df_sorter_stats.loc["PF_Barcode_reads"])
         )
 
     if edit_metric_names:
@@ -240,3 +248,153 @@ def read_effective_coverage_from_sorter_json(
         min_coverage_for_fp,
         coverage_of_max_percentile,
     )
+
+
+def get_histogram_from_sorter(sorter_stats_json: str, histogram_key: str) -> pd.DataFrame:
+    """
+    Read histogram from sorter JSON file.
+
+    Parameters
+    ----------
+    sorter_stats_json : str
+        Path to Sorter statistics JSON file.
+    histogram_key : str
+        Histogram key to read from sorter JSON file.
+        Allowed values: 'bqual', 'pf_bqual', 'read_length', 'aligned_read_length', 'mapq', 'cvg', 'bqx'
+
+    Returns
+    -------
+    pd.DataFrame
+        Histogram data.
+
+    Raises
+    ------
+    ValueError
+        If histogram_key is not one of the allowed values.
+
+    """
+    allowed_values = (
+        "bqual",
+        "pf_bqual",
+        "read_length",
+        "aligned_read_length",
+        "mapq",
+        "cvg",
+        "bqx",
+    )  # known histogram keys in sorter JSON
+    if histogram_key not in allowed_values:
+        raise ValueError(f"histogram_key must be one of {allowed_values}, got {histogram_key}")
+    with open(sorter_stats_json, encoding="utf-8") as fh:
+        sorter_stats = json.load(fh)
+    histogram = pd.Series(sorter_stats[histogram_key], name="count")
+    histogram.index.name = histogram_key
+
+    return histogram
+
+
+def plot_read_length_histogram(
+    sorter_stats_json: str,
+    plot_range_percentiles: tuple = (0.001, 0.999),
+    output_filename: str = None,
+    title: str = None,
+):
+    """
+    Plot read length histogram from sorter JSON file.
+
+    Parameters
+    ----------
+    sorter_stats_json : str
+        Path to Sorter statistics JSON file.
+    plot_range_percentiles : tuple
+        Percentiles to show in plot range. Default: (0.01, 0.99)
+    output_filename : str
+        Output file name. If None (default), don't save.
+    title : str
+        Plot title. If None (default), don't show title.
+    """
+    set_pyplot_defaults()
+
+    # read histograms
+    read_length = get_histogram_from_sorter(sorter_stats_json, "read_length")
+    aligned_read_length = get_histogram_from_sorter(sorter_stats_json, "aligned_read_length")
+    # calculate pdf, cdf and limits
+    pdf_aligned = aligned_read_length / read_length.sum()
+    cdf_aligned = pdf_aligned.cumsum()
+    pdf_aligned_to_all_reads = aligned_read_length / read_length.sum()
+    pdf = read_length / read_length.sum()
+    cdf = pdf.cumsum()
+    f_interp = interp1d(cdf.values, cdf.index, kind="linear", fill_value=(0, 1))
+    f_interp_aligned = interp1d(cdf_aligned.values, cdf_aligned.index, kind="linear", fill_value=(0, 1))
+    xlim = f_interp(plot_range_percentiles)
+    # plot
+    plt.figure(figsize=(10, 5))
+    pdf.plot(
+        linewidth=3,
+    )
+    pdf_aligned_to_all_reads.plot(linewidth=2, linestyle="--")
+    legend_handle = plt.legend(
+        [
+            f"All reads, median={f_interp(0.5):.0f}",
+            f"Aligned reads, median={f_interp_aligned(0.5):.0f}",
+        ]
+    )
+    plt.xlim(xlim)
+    plt.xlabel("Read length")
+    bbox_extra_artists = [legend_handle]
+    if title:
+        title_handle = plt.title(title)
+        bbox_extra_artists.append(title_handle)
+    # save
+    if output_filename:
+        if not output_filename.endswith(".png"):
+            output_filename += ".png"
+        plt.savefig(
+            output_filename,
+            facecolor="w",
+            dpi=300,
+            bbox_inches="tight",
+            bbox_extra_artists=bbox_extra_artists,
+        )
+
+
+def merge_trimmer_histograms(trimmer_histograms: list[str], output_path: str):
+    """
+    Merge multiple Trimmer histograms into a single histogram.
+
+    Parameters
+    ----------
+    trimmer_histograms : list[str]
+        List of paths to Trimmer histogram files, or a single path to a Trimmer histogram file.
+    output_path : str
+        Path to output file, or a path to which the output file will be written to with the basename of the first
+        value in trimmer_histograms.
+
+    Returns
+    -------
+    str
+        Path to output file. If the list is only 1 file, returns the path to that file without doing anything.
+
+    Raises
+    ------
+    ValueError
+        If trimmer_histograms is empty.
+    """
+    if len(trimmer_histograms) == 0:
+        raise ValueError("trimmer_histograms must not be empty")
+    if isinstance(trimmer_histograms, str):
+        trimmer_histograms = [trimmer_histograms]
+    if len(trimmer_histograms) == 1:
+        return trimmer_histograms[0]
+
+    # read and merge histograms
+    df_concat = pd.concat((pd.read_csv(x) for x in trimmer_histograms))
+    assert df_concat.columns[-1] == "count", f"Unexpected columns in histogram files: {df_concat.columns}"
+    df_merged = df_concat.groupby(df_concat.columns[:-1].tolist(), dropna=False).sum().reset_index()
+    # write to file
+    output_filename = (
+        os.path.join(output_path, os.path.basename(trimmer_histograms[0]))
+        if os.path.isdir(output_path)
+        else output_path
+    )
+    df_merged.to_csv(output_filename, index=False)
+    return output_filename

@@ -20,9 +20,9 @@ from __future__ import annotations
 import argparse
 
 from ugvc.mrd.balanced_strand_utils import (
-    MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+    MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     MIN_STEM_END_MATCHED_LENGTH,
-    MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
+    MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
     STRAND_RATIO_LOWER_THRESH,
     STRAND_RATIO_UPPER_THRESH,
     balanced_strand_analysis,
@@ -40,12 +40,33 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--trimmer-histogram-csv",
         type=str,
+        required=True,
+        nargs="+",
         help="path to a balanced strand Trimmer histogram file",
+    )
+    parser.add_argument(
+        "--trimmer-histogram-extra-csv",
+        type=str,
+        required=False,
+        nargs="+",
+        help="path to a an extra balanced strand Trimmer histogram file that is used in some cases",
+    )
+    parser.add_argument(
+        "--trimmer-failure-codes-csv",
+        type=str,
+        required=False,
+        help="Trimmer failure codes csv file",
     )
     parser.add_argument(
         "--sorter-stats-csv",
         type=str,
-        help="path to a Sorter stats file",
+        help="path to a Sorter stats csv file",
+    )
+    parser.add_argument(
+        "--sorter-stats-json",
+        type=str,
+        required=False,
+        help="path to a Sorter stats json file",
     )
     parser.add_argument(
         "--output-path",
@@ -81,13 +102,13 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--min-tot-hmer",
         type=int,
-        default=MIN_TOTAL_HMER_LENGTHS_IN_TAGS,
+        default=MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
         help="minimum total hmer lengths in tags for determining strand ratio category",
     )
     parser.add_argument(
         "--max-tot-hmer",
         type=int,
-        default=MAX_TOTAL_HMER_LENGTHS_IN_TAGS,
+        default=MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
         help="maximum total hmer lengths in tags for determining strand ratio category",
     )
     parser.add_argument(
@@ -113,7 +134,10 @@ def run(argv: list[str]):
     balanced_strand_analysis(
         adapter_version=args_in.adapter_version,
         trimmer_histogram_csv=args_in.trimmer_histogram_csv,
+        trimmer_histogram_extra_csv=args_in.trimmer_histogram_extra_csv,
+        trimmer_failure_codes_csv=args_in.trimmer_failure_codes_csv,
         sorter_stats_csv=args_in.sorter_stats_csv,
+        sorter_stats_json=args_in.sorter_stats_json,
         output_path=args_in.output_path,
         output_basename=args_in.output_basename,
         collect_statistics_kwargs=dict(input_material_ng=args_in.input_material_ng)
@@ -126,3 +150,9 @@ def run(argv: list[str]):
         max_total_hmer_lengths_in_tags=args_in.max_tot_hmer,
         min_stem_end_matched_length=args_in.min_stem_length,
     )
+
+
+if __name__ == "__main__":
+    import sys
+
+    run(sys.argv)

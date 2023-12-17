@@ -1,4 +1,4 @@
-name: Build VC Docker image
+name: Build VC Docker images
 
 on:
   workflow_dispatch:
@@ -84,5 +84,26 @@ jobs:
           tags: |
             ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
             us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/${{ env.IMAGE }}:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract build parameters
+        run: |
+          echo "BUILD_TIMESTAMP=$(date '+%F_%H:%M:%S')" >> ${GITHUB_ENV}
+          echo "BUILD_VERSION=$(git rev-parse --short HEAD)" >> ${GITHUB_ENV}
+
+      - name: Build and push ppmseq docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile.ppmseq
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/ppmseq:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
+            us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/ppmseq:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
+          build-args: |
+            VERSION=${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
+            BUILD_TIMESTAMP=${{ env.BUILD_TIMESTAMP }}
+            BUILD_VERSION=${{ env.BUILD_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

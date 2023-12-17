@@ -63,8 +63,9 @@ def test_read_balanced_strand_LAv5and6_trimmer_histogram(tmpdir):
 
 def test_read_balanced_strand_LAv5_trimmer_histogram(tmpdir):
     tmp_out_path = pjoin(tmpdir, "tmp_out.parquet")
+
     df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
-        BalancedStrandAdapterVersions.LA_v5and6,
+        BalancedStrandAdapterVersions.LA_v5,
         input_histogram_LAv5_csv,
         output_filename=tmp_out_path,
     )
@@ -112,10 +113,11 @@ def test_collect_statistics(tmpdir):
         sorter_stats_csv=sorter_stats_LAv5and6_csv,
         output_filename=tmp_out_path,
     )
+
     f1 = collected_stats_LAv5and6_h5
     f2 = tmp_out_path
     with pd.HDFStore(f1) as fh1, pd.HDFStore(f2) as fh2:
-        assert fh1.keys() == fh2.keys()
+        assert sorted(fh1.keys()) == sorted(fh2.keys())
         keys = fh1.keys()
     for k in keys:
         assert_frame_equal(
@@ -186,7 +188,6 @@ def test_add_strand_ratios_and_categories_to_featuremap(tmpdir):
         input_featuremap_vcf=input_featuremap_LAv5and6,
         output_featuremap_vcf=tmp_out_path,
     )
-
     _assert_files_are_identical(
         expected_output_featuremap_LAv5and6,
         tmp_out_path,
@@ -222,7 +223,7 @@ def test_plot_strand_ratio_category_concordnace(tmpdir):
 def test_balanced_strand_analysis(tmpdir):
     balanced_strand_analysis(
         BalancedStrandAdapterVersions.LA_v5and6,
-        trimmer_histogram_csv=input_histogram_LAv5and6_csv,
+        trimmer_histogram_csv=[input_histogram_LAv5and6_csv],
         sorter_stats_csv=sorter_stats_LAv5and6_csv,
         output_path=tmpdir,
         output_basename="TEST_LAv56",
@@ -231,7 +232,7 @@ def test_balanced_strand_analysis(tmpdir):
 
     balanced_strand_analysis(
         BalancedStrandAdapterVersions.LA_v5,
-        trimmer_histogram_csv=input_histogram_LAv5_csv,
+        trimmer_histogram_csv=[input_histogram_LAv5_csv],
         sorter_stats_csv=sorter_stats_LAv5_csv,
         output_path=tmpdir,
         output_basename="TEST_LAv5",

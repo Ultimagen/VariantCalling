@@ -39,3 +39,4 @@ test/test_outputs
 .vscode/
 work/
 *.code-workspace
+.history/
