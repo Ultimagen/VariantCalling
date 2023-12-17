@@ -1356,12 +1356,12 @@ def plot_trimmer_histogram(
                     ax.bar(
                         x[j],
                         x[HistogramColumnNames.COUNT_NORM.value] / x[HistogramColumnNames.COUNT_NORM.value].sum(),
-                        colors=[
-                            "blue",
-                            "#90EE90",
-                            "red",
-                            (0.5, 0, 0.5),
-                            (1, 0.65, 0, 0.5),
+                        color=[
+                            "xkcd:red",
+                            "xkcd:green",
+                            "xkcd:blue",
+                            "xkcd:teal",
+                            "xkcd:violet",
                         ],
                     )
                     ax.set_xticks(range(5))
