@@ -797,7 +797,7 @@ def collect_statistics(
         df_mixed_cov = pd.DataFrame(
             {
                 "MIXED read mean coverage": mixed_tot * df_sorter_stats.loc["Mean_cvg", "value"],
-                "% MIXED (both tags) of all reads": mixed_tot,
+                "% MIXED (both tags) of all reads": mixed_tot * 100,
             },
             index=["value"],
         ).T
@@ -1533,8 +1533,8 @@ def balanced_strand_analysis(
     output_strand_ratio_category_concordance_plot = os.path.join(
         output_path, f"{output_basename}.strand_ratio_category_concordance.png"
     )
-    output_report_ipynb = os.path.join(output_path, f"{output_basename}.balanced_strand_qc_report.ipynb")
-    output_report_html = os.path.join(output_path, f"{output_basename}.balanced_strand_qc_report.html")
+    output_report_ipynb = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.ipynb")
+    output_report_html = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.html")
 
     # collect statistics
     # create the input for collect statistics
@@ -1601,11 +1601,11 @@ def balanced_strand_analysis(
     if generate_report:
         template_notebook = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/ppm_seq/ppm_seq_qc_report.ipynb",
+            "reports/ppm_seq/ppmSeq_qc_report.ipynb",
         )
         illustration_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/ppm_seq/PPM-seq_illustration.png",
+            "reports/ppm_seq/ppmSeq_illustration.png",
         )
         parameters = dict(
             adapter_version=adapter_version if isinstance(adapter_version, str) else adapter_version.value,
@@ -1630,6 +1630,8 @@ def balanced_strand_analysis(
         if adapter_version in (
             BalancedStrandAdapterVersions.LA_v5and6,
             BalancedStrandAdapterVersions.LA_v5and6.value,
+            BalancedStrandAdapterVersions.LA_v7,
+            BalancedStrandAdapterVersions.LA_v7.value,
         ):
             parameters["strand_ratio_category_concordance_png"] = output_strand_ratio_category_concordance_plot
         # inject parameters and run notebook
