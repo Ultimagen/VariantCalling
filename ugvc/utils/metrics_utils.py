@@ -177,8 +177,10 @@ def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = 
     )
     # add convenient metric
     if "Failed_QC_reads" in df_sorter_stats.index and "PF_Barcode_reads" in df_sorter_stats.index:
-        df_sorter_stats.loc["PCT_Failed_QC_reads"] = df_sorter_stats.loc["Failed_QC_reads"] / (
-            df_sorter_stats.loc["Failed_QC_reads"] + df_sorter_stats.loc["PF_Barcode_reads"]
+        df_sorter_stats.loc["PCT_Failed_QC_reads"] = (
+            100
+            * df_sorter_stats.loc["Failed_QC_reads"]
+            / (df_sorter_stats.loc["Failed_QC_reads"] + df_sorter_stats.loc["PF_Barcode_reads"])
         )
 
     if edit_metric_names:
