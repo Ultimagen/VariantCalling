@@ -1473,6 +1473,8 @@ def balanced_strand_analysis(
     sorter_stats_csv: str,
     output_path: str,
     output_basename: str = None,
+    trimmer_histogram_extra_csv: str = None,
+    trimmer_failure_codes_csv: str = None,
     collect_statistics_kwargs: dict = None,
     generate_report: bool = True,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
@@ -1617,6 +1619,8 @@ def balanced_strand_analysis(
             min_total_hmer_lengths_in_tags=min_total_hmer_lengths_in_tags,
             max_total_hmer_lengths_in_tags=max_total_hmer_lengths_in_tags,
             illustration_file=illustration_file,
+            trimmer_histogram_extra_csv=trimmer_histogram_extra_csv,
+            trimmer_failure_codes_csv=trimmer_failure_codes_csv,
         )
         if adapter_version in (
             BalancedStrandAdapterVersions.LA_v5and6,

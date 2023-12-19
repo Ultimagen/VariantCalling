@@ -43,6 +43,18 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         help="path to a balanced strand Trimmer histogram file",
     )
     parser.add_argument(
+        "--trimmer-histogram-extra-csv",
+        type=str,
+        required=False,
+        help="path to a an extra balanced strand Trimmer histogram file that is used in some cases",
+    )
+    parser.add_argument(
+        "--trimmer-failure-codes-csv",
+        type=str,
+        required=False,
+        help="Trimmer failure codes csv file",
+    )
+    parser.add_argument(
         "--sorter-stats-csv",
         type=str,
         help="path to a Sorter stats file",
@@ -113,6 +125,8 @@ def run(argv: list[str]):
     balanced_strand_analysis(
         adapter_version=args_in.adapter_version,
         trimmer_histogram_csv=args_in.trimmer_histogram_csv,
+        trimmer_histogram_extra_csv=args_in.trimmer_histogram_extra_csv,
+        trimmer_failure_codes_csv=args_in.trimmer_failure_codes_csv,
         sorter_stats_csv=args_in.sorter_stats_csv,
         output_path=args_in.output_path,
         output_basename=args_in.output_basename,
