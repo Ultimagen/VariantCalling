@@ -15,18 +15,18 @@ def __get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--region_str",
         type=str,
-        default="chr1:1000000-2000000",
+        default="chr15:26000000-30000000",
         help="region subset string, compare variants only in this region",
     )
     parser.add_argument("--max_vars", type=int, default=2000, help="max number of variants to check for concordance")
     parser.add_argument(
-        "--min_count_snps", type=int, default=3, help="number of snp supporting reads to count as a ground-truth hit"
+        "--min_af_snps", type=float, default=0.03, help="min allele frequency to count as a ground-truth hit"
     )
     parser.add_argument(
-        "--min_count_germline_snps",
-        type=int,
-        default=10,
-        help="number of snp supporting reads to count as a germline snp, for normal-in-tumor <-> normal matching",
+        "--min_af_germline_snps",
+        type=float,
+        default=0.1,
+        help="min allele frequency to count a snp as germline snp, for normal-in-tumor <-> normal matching",
     )
     parser.add_argument(
         "--min_hit_fraction_target",
@@ -55,8 +55,8 @@ class TrainingSetConsistency:
         ref: str,
         max_vars: int,
         region: str,
-        min_count_snps: int,
-        min_count_germline_snps: int,
+        min_af_snps: int,
+        min_af_germline_snps: int,
         min_hit_fraction_target: float,
         out_dir: str,
         sp: SimplePipeline,
@@ -70,8 +70,8 @@ class TrainingSetConsistency:
         self.max_vars = max_vars
         self.region = region
         self.out_dir = out_dir
-        self.min_count_snps = min_count_snps
-        self.min_count_germline_snps = min_count_germline_snps
+        self.min_af_snps = min_af_snps
+        self.min_af_germline_snps = min_af_germline_snps
         self.min_hit_fraction_target = min_hit_fraction_target
         self.sp = sp
         os.makedirs(out_dir, exist_ok=True)
@@ -79,9 +79,10 @@ class TrainingSetConsistency:
     def check(self):
         errors = []
         suspected_normal_in_tumor_crams = []
-        ground_truth_in_hcr = f"{self.out_dir}/ground_truth_in_hcr.vcf"
-        ground_truth_in_hcr_and_ti = f"{self.out_dir}/ground_truth_in_hcr_and_ti.vcf"
+        ground_truth_in_hcr = f"{self.out_dir}/ground_truth_in_hcr.vcf.gz"
+        ground_truth_in_hcr_and_ti = f"{self.out_dir}/ground_truth_in_hcr_and_ti.vcf.gz"
         ground_truth_to_check = f"{self.out_dir}/ground_truth_to_check.bed"
+        ground_truth_to_check_vcf = f"{self.out_dir}/ground_truth_to_check.vcf.gz"
         print("Check consistency:")
         print("    target_crams = \n\t" + "\n\t".join(self.target_crams))
         print("    normal_crams = \n\t" + "\n\t".join(self.normal_crams))
@@ -97,9 +98,14 @@ class TrainingSetConsistency:
         )
         self.sp.print_and_run(
             f"bedtools intersect -a {ground_truth_in_hcr} "
-            f"-b {self.out_dir}/training_intervals.bed -header > {ground_truth_in_hcr_and_ti}"
+            f"-b {self.out_dir}/training_intervals.bed -header "
+            f"| bcftools view -Oz -o {ground_truth_in_hcr_and_ti}"
         )
-        self.vcf_to_bed(ground_truth_in_hcr_and_ti, ground_truth_to_check, max_vars=self.max_vars)
+        self.sp.print_and_run(f"bcftools index -t  {ground_truth_in_hcr_and_ti}")
+        self.sp.print_and_run(
+            f"bcftools view {ground_truth_in_hcr_and_ti} -r {self.region} -Oz -o {ground_truth_to_check_vcf}"
+        )
+        self.vcf_to_bed(f"{ground_truth_to_check_vcf}", ground_truth_to_check, max_vars=self.max_vars)
         hcr_intersect_ti = f"{self.out_dir}/hcr_intersected_training_intervals.bed"
         hcr_in_region = f"{self.out_dir}/hcr_in_region.bed"
         self.sp.print_and_run(
@@ -116,18 +122,19 @@ class TrainingSetConsistency:
         else:
             self.sp.print_and_run(f"cp {hcr_intersect_ti} {hcr_in_region}")
 
-        # Validate that eacg target cram correlates or anti-correlates the ground-truth
+        # Validate that each target cram correlates or anti-correlates the ground-truth
         for target_cram in self.target_crams:
-            hit_fraction = self.calc_hit_fraction(target_cram, ground_truth_to_check)
+            hit_fraction, hit_count, _ = self.calc_hit_fraction(target_cram, ground_truth_to_check)
             if hit_fraction < self.min_hit_fraction_target:
                 if self.normal_crams is None:
                     errors.append(
-                        f"{target_cram} - target sample does not match ground truth hit_fraction={hit_fraction}"
+                        f"{target_cram} - target sample does not match ground truth"
+                        f"hit_fraction={hit_fraction}, hit_count={hit_count}"
                     )
                 elif hit_fraction > 1 - self.min_hit_fraction_target:
                     errors.append(
                         f"{target_cram} - target sample does not match ground truth"
-                        f", and is also not complementary to it, hit_fraction={hit_fraction}"
+                        f", and is also not complementary to it, hit_fraction={hit_fraction}, count={hit_count}"
                     )
                 else:
                     print(f"{target_cram} - target sample can be normal-in-tumor sample, hit_fraction={hit_fraction}")
@@ -138,7 +145,7 @@ class TrainingSetConsistency:
         # Validate that each normal cram ani-correlates the ground truth
         normal_germline_vcf_beds = []
         for normal_cram in self.normal_crams:
-            hit_fraction = self.calc_hit_fraction(normal_cram, ground_truth_to_check)
+            hit_fraction, _, _ = self.calc_hit_fraction(normal_cram, ground_truth_to_check)
             if hit_fraction > 1 - self.min_hit_fraction_target:
                 errors.append(
                     f"{normal_cram} - normal sample is not complementary to ground truth, hit_fraction={hit_fraction}"
@@ -150,7 +157,7 @@ class TrainingSetConsistency:
             normal_base_name = f"{os.path.splitext(os.path.basename(normal_cram))[0]}"
             normal_germline_vcf = f"{self.out_dir}/{normal_base_name}.germline.vcf.gz"
             normal_germline_bed = f"{self.out_dir}/{normal_base_name}.germline.bed"
-            self.call_variants(normal_cram, normal_germline_vcf, hcr_in_region, min_count=self.min_count_germline_snps)
+            self.call_variants(normal_cram, normal_germline_vcf, hcr_in_region, min_af=self.min_af_germline_snps)
             self.vcf_to_bed(normal_germline_vcf, normal_germline_bed)
             normal_germline_vcf_beds.append(normal_germline_bed)
 
@@ -160,7 +167,7 @@ class TrainingSetConsistency:
                 max_hit_fraction = 0
                 best_match = ""
                 for normal_germline_bed in normal_germline_vcf_beds:
-                    hit_fraction = self.calc_hit_fraction(suspected_normal_in_tumor_cram, normal_germline_bed)
+                    hit_fraction, _, _ = self.calc_hit_fraction(suspected_normal_in_tumor_cram, normal_germline_bed)
                     max_hit_fraction = max(max_hit_fraction, hit_fraction)
                     best_match = normal_germline_bed
                 if max_hit_fraction < self.min_hit_fraction_target:
@@ -188,18 +195,18 @@ class TrainingSetConsistency:
             f" | sed '{sed_pattern}' > {bed}"
         )
 
-    def call_variants(self, cram: str, vcf: str, regions: str, min_count: int) -> None:
+    def call_variants(self, cram: str, vcf: str, regions: str, min_af: float) -> None:
         local_cram = f"{vcf}.tmp.cram"
         self.sp.print_and_run(
             f"gatk PrintReads -I {cram} -L {regions} -R {self.ref} -O {local_cram} --verbosity WARNING"
         )
         self.sp.print_and_run(
-            f"bcftools mpileup {local_cram} -f {self.ref} -T {regions} -a AD --skip-indels -d 500 "
-            + f"| bcftools view -i 'AD[0:1]>={min_count}' -Oz -o {vcf}"
+            f"bcftools mpileup {local_cram} -f {self.ref} -T {regions} -a ad,format/dp --skip-indels -d 500 "
+            + f"| bcftools view -i 'AD[0:1] / format/DP >= {min_af}' -Oz -o {vcf}"
         )
         self.sp.print_and_run(f"bcftools index -t {vcf}")
 
-    def calc_hit_fraction(self, cram: str, ground_truth_bed: str) -> float:
+    def calc_hit_fraction(self, cram: str, ground_truth_bed: str) -> tuple[float, float, float]:
         cram_base_name = os.path.basename(cram)
         gt_base_name = f"{os.path.splitext(os.path.basename(ground_truth_bed))[0]}"
         vcf = f"{self.out_dir}/{cram_base_name}.hit.{gt_base_name}.vcf.gz"
@@ -208,7 +215,7 @@ class TrainingSetConsistency:
         ground_truth_count_file = f"{self.out_dir}/{gt_base_name}.count"
         self.count_lines(ground_truth_bed, ground_truth_count_file)
         ground_truth_count = read_count(ground_truth_count_file)
-        self.call_variants(cram, vcf, ground_truth_bed, min_count=self.min_count_snps)
+        self.call_variants(cram, vcf, ground_truth_bed, min_af=self.min_af_snps)
         self.vcf_to_bed(vcf, bed)
         self.count_lines(bed, counts)
         hit_count = read_count(counts)
@@ -217,7 +224,7 @@ class TrainingSetConsistency:
             fh.write(f"hit_count {hit_count}\n")
             fh.write(f"hit_fraction {hit_fraction}\n")
 
-        return hit_fraction
+        return hit_fraction, hit_count, ground_truth_count
 
 
 def run(argv):
@@ -233,6 +240,7 @@ def run(argv):
 
     ref = cloud_sync(conf[f"{workflow_id}.references"]["ref_fasta"], args.out_dir)
     cloud_sync(conf[f"{workflow_id}.references"]["ref_dict"], args.out_dir)
+    cloud_sync(conf[f"{workflow_id}.references"]["ref_fasta_index"], args.out_dir)
     bam_files = conf[f"{workflow_id}.bam_files"]
     background_bam_files = conf[f"{workflow_id}.background_bam_files"]
     ground_truth_vcf_files = conf[f"{workflow_id}.ground_truth_vcf_files"]
@@ -240,8 +248,8 @@ def run(argv):
     training_intervals_files = conf[f"{workflow_id}.training_intervals"]
 
     region = args.region_str
-    min_count_snps = args.min_count_snps
-    min_count_germline_snps = args.min_count_germline_snps
+    min_af_snps = args.min_af_snps
+    min_af_germline_snps = args.min_af_germline_snps
     min_hit_fraction_target = args.min_hit_fraction_target
 
     sp = SimplePipeline(args.fc, args.lc, debug=args.d)
@@ -260,6 +268,7 @@ def run(argv):
         training_hcr_file = cloud_sync(training_hcr_files[i], args.out_dir)
         training_intervals_file = cloud_sync(training_intervals_files[i], args.out_dir)
 
+        print(f"subset {i}")
         errors.extend(
             TrainingSetConsistency(
                 target_crams,
@@ -270,8 +279,8 @@ def run(argv):
                 ref,
                 args.max_vars,
                 region,
-                min_count_snps,
-                min_count_germline_snps,
+                min_af_snps,
+                min_af_germline_snps,
                 min_hit_fraction_target,
                 f"{args.out_dir}/subset_{i}",
                 sp,
