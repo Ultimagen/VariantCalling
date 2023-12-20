@@ -28,6 +28,7 @@ class BalancedStrandAdapterVersions(Enum):
     LA_v5and6 = "LA_v5and6"
     LA_v6 = "LA_v6"
     LA_v7 = "LA_v7"
+    LA_v7_amp_dumbbell = "LA_v7_amp_dumbbell"
 
 
 # Trimmer segment labels and tags
@@ -451,7 +452,12 @@ def read_balanced_strand_trimmer_histogram(
                 .where(is_end_reached, BalancedCategories.END_UNREACHED.value)
             )
     # Handle v7 loops
-    elif adapter_version in [BalancedStrandAdapterVersions.LA_v7.value]:
+    elif adapter_version in [
+        BalancedStrandAdapterVersions.LA_v7,
+        BalancedStrandAdapterVersions.LA_v7.value,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+    ]:
         # rename columns
         df_trimmer_histogram = df_trimmer_histogram.rename(
             columns={
@@ -566,8 +572,12 @@ def get_strand_ratio_category_concordance(
 
     Returns
     -------
-    pd.DataFrame
+    df_category_concordance: pd.DataFrame
         dataframe with strand ratio category columns as index and strand ratio category columns as columns
+    df_category_concordance_no_end_unreached: pd.DataFrame
+        dataframe with strand ratio category columns as index and strand ratio category columns as columns, excluding
+        reads where the end was unreached
+
 
     Raises
     ------
@@ -586,6 +596,7 @@ def get_strand_ratio_category_concordance(
             f"Adapter version {adapter_version} does not have tags on both ends. "
             "Cannot calculate strand tag category concordance."
         )
+    # create concordance dataframe
     df_category_concordance = (
         df_trimmer_histogram.groupby(
             [
@@ -603,136 +614,103 @@ def get_strand_ratio_category_concordance(
         .fillna(0)
     )
     df_category_concordance = df_category_concordance / df_category_concordance.sum().sum()
-    return df_category_concordance
+    # create concordance dataframe excluding end unreached reads
+    df_category_concordance_no_end_unreached = df_category_concordance.drop(
+        BalancedCategories.END_UNREACHED.value,
+        level=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+        errors="ignore",
+    )
+    df_category_concordance_no_end_unreached = (
+        df_category_concordance_no_end_unreached / df_category_concordance_no_end_unreached.sum().sum()
+    )
+    index_names = df_category_concordance_no_end_unreached.index.names
+    df_category_concordance_no_end_unreached = df_category_concordance_no_end_unreached.rename(
+        columns={HistogramColumnNames.COUNT.value: HistogramColumnNames.COUNT_NORM.value}
+    ).reset_index()
+    # create consensus dataframe (combined status of both tags)
+    x = HistogramColumnNames.STRAND_RATIO_CATEGORY_CONSENSUS.value  # otherwise flake8 fails on line length
+    #   sum consensus categories where both ends are not UNDETERMINED
+    df_category_consensus = (
+        df_category_concordance_no_end_unreached[
+            (
+                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
+                == df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+            )
+            & (
+                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
+                != BalancedCategories.UNDETERMINED.value
+            )
+            & (
+                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+                != BalancedCategories.UNDETERMINED.value
+            )
+        ]
+        .drop(columns=[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value])
+        .rename(columns={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value: x})
+        .set_index(x)
+    )
+    #   Set UNDETERMINED where at least one is
+    df_category_consensus.loc[
+        BalancedCategoriesConsensus.UNDETERMINED.value,
+        HistogramColumnNames.COUNT_NORM.value,
+    ] = df_category_concordance_no_end_unreached[
+        (
+            df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
+            == BalancedCategories.UNDETERMINED.value
+        )
+        | (
+            df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
+            == BalancedCategories.UNDETERMINED.value
+        )
+    ][
+        HistogramColumnNames.COUNT_NORM.value
+    ].sum()
+    #   the remainder is DISCORDANT - both not UNDETERMINED but do not match
+    count = HistogramColumnNames.COUNT_NORM.value  # workaround flake8 contradicts Black and fails on line length
+    df_category_consensus.loc[BalancedCategoriesConsensus.DISCORDANT.value, count] = (
+        1 - df_category_consensus[HistogramColumnNames.COUNT_NORM.value].sum()
+    )
+
+    return (
+        df_category_concordance,
+        df_category_concordance_no_end_unreached.set_index(index_names),
+        df_category_consensus,
+    )
 
 
-def collect_statistics(
+def read_trimmer_tags_dataframe(
     adapter_version: str | BalancedStrandAdapterVersions,
-    trimmer_histogram_csv: str,
-    sorter_stats_csv: str,
-    output_filename: str,
-    input_material_ng: float = None,
-    **trimmer_histogram_kwargs,
+    df_strand_ratio_category: str,
+    df_category_consensus: str,
+    df_sorter_stats: str,
+    df_category_concordance: str = None,
 ):
     """
-    Collect statistics from a balanced ePCR trimmer histogram file and a sorter stats file
+    Read the trimmer tags dataframe
 
     Parameters
     ----------
     adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
-    trimmer_histogram_csv : str
-        path to a balanced strand Trimmer histogram file
-    sorter_stats_csv : str
-        path to a Sorter stats file
-    output_filename : str
-        path to save dataframe to in hdf format (should end with .h5)
-    input_material_ng : float, optional
-        input material in ng, by default None
+    df_strand_ratio_category : str
+
+    df_category_consensus : str
+
+    df_sorter_stats : str
+
+    df_category_concordance : str, optional
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with strand ratio category columns as index and strand ratio category columns as columns
 
     Raises
     ------
     ValueError
-        If the adapter version is invalid
+        If the adapter version is LA_v5 or LA_v6 and the end tag is missing
+
     """
-    _assert_adapter_version_supported(adapter_version)
-    # read Trimmer histogram
-    df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
-        adapter_version, trimmer_histogram_csv, **trimmer_histogram_kwargs
-    )
-    df_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram)
-    adapter_in_both_ends = adapter_version in (
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
-        BalancedStrandAdapterVersions.LA_v7,
-        BalancedStrandAdapterVersions.LA_v7.value,
-    )
-    if adapter_in_both_ends:
-        df_category_concordance = get_strand_ratio_category_concordance(adapter_version, df_trimmer_histogram)
-        df_category_concordance_no_end_unreached = df_category_concordance.drop(
-            BalancedCategories.END_UNREACHED.value,
-            level=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
-            errors="ignore",
-        )
-        df_category_concordance_no_end_unreached = (
-            df_category_concordance_no_end_unreached / df_category_concordance_no_end_unreached.sum().sum()
-        )
-        df_category_concordance_no_end_unreached = df_category_concordance_no_end_unreached.rename(
-            columns={HistogramColumnNames.COUNT.value: HistogramColumnNames.COUNT_NORM.value}
-        ).reset_index()
-        x = HistogramColumnNames.STRAND_RATIO_CATEGORY_CONSENSUS.value  # otherwise flake8 fails on line length
-        # sum consensus categories where both ends are not UNDETERMINED
-        df_category_consensus = (
-            df_category_concordance_no_end_unreached[
-                (
-                    df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
-                    == df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
-                )
-                & (
-                    df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
-                    != BalancedCategories.UNDETERMINED.value
-                )
-                & (
-                    df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
-                    != BalancedCategories.UNDETERMINED.value
-                )
-            ]
-            .drop(columns=[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value])
-            .rename(columns={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value: x})
-            .set_index(x)
-        )
-        # Set UNDETERMINED where at least one is
-        df_category_consensus.loc[
-            BalancedCategoriesConsensus.UNDETERMINED.value,
-            HistogramColumnNames.COUNT_NORM.value,
-        ] = df_category_concordance_no_end_unreached[
-            (
-                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
-                == BalancedCategories.UNDETERMINED.value
-            )
-            | (
-                df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
-                == BalancedCategories.UNDETERMINED.value
-            )
-        ][
-            HistogramColumnNames.COUNT_NORM.value
-        ].sum()
-        # the remainder is DISCORDANT - both not UNDETERMINED but do not match
-        df_category_consensus.loc[
-            BalancedCategoriesConsensus.DISCORDANT.value,
-            HistogramColumnNames.COUNT_NORM.value,
-        ] = (
-            1 - df_category_consensus[HistogramColumnNames.COUNT_NORM.value].sum()
-        )
-
-    # read Sorter stats
-    df_sorter_stats = read_sorter_statistics_csv(sorter_stats_csv)
-    if input_material_ng is not None:
-        if "Mean_cvg" in df_sorter_stats.index:
-            df_sorter_stats.loc["coverage_GE/ng", "value"] = (
-                df_sorter_stats.loc["Mean_cvg", "value"] / input_material_ng
-            )
-        if "PF_Barcode_reads" in df_sorter_stats.index:
-            df_sorter_stats.loc["PF_reads/ng", "value"] = (
-                df_sorter_stats.loc["PF_Barcode_reads", "value"] / input_material_ng
-            )
-
-    # create statistics shortlist
-    df_stats_shortlist = df_sorter_stats.reindex(
-        [
-            "Mean_cvg",
-            "coverage_GE/ng",
-            "Indel_Rate",
-            "Mean_Read_Length",
-            "PF_Barcode_reads",
-            "PF_reads/ng",
-            "% PF_Reads_aligned",
-            "% Failed_QC_reads",
-            "% Chimeras",
-            "% duplicates",
-        ]
-    )
-
     if adapter_version in (
         BalancedStrandAdapterVersions.LA_v5,
         BalancedStrandAdapterVersions.LA_v5.value,
@@ -756,6 +734,8 @@ def collect_statistics(
         BalancedStrandAdapterVersions.LA_v5and6.value,
         BalancedStrandAdapterVersions.LA_v7,
         BalancedStrandAdapterVersions.LA_v7.value,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
     ):
         df_tags = df_category_consensus * 100
         undetermined = BalancedCategoriesConsensus.UNDETERMINED.value
@@ -801,13 +781,248 @@ def collect_statistics(
             },
             index=["value"],
         ).T
+        df_tags = pd.concat((df_mixed_cov, df_tags))
     else:
         raise ValueError(
             f"Unknown adapter version: {adapter_version if isinstance(adapter_version, str) else adapter_version.value}"
         )
 
     df_tags.index.name = "metric"
-    df_stats_shortlist = pd.concat((df_mixed_cov, df_tags, df_stats_shortlist))
+    return df_tags
+
+
+def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str, input_material_ng: float = None):
+    """
+    Read and parse a sorter statistics csv file
+
+    Parameters
+    ----------
+    sorter_stats_csv : str
+        path to a Sorter stats file
+    input_material_ng : float, optional
+        input material in ng, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with sorter statistics
+    """
+    df_sorter_stats = read_sorter_statistics_csv(sorter_stats_csv)
+    if input_material_ng is not None:
+        if "Mean_cvg" in df_sorter_stats.index:
+            df_sorter_stats.loc["coverage_GE/ng", "value"] = (
+                df_sorter_stats.loc["Mean_cvg", "value"] / input_material_ng
+            )
+        if "PF_Barcode_reads" in df_sorter_stats.index:
+            df_sorter_stats.loc["PF_reads/ng", "value"] = (
+                df_sorter_stats.loc["PF_Barcode_reads", "value"] / input_material_ng
+            )
+
+    # create statistics shortlist
+    df_stats_shortlist = df_sorter_stats.reindex(
+        [
+            "Mean_cvg",
+            "coverage_GE/ng",
+            "Indel_Rate",
+            "Mean_Read_Length",
+            "PF_Barcode_reads",
+            "PF_reads/ng",
+            "% PF_Reads_aligned",
+            "% Chimeras",
+            "% duplicates",
+            "% Failed_QC_reads",
+        ]
+    )
+
+    return df_stats_shortlist
+
+
+def read_trimmer_failure_codes(trimmer_failure_codes_csv: str):
+    """
+    Read a trimmer failure codes csv file
+
+    Parameters
+    ----------
+    trimmer_failure_codes_csv : str
+        path to a Trimmer failure codes file
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with trimmer failure codes
+    """
+    df_trimmer_failure_codes = pd.read_csv(trimmer_failure_codes_csv)
+    expected_columns = [
+        "read group",
+        "code",
+        "format",
+        "segment",
+        "reason",
+        "failed read count",
+        "total read count",
+    ]
+    assert (
+        list(df_trimmer_failure_codes.columns) == expected_columns
+    ), f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}"
+    df_trimmer_failure_codes = df_trimmer_failure_codes.set_index(["segment", "reason"])[
+        ["failed read count", "total read count"]
+    ].assign(**{"% failure": lambda x: 100 * x["failed read count"] / x["total read count"]})
+    adapter_dimers_index = ("insert", "sequence was too short")
+    adapter_dimers = (
+        df_trimmer_failure_codes.reindex([adapter_dimers_index]).fillna(0).loc[adapter_dimers_index, "% failure"]
+    )
+
+    unrecognized_stem_index = ("Stem_start", "no match")
+    unrecognized_stem = (
+        df_trimmer_failure_codes.reindex([unrecognized_stem_index]).fillna(0).loc[unrecognized_stem_index, "% failure"]
+    )
+
+    unrecognized_start_loop_index = ("Unrecognized_Start_loop", "sequence was too long")
+    unrecognized_start_loop = (
+        df_trimmer_failure_codes.reindex([unrecognized_start_loop_index])
+        .fillna(0)
+        .loc[unrecognized_start_loop_index, "% failure"]
+    )
+
+    df_metrics = pd.DataFrame(
+        (
+            ("% failed - adapter dimers", adapter_dimers),
+            ("% failed - unrecognized start stem", unrecognized_stem),
+            ("% failed - unrecognized start loop", unrecognized_start_loop),
+        ),
+        columns=["metric", "value"],
+    ).set_index("metric")
+
+    return df_trimmer_failure_codes, df_metrics
+
+
+def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv):
+    """
+    Read the dumbell leftover stats (constant sequences after trimming) from the trimmer histogram
+
+    Parameters
+    ----------
+    trimmer_histogram_extra_csv : str
+        path to a Trimmer histogram extra file
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with dumbell leftover stats
+    """
+    df_dumbbell_leftover = pd.read_csv(trimmer_histogram_extra_csv)
+    expected_columns = ["Dumbbell_leftover_start", "Dumbbell_leftover_end", "count"]
+    assert (
+        df_dumbbell_leftover.columns.tolist() == expected_columns
+    ), f"Unexpected columns {df_dumbbell_leftover.columns.tolist()}, expected {expected_columns}"
+    df_dumbbell_leftover = df_dumbbell_leftover.assign(
+        Dumbbell_leftover_start_found=df_dumbbell_leftover.Dumbbell_leftover_start.notnull(),
+        Dumbbell_leftover_end_found=df_dumbbell_leftover.Dumbbell_leftover_end.notnull(),
+    )
+    df_dumbbell_leftover = (
+        100
+        * df_dumbbell_leftover.groupby(["Dumbbell_leftover_start_found", "Dumbbell_leftover_end_found"]).agg(
+            {HistogramColumnNames.COUNT.value: "sum"}
+        )
+        / df_dumbbell_leftover[HistogramColumnNames.COUNT.value].sum()
+    ).rename(columns={HistogramColumnNames.COUNT.value: "value"})
+    df_dumbbell_leftover = (
+        df_dumbbell_leftover.reindex([(True, True), (True, False), (False, True), (False, False)])
+        .fillna(0)
+        .assign(
+            metric=[
+                "% dumbbell leftover in both ends",
+                "% dumbbell leftover in start only",
+                "% dumbbell leftover in end only",
+                "% dumbbell leftover in neither end",
+            ]
+        )
+        .set_index("metric")
+    )
+    return df_dumbbell_leftover
+
+
+def collect_statistics(
+    adapter_version: str | BalancedStrandAdapterVersions,
+    trimmer_histogram_csv: str,
+    sorter_stats_csv: str,
+    output_filename: str,
+    trimmer_histogram_extra_csv: str = None,
+    trimmer_failure_codes_csv: str = None,
+    input_material_ng: float = None,
+    **trimmer_histogram_kwargs,
+):
+    """
+    Collect statistics from a balanced ePCR trimmer histogram file and a sorter stats file
+
+    Parameters
+    ----------
+    adapter_version : str | BalancedStrandAdapterVersions
+        adapter version to check
+    trimmer_histogram_csv : str
+        path to a balanced strand Trimmer histogram file
+    sorter_stats_csv : str
+        path to a Sorter stats file
+    output_filename : str
+        path to save dataframe to in hdf format (should end with .h5)
+    input_material_ng : float, optional
+        input material in ng, by default None
+
+    Raises
+    ------
+    ValueError
+        If the adapter version is invalid
+    """
+    _assert_adapter_version_supported(adapter_version)
+    # read Trimmer histogram
+    df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
+        adapter_version, trimmer_histogram_csv, **trimmer_histogram_kwargs
+    )
+    df_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram)
+    adapter_in_both_ends = adapter_version in (
+        BalancedStrandAdapterVersions.LA_v5and6,
+        BalancedStrandAdapterVersions.LA_v5and6.value,
+        BalancedStrandAdapterVersions.LA_v7,
+        BalancedStrandAdapterVersions.LA_v7.value,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+    )
+    if adapter_in_both_ends:
+        df_category_concordance, _, df_category_consensus = get_strand_ratio_category_concordance(
+            adapter_version, df_trimmer_histogram
+        )
+
+    # read Sorter stats
+    df_sorter_stats = read_and_parse_sorter_statistics_csv(sorter_stats_csv, input_material_ng=input_material_ng)
+
+    # read Trimmer tag stats
+    df_tags = read_trimmer_tags_dataframe(
+        adapter_version=adapter_version,
+        df_strand_ratio_category=df_strand_ratio_category,
+        df_category_consensus=df_category_consensus,
+        df_sorter_stats=df_sorter_stats,
+        df_category_concordance=df_category_concordance,
+    )
+
+    # Merge to create stats shortlist
+    df_stats_shortlist = pd.concat((df_tags, df_sorter_stats))
+
+    # read Trimmer failure tags
+    if trimmer_failure_codes_csv:
+        df_trimmer_failure_codes, df_failure_codes_metrics = read_trimmer_failure_codes(trimmer_failure_codes_csv)
+        df_stats_shortlist = pd.concat((df_stats_shortlist, df_failure_codes_metrics))
+
+    is_v7_dumbell = (
+        adapter_version
+        in (
+            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+        )
+        and trimmer_histogram_extra_csv
+    )
+    if is_v7_dumbell:
+        df_dumbell_leftover = read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv)
+        df_stats_shortlist = pd.concat((df_stats_shortlist, df_dumbell_leftover))
 
     # save
     if not output_filename.endswith(".h5"):
@@ -821,6 +1036,10 @@ def collect_statistics(
         if adapter_in_both_ends:
             store["df_category_concordance"] = df_category_concordance
             store["df_category_consensus"] = df_category_consensus
+        if trimmer_failure_codes_csv:
+            store["df_trimmer_failure_codes"] = df_trimmer_failure_codes
+        if is_v7_dumbell:
+            store["df_failure_codes_metrics"] = df_failure_codes_metrics
 
 
 def add_strand_ratios_and_categories_to_featuremap(
@@ -1111,16 +1330,10 @@ def plot_strand_ratio_category_concordnace(
     """
     _assert_adapter_version_supported(adapter_version)
     # get concordance
-    df_category_concordance = get_strand_ratio_category_concordance(adapter_version, df_trimmer_histogram)
+    df_category_concordance, df_category_concordance_no_end_unreached, _ = get_strand_ratio_category_concordance(
+        adapter_version, df_trimmer_histogram
+    )
 
-    df_category_concordance_no_end_unreached = df_category_concordance.drop(
-        BalancedCategories.END_UNREACHED.value,
-        level=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
-        errors="ignore",
-    )
-    df_category_concordance_no_end_unreached = (
-        df_category_concordance_no_end_unreached / df_category_concordance_no_end_unreached.sum().sum()
-    )
     # display settings
     set_pyplot_defaults()
     if axs is None:
@@ -1294,6 +1507,8 @@ def plot_trimmer_histogram(
     elif adapter_version in (
         BalancedStrandAdapterVersions.LA_v7,
         BalancedStrandAdapterVersions.LA_v7.value,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
     ):
 
         fig, axs_all_both = plt.subplots(3, 10, figsize=(18, 5), sharex=False, sharey=True)
@@ -1546,6 +1761,8 @@ def balanced_strand_analysis(
     collect_statistics_kwargs.setdefault("adapter_version", adapter_version)
     collect_statistics_kwargs.setdefault("trimmer_histogram_csv", trimmer_histogram_csv)
     collect_statistics_kwargs.setdefault("sorter_stats_csv", sorter_stats_csv)
+    collect_statistics_kwargs.setdefault("trimmer_failure_codes_csv", trimmer_failure_codes_csv)
+    collect_statistics_kwargs.setdefault("trimmer_histogram_extra_csv", trimmer_histogram_extra_csv)
     collect_statistics_kwargs.setdefault("sr_lower", sr_lower)
     collect_statistics_kwargs.setdefault("sr_upper", sr_upper)
     collect_statistics_kwargs.setdefault("min_total_hmer_lengths_in_tags", min_total_hmer_lengths_in_tags)
@@ -1591,6 +1808,8 @@ def balanced_strand_analysis(
         BalancedStrandAdapterVersions.LA_v5and6.value,
         BalancedStrandAdapterVersions.LA_v7,
         BalancedStrandAdapterVersions.LA_v7.value,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
     ):
         plot_strand_ratio_category_concordnace(
             adapter_version,
@@ -1636,6 +1855,8 @@ def balanced_strand_analysis(
             BalancedStrandAdapterVersions.LA_v5and6.value,
             BalancedStrandAdapterVersions.LA_v7,
             BalancedStrandAdapterVersions.LA_v7.value,
+            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
         ):
             parameters["strand_ratio_category_concordance_png"] = output_strand_ratio_category_concordance_plot
         # inject parameters and run notebook
