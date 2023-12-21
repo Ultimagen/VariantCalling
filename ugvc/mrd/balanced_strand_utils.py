@@ -1441,8 +1441,8 @@ def plot_trimmer_histogram(
             BalancedStrandAdapterVersions.LA_v5and6,
             BalancedStrandAdapterVersions.LA_v5and6.value,
         ):
-            fig_x, axs = plt.subplots(1, 2, figsize=(14, 6), sharey=True, sharex=True)
-            fig_x.subplots_adjust(wspace=0.3)
+            fig, axs = plt.subplots(1, 2, figsize=(14, 6), sharey=True, sharex=True)
+            fig.subplots_adjust(wspace=0.3)
             plot_iter = (
                 (
                     TrimmerSegmentLabels.A_HMER_START.value,
@@ -1458,7 +1458,7 @@ def plot_trimmer_histogram(
                 ),
             )
         else:
-            fig_x, axs = plt.subplots(1, 1, figsize=(8, 6))
+            fig, axs = plt.subplots(1, 1, figsize=(8, 6))
             axs = [axs]
             if adapter_version in (
                 BalancedStrandAdapterVersions.LA_v5,
