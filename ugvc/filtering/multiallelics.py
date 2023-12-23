@@ -52,7 +52,9 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
 
 
 def split_multiallelic_variants(
-    multiallelic_variant: pd.Series, call_vcf_header: pysam.VariantHeader | pysam.VariantFile | str, ref: pyfaidx.Fasta
+    multiallelic_variant: pd.Series,
+    call_vcf_header: pysam.VariantHeader | pysam.VariantFile | str,
+    ref: pyfaidx.FastaRecord,
 ) -> pd.DataFrame:
     """Splits multiallelic variants into multiple rows
 
@@ -88,6 +90,13 @@ def split_multiallelic_variants(
         )
         + 1
     )
+
+    # very rare case when there is a spanning deletion without an actual deletion (I guess GATK bug)
+    allele_order = [x for x in allele_order if alleles[x] != SPAN_DEL]
+    if len(allele_order) <= 2:
+        return pd.DataFrame(
+            extract_allele_subset_from_multiallelic(multiallelic_variant, (0, allele_order[0]), record_to_nbr_dict, ref)
+        ).T
     return pd.concat(
         (
             extract_allele_subset_from_multiallelic(multiallelic_variant, alleles, record_to_nbr_dict, ref)
@@ -98,7 +107,7 @@ def split_multiallelic_variants(
 
 
 def extract_allele_subset_from_multiallelic(
-    multiallelic_variant: pd.Series, alleles: tuple, record_to_nbr_dict: dict, ref: pyfaidx.Fasta
+    multiallelic_variant: pd.Series, alleles: tuple, record_to_nbr_dict: dict, ref: pyfaidx.FastaRecord
 ) -> pd.Series:
     """When analyzing multiallelic variants, we split them into pairs of alleles. Each pair of alleles
     need to have the updated columns (GT/PL etc.). This function updates those columns
@@ -252,7 +261,7 @@ def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: 
     return tuple(pltake)
 
 
-def is_indel_subset(alleles: tuple, allele_indices: tuple, spandel: pd.Series = None) -> bool:
+def is_indel_subset(alleles: tuple, allele_indices: tuple, spandel: pd.Series | None = None) -> bool:
     """Checks if the variant is an indel
 
     Parameters
@@ -283,7 +292,7 @@ def is_indel_subset(alleles: tuple, allele_indices: tuple, spandel: pd.Series = 
 
 
 def indel_classify_subset(
-    alleles: tuple, allele_indices: tuple, spandel: pd.Series = None
+    alleles: tuple, allele_indices: tuple, spandel: pd.Series | None = None
 ) -> tuple[tuple[str | None], tuple[int | None]]:
     """Checks if the variant is insertion or deletion
 
@@ -329,10 +338,10 @@ def indel_classify_subset(
 def classify_hmer_indel_relative(
     alleles: tuple,
     allele_indices: tuple,
-    ref: pyfaidx.Fasta | str,
+    ref: pyfaidx.FastaRecord | str,
     pos: int,
     flow_order: str = "TGCA",
-    spandel: pd.Series = None,
+    spandel: pd.Series | None = None,
 ) -> tuple:
     """Checks if one allele is hmer indel relative to the other
 
@@ -461,6 +470,9 @@ def cleanup_multiallelics(df: pd.DataFrame) -> pd.DataFrame:
             Output dataframe
     """
     df = df.copy()
+    select = (df["variant_type"] == "snp") & (df["x_il"].apply(lambda x: x[0] is not None and x[0] != 0))
+    df.loc[select, "variant_type"] = "non-h-indel"
+
     select = (df["variant_type"] == "non-h-indel") & (df["x_hil"].apply(lambda x: x[0] is not None and x[0] > 0))
     df.loc[select, "variant_type"] = "h-indel"
 

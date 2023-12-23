@@ -30,7 +30,7 @@ def calculate_labeled_vcf(call_vcf: str, vcfeval_vcf: str, contig: str) -> pd.Da
     logger.info(f"Duplicates in vcfeval: {df_vcfeval.index.duplicated().sum()}")
 
     logger.info(
-        f"Counts of 'BASE' tag of thevariants that were in the vcfeval output but \
+        f"Counts of 'BASE' tag of the variants that were in the vcfeval output but \
         did not match to call_vcf: {counts_base}"
     )
     logger.info(
@@ -97,7 +97,7 @@ def calculate_labels(labeled_df: pd.DataFrame) -> pd.Series:
     return result["true_gt"]
 
 
-def prepare_ground_truth(input_vcf, base_vcf, hcr, reference, output_h5, chromosome=None):
+def prepare_ground_truth(input_vcf, base_vcf, hcr, reference, output_h5, chromosome: list = None):
     pipeline = vpu.VcfPipelineUtils()
     vcfeval_output = pipeline.run_vcfeval_concordance(
         input_file=input_vcf,
@@ -192,5 +192,5 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
 
     idx_multi_spandels = df.index[combined_overlaps]
     df.drop(idx_multi_spandels, axis=0, inplace=True)
-
-    return pd.concat((df, multiallelic_groups, spanning_deletions))
+    mug = pd.concat((multiallelic_groups, spanning_deletions), ignore_index=True)  # resetting index
+    return pd.concat((df, mug))
