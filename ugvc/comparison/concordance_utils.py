@@ -14,7 +14,7 @@ from ugvc.filtering import variant_filtering_utils
 def read_hdf(
     file_name: str,
     key: str = "all",
-    skip_keys: collections.abc.Iterable[str] = (),
+    skip_keys: list[str] | None = None,
     columns_subset: list[str] | None = None,
 ) -> DataFrame:
     """
@@ -39,6 +39,8 @@ def read_hdf(
     -------
     data-frame or concat data-frame read from the h5 file according to key
     """
+    if skip_keys is None:
+        skip_keys = []
     if key == "all":
         with h5py.File(file_name, "r") as h5_file:
             keys = list(h5_file.keys())

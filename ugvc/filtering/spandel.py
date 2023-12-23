@@ -15,7 +15,7 @@ def split_multiallelic_variants_with_spandel(
     multiallelic_variant: pd.Series,
     spanning_deletion: pd.Series,
     call_vcf_header: pysam.VariantHeader | pysam.VariantFile | str,
-    ref: pyfaidx.Fasta,
+    ref: pyfaidx.FastaRecord,
 ) -> pd.DataFrame:
     """Splits spanning deletion-containing multiallelic variants into multiple rows
     The process is similar to multiallelic variants, but the spanning deletion allele is always the second one
@@ -72,7 +72,7 @@ def extract_allele_subset_from_multiallelic_spanning_deletion(
     spanning_deletion: pd.Series,
     alleles: tuple,
     record_to_nbr_dict: dict,
-    ref: pyfaidx.Fasta,
+    ref: pyfaidx.FastaRecord,
 ) -> pd.Series:
     """When analyzing multiallelic variants, we split them into pairs of alleles. Each pair of alleles
     need to have the updated columns (GT/PL etc.). This function updates those columns
