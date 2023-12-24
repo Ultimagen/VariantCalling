@@ -49,23 +49,23 @@ def read_hdf(
                 keys.remove(k)
         dfs = []
         for k in keys:
-            tmpdf = pd.read_hdf(file_name, key=k)
+            tmpdf: DataFrame = DataFrame(pd.read_hdf(file_name, key=k))
             if columns_subset is not None:
                 tmpdf = tmpdf[[x for x in columns_subset if x in tmpdf.columns]]
             if tmpdf.shape[0] > 0:
                 dfs.append(tmpdf)
         return pd.concat(dfs)
     if key == "all_human_chrs":
-        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X", "Y"]]
+        dfs = [DataFrame(pd.read_hdf(file_name, key=f"chr{x}")) for x in list(range(1, 23)) + ["X", "Y"]]
         return pd.concat(dfs)
     if key == "all_hg19_human_chrs":
-        dfs = [pd.read_hdf(file_name, key=list(range(1, 23)) + ["X", "Y"])]
+        dfs = [DataFrame(pd.read_hdf(file_name, key=x)) for x in list(range(1, 23)) + ["X", "Y"]]
         return pd.concat(dfs)
     if key == "all_somatic_chrs":
-        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23))]
+        dfs = [DataFrame(pd.read_hdf(file_name, key=f"chr{x}")) for x in list(range(1, 23))]
         return pd.concat(dfs)
     # If not one of the special keys:
-    return pd.read_hdf(file_name, key=key)
+    return DataFrame(pd.read_hdf(file_name, key=key))
 
 
 def get_h5_keys(file_name: str) -> list[str]:
