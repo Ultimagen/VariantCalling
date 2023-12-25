@@ -151,10 +151,11 @@ class VcfAnnotator(ABC):
             sp = SimplePipeline(0, 100, debug=False)
             commands = []
             ugvc_path = os.path.dirname(os.path.dirname(__file__))
+            input_path_base_name= os.path.splitext(os.path.basename(input_path))[0]
             for contig in contigs:
                 try:
                     next(input_variant_file.fetch(contig))  # to raise StopIteration if contig is empty
-                    out_per_contig = os.path.join(out_dir, contig + ".vcf.gz")
+                    out_per_contig = os.path.join(out_dir, f"{input_path_base_name}.{contig}.vcf.gz")
                     commands.append(
                         f"python {ugvc_path} annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} "
                         f"--annotators_pickle {annotators_pickle} --contig {contig} --chunk_size {chunk_size}"
