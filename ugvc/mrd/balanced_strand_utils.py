@@ -850,6 +850,14 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str):
     -------
     pd.DataFrame
         dataframe with trimmer failure codes
+
+    pd.DataFrame
+        dataframe with trimmer application-specific statistics
+
+    Raises
+    ------
+    AssertionError
+        If the columns are not as expected
     """
     df_trimmer_failure_codes = pd.read_csv(trimmer_failure_codes_csv)
     expected_columns = [
@@ -864,9 +872,11 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str):
     assert (
         list(df_trimmer_failure_codes.columns) == expected_columns
     ), f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}"
-    df_trimmer_failure_codes = df_trimmer_failure_codes.set_index(["segment", "reason"])[
-        ["failed read count", "total read count"]
-    ].assign(**{"% failure": lambda x: 100 * x["failed read count"] / x["total read count"]})
+    df_trimmer_failure_codes = (
+        df_trimmer_failure_codes.groupby(["segment", "reason"])
+        .agg({x: "sum" for x in ("failed read count", "total read count")})
+        .assign(**{"% failure": lambda x: 100 * x["failed read count"] / x["total read count"]})
+    )
     adapter_dimers_index = ("insert", "sequence was too short")
     adapter_dimers = (
         df_trimmer_failure_codes.reindex([adapter_dimers_index]).fillna(0).loc[adapter_dimers_index, "% failure"]
@@ -1423,6 +1433,11 @@ def plot_trimmer_histogram(
     axs: list[plt.Axes]
         list of axes objects to which the output was plotted
 
+    Raises
+    ------
+    ValueError
+        If the adapter version is invalid
+
     """
     _assert_adapter_version_supported(adapter_version)
     # display settings
@@ -1485,25 +1500,25 @@ def plot_trimmer_histogram(
                     ),
                 )
 
+        # plot
+        title_handle = plt.suptitle(title, y=1.03)
+        for ax, (xcol, ycol, zcol, subtitle) in zip(axs, plot_iter):
+            # group by strand ratio and strand ratio category for non-undetermined reads
+            df_plot = df_trimmer_histogram.groupby([xcol, ycol]).agg({zcol: "sum"}).reset_index()
+            df_hmer_sum = df_plot[[xcol, ycol]].sum(axis=1)
+            df_plot = df_plot[
+                (min_total_hmer_lengths_in_tags <= df_hmer_sum) & (df_hmer_sum <= max_total_hmer_lengths_in_tags)
+            ]
+            df_plot.loc[:, zcol] = df_plot[zcol] / df_plot[zcol].sum()
             # plot
-            title_handle = plt.suptitle(title, y=1.03)
-            for ax, (xcol, ycol, zcol, subtitle) in zip(axs, plot_iter):
-                # group by strand ratio and strand ratio category for non-undetermined reads
-                df_plot = df_trimmer_histogram.groupby([xcol, ycol]).agg({zcol: "sum"}).reset_index()
-                df_hmer_sum = df_plot[[xcol, ycol]].sum(axis=1)
-                df_plot = df_plot[
-                    (min_total_hmer_lengths_in_tags <= df_hmer_sum) & (df_hmer_sum <= max_total_hmer_lengths_in_tags)
-                ]
-                df_plot.loc[:, zcol] = df_plot[zcol] / df_plot[zcol].sum()
-                # plot
-                plt.sca(ax)
-                plt.scatter(df_plot[xcol], df_plot[ycol], s=500 * df_plot[zcol], c=df_plot[zcol])
-                plt.colorbar()
-                plt.xticks(range(int(plt.gca().get_xlim()[1]) + 1))
-                plt.yticks(range(int(plt.gca().get_ylim()[1]) + 1))
-                plt.xlabel(xcol.replace("_", " "))
-                plt.ylabel(ycol.replace("_", " "))
-                plt.title(subtitle, fontsize=22)
+            plt.sca(ax)
+            plt.scatter(df_plot[xcol], df_plot[ycol], s=500 * df_plot[zcol], c=df_plot[zcol])
+            plt.colorbar()
+            plt.xticks(range(int(plt.gca().get_xlim()[1]) + 1))
+            plt.yticks(range(int(plt.gca().get_ylim()[1]) + 1))
+            plt.xlabel(xcol.replace("_", " "))
+            plt.ylabel(ycol.replace("_", " "))
+            plt.title(subtitle, fontsize=22)
     elif adapter_version in (
         BalancedStrandAdapterVersions.LA_v7,
         BalancedStrandAdapterVersions.LA_v7.value,
@@ -1603,6 +1618,8 @@ def plot_trimmer_histogram(
                         ax.set_title(base)
                     if k == 2:
                         ax.set_xlabel("hmer")
+    else:
+        raise ValueError(f"Invalid adapter version {adapter_version}")
 
     if output_filename is not None:
         if not output_filename.endswith(".png"):
