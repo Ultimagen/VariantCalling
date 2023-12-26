@@ -14,7 +14,7 @@ import pysam
 import seaborn as sns
 
 from ugvc.flow_format.flow_based_read import generate_key_from_sequence
-from ugvc.utils.metrics_utils import read_sorter_statistics_csv
+from ugvc.utils.metrics_utils import plot_read_length_histogram, read_sorter_statistics_csv
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html, set_pyplot_defaults
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
@@ -1705,6 +1705,7 @@ def balanced_strand_analysis(
     sorter_stats_csv: str,
     output_path: str,
     output_basename: str = None,
+    sorter_stats_json: str = None,
     trimmer_histogram_extra_csv: str = None,
     trimmer_failure_codes_csv: str = None,
     collect_statistics_kwargs: dict = None,
@@ -1730,6 +1731,12 @@ def balanced_strand_analysis(
         path (folder) to which data and report will be written to
     output_basename : str, optional
         basename for output files, by default None (basename of trimmer_histogram_csv)
+    sorter_stats_json : str, optional
+        path to a Sorter stats JSON file, by default None
+    trimmer_histogram_extra_csv : str, optional
+        path to a balanced strand Trimmer histogram extra file, by default None
+    trimmer_failure_codes_csv : str, optional
+        path to a balanced strand Trimmer failure codes file, by default None
     collect_statistics_kwargs : dict, optional
         kwargs for collect_statistics, by default None
     generate_report
@@ -1767,6 +1774,7 @@ def balanced_strand_analysis(
     output_strand_ratio_category_concordance_plot = os.path.join(
         output_path, f"{output_basename}.strand_ratio_category_concordance.png"
     )
+    output_read_length_histogram_plot = os.path.join(output_path, f"{output_basename}.read_length_histogram.png")
     output_report_ipynb = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.ipynb")
     output_report_html = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.html")
 
@@ -1835,6 +1843,13 @@ def balanced_strand_analysis(
             output_filename=output_strand_ratio_category_concordance_plot,
         )
 
+    if sorter_stats_json:
+        plot_read_length_histogram(
+            sorter_stats_json,
+            title=f"{output_basename}",
+            output_filename=output_read_length_histogram_plot,
+        )
+
     # generate report
     if generate_report:
         template_notebook = os.path.join(
@@ -1876,6 +1891,8 @@ def balanced_strand_analysis(
             BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
         ):
             parameters["strand_ratio_category_concordance_png"] = output_strand_ratio_category_concordance_plot
+        if sorter_stats_json:
+            parameters["output_read_length_histogram_plot"] = output_read_length_histogram_plot
         # inject parameters and run notebook
         papermill_params = f"{' '.join([f'-p {k} {v}' for k, v in parameters.items()])}"
         papermill_cmd = f"papermill {template_notebook} {output_report_ipynb} {papermill_params} -k python3"

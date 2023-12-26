@@ -291,7 +291,7 @@ def get_histogram_from_sorter(sorter_stats_json: str, histogram_key: str) -> pd.
 
 def plot_read_length_histogram(
     sorter_stats_json: str,
-    plot_range_percentiles: tuple = (0.01, 0.99),
+    plot_range_percentiles: tuple = (0.001, 0.999),
     output_filename: str = None,
     title: str = None,
 ):

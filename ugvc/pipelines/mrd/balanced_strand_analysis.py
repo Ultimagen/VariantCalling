@@ -57,7 +57,13 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--sorter-stats-csv",
         type=str,
-        help="path to a Sorter stats file",
+        help="path to a Sorter stats csv file",
+    )
+    parser.add_argument(
+        "--sorter-stats-json",
+        type=str,
+        required=False,
+        help="path to a Sorter stats json file",
     )
     parser.add_argument(
         "--output-path",
@@ -128,6 +134,7 @@ def run(argv: list[str]):
         trimmer_histogram_extra_csv=args_in.trimmer_histogram_extra_csv,
         trimmer_failure_codes_csv=args_in.trimmer_failure_codes_csv,
         sorter_stats_csv=args_in.sorter_stats_csv,
+        sorter_stats_json=args_in.sorter_stats_json,
         output_path=args_in.output_path,
         output_basename=args_in.output_basename,
         collect_statistics_kwargs=dict(input_material_ng=args_in.input_material_ng)
