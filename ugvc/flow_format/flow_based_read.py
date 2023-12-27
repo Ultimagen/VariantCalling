@@ -321,7 +321,7 @@ class FlowBasedRead:
                 np.array(sam_record.query_qualities, dtype=int),
                 tp_tag=np.array(sam_record.get_tag("tp"), dtype=int),
                 t0_tag=t0,
-                filler=filler,
+                fallback_filler=filler,
                 min_call_prob=min_call_prob,
                 max_hmer_size=max_hmer_size,
                 spread_edge_probs=spread_edge_probs,
@@ -344,7 +344,7 @@ class FlowBasedRead:
         qual: np.ndarray,
         tp_tag: np.ndarray,
         t0_tag: np.ndarray | None = None,
-        filler: float = DEFAULT_FILLER,
+        fallback_filler: float = DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
         max_hmer_size: int = 12,
         spread_edge_probs: bool = True,
@@ -386,8 +386,8 @@ class FlowBasedRead:
             tp tag of the read
         t0_tag : np.ndarray
             T0 tag of the read, optional
-        filler : float
-            Value to place as zero probability
+        fallback_filler : float
+            Value to place as minimal probability, only in cases not being able to be guessed from the read
         min_call_prob: float
             The minimal value to place as the probability of the actual call
         max_hmer_size : int, optional
@@ -401,7 +401,7 @@ class FlowBasedRead:
             max_hmer+1 x n_flows flow matrix
         """
 
-        filler = cls._estimate_filler_value(qual, tp_tag) / max_hmer_size
+        filler = cls._estimate_filler_value(qual, tp_tag, fallback_filler) / max_hmer_size
         flow_matrix = np.ones((max_hmer_size + 1, len(key))) * filler
 
         probs = phred.unphred(qual)
@@ -542,7 +542,7 @@ class FlowBasedRead:
         self._validate = ~np.any(self.key > (self._max_hmer - 1))
 
     @classmethod
-    def _estimate_filler_value(cls, qual: np.ndarray, tp_tag: np.ndarray) -> float:
+    def _estimate_filler_value(cls, qual: np.ndarray, tp_tag: np.ndarray, fallback_filler: float) -> float:
         """Estimates the maximal reported quality from the read qualities
 
         Parameters
@@ -551,6 +551,8 @@ class FlowBasedRead:
             Quality array of the read
         tp_tag : np.ndarray
             tp tag of the read
+        fallback_filler : float
+            If there are no zero calls, this value will be used
 
         Returns
         -------
@@ -558,7 +560,7 @@ class FlowBasedRead:
             The estimated filler value
         """
         if np.sum(tp_tag == 0) == 0:
-            return DEFAULT_FILLER
+            return fallback_filler
         maxQual: float = np.max(qual[tp_tag == 0])
         return float(phred.unphred(maxQual))
 
