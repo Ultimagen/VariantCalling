@@ -88,7 +88,7 @@ def get_h5_keys(file_name: str) -> list[str]:
 def calc_accuracy_metrics(
     df: DataFrame,
     classify_column_name: str,
-    ignored_filters: collections.abc.Iterable[str] = (),
+    ignored_filters: collections.Iterable[str] = (),
     group_testing_column_name: str | None = None,
 ) -> DataFrame:
     """
@@ -251,7 +251,7 @@ def validate_preprocess_concordance(df: DataFrame, group_testing_column_name: st
 
 
 def initialize_trivial_classifier(
-    ignored_filters: collections.abc.Iterable[str],
+    ignored_filters: collections.Iterable[str],
 ) -> variant_filtering_utils.MaskedHierarchicalModel:
     """
     initialize a classifier that will be used to simply apply filter column on the variants
