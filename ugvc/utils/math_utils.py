@@ -64,20 +64,22 @@ def phred_str(p: list[float] | tuple[float] | np.ndarray) -> str:
     return "".join(chr(int(x) + 33) for x in q)
 
 
-def unphred(q: list[int | float] | tuple[int | float] | np.ndarray) -> np.ndarray:
+def unphred(q: float | list[int | float] | tuple[int | float] | np.ndarray) -> np.ndarray | float:
     """Transform Phred quality scores to probablities
     See https://en.wikipedia.org/wiki/Phred_quality_score
 
     Parameters
     ----------
-    q : Union[list, tuple, np.ndarray]
+    q : Union[float, list, tuple, np.ndarray]
         List of integer or float phred qualities
 
     Returns
     -------
-    np.ndarray
+    np.ndarray | float
         List of error probabilities
     """
+    if isinstance(q, float):
+        return 10 ** (-q / 10)
     p = np.power(10, -np.array(q, dtype=float) / 10)
     return p
 
