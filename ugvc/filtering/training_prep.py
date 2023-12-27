@@ -184,7 +184,7 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     ]
 
     for i, n in enumerate(spanning_deletions):
-        n.loc[:, "multiallelic_group"] = [(df.iloc[spandels[i][0]]["chrom"], df.iloc[spandels[i][0]]["pos"])] * (
+        n.loc[:, "spanning_deletion"] = [(df.iloc[spandels[i][0]]["chrom"], df.iloc[spandels[i][0]]["pos"])] * (
             n.shape[0]
         )
     spanning_deletions = pd.concat(spanning_deletions, ignore_index=True)

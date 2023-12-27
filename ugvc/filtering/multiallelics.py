@@ -93,7 +93,7 @@ def split_multiallelic_variants(
 
     # very rare case when there is a spanning deletion without an actual deletion (I guess GATK bug)
     allele_order = [x for x in allele_order if alleles[x] != SPAN_DEL]
-    if len(allele_order) <= 2:
+    if len(allele_order) == 1:
         return pd.DataFrame(
             extract_allele_subset_from_multiallelic(multiallelic_variant, (0, allele_order[0]), record_to_nbr_dict, ref)
         ).T
