@@ -249,7 +249,7 @@ def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: 
     tuple
         Resulting genotype, at least one allele should exist in the orginal genotype
     """
-    allele_idcs = tuple(sorted(allele_idcs))
+    allele_idcs = tuple(allele_idcs)
     idcs = [
         _get_pl_idx(x)
         for x in ((allele_idcs[0], allele_idcs[0]), (allele_idcs[0], allele_idcs[1]), (allele_idcs[1], allele_idcs[1]))
