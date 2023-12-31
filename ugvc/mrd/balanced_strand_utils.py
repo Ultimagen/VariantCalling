@@ -14,7 +14,7 @@ import pysam
 import seaborn as sns
 
 from ugvc.flow_format.flow_based_read import generate_key_from_sequence
-from ugvc.utils.metrics_utils import plot_read_length_histogram, read_sorter_statistics_csv
+from ugvc.utils.metrics_utils import merge_trimmer_histograms, plot_read_length_histogram, read_sorter_statistics_csv
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html, set_pyplot_defaults
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
@@ -1701,12 +1701,12 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
 # pylint: disable=too-many-arguments
 def balanced_strand_analysis(
     adapter_version: str | BalancedStrandAdapterVersions,
-    trimmer_histogram_csv: str,
+    trimmer_histogram_csv: list[str],
     sorter_stats_csv: str,
     output_path: str,
     output_basename: str = None,
     sorter_stats_json: str = None,
-    trimmer_histogram_extra_csv: str = None,
+    trimmer_histogram_extra_csv: list[str] = None,
     trimmer_failure_codes_csv: str = None,
     collect_statistics_kwargs: dict = None,
     generate_report: bool = True,
@@ -1778,16 +1778,24 @@ def balanced_strand_analysis(
     output_report_ipynb = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.ipynb")
     output_report_html = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.html")
 
+    # Merge Trimmer histograms from different optical paths (APL mode)
+    merged_histogram_csv = merge_trimmer_histograms(trimmer_histogram_csv, output_path=output_path)
+    merged_histogram_extra_csv = (
+        merge_trimmer_histograms(trimmer_histogram_extra_csv, output_path=output_path)
+        if trimmer_histogram_extra_csv
+        else None
+    )
+
     # collect statistics
     # create the input for collect statistics
     if collect_statistics_kwargs is None:
         collect_statistics_kwargs = {}
     collect_statistics_kwargs.setdefault("output_filename", output_statistics_h5)
     collect_statistics_kwargs.setdefault("adapter_version", adapter_version)
-    collect_statistics_kwargs.setdefault("trimmer_histogram_csv", trimmer_histogram_csv)
+    collect_statistics_kwargs.setdefault("trimmer_histogram_csv", merged_histogram_csv)
     collect_statistics_kwargs.setdefault("sorter_stats_csv", sorter_stats_csv)
     collect_statistics_kwargs.setdefault("trimmer_failure_codes_csv", trimmer_failure_codes_csv)
-    collect_statistics_kwargs.setdefault("trimmer_histogram_extra_csv", trimmer_histogram_extra_csv)
+    collect_statistics_kwargs.setdefault("trimmer_histogram_extra_csv", merged_histogram_extra_csv)
     collect_statistics_kwargs.setdefault("sr_lower", sr_lower)
     collect_statistics_kwargs.setdefault("sr_upper", sr_upper)
     collect_statistics_kwargs.setdefault("min_total_hmer_lengths_in_tags", min_total_hmer_lengths_in_tags)

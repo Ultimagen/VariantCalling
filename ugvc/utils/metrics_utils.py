@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import json
+import os
 import re
 
 import matplotlib.pyplot as plt
@@ -330,7 +333,10 @@ def plot_read_length_histogram(
     )
     pdf_aligned_to_all_reads.plot(linewidth=2, linestyle="--")
     legend_handle = plt.legend(
-        [f"All reads, median={f_interp(0.5):.0f}", f"Aligned reads, median={f_interp_aligned(0.5):.0f}"]
+        [
+            f"All reads, median={f_interp(0.5):.0f}",
+            f"Aligned reads, median={f_interp_aligned(0.5):.0f}",
+        ]
     )
     plt.xlim(xlim)
     plt.xlabel("Read length")
@@ -349,3 +355,46 @@ def plot_read_length_histogram(
             bbox_inches="tight",
             bbox_extra_artists=bbox_extra_artists,
         )
+
+
+def merge_trimmer_histograms(trimmer_histograms: list[str], output_path: str):
+    """
+    Merge multiple Trimmer histograms into a single histogram.
+
+    Parameters
+    ----------
+    trimmer_histograms : list[str]
+        List of paths to Trimmer histogram files, or a single path to a Trimmer histogram file.
+    output_path : str
+        Path to output file, or a path to which the output file will be written to with the basename of the first
+        value in trimmer_histograms.
+
+    Returns
+    -------
+    str
+        Path to output file. If the list is only 1 file, returns the path to that file without doing anything.
+
+    Raises
+    ------
+    ValueError
+        If trimmer_histograms is empty.
+    """
+    if len(trimmer_histograms) == 0:
+        raise ValueError("trimmer_histograms must not be empty")
+    if isinstance(trimmer_histograms, str):
+        trimmer_histograms = [trimmer_histograms]
+    if len(trimmer_histograms) == 1:
+        return trimmer_histograms[0]
+
+    # read and merge histograms
+    df_concat = pd.concat((pd.read_csv(x) for x in trimmer_histograms))
+    assert df_concat.columns[-1] == "count", f"Unexpected columns in histogram files: {df_concat.columns}"
+    df_merged = df_concat.groupby(df_concat.columns[:-1].tolist(), dropna=False).sum().reset_index()
+    # write to file
+    output_filename = (
+        os.path.join(output_path, os.path.basename(trimmer_histograms[0]))
+        if os.path.isdir(output_path)
+        else output_path
+    )
+    df_merged.to_csv(output_filename, index=False)
+    return output_filename

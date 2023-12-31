@@ -40,12 +40,15 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--trimmer-histogram-csv",
         type=str,
+        required=True,
+        nargs="+",
         help="path to a balanced strand Trimmer histogram file",
     )
     parser.add_argument(
         "--trimmer-histogram-extra-csv",
         type=str,
         required=False,
+        nargs="+",
         help="path to a an extra balanced strand Trimmer histogram file that is used in some cases",
     )
     parser.add_argument(
