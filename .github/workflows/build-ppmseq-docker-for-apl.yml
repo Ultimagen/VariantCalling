@@ -1,0 +1,90 @@
+name: Build_Ultimagen/ppmseq
+run-name: "Build ${{ inputs.version }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: "Build job ID"
+        type: string
+        required: false
+      version:
+        description: "Version number / tag"
+        type: string
+        required: false
+      params:
+        description: "JSON formatted payload"
+        type: string
+        required: true
+
+permissions:
+  id-token: write # Required for assuming an AWS role
+  contents: read # Required for actions/checkout
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ROLE: arn:aws:iam::525048827230:role/github-actions-aws-role
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update build status
+        if: inputs.id != ''
+        run: |
+          EXP=`date -d '+3 hours' +%s`
+          aws dynamodb put-item --table BuildStatusTable --item '{"BuildId": {"S": "${{ inputs.id }}-${{ github.repository }}"}, "commit": {"S": "${{ github.sha }}"}, "run_id": {"S": "${{ github.run_id }}"}, "ExpirationTime": {"N": "'$EXP'"}}'
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+
+      # setup python and update the version in pyproject.toml
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Extract build parameters
+        run: |
+          echo "BUILD_TIMESTAMP=$(date '+%F_%H:%M:%S')" >> ${GITHUB_ENV}
+          echo "BUILD_VERSION=$(git rev-parse --short HEAD)" >> ${GITHUB_ENV}
+
+      - name: Build and push ppmseq docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.ecr-login.outputs.registry }}/ppmseq:${{ inputs.version }}
+          build-args: |
+            VERSION=${{ inputs.version }}
+            BUILD_TIMESTAMP=${{ env.BUILD_TIMESTAMP }}
+            BUILD_VERSION=${{ env.BUILD_VERSION }}
+            HOST_INSTALL_DIR=${{ fromJSON(inputs.params).build_vars.install_dir_in_docker }}
+          # if HOST_INSTALL_DIR value is missing from params, a default can be defined in Dockerfile, otherwise will be /
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      #        upload install.sh/py and artifacts to base_s3_dir/id/repo name
+      - name: Upload installation instruction
+        if: inputs.id != '' && inputs.params != ''
+        run: |
+          mkdir -p upload/service
+          export TAG=${{ inputs.version }}
+          envsubst '${TAG}' < build_utils/install.sh > upload/install.sh
+          chmod +x upload/install.sh
+          cd upload
+          aws s3 cp --recursive . ${{ fromJSON(inputs.params).build_vars.s3_artifacts_dir }}/${{ inputs.id }}/${{ github.repository }}/

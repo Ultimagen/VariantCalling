@@ -1,0 +1,49 @@
+FROM python:3.9-bullseye as build
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    PATH=/usr/bin/poetry/bin:$PATH \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1 \
+    PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring \
+    POETRY_HOME=/usr/bin/poetry
+
+RUN curl -sSL https://install.python-poetry.org > ./install-poetry.py && \
+    python ./install-poetry.py && \
+    rm ./install-poetry.py
+
+# Create virtualenv for deployment
+ENV VIRTUAL_ENV=/opt/venv
+RUN python -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+COPY . .
+COPY ./utilities_env/ppmseq/pyproject.toml ./pyproject.toml
+RUN poetry install --only main && \
+    poetry run pip install .
+
+
+################################################
+
+FROM python:3.9.18-slim
+
+ARG BUILD_TIMESTAMP
+ARG BUILD_VERSION
+ARG VERSION
+
+ARG HOST_INSTALL_DIR=/install
+
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+LABEL com.ultimagenomics.build-timestamp=${BUILD_TIMESTAMP}
+LABEL com.ultimagenomics.build-version=${BUILD_VERSION}
+LABEL com.ultimagenomics.version=${VERSION}
+
+WORKDIR /app/VariantCalling
+COPY --from=build /opt/venv /opt/venv
+COPY . .
+COPY ./utilities_env/ppmseq/pyproject.toml ./pyproject.toml
+
+ENTRYPOINT [ "/opt/venv/bin/python", "/app/VariantCalling/ugvc/pipelines/mrd/balanced_strand_analysis.py" ]
