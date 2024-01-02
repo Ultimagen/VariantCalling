@@ -1,21 +1,8 @@
-name: Build_Ultimagen/ppmseq
-run-name: "Build ${{ inputs.version }}"
+name: ppmseq
+run-name: "Build PPMSeq Docker Image"
 
 on:
   workflow_dispatch:
-    inputs:
-      id:
-        description: "Build job ID"
-        type: string
-        required: false
-      version:
-        description: "Version number / tag"
-        type: string
-        required: false
-      params:
-        description: "JSON formatted payload"
-        type: string
-        required: true
 
 permissions:
   id-token: write # Required for assuming an AWS role
@@ -51,6 +38,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install poetry
+        run: |
+            curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Update Version
+        run: |
+            ppmseq_version=$($HOME/.local/bin/poetry version --short)
+            echo "DOCKER_TAG=${ppmseq_version}" >> ${GITHUB_ENV}
+
       - name: Login to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v1
@@ -68,23 +64,12 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.ecr-login.outputs.registry }}/ppmseq:${{ inputs.version }}
+          tags: ${{ steps.ecr-login.outputs.registry }}/ppmseq:${{ env.DOCKER_TAG }}
           build-args: |
-            VERSION=${{ inputs.version }}
+            VERSION=${{ env.DOCKER_TAG }}
             BUILD_TIMESTAMP=${{ env.BUILD_TIMESTAMP }}
             BUILD_VERSION=${{ env.BUILD_VERSION }}
             HOST_INSTALL_DIR=${{ fromJSON(inputs.params).build_vars.install_dir_in_docker }}
           # if HOST_INSTALL_DIR value is missing from params, a default can be defined in Dockerfile, otherwise will be /
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      #        upload install.sh/py and artifacts to base_s3_dir/id/repo name
-      - name: Upload installation instruction
-        if: inputs.id != '' && inputs.params != ''
-        run: |
-          mkdir -p upload/service
-          export TAG=${{ inputs.version }}
-          envsubst '${TAG}' < build_utils/install.sh > upload/install.sh
-          chmod +x upload/install.sh
-          cd upload
-          aws s3 cp --recursive . ${{ fromJSON(inputs.params).build_vars.s3_artifacts_dir }}/${{ inputs.id }}/${{ github.repository }}/
