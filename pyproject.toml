@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
 [tool.isort]
 profile = "black"
 src_paths = ["ugvc", "test"]
@@ -6,16 +10,3 @@ include_trailing_comma = true
 line_length = 120
 multi_line_output = 3
 use_parentheses = true
-
-[project]
-name = "ugvc"
-version = "0.17"
-description = "The main project for the Ulitma Genomics Variant Caller"
-authors = [
-    {name = "itamark-ug", email = "itamar.kcholi@ultimagen.com"},
-]
-dependencies = []
-requires-python = ">=3.11"
-readme = "README.md"
-license = {text = "Apache-2.0"}
-
