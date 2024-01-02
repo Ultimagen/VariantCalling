@@ -4,7 +4,6 @@ version = "1.0.0"
 description = ""
 authors = ["Itai Rusinek <itai.rusinek@ultimagen.com>"]
 license = "Apache-2.0"
-readme = "README.md"
 packages = [
     { include = "ugvc" }, # necessary for creating a wheel out of the entire repository
 ]
