@@ -1724,7 +1724,7 @@ def balanced_strand_analysis(
     ----------
     adapter_version : str | BalancedStrandAdapterVersions
         adapter version to check
-    trimmer_histogram_csv : str
+    trimmer_histogram_csv : list[str]
         path to a balanced strand Trimmer histogram file
     sorter_stats_csv : str
         path to a Sorter stats file
@@ -1763,13 +1763,15 @@ def balanced_strand_analysis(
     # Handle input and output files
     # check inputs
     _assert_adapter_version_supported(adapter_version)
-    assert os.path.isfile(trimmer_histogram_csv), f"{trimmer_histogram_csv} not found"
+    for file in trimmer_histogram_csv:
+        assert os.path.isfile(file), f"{file} not found"
+
     assert os.path.isfile(sorter_stats_csv), f"{sorter_stats_csv} not found"
 
     # make output directory and determine base file name
     os.makedirs(output_path, exist_ok=True)
     if output_basename is None:
-        output_basename = os.path.basename(trimmer_histogram_csv)
+        output_basename = os.path.basename(trimmer_histogram_csv[0])
     # main outputs
     output_statistics_h5 = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_stats.h5")
     output_statistics_json = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_stats.json")
