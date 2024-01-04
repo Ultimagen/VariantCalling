@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ppmseq"
-version = "1.0.1"
+version = "1.0.2"
 description = ""
 authors = ["Itai Rusinek <itai.rusinek@ultimagen.com>"]
 license = "Apache-2.0"
@@ -24,6 +24,7 @@ pybigwig = "^0.3.22"
 pyfaidx = "^0.7.2.2"
 simppl = "^1.0.7"
 boto3 = "^1.34.9"
+tables = "^3.9.2"
 
 
 [build-system]
