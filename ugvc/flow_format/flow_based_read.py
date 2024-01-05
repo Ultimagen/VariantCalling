@@ -139,7 +139,7 @@ class FlowBasedRead:
         Returns a new read with cigar applied (takes care of hard clipping and soft clipping)
     """
 
-    key: np.array
+    key: np.ndarray
     flow_order: str
     cigar: list
     _max_hmer: int
@@ -218,12 +218,12 @@ class FlowBasedRead:
     @classmethod
     def from_sam_record(
         cls,
-        sam_record: pysam.AlignefdSegment,
+        sam_record: pysam.AlignedSegment,
         this_error_model: error_model.ErrorModel | None = None,
         flow_order: str = DEFAULT_FLOW_ORDER,
         motif_size: int = 5,
         max_hmer_size: int = 12,
-        filler=DEFAULT_FILLER,
+        filler: float = DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
         _fmt: str = "cram",
         spread_edge_probs=True,
@@ -248,7 +248,8 @@ class FlowBasedRead:
         max_hmer_size: int
             Maximal reported hmer size
         filler: float
-            The minimal probability to appear in the flow flow_matrix (default: %f)
+            The minimal probability to appear in the flow flow_matrix, will be attempted to be quessed from the master,
+            if not the default will be used (default: %f)
         min_call_prob: float
             The minimal probability to be placed on the call (default: %f)
         _fmt: str
@@ -308,7 +309,7 @@ class FlowBasedRead:
             col = np.concatenate((col, np.arange(len(dct["key"])).astype(col.dtype)))
             vals = np.concatenate((vals, np.zeros(len(dct["key"]), dtype=float)))
             shape = (max_hmer_size + 1, len(dct["key"]))
-            flow_matrix = cls._matrix_from_sparse(row, col, vals, shape, filler)
+            flow_matrix = cls._matrix_from_sparse(row, col, vals, shape, DEFAULT_FILLER)
             dct["_flow_matrix"] = flow_matrix
         elif fmt == SupportedFormats.CRAM:
             if sam_record.has_tag("t0"):
@@ -320,7 +321,7 @@ class FlowBasedRead:
                 np.array(sam_record.query_qualities, dtype=int),
                 tp_tag=np.array(sam_record.get_tag("tp"), dtype=int),
                 t0_tag=t0,
-                filler=filler,
+                fallback_filler=filler,
                 min_call_prob=min_call_prob,
                 max_hmer_size=max_hmer_size,
                 spread_edge_probs=spread_edge_probs,
@@ -343,7 +344,7 @@ class FlowBasedRead:
         qual: np.ndarray,
         tp_tag: np.ndarray,
         t0_tag: np.ndarray | None = None,
-        filler: float = DEFAULT_FILLER,
+        fallback_filler: float = DEFAULT_FILLER,
         min_call_prob: float = MINIMAL_CALL_PROB,
         max_hmer_size: int = 12,
         spread_edge_probs: bool = True,
@@ -385,12 +386,12 @@ class FlowBasedRead:
             tp tag of the read
         t0_tag : np.ndarray
             T0 tag of the read, optional
-        filler : float
-            Value to place as zero probability
+        fallback_filler : float
+            Value to place as minimal probability, only in cases not being able to be guessed from the read
         min_call_prob: float
             The minimal value to place as the probability of the actual call
         max_hmer_size : int, optional
-            Maximum hmer probability to report
+            Maximum hmer size that has a reported probability
         spread_edge_probs: bool, optional
             Should the error probabilities of the edge bases be smoothed (e.g. after trimming). Default - true
 
@@ -400,6 +401,7 @@ class FlowBasedRead:
             max_hmer+1 x n_flows flow matrix
         """
 
+        filler = cls._estimate_filler_value(qual, tp_tag, fallback_filler) / max_hmer_size
         flow_matrix = np.ones((max_hmer_size + 1, len(key))) * filler
 
         probs = phred.unphred(qual)
@@ -418,7 +420,7 @@ class FlowBasedRead:
             right_prob = t0_on_flows[np.clip(right_neighbor, None, len(key) - 1)]
             right_prob[right_neighbor >= len(key)] = 0
             flow_matrix[1, key == 0] = np.min(np.vstack((left_prob, right_prob)), axis=0)[key == 0]
-
+            flow_matrix[1, (flow_matrix[1, :] / max_hmer_size <= 3 * filler) & (key == 0)] = filler
         # repeat each value k (hmer-size) k times, e.g [0, 1, 2, 1, 3] -> [1, 2, 2, 1, 3, 3, 3]
         # This results in hmer_sizes in base-space
         # Notice a trimmed hmer will result in the wrong original hmer-size
@@ -538,6 +540,29 @@ class FlowBasedRead:
         None. Sets attribute _validate
         """
         self._validate = ~np.any(self.key > (self._max_hmer - 1))
+
+    @classmethod
+    def _estimate_filler_value(cls, qual: np.ndarray, tp_tag: np.ndarray, fallback_filler: float) -> float:
+        """Estimates the maximal reported quality from the read qualities
+
+        Parameters
+        ----------
+        qual : np.ndarray
+            Quality array of the read
+        tp_tag : np.ndarray
+            tp tag of the read
+        fallback_filler : float
+            If there are no zero calls, this value will be used
+
+        Returns
+        -------
+        float
+            The estimated filler value
+        """
+        if np.sum(tp_tag == 0) == 0:
+            return fallback_filler
+        maxQual: float = np.max(qual[tp_tag == 0])
+        return float(phred.unphred(maxQual))
 
     def is_valid(self) -> bool:
         """Returns if the key is valid"""

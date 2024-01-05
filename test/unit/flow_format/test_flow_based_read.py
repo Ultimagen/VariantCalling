@@ -17,7 +17,6 @@ def test_matrix_from_qual_tp():
     fbrs = [
         fbr.FlowBasedRead.from_sam_record(x, flow_order=DEFAULT_FLOW_ORDER, _fmt="cram", max_hmer_size=12) for x in data
     ]
-
     for i, rec in enumerate(fbrs):
         assert rec.key.sum() == len(rec.record.query_sequence)
         if i < len(expected):
