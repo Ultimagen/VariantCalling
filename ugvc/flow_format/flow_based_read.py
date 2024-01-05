@@ -420,7 +420,7 @@ class FlowBasedRead:
             right_prob = t0_on_flows[np.clip(right_neighbor, None, len(key) - 1)]
             right_prob[right_neighbor >= len(key)] = 0
             flow_matrix[1, key == 0] = np.min(np.vstack((left_prob, right_prob)), axis=0)[key == 0]
-
+            flow_matrix[1, (flow_matrix[1, :] / max_hmer_size <= 3 * filler) & (key == 0)] = filler
         # repeat each value k (hmer-size) k times, e.g [0, 1, 2, 1, 3] -> [1, 2, 2, 1, 3, 3, 3]
         # This results in hmer_sizes in base-space
         # Notice a trimmed hmer will result in the wrong original hmer-size
