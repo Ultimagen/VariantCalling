@@ -22,12 +22,6 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update build status
-        if: inputs.id != ''
-        run: |
-          EXP=`date -d '+3 hours' +%s`
-          aws dynamodb put-item --table BuildStatusTable --item '{"BuildId": {"S": "${{ inputs.id }}-${{ github.repository }}"}, "commit": {"S": "${{ github.sha }}"}, "run_id": {"S": "${{ github.run_id }}"}, "ExpirationTime": {"N": "'$EXP'"}}'
-
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -69,7 +63,5 @@ jobs:
             VERSION=${{ env.DOCKER_TAG }}
             BUILD_TIMESTAMP=${{ env.BUILD_TIMESTAMP }}
             BUILD_VERSION=${{ env.BUILD_VERSION }}
-            HOST_INSTALL_DIR=${{ fromJSON(inputs.params).build_vars.install_dir_in_docker }}
-          # if HOST_INSTALL_DIR value is missing from params, a default can be defined in Dockerfile, otherwise will be /
           cache-from: type=gha
           cache-to: type=gha,mode=max
