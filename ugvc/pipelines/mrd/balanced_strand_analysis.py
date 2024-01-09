@@ -150,3 +150,9 @@ def run(argv: list[str]):
         max_total_hmer_lengths_in_tags=args_in.max_tot_hmer,
         min_stem_end_matched_length=args_in.min_stem_length,
     )
+
+
+if __name__ == "__main__":
+    import sys
+
+    run(sys.argv)
