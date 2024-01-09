@@ -1710,6 +1710,7 @@ def balanced_strand_analysis(
     trimmer_failure_codes_csv: str = None,
     collect_statistics_kwargs: dict = None,
     generate_report: bool = True,
+    keep_temp_visualization_files: bool = False,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
     sr_upper: float = STRAND_RATIO_UPPER_THRESH,
     min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
@@ -1741,6 +1742,8 @@ def balanced_strand_analysis(
         kwargs for collect_statistics, by default None
     generate_report
         if True, generate an html+jupyter report, by default True
+    keep_temp_png_files
+        if True, keep temporary png files, by default False
     sr_lower : float, optional
         lower strand ratio threshold for determining strand ratio category
         default 0.27
@@ -1757,6 +1760,7 @@ def balanced_strand_analysis(
         minimum length of stem end matched to determine the read end was reached
 
     """
+    # Handle input and output files
     # check inputs
     _assert_adapter_version_supported(adapter_version)
     assert os.path.isfile(trimmer_histogram_csv), f"{trimmer_histogram_csv} not found"
@@ -1766,8 +1770,12 @@ def balanced_strand_analysis(
     os.makedirs(output_path, exist_ok=True)
     if output_basename is None:
         output_basename = os.path.basename(trimmer_histogram_csv)
-    output_statistics_h5 = os.path.join(output_path, f"{output_basename}.statistics.h5")
-    output_statistics_json = os.path.join(output_path, f"{output_basename}.aggregated_stats.json")
+    # main outputs
+    output_statistics_h5 = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_stats.h5")
+    output_statistics_json = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_stats.json")
+    output_report_html = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.html")
+    # Temporary image files
+    output_report_ipynb = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.ipynb")
     output_trimmer_histogram_plot = os.path.join(output_path, f"{output_basename}.trimmer_histogram.png")
     output_strand_ratio_plot = os.path.join(output_path, f"{output_basename}.strand_ratio.png")
     output_strand_ratio_category_plot = os.path.join(output_path, f"{output_basename}.strand_ratio_category.png")
@@ -1775,8 +1783,14 @@ def balanced_strand_analysis(
         output_path, f"{output_basename}.strand_ratio_category_concordance.png"
     )
     output_read_length_histogram_plot = os.path.join(output_path, f"{output_basename}.read_length_histogram.png")
-    output_report_ipynb = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.ipynb")
-    output_report_html = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.html")
+    output_visualization_files = [
+        output_report_ipynb,
+        output_trimmer_histogram_plot,
+        output_strand_ratio_plot,
+        output_strand_ratio_category_plot,
+        output_strand_ratio_category_concordance_plot,
+        output_read_length_histogram_plot,
+    ]
 
     # Merge Trimmer histograms from different optical paths (APL mode)
     merged_histogram_csv = merge_trimmer_histograms(trimmer_histogram_csv, output_path=output_path)
@@ -1909,3 +1923,9 @@ def balanced_strand_analysis(
         subprocess.check_call(f"jupyter nbconvert {output_report_ipynb} --to html --no-input".split())
         # edit html for readability
         modify_jupyter_notebook_html(output_report_html)
+
+    # remove temporary files - png and ipynb files
+    if not keep_temp_visualization_files:
+        for visualization_file in output_visualization_files:
+            if os.path.isfile(visualization_file):
+                os.remove(visualization_file)
