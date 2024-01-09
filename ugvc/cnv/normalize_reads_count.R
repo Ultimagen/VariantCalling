@@ -266,13 +266,18 @@ normalizeChromosomesGenomewize <- function(X, chr, normType="poisson", sizeFacto
 				if (ploidy2median==0 & mm==0){
 					YY[,ploidy==pp] <- Y[,ploidy==pp]
 				} else {
-				  chrIdx <- which((chr == chr_X_name) | (chr == chr_Y_name))
+				#for male multiply chrX and chrY by 2 to avoid calling chrX as deletion (comparing to whole genome).
+					chrIdx <- which((chr == chr_X_name) | (chr == chr_Y_name))
 					YY[chrIdx,ploidy==pp] <- Y[chrIdx,ploidy==pp]*2
 					chrIdx <- which((chr != chr_X_name) & (chr != chr_Y_name))
 					YY[chrIdx,ploidy==pp] <- Y[chrIdx,ploidy==pp]
 				}
 			} else{
+				#for female keep coverage values as is (except chrY)
 				YY[,ploidy==pp] <- Y[,ploidy==pp]
+				#for female change chrY coverage to 0 to avoid calling small CNVs
+				chrIdx <- which(chr == chr_Y_name)
+				YY[chrIdx,ploidy==pp] <- 0
 			}
 		}
 	}
