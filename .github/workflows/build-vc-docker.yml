@@ -1,4 +1,4 @@
-name: Build VC Docker image
+name: Build VC Docker images
 
 on:
   workflow_dispatch:
@@ -74,18 +74,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # - name: Build and push
-      #   uses: docker/build-push-action@v4
-      #   with:
-      #     file: Dockerfile.jbvc
-      #     context: .
-      #     provenance: false
-      #     push: true
-      #     tags: |
-      #       ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
-      #       us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/${{ env.IMAGE }}:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          file: Dockerfile.jbvc
+          context: .
+          provenance: false
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/${{ env.IMAGE }}:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
+            us-central1-docker.pkg.dev/ultima-data-307918/ultimagen/${{ env.IMAGE }}:${{ inputs.image-tag || steps.set-tag.outputs.imageTag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Extract build parameters
         run: |

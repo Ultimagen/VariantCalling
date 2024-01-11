@@ -57,6 +57,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
+          file: Dockerfile.ppmseq
           push: true
           tags: ${{ steps.ecr-login.outputs.registry }}/ppmseq:${{ env.DOCKER_TAG }}
           build-args: |
