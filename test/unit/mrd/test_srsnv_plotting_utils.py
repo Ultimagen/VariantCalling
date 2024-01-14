@@ -46,6 +46,7 @@ def test_create_report_plots(tmpdir):
         inputs_dir,
         f"{base_name}json",
     )
+    params["fp_test_set_size"] = 30000
     params["adapter_version"] = "LA_v5and6"
 
     local_params_file = pjoin(tmpdir, basename(params_file).replace(".json", ".local.json"))

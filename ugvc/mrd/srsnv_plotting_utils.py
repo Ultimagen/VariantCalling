@@ -1318,7 +1318,14 @@ def create_report_plots(
     else:
         params["data_name"] = ""
 
-    assert "sorter_json_stats_file" in params, "no sorter_json_stats_file in params"
+    expected_keys_in_params = [
+        "fp_featuremap_entry_number",
+        f"fp_{report_name}_set_size",
+        "fp_regions_bed_file",
+        "sorter_json_stats_file",
+    ]
+    for key in expected_keys_in_params:
+        assert key in params, f"no {key} in params"
 
     (
         df,
