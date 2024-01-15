@@ -1472,8 +1472,6 @@ def create_report(
         output_json=statistics_json_file,
     )
 
-    return df_X_with_pred_columns
-
 
 def precision_score_with_mask(y_pred: np.ndarray, y_true: np.ndarray, mask: np.ndarray):
     """calculates the precision score for the predictions and labels with mask applied

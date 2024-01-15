@@ -18,7 +18,6 @@ from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
-from ugvc.mrd.srsnv_inference_utils import get_quality_interpolation_function
 from ugvc.mrd.srsnv_plotting_utils import create_report
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
@@ -577,7 +576,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             [self.test_statistics_json_file, self.train_statistics_json_file],
             ["test", "train"],
         ):
-            df_X_with_pred_columns = create_report(
+            create_report(
                 model_file=self.model_save_path,
                 X_file=X,
                 y_file=y,
@@ -590,12 +589,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 statistics_h5_file=statistics_h5_file,
                 statistics_json_file=statistics_json_file,
             )
-
-            # Calculate vector of quality scores for the test set
-            if name == "test":
-                ml_qual_column = "ML_qual_1"
-                quality_interpolation_function = get_quality_interpolation_function(mrd_simulation_dataframe_file)
-                self.qual_test = df_X_with_pred_columns[ml_qual_column].apply(quality_interpolation_function)
 
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
@@ -681,6 +674,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         # fit classifier
         self.classifier.fit(self.X_train[self.columns], self.y_train)
+
+        # Calculate vector of quality scores for the test set
+        probs = self.classifier.predict_proba(self.X_test[self.columns])[:, 1]
+        self.qual_test = pd.Series(-10 * np.log10(probs))
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()
