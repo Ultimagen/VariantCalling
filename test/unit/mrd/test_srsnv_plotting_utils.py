@@ -6,7 +6,7 @@ from test import get_resource_dir
 
 import joblib
 
-from ugvc.mrd.srsnv_plotting_utils import create_report_plots
+from ugvc.mrd.srsnv_plotting_utils import create_report
 
 inputs_dir = get_resource_dir(__file__)
 
@@ -64,7 +64,7 @@ def test_create_report_plots(tmpdir):
     )
 
     report_name = "test"
-    create_report_plots(
+    create_report(
         model_file,
         X_file,
         y_file,

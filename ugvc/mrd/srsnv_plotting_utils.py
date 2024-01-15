@@ -1260,7 +1260,7 @@ def calculate_lod_stats(
     return best_LoD_filter
 
 
-def create_report_plots(
+def create_report(
     model_file: str,
     X_file: str,
     y_file: str,
@@ -1328,7 +1328,7 @@ def create_report_plots(
         assert key in params, f"no {key} in params"
 
     (
-        df,
+        df_X_with_pred_columns,
         df_tp,
         df_fp,
         max_score,
@@ -1376,7 +1376,7 @@ def create_report_plots(
 
     if params["fp_regions_bed_file"] is not None:
         (df_mrd_simulation, lod_filters_filtered, lod_label, c_lod,) = retention_noise_and_mrd_lod_simulation(
-            df=df,
+            df=df_X_with_pred_columns,
             single_sub_regions=params["fp_regions_bed_file"],
             sorter_json_stats_file=sorter_json_stats_file,
             training_set_downsampling_rate=sampling_rate,
@@ -1409,7 +1409,7 @@ def create_report_plots(
         )
 
     plot_ROC_curve(
-        df,
+        df_X_with_pred_columns,
         df_tp,
         df_fp,
         ML_score="ML_qual_1",
@@ -1418,7 +1418,7 @@ def create_report_plots(
     )
 
     plot_confusion_matrix(
-        df,
+        df_X_with_pred_columns,
         prediction_column_name="ML_prediction_1",
         output_filename=output_cm_plot,
     )
@@ -1431,19 +1431,19 @@ def create_report_plots(
     )
     plot_ML_qual_hist(
         labels_dict,
-        df,
+        df_X_with_pred_columns,
         max_score,
         output_filename=output_ML_qual_hist,
     )
     plot_qual_per_feature(
         labels_dict,
         cls_features,
-        df,
+        df_X_with_pred_columns,
         output_filename=output_qual_per_feature,
     )
 
-    is_mixed_flag = "is_mixed" in df
-    df_dict = get_data_subsets(df, is_mixed_flag)
+    is_mixed_flag = "is_mixed" in df_X_with_pred_columns
+    df_dict = get_data_subsets(df_X_with_pred_columns, is_mixed_flag)
     fpr_dict, recall_dict = get_fpr_recalls_subsets(df_dict, max_score)
 
     plot_subsets_hists(
@@ -1471,6 +1471,8 @@ def create_report_plots(
         ignored_h5_key_substring=None,
         output_json=statistics_json_file,
     )
+
+    return df_X_with_pred_columns
 
 
 def precision_score_with_mask(y_pred: np.ndarray, y_true: np.ndarray, mask: np.ndarray):

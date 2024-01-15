@@ -18,7 +18,8 @@ from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
-from ugvc.mrd.srsnv_plotting_utils import create_report_plots
+from ugvc.mrd.srsnv_inference_utils import get_quality_interpolation_function
+from ugvc.mrd.srsnv_plotting_utils import create_report
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
@@ -426,6 +427,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.y_test_save_path,
             self.X_train_save_path,
             self.y_train_save_path,
+            self.qual_test_save_path,
             self.params_save_path,
             self.test_mrd_simulation_dataframe_file,
             self.train_mrd_simulation_dataframe_file,
@@ -508,6 +510,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}", f"{self.out_basename}y_test.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}X_train.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}y_train.parquet"),
+            pjoin(f"{self.out_path}", f"{self.out_basename}qual_test.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}params.json"),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.df_mrd_simulation.parquet"),
             pjoin(
@@ -528,6 +531,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             (self.y_test, self.y_test_save_path),
             (self.X_train, self.X_train_save_path),
             (self.y_train, self.y_train_save_path),
+            (self.qual_test, self.qual_test_save_path),
         ):
             data.to_parquet(savename)
 
@@ -573,7 +577,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             [self.test_statistics_json_file, self.train_statistics_json_file],
             ["test", "train"],
         ):
-            create_report_plots(
+            df_X_with_pred_columns = create_report(
                 model_file=self.model_save_path,
                 X_file=X,
                 y_file=y,
@@ -586,6 +590,12 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 statistics_h5_file=statistics_h5_file,
                 statistics_json_file=statistics_json_file,
             )
+
+            # Calculate vector of quality scores for the test set
+            if name == "test":
+                ml_qual_column = "ML_qual_1"
+                quality_interpolation_function = get_quality_interpolation_function(mrd_simulation_dataframe_file)
+                self.qual_test = df_X_with_pred_columns[ml_qual_column].apply(quality_interpolation_function)
 
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
