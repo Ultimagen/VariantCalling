@@ -677,7 +677,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         # Calculate vector of quality scores for the test set
         probs = self.classifier.predict_proba(self.X_test[self.columns])[:, 1]
-        self.qual_test = pd.Series(-10 * np.log10(probs))
+        self.qual_test = pd.Series(-10 * np.log10(probs)).rename("QUAL").to_frame()
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()
