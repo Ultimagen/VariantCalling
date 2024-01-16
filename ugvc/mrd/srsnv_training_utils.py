@@ -570,8 +570,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
     def create_report(self):
         for (X, y, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name,) in zip(
-            [self.X_test_save_path, self.X_train_save_path],
-            [self.y_test_save_path, self.y_train_save_path],
+            [self.X_test, self.X_train],
+            [self.y_test, self.y_train],
             [
                 self.test_mrd_simulation_dataframe_file,
                 self.train_mrd_simulation_dataframe_file,
