@@ -394,7 +394,6 @@ def read_signature(  # pylint: disable=too-many-branches,too-many-arguments
         logger.debug("Done converting to dataframe")
 
     df_sig = df_sig.sort_index()
-    df_sig.to_parquet("df_sig.parquet")
 
     if coverage_csv:
         df_sig = collect_coverage_per_locus_gatk(coverage_csv, df_sig)

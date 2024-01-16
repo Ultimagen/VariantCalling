@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import json
 import os
 from os.path import join as pjoin
 
-import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import sklearn
 import xgboost as xgb
 from matplotlib import colors
 from scipy.interpolate import interp1d
@@ -514,7 +513,8 @@ def plot_LoD(
         msize_list.append(150)
 
     best_lod = df_mrd_sim.loc[
-        [item for sublist in filters_list for item in sublist if item in df_mrd_sim.index.values], c_lod
+        [item for sublist in filters_list for item in sublist if item in df_mrd_sim.index.values],
+        c_lod,
     ].min()  # best LoD across all plotted results
 
     for f, marker, label, edgecolor, markersize in zip(
@@ -912,11 +912,19 @@ def plot_qual_per_feature(
                     )
                 )
                 plt.xticks([0, 1], ["False", "True"])
-            elif df[feature].dtype in ("category", "object"):  # pylint: disable=use-set-for-membership
+            elif df[feature].dtype in {
+                "category",
+                "object",
+            }:
                 if j == 0:
                     plt.figure(figsize=(8, 6))
                 category_counts = df[df["label"] == label][feature].value_counts().sort_index()
-                plt.bar(category_counts.index, category_counts, alpha=0.5, label=labels_dict[label])
+                plt.bar(
+                    category_counts.index,
+                    category_counts,
+                    alpha=0.5,
+                    label=labels_dict[label],
+                )
                 xticks = plt.gca().get_xticks()
                 if len(xticks) > 100:
                     plt.xticks(rotation=90, fontsize=6)
@@ -1047,9 +1055,20 @@ def plot_subsets_hists(
 
         plt.figure(figsize=(8, 6))
         for label in labels_dict:
-            h, bin_edges = np.histogram(td[td["label"] == label][score].clip(upper=max_score), bins=bins, density=True)
+            h, bin_edges = np.histogram(
+                td[td["label"] == label][score].clip(upper=max_score),
+                bins=bins,
+                density=True,
+            )
             bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
-            plt.bar(bin_centers, h, label=labels_dict[label], alpha=0.8, width=1, align="center")
+            plt.bar(
+                bin_centers,
+                h,
+                label=labels_dict[label],
+                alpha=0.8,
+                width=1,
+                align="center",
+            )
             if any(h > 0):
                 plt.yscale("log")
         plt.xlim([0, max_score])
@@ -1261,10 +1280,10 @@ def calculate_lod_stats(
 
 
 def create_report(
-    model_file: str,
-    X_file: str,
-    y_file: str,
-    params_file: str,
+    model: sklearn.base.BaseEstimator,
+    X: pd.DataFrame,
+    y: pd.DataFrame,
+    params: dict,
     report_name: str,
     out_path: str,
     base_name: str = None,
@@ -1277,14 +1296,14 @@ def create_report(
 
     Parameters
     ----------
-    model_file : str
-        path to model file
-    X_file : str
-        path to data
-    y_file : str
-        path to labels
-    params_file : str
-        path to params file
+    model : sklearn.base.BaseEstimator
+        SKlearn model
+    X : str
+        X data set
+    y : str
+        y data set
+    params : str
+        params dict
     report_name : str
         name of data set, should be "train" or "test"
     out_path : str
@@ -1303,29 +1322,28 @@ def create_report(
     if statistics_json_file:
         assert statistics_h5_file, "statistics_h5_file is required when statistics_json_file is provided"
 
-    # TODO: change the report so it produces metrics that are saved into a h5 table in addition to the plots
-
-    # load model, data and params
-    classifier = joblib.load(model_file)
-    X = pd.read_parquet(X_file)
-    y = pd.read_parquet(y_file)
-    with open(params_file, "r", encoding="utf-8") as f:
-        params = json.load(f)
-
-    params["workdir"] = out_path
-    if base_name:
-        params["data_name"] = base_name
-    else:
-        params["data_name"] = ""
-
+    # check model, data and params
+    assert sklearn.base.is_classifier(model), f"model {model} is not a classifier, please provide a classifier model"
+    assert isinstance(X, pd.DataFrame), "X is not a DataFrame, please provide a DataFrame"
+    assert isinstance(
+        y, (pd.Series, pd.DataFrame)
+    ), "y is not a Series or DataFrame, please provide a Series or DataFrame"
     expected_keys_in_params = [
         "fp_featuremap_entry_number",
         f"fp_{report_name}_set_size",
         "fp_regions_bed_file",
         "sorter_json_stats_file",
+        "adapter_version",
     ]
     for key in expected_keys_in_params:
         assert key in params, f"no {key} in params"
+
+    # init dir
+    params["workdir"] = out_path
+    if base_name:
+        params["data_name"] = base_name
+    else:
+        params["data_name"] = ""
 
     (
         df_X_with_pred_columns,
@@ -1335,7 +1353,7 @@ def create_report(
         cls_features,
         fprs,
         _,
-    ) = create_data_for_report(classifier, X, y)
+    ) = create_data_for_report(model, X, y)
 
     labels_dict = {1: "TP", 0: "FP"}
 
@@ -1598,7 +1616,6 @@ def plot_LoD_vs_qual(
     output_filename: str = None,
     font_size: int = 18,
 ):
-
     """generate a plot of LoD vs ML qual
 
     Parameters:
@@ -1619,7 +1636,11 @@ def plot_LoD_vs_qual(
 
     x = np.array(
         [
-            [int(item.split("_")[-1]), df_mrd_sim[c_lod].loc[item], df_mrd_sim["tp_read_retention_ratio"].loc[item]]
+            [
+                int(item.split("_")[-1]),
+                df_mrd_sim[c_lod].loc[item],
+                df_mrd_sim["tp_read_retention_ratio"].loc[item],
+            ]
             for item in df_mrd_sim.index
             if item[:2] == "ML"
         ]
@@ -1630,7 +1651,13 @@ def plot_LoD_vs_qual(
     ax2 = ax1.twinx()
 
     ln1 = ax1.plot(x[:, 0], x[:, 1], marker="o", color="blue", label="LoD")
-    ln2 = ax2.plot(x[:, 0], x[:, 2], marker="o", color="red", label="Base retention ratio \non HOM SNVs (TP)")
+    ln2 = ax2.plot(
+        x[:, 0],
+        x[:, 2],
+        marker="o",
+        color="red",
+        label="Base retention ratio \non HOM SNVs (TP)",
+    )
     lns = ln1 + ln2
     labs = [ln.get_label() for ln in lns]
 
@@ -1642,7 +1669,14 @@ def plot_LoD_vs_qual(
     ax1.set_ylabel("LoD", fontsize=font_size)
     ax1.set_xlabel("ML qual", fontsize=font_size)
     ax2.set_ylabel("Base retention ratio \non HOM SNVs (TP)", fontsize=font_size)
-    legend_handle = ax1.legend(lns, labs, loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=font_size)
+    legend_handle = ax1.legend(
+        lns,
+        labs,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.15),
+        ncol=2,
+        fontsize=font_size,
+    )
     title_handle = plt.title(title, fontsize=font_size)
 
     if output_filename is not None:

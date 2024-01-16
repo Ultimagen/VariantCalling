@@ -1,17 +1,17 @@
 import json
 import os
-from os.path import basename
 from os.path import join as pjoin
 from test import get_resource_dir
 
 import joblib
+import pandas as pd
 
 from ugvc.mrd.srsnv_plotting_utils import create_report
 
 inputs_dir = get_resource_dir(__file__)
 
 
-def test_create_report_plots(tmpdir):
+def test_create_report(tmpdir):
     """test the create_report_plots function"""
 
     # TODO: add train with a small model (low tree num)
@@ -47,11 +47,6 @@ def test_create_report_plots(tmpdir):
         f"{base_name}json",
     )
     params["fp_test_set_size"] = 30000
-    params["adapter_version"] = "LA_v5and6"
-
-    local_params_file = pjoin(tmpdir, basename(params_file).replace(".json", ".local.json"))
-    with open(local_params_file, "w", encoding="utf-8") as f:
-        json.dump(params, f)
 
     statistics_h5_file = pjoin(
         tmpdir,
@@ -64,11 +59,16 @@ def test_create_report_plots(tmpdir):
     )
 
     report_name = "test"
+
+    model = joblib.load(model_file)
+    X = pd.read_parquet(X_file)
+    y = pd.read_parquet(y_file)
+
     create_report(
-        model_file,
-        X_file,
-        y_file,
-        local_params_file,
+        model=model,
+        X=X,
+        y=y,
+        params=params,
         report_name=report_name,
         out_path=tmpdir,
         base_name=base_name,
@@ -87,7 +87,6 @@ def test_create_report_plots(tmpdir):
         f"{base_name}{report_name}.ML_qual_hist.png",
     ]
 
-    model = joblib.load(model_file)
     for f in model.feature_names_in_:
         report_plots.append(f"{base_name}{report_name}.qual_per_{f}.png")
 

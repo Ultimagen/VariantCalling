@@ -18,6 +18,7 @@ from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
+from ugvc.mrd.srsnv_inference_utils import get_quality_interpolation_function
 from ugvc.mrd.srsnv_plotting_utils import create_report
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
@@ -522,19 +523,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}", f"{self.out_basename}train.statistics.json"),
         )
 
-    def save_model_and_data(self):
-        joblib.dump(self.classifier, self.model_save_path)
-
-        for data, savename in (
-            (self.X_test, self.X_test_save_path),
-            (self.y_test, self.y_test_save_path),
-            (self.X_train, self.X_train_save_path),
-            (self.y_train, self.y_train_save_path),
-            (self.qual_test, self.qual_test_save_path),
-        ):
-            data.to_parquet(savename)
-
-        params_to_save = {
+    def get_params(self):
+        return {
             "model_parameters": self.model_parameters,
             "numerical_features": self.numerical_features,
             "categorical_features": self.categorical_features,
@@ -561,10 +551,24 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "random_seed": self.random_seed,
         }
 
+    def save_model_and_data(self):
+        # save model
+        joblib.dump(self.classifier, self.model_save_path)
+        # save data
+        for data, savename in (
+            (self.X_test, self.X_test_save_path),
+            (self.y_test, self.y_test_save_path),
+            (self.X_train, self.X_train_save_path),
+            (self.y_train, self.y_train_save_path),
+            (self.qual_test, self.qual_test_save_path),
+        ):
+            data.to_parquet(savename)
+        # save params
+        params_to_save = self.get_params()
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
 
-    def create_report_plots(self):
+    def create_report(self):
         for (X, y, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name,) in zip(
             [self.X_test_save_path, self.X_train_save_path],
             [self.y_test_save_path, self.y_train_save_path],
@@ -577,10 +581,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             ["test", "train"],
         ):
             create_report(
-                model_file=self.model_save_path,
-                X_file=X,
-                y_file=y,
-                params_file=self.params_save_path,
+                model=self.classifier,
+                X=X,
+                y=y,
+                params=self.get_params(),
                 report_name=name,
                 out_path=self.out_path,
                 base_name=self.out_basename,
@@ -675,14 +679,17 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         # fit classifier
         self.classifier.fit(self.X_train[self.columns], self.y_train)
 
+        # create training and test reports
+        self.create_report()
+
         # Calculate vector of quality scores for the test set
-        probs = self.classifier.predict_proba(self.X_test[self.columns])[:, 1]
-        self.qual_test = pd.Series(-10 * np.log10(probs)).rename("QUAL").to_frame()
+        quality_interpolation_function = get_quality_interpolation_function(self.test_mrd_simulation_dataframe_file)
+        probabilities = self.classifier.predict_proba(self.X_test[self.columns])[:, 1]
+        self.qual_test = (
+            pd.Series(-10 * np.log10(probabilities)).rename("qual").apply(quality_interpolation_function).to_frame()
+        )
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()
-
-        # create plots for report
-        self.create_report_plots()
 
         return self
