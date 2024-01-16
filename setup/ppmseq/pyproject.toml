@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ppmseq"
-version = "1.0.5"
+version = "1.0.6"
 description = ""
 authors = ["Itai Rusinek <itai.rusinek@ultimagen.com>"]
 license = "Apache-2.0"

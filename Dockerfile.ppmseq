@@ -19,7 +19,7 @@ RUN python -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 COPY . .
-COPY ./utilities_env/ppmseq/pyproject.toml ./pyproject.toml
+COPY ./setup/ppmseq/pyproject.toml ./pyproject.toml
 RUN poetry install --only main && \
     poetry run pip install .
 
@@ -44,6 +44,6 @@ LABEL com.ultimagenomics.version=${VERSION}
 WORKDIR /app/VariantCalling
 COPY --from=build /opt/venv /opt/venv
 COPY . .
-COPY ./utilities_env/ppmseq/pyproject.toml ./pyproject.toml
+COPY ./setup/ppmseq/pyproject.toml ./pyproject.toml
 
 ENTRYPOINT [ "/opt/venv/bin/python", "/app/VariantCalling/ugvc/pipelines/mrd/balanced_strand_analysis.py" ]
