@@ -328,8 +328,8 @@ class ReportUtils:
         if self.verbosity > 1:
             display(
                 Markdown(
-                    "* #pos - total variants in ground-truth\n"
-                    "* neg - false-positive variants (before filtering)\n"
+                    r"* \# pos" + " - total variants in ground-truth\n"
+                    r"* \# neg" + " - false-positive variants (before filtering)\n"
                     "* max_recall - fraction of true variants with correctly generated candidate"
                 )
             )
