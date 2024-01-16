@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from ugvc.mrd.balanced_strand_utils import (
     MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
@@ -153,6 +154,4 @@ def run(argv: list[str]):
 
 
 if __name__ == "__main__":
-    import sys
-
     run(sys.argv)
