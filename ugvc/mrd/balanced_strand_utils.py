@@ -14,7 +14,8 @@ import pysam
 import seaborn as sns
 
 from ugvc.flow_format.flow_based_read import generate_key_from_sequence
-from ugvc.utils.metrics_utils import merge_trimmer_histograms, plot_read_length_histogram, read_sorter_statistics_csv
+from ugvc.reports.report_utils import plot_read_length_histogram
+from ugvc.utils.metrics_utils import merge_trimmer_histograms, read_sorter_statistics_csv
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html, set_pyplot_defaults
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
@@ -131,27 +132,33 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
         header.add_line(
             f"##python_cmd:add_strand_ratios_and_categories_to_featuremap=MIXED is {self.sr_lower}-{self.sr_upper}"
         )
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_START.value},"
-            'Number=1,Type=Float,Description="Ratio of MINUS and PLUS strands '
-            'measured from the tag in the start of the read">'
+        header.info.add(
+            id=HistogramColumnNames.STRAND_RATIO_START.value,
+            type="Float",
+            number=1,
+            description="Ratio of MINUS and PLUS strands measured from the tag in the start of the read",
         )
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_END.value},"
-            'Number=1,Type=Float,Description="Ratio of MINUS and PLUS strands '
-            'measured from the tag in the end of the read">'
+        header.info.add(
+            id=HistogramColumnNames.STRAND_RATIO_END.value,
+            type="Float",
+            number=1,
+            description="Ratio of MINUS and PLUS strands measured from the tag in the end of the read",
         )
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value},"
-            'Number=1,Type=String,Description="Balanced read category derived from the ratio of MINUS and PLUS strands '
+        header.info.add(
+            id=HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+            type="String",
+            number=1,
+            description="Balanced read category derived from the ratio of MINUS and PLUS strands "
             "measured from the tag in the start of the read, options: "
-            f'{", ".join(balanced_category_list)}">'
+            f'{", ".join(balanced_category_list)}',
         )
-        header.add_line(
-            f"##INFO=<ID={HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value},"
-            'Number=1,Type=String,Description="Balanced read category derived from the ratio of MINUS and PLUS strands '
+        header.info.add(
+            id=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+            type="String",
+            number=1,
+            description="Balanced read category derived from the ratio of MINUS and PLUS strands "
             "measured from the tag in the end of the read, options: "
-            f'{", ".join(balanced_category_list)}">'
+            f'{", ".join(balanced_category_list)}',
         )
         return header
 
@@ -265,7 +272,7 @@ def _assert_adapter_version_supported(
         )
 
 
-def get_strand_ratio_category(strand_ratio, sr_lower, sr_upper):
+def get_strand_ratio_category(strand_ratio, sr_lower, sr_upper) -> str:
     """
     Determine the strand ratio category
 
@@ -302,7 +309,7 @@ def read_balanced_strand_trimmer_histogram(
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
     sample_name: str = "",
     output_filename: str = None,
-):
+) -> pd.DataFrame:
     """
     Read a balanced ePCR trimmer histogram file and add columns for strand ratio and strand ratio category
 
