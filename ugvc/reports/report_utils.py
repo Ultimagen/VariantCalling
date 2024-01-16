@@ -56,12 +56,12 @@ class ErrorType(Enum):
 
 
 class ReportUtils:
-    def __init__(self, verbosity, h5outfile: str, num_plots_in_row=6, min_value=0.2):
+    def __init__(self, verbosity, h5outfile: str, num_plots_in_row=6, min_value=0.2, score_name: str = "tree_score"):
         self.verbosity = verbosity
         self.h5outfile = h5outfile
         self.min_value = min_value
         self.num_plots_in_row = num_plots_in_row
-        self.score_name = "tree_score"
+        self.score_name = score_name
 
     def basic_analysis(self, data: pd.DataFrame, categories, out_key, out_key_sec=None):
         data_sec = None
@@ -528,7 +528,7 @@ class ReportUtils:
             result = data[(data["indel"]) & (data["hmer_length"] > 14) & (data["hmer_length"] <= 19)]
         elif cat == "hmer Indel >=20":
             result = data[(data["indel"]) & (data["hmer_length"] >= 20)]
-        for i in range(1, 10):
+        for i in range(1, 21):
             if cat == "hmer Indel {0:d}".format(i):
                 result = data[(data["indel"]) & (data["hmer_length"] == i)]
                 return result
