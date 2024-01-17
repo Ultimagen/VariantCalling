@@ -10,8 +10,76 @@ import numpy as np
 import pandas as pd
 from IPython.display import Markdown, display
 from matplotlib.ticker import FormatStrFormatter
+from scipy.interpolate import interp1d
 
+from ugvc.utils.metrics_utils import get_histogram_from_sorter
+from ugvc.utils.misc_utils import set_pyplot_defaults
 from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
+
+
+def plot_read_length_histogram(
+    sorter_stats_json: str,
+    plot_range_percentiles: tuple = (0.001, 0.999),
+    output_filename: str = None,
+    title: str = None,
+):
+    """
+    Plot read length histogram from sorter JSON file.
+
+    Parameters
+    ----------
+    sorter_stats_json : str
+        Path to Sorter statistics JSON file.
+    plot_range_percentiles : tuple
+        Percentiles to show in plot range. Default: (0.01, 0.99)
+    output_filename : str
+        Output file name. If None (default), don't save.
+    title : str
+        Plot title. If None (default), don't show title.
+    """
+    set_pyplot_defaults()
+
+    # read histograms
+    read_length = get_histogram_from_sorter(sorter_stats_json, "read_length")
+    aligned_read_length = get_histogram_from_sorter(sorter_stats_json, "aligned_read_length")
+    # calculate pdf, cdf and limits
+    pdf_aligned = aligned_read_length / read_length.sum()
+    cdf_aligned = pdf_aligned.cumsum()
+    pdf_aligned_to_all_reads = aligned_read_length / read_length.sum()
+    pdf = read_length / read_length.sum()
+    cdf = pdf.cumsum()
+    f_interp = interp1d(cdf.values, cdf.index, kind="linear", fill_value=(0, 1))
+    f_interp_aligned = interp1d(cdf_aligned.values, cdf_aligned.index, kind="linear", fill_value=(0, 1))
+    xlim = f_interp(plot_range_percentiles)
+    # plot
+    plt.figure(figsize=(10, 5))
+    pdf.plot(
+        linewidth=3,
+    )
+    pdf_aligned_to_all_reads.plot(linewidth=2, linestyle="--")
+    legend_handle = plt.legend(
+        [
+            f"All reads, median={f_interp(0.5):.0f}",
+            f"Aligned reads, median={f_interp_aligned(0.5):.0f}",
+        ]
+    )
+    plt.xlim(xlim)
+    plt.xlabel("Read length")
+    bbox_extra_artists = [legend_handle]
+    if title:
+        title_handle = plt.title(title)
+        bbox_extra_artists.append(title_handle)
+    # save
+    if output_filename:
+        if not output_filename.endswith(".png"):
+            output_filename += ".png"
+        plt.savefig(
+            output_filename,
+            facecolor="w",
+            dpi=300,
+            bbox_inches="tight",
+            bbox_extra_artists=bbox_extra_artists,
+        )
 
 
 def parse_config(config_file):
