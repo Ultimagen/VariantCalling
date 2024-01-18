@@ -582,8 +582,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         ):
             create_report(
                 model=self.classifier,
-                X=X,
-                y=y,
+                X=X.copy(),
+                y=y.copy(),
                 params=self.get_params(),
                 report_name=name,
                 out_path=self.out_path,
@@ -684,7 +684,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         # Calculate vector of quality scores for the test set
         quality_interpolation_function = get_quality_interpolation_function(self.test_mrd_simulation_dataframe_file)
-        probabilities = self.classifier.predict_proba(self.X_test[self.columns])[:, 1]
+        probabilities = self.classifier.predict_proba(self.X_test[self.columns])[:, 0]
         self.qual_test = (
             pd.Series(-10 * np.log10(probabilities)).rename("qual").apply(quality_interpolation_function).to_frame()
         )
