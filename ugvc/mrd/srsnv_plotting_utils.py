@@ -82,7 +82,7 @@ def create_data_for_report(
         list of false positive rates per ML score per label
     """
 
-    cls_features = classifier.feature_names_in_
+    cls_features = list(classifier.feature_names_in_)
     probs = classifier.predict_proba(X[cls_features])
     predictions = classifier.predict(X[cls_features])
     quals = -10 * np.log10(1 - probs)
@@ -454,7 +454,7 @@ def plot_LoD(
     min_LoD_filter: str,
     title: str = "",
     output_filename: str = None,
-    font_size: int = 18,
+    font_size: int = 24,
 ):
     """generates and saves the LoD plot
 
@@ -523,14 +523,14 @@ def plot_LoD(
         df_plot = df_mrd_sim.loc[df_mrd_sim.index.isin(f)]
         plt.plot(
             df_plot[TP_READ_RETENTION_RATIO],
-            df_plot[RESIDUAL_SNV_RATE],
+            -10 * np.log10(df_plot[RESIDUAL_SNV_RATE]),
             c="k",
             alpha=0.3,
         )
         best_lod_filter = df_plot[c_lod].min()
         plt.scatter(
             df_plot[TP_READ_RETENTION_RATIO],
-            df_plot[RESIDUAL_SNV_RATE],
+            -10 * np.log10(df_plot[RESIDUAL_SNV_RATE]),
             c=df_plot[c_lod],
             marker=marker,
             edgecolor=edgecolor,
@@ -543,10 +543,9 @@ def plot_LoD(
             ),
         )
     plt.xlabel("Base retention ratio on HOM SNVs", fontsize=font_size)
-    plt.ylabel("Residual SNV rate", fontsize=font_size)
-    plt.yscale("log")
+    plt.ylabel("Measured SNVQ", fontsize=font_size)
     title_handle = plt.title(title, fontsize=font_size)
-    legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
+    legend_handle = plt.legend(fontsize=18, fancybox=True, framealpha=0.95)
 
     cbar = plt.colorbar()
     cbar.set_label(label=lod_label)
@@ -935,7 +934,11 @@ def plot_qual_per_feature(
             else:
                 if j == 0:
                     plt.figure(figsize=(8, 6))
-                _ = df[df["label"] == label][feature].hist(bins=20, alpha=0.5, label=labels_dict[label], density=True)
+                s_plot = df[df["label"] == label][feature]
+                if s_plot.dtype.name in {"bool", "category"}:  # category bar plot
+                    s_plot.value_counts(normalize=True).plot(kind="bar", label=labels_dict[label])
+                else:  # numerical histogram
+                    s_plot.hist(bins=min(len(s_plot.unique()), 20), alpha=0.5, label=labels_dict[label], density=True)
 
         legend_handle = plt.legend(fontsize=font_size, fancybox=True, framealpha=0.95)
         plt.xlabel(feature, fontsize=font_size)
@@ -974,7 +977,9 @@ def get_data_subsets(
 
     df_dict = {}
 
+    df["is_cycle_skip"] = df["is_cycle_skip"].astype(bool)
     if is_mixed_flag:
+        df["is_mixed"] = df["is_mixed"].astype(bool)
         df_dict["mixed cycle skip"] = df[(df["is_mixed"] & df["is_cycle_skip"])]
         df_dict["mixed non cycle skip"] = df[(df["is_mixed"] & ~df["is_cycle_skip"])]
         df_dict["non mixed non cycle skip"] = df[(~df["is_mixed"] & ~df["is_cycle_skip"])]
@@ -1339,6 +1344,7 @@ def create_report(
         assert key in params, f"no {key} in params"
 
     # init dir
+    os.makedirs(out_path, exist_ok=True)
     params["workdir"] = out_path
     if base_name:
         params["data_name"] = base_name
