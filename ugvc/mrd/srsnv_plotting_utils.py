@@ -1372,7 +1372,7 @@ def create_report(
     }
 
     sorter_json_stats_file = params["sorter_json_stats_file"]
-    data_size = params[f"fp_{report_name}_set_size"]
+    data_size = params[f"{report_name}_set_size"]
     total_n = params["fp_featuremap_entry_number"]
     sampling_rate = (
         data_size / total_n

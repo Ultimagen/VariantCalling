@@ -243,16 +243,17 @@ def get_quality_interpolation_function(mrd_simulation_dataframe: str = None):
     df = df[df.index.str.startswith(ML_QUAL)]
     df.loc[:, ML_QUAL] = df.index.str.replace(ML_QUAL + "_", "").astype(float)
     # Calculate Phred scores matching the residual SNV rate
-    phread_residual_snv_rate = -10 * np.log10(df["residual_snv_rate"])
+    df = df[df["residual_snv_rate"] > 0]  # Estimate using only residual SNV rates > 0 to avoid QUAL=Inf
+    phred_residual_snv_rate = -10 * np.log10(df["residual_snv_rate"])
     # Create interpolation function
     quality_interpolation_function = interp1d(
         df[ML_QUAL] + 1e-10,  # add a small number so ML_QUAL=0 is outside the interpolation range
-        phread_residual_snv_rate,
+        phred_residual_snv_rate,
         kind="linear",
         bounds_error=False,
         fill_value=(
             0,
-            phread_residual_snv_rate[-1],
+            phred_residual_snv_rate[-1],
         ),  # below ML_QUAL=1E-10 assign 0, above max assign max
     )
     return quality_interpolation_function
