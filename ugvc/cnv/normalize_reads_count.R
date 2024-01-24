@@ -39,10 +39,17 @@ suppressPackageStartupMessages(library(argparse))
 GetVarianceSum <- function(X,in_cutoff){
   left_dist = X[X<=in_cutoff]
   right_dist = X[X>in_cutoff]
-  left_variance = var(left_dist)
-  right_variance = var(right_dist)
-  sum_var = left_variance+right_variance
-  return(sum_var)
+  if(length(left_dist) > 1 && length(right_dist)>1)
+  {
+    left_variance = var(left_dist)
+    right_variance = var(right_dist)
+    sum_var = left_variance+right_variance
+    return(sum_var)
+  }
+  else
+  {
+    return(NULL)
+  }
 }
 
 #' @title whole Genome-wize Normalization of NGS data.
@@ -224,13 +231,19 @@ normalizeChromosomesGenomewize <- function(X, chr, normType="poisson", sizeFacto
 			chrX_matrix_nonZero <- chrX_matrix[which(rowSums(chrX_matrix) > 0),]
 			chrX_means <- colMeans(chrX_matrix_nonZero,na.rm=TRUE)
 
+			png(paste(out_prefix,"chrX_mean_coverage_distribution.png"))
+			hist(chrX_means)
+			dev.off()
+
 			cutoff=min(chrX_means)+1
 			sum_var=GetVarianceSum(chrX_means,cutoff)
-			cutoff_range = seq(from = min(chrX_means)+1, to = max(chrX_means), by = 1)
+			cutoff_range = seq(from = min(chrX_means)+1, to = max(chrX_means)-1, by = 1)
 
 			for (cutoff_tmp in cutoff_range) {
 				sum_var_tmp = GetVarianceSum(chrX_means,cutoff_tmp)
-				if(sum_var_tmp < sum_var) {
+				if(is.null(sum_var_tmp))
+				  {next}
+				else if(sum_var_tmp < sum_var) {
 				  sum_var = sum_var_tmp
 				  cutoff = cutoff_tmp
 				}
