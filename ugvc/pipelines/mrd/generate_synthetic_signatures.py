@@ -47,6 +47,14 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Number of synthetic signatures to generate""",
     )
     parser.add_argument(
+        "-r",
+        "--ref_fasta",
+        type=str,
+        required=False,
+        help="reference fasta file, default None. Required if input vcf is not annotated with left and right motifs "
+        "X_LM and X_RM",
+    )
+    parser.add_argument(
         "-o",
         "--output_dir",
         type=str,
@@ -66,4 +74,5 @@ def run(argv: list[str]):
         db_vcf=args_in.db_vcf,
         n_synthetic_signatures=args_in.n_synthetic_signatures,
         output_dir=args_in.output_dir,
+        ref_fasta=args_in.ref_fasta,
     )

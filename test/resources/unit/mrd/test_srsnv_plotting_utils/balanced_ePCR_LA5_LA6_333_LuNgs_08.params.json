@@ -39,5 +39,7 @@
   "flow_order": "TGCA",
   "train_set_size": 3000000,
   "test_set_size": 300000,
-  "fp_featuremap_entry_number": 66058144
+  "fp_featuremap_entry_number": 66058144,
+  "fp_test_set_size": 300000,
+  "adapter_version": "LA_v5and6"
 }

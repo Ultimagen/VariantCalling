@@ -14,7 +14,7 @@ setup(
         "ugvc/pipelines/mrd/positional_error_rate_profile.py",
         "ugvc/pipelines/mrd/collect_coverage_per_motif.py",
         "ugvc/pipelines/mrd/concat_dataframes.py",
-        "ugvc/pipelines/mrd/create_control_signature.py",
+        "ugvc/pipelines/mrd/sorter_stats_to_mean_coverage.py",
         "ugvc/pipelines/mrd/featuremap_to_dataframe.py",
         "ugvc/pipelines/mrd/intersect_featuremap_with_signature.py",
         "ugvc/pipelines/mrd/prepare_data_from_mrd_pipeline.py",

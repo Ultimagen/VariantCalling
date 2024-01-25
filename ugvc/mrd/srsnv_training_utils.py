@@ -18,7 +18,8 @@ from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
-from ugvc.mrd.srsnv_plotting_utils import create_report_plots
+from ugvc.mrd.srsnv_inference_utils import get_quality_interpolation_function
+from ugvc.mrd.srsnv_plotting_utils import create_report
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
@@ -319,6 +320,8 @@ def prepare_featuremap_for_model(
         downsampled_training_featuremap_vcf,
         downsampled_test_featuremap_vcf,
         featuremap_entry_number,
+        train_set_size,
+        test_set_size,
     )
 
 
@@ -424,6 +427,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.y_test_save_path,
             self.X_train_save_path,
             self.y_train_save_path,
+            self.qual_test_save_path,
             self.params_save_path,
             self.test_mrd_simulation_dataframe_file,
             self.train_mrd_simulation_dataframe_file,
@@ -506,6 +510,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}", f"{self.out_basename}y_test.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}X_train.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}y_train.parquet"),
+            pjoin(f"{self.out_path}", f"{self.out_basename}qual_test.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}params.json"),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.df_mrd_simulation.parquet"),
             pjoin(
@@ -518,18 +523,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             pjoin(f"{self.out_path}", f"{self.out_basename}train.statistics.json"),
         )
 
-    def save_model_and_data(self):
-        joblib.dump(self.classifier, self.model_save_path)
-
-        for data, savename in (
-            (self.X_test, self.X_test_save_path),
-            (self.y_test, self.y_test_save_path),
-            (self.X_train, self.X_train_save_path),
-            (self.y_train, self.y_train_save_path),
-        ):
-            data.to_parquet(savename)
-
-        params_to_save = {
+    def get_params(self):
+        return {
             "model_parameters": self.model_parameters,
             "numerical_features": self.numerical_features,
             "categorical_features": self.categorical_features,
@@ -543,6 +538,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "train_set_size": self.train_set_size,
             "test_set_size": self.test_set_size,
             "fp_featuremap_entry_number": self.fp_featuremap_entry_number,
+            "tp_featuremap_entry_number": self.tp_featuremap_entry_number,
+            "fp_test_set_size": self.fp_test_set_size,
+            "fp_train_set_size": self.fp_train_set_size,
+            "tp_test_set_size": self.tp_test_set_size,
+            "tp_train_set_size": self.tp_train_set_size,
             "lod_filters": self.lod_filters,
             "adapter_version": self.balanced_strand_adapter_version,
             "columns": self.columns,
@@ -551,13 +551,27 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "random_seed": self.random_seed,
         }
 
+    def save_model_and_data(self):
+        # save model
+        joblib.dump(self.classifier, self.model_save_path)
+        # save data
+        for data, savename in (
+            (self.X_test, self.X_test_save_path),
+            (self.y_test, self.y_test_save_path),
+            (self.X_train, self.X_train_save_path),
+            (self.y_train, self.y_train_save_path),
+            (self.qual_test, self.qual_test_save_path),
+        ):
+            data.to_parquet(savename)
+        # save params
+        params_to_save = self.get_params()
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
 
-    def create_report_plots(self):
+    def create_report(self):
         for (X, y, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name,) in zip(
-            [self.X_test_save_path, self.X_train_save_path],
-            [self.y_test_save_path, self.y_train_save_path],
+            [self.X_test, self.X_train],
+            [self.y_test, self.y_train],
             [
                 self.test_mrd_simulation_dataframe_file,
                 self.train_mrd_simulation_dataframe_file,
@@ -566,11 +580,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             [self.test_statistics_json_file, self.train_statistics_json_file],
             ["test", "train"],
         ):
-            create_report_plots(
-                model_file=self.model_save_path,
-                X_file=X,
-                y_file=y,
-                params_file=self.params_save_path,
+            create_report(
+                model=self.classifier,
+                X=X.copy(),
+                y=y.copy(),
+                params=self.get_params(),
                 report_name=name,
                 out_path=self.out_path,
                 base_name=self.out_basename,
@@ -584,7 +598,13 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
         # prepare TP featuremaps for training
         logger.info("Preparing TP featuremaps for training and test")
-        (self.tp_train_featuremap_vcf, self.tp_test_featuremap_vcf, _,) = prepare_featuremap_for_model(
+        (
+            self.tp_train_featuremap_vcf,
+            self.tp_test_featuremap_vcf,
+            self.tp_featuremap_entry_number,
+            self.tp_train_set_size,
+            self.tp_test_set_size,
+        ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
             train_set_size=self.train_set_size
@@ -603,6 +623,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.fp_train_featuremap_vcf,
             self.fp_test_featuremap_vcf,
             self.fp_featuremap_entry_number,
+            self.fp_train_set_size,
+            self.fp_test_set_size,
         ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.single_substitution_featuremap,
@@ -657,10 +679,17 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         # fit classifier
         self.classifier.fit(self.X_train[self.columns], self.y_train)
 
+        # create training and test reports
+        self.create_report()
+
+        # Calculate vector of quality scores for the test set
+        quality_interpolation_function = get_quality_interpolation_function(self.test_mrd_simulation_dataframe_file)
+        probabilities = self.classifier.predict_proba(self.X_test[self.columns])[:, 0]
+        self.qual_test = (
+            pd.Series(-10 * np.log10(probabilities)).rename("qual").apply(quality_interpolation_function).to_frame()
+        )
+
         # save classifier and data, generate plots for report
         self.save_model_and_data()
-
-        # create plots for report
-        self.create_report_plots()
 
         return self
