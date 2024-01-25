@@ -196,7 +196,8 @@ def read_effective_coverage_from_sorter_json(
     sorter_stats_json, min_coverage_for_fp=20, max_coverage_percentile=0.95, min_mapq=60
 ):
     """
-    Read effective coverage metrics from sorter JSON file.
+    Read effective coverage metrics from sorter JSON file - mean coverage, ratio of reads over MAPQ, ratio of bases in
+    the given coverage range, min coverage for FP calculation, coverage of max percentile.
 
     Parameters
     ----------

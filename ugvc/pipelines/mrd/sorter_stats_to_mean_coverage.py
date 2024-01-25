@@ -28,7 +28,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def sorter_stats_to_mean_coverage(sorter_stats_json: str, output_file: str):
     """
-    Read effective coverage metrics from sorter JSON file and write the up-rounded result to a file.
+    Read mean coverage metric from sorter JSON file and write the up-rounded result to a file.
 
     Parameters
     ----------
