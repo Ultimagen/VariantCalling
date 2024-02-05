@@ -35,3 +35,7 @@ RUN source ~/.bashrc && \
     conda activate genomics.py3 && \
     cd /VariantCalling && \
     pip install .
+
+# Include licenses
+COPY ["Ultima UGVC - EULA.pdf", "./"]
+COPY ["Third Party Licenses/", "./Third Party Licenses/"]
