@@ -38,7 +38,8 @@ class TrimmerSegmentLabels(Enum):
     T_HMER_END = "T_hmer_end"
     A_HMER_START = "A_hmer_start"
     A_HMER_END = "A_hmer_end"
-    NATIVE_ADAPTER = "native_adapter_with_leading_C"
+    NATIVE_ADAPTER = "native_adapter"
+    NATIVE_ADAPTER_WITH_C = "native_adapter_with_leading_C"
     STEM_END = "Stem_end"  # when native adapter trimming was done on-tool a modified format is used
     START_LOOP = "Start_loop"
     END_LOOP = "End_loop"
@@ -350,7 +351,9 @@ def read_balanced_strand_trimmer_histogram(
     """
     _assert_adapter_version_supported(adapter_version)
     # read histogram
-    df_trimmer_histogram = pd.read_csv(trimmer_histogram_csv)
+    df_trimmer_histogram = pd.read_csv(trimmer_histogram_csv).rename(
+        columns={TrimmerSegmentLabels.NATIVE_ADAPTER_WITH_C.value: TrimmerSegmentLabels.NATIVE_ADAPTER.value}
+    )
 
     # determine if end was reached - at least 1bp native adapter or all of the end stem were found
     if adapter_version in [
@@ -406,7 +409,8 @@ def read_balanced_strand_trimmer_histogram(
         ):
             # If an end tag exists (LA-v6)
             raise ValueError(
-                f"Missing expected column {TrimmerSegmentLabels.NATIVE_ADAPTER.value} "
+                f"Missing expected column {TrimmerSegmentLabels.NATIVE_ADAPTER_WITH_C.value} "
+                f"or {TrimmerSegmentLabels.NATIVE_ADAPTER.value} "
                 f"or {TrimmerSegmentLabels.STEM_END.value} in {trimmer_histogram_csv}"
             )
 
@@ -1632,7 +1636,14 @@ def plot_trimmer_histogram(
                             "xkcd:violet",
                         ],
                     )
-                    ax.bar(expected_signal[j], 1, facecolor="none", edgecolor="k", alpha=1, linewidth=2)
+                    ax.bar(
+                        expected_signal[j],
+                        1,
+                        facecolor="none",
+                        edgecolor="k",
+                        alpha=1,
+                        linewidth=2,
+                    )
                     ax.set_xticks(range(5))
                     if k == 0:
                         ax.set_title(base)
@@ -1905,7 +1916,7 @@ def balanced_strand_analysis(
             "reports/ppm_seq/ppmSeq_illustration.png",
         )
         parameters = dict(
-            adapter_version=adapter_version if isinstance(adapter_version, str) else adapter_version.value,
+            adapter_version=(adapter_version if isinstance(adapter_version, str) else adapter_version.value),
             statistics_h5=output_statistics_h5,
             trimmer_histogram_png=output_trimmer_histogram_plot,
             strand_ratio_category_png=output_strand_ratio_category_plot,
