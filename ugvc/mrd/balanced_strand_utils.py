@@ -1604,6 +1604,8 @@ def plot_trimmer_histogram(
                     ),
                 )
             ):
+                if cat not in df_calls.index.get_level_values(loop_category):
+                    continue
                 df_calls_x = df_calls.loc[cat].reset_index()
                 df_calls_x = df_calls_x.assign(
                     flow_signal=df_calls_x[loop].apply(lambda x: generate_key_from_sequence(x, flow_order=flow_order))
