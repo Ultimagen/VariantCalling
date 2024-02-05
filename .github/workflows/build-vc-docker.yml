@@ -27,6 +27,16 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
+      - name: Make space
+      # As suggested here: https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+
       - name: Git Checkout
         uses: actions/checkout@v4
 
