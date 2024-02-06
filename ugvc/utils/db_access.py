@@ -95,14 +95,14 @@ DEFAULT_METRICS_TO_REPORT = [
 ]
 
 
-def metrics2df(doc: dict, metrics_to_report: list = None) -> pd.DataFrame:
+def metrics2df(doc: dict, metrics_to_report: list | None = None) -> pd.DataFrame:
     """Converts metrics document to pandas dataframe
 
     Parameters
     ----------
     doc: dict
         Single document from mongodb (dictionary, output of query_database)
-    metrics_to_report: list
+    metrics_to_report: list, optional
         which metrics should be reported (default {", ".join(DEFAULT_METRICS_TO_REPORT)})
 
     Returns
@@ -123,7 +123,7 @@ def metrics2df(doc: dict, metrics_to_report: list = None) -> pd.DataFrame:
             .query('(workflowEntity=="sample") | (workflowEntity=="Sample") | (workflowEntity=="Unknown")')
             .loc["entityType"]
         ).T
-    metadata.index = [0]
+    metadata.index = pd.Index([0])
     metadata = pd.concat({"metadata": metadata}, axis=1)
     result = [
         (x, pd.read_json(json.dumps(doc["metrics"][x]), orient="table"))
