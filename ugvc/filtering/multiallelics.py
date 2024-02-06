@@ -258,6 +258,8 @@ def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: 
     if normed:
         min_pl = min(pltake)
         return tuple(x - min_pl for x in pltake)
+    if len(pltake) > 3:
+        print(original_pl, allele_idcs)
     return tuple(pltake)
 
 

@@ -91,7 +91,7 @@ def test_indel_classify_subset(alleles, allele_indices, expected):
 
 
 testdata = [
-    [("A", "G", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), ((None,), (None,))],
+    [("A", "G", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), (("NA",), (None,))],
     [("A", "AG", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), (("ins",), (1,))],
     [("A", "C", "*"), (0, 2), pd.Series({"x_il": (4, 5)}), (("del",), (4,))],
     [("A", "AC", "*"), (1, 2), pd.Series({"x_il": (4, 5)}), (("del",), (4,))],
