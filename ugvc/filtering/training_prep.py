@@ -126,7 +126,7 @@ def encode_label(label):
     label = tuple(sorted(label))
     if label == (0, 0):
         return 2
-    if label == (0, 1):
+    if label in [(0, 1), (1, 0)]:
         return 0
     if label == (1, 1):
         return 1

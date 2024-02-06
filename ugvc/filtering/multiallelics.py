@@ -319,7 +319,7 @@ def indel_classify_subset(
 
     """
     if not is_indel_subset(alleles, allele_indices, spandel):
-        return ((None,), (None,))
+        return (("NA",), (None,))
     ref_allele = alleles[allele_indices[0]]
     alt_allele = alleles[allele_indices[1]]
     if spandel is not None and _contain_spandel(alleles, allele_indices):

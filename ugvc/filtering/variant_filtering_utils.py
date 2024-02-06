@@ -607,7 +607,6 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
                 "scl",
                 "scr",
                 "hapcomp",
-                "nmc",
             ]
         )
         transform_list.extend(
@@ -634,7 +633,6 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
                 ("mq0c", tuple_encode_doublet_df_transformer, "mq0c"),
                 ("scl", tuple_encode_doublet_df_transformer, "scl"),
                 ("scr", tuple_encode_doublet_df_transformer, "scr"),
-                ("nmc", tuple_encode_doublet_df_transformer, "nmc"),
             ]
         )
     elif vtype == "single_sample_old_vc":  # needs to just be able to work with old vc
