@@ -170,6 +170,7 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     ]
     for n in multiallelic_groups:
         n.loc[:, "multiallelic_group"] = [(n.iloc[0]["chrom"], n.iloc[0]["pos"])] * (n.shape[0])
+
     multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
     multiallelic_groups = mu.cleanup_multiallelics(multiallelic_groups)
     spanning_deletions = [
@@ -193,4 +194,4 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     idx_multi_spandels = df.index[combined_overlaps]
     df.drop(idx_multi_spandels, axis=0, inplace=True)
     mug = pd.concat((multiallelic_groups, spanning_deletions), ignore_index=True)  # resetting index
-    return pd.concat((df, mug))
+    return pd.concat((df, mug)).convert_dtypes()
