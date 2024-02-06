@@ -77,9 +77,9 @@ def test_is_indel_subset(alleles, allele_indices, expected):
 
 
 testdata = [
-    [("A", "G", "C"), (0, 1), ((None,), (None,))],
+    [("A", "G", "C"), (0, 1), (("NA",), (None,))],
     [("A", "AG", "C"), (0, 1), (("ins",), (1,))],
-    [("A", "AG", "AC"), (1, 2), ((None,), (None,))],
+    [("A", "AG", "AC"), (1, 2), (("NA",), (None,))],
     [("A", "C", "AC"), (0, 2), (("ins",), (1,))],
     [("A", "AC", "C"), (1, 2), (("del",), (1,))],
 ]
@@ -91,7 +91,7 @@ def test_indel_classify_subset(alleles, allele_indices, expected):
 
 
 testdata = [
-    [("A", "G", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), ((None,), (None,))],
+    [("A", "G", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), (("NA",), (None,))],
     [("A", "AG", "*"), (0, 1), pd.Series({"x_il": (4, 5)}), (("ins",), (1,))],
     [("A", "C", "*"), (0, 2), pd.Series({"x_il": (4, 5)}), (("del",), (4,))],
     [("A", "AC", "*"), (1, 2), pd.Series({"x_il": (4, 5)}), (("del",), (4,))],

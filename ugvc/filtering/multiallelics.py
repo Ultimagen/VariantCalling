@@ -258,6 +258,8 @@ def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: 
     if normed:
         min_pl = min(pltake)
         return tuple(x - min_pl for x in pltake)
+    if len(pltake) > 3:
+        print(original_pl, allele_idcs)
     return tuple(pltake)
 
 
@@ -319,7 +321,7 @@ def indel_classify_subset(
 
     """
     if not is_indel_subset(alleles, allele_indices, spandel):
-        return ((None,), (None,))
+        return (("NA",), (None,))
     ref_allele = alleles[allele_indices[0]]
     alt_allele = alleles[allele_indices[1]]
     if spandel is not None and _contain_spandel(alleles, allele_indices):

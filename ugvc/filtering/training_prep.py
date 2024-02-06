@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import pyfaidx
+import pysam
 import tqdm.auto as tqdm
 
 import ugvc.comparison.vcf_pipeline_utils as vpu
@@ -126,7 +127,7 @@ def encode_label(label):
     label = tuple(sorted(label))
     if label == (0, 0):
         return 2
-    if label == (0, 1):
+    if label in [(0, 1), (1, 0)]:
         return 0
     if label == (1, 1):
         return 1
@@ -170,11 +171,12 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     ]
     for n in multiallelic_groups:
         n.loc[:, "multiallelic_group"] = [(n.iloc[0]["chrom"], n.iloc[0]["pos"])] * (n.shape[0])
+
     multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
     multiallelic_groups = mu.cleanup_multiallelics(multiallelic_groups)
     spanning_deletions = [
         pd.concat(
-            [df.iloc[olp[0] : olp[0] + 1]]
+            [_split_multiallelic_if_necessary(df.iloc[olp[0] : olp[0] + 1], vcf, fasta[chromosome])]
             + [
                 sp.split_multiallelic_variants_with_spandel(df.iloc[olp[i]], df.iloc[olp[0]], vcf, fasta[chromosome])
                 for i in range(1, len(olp))
@@ -193,4 +195,27 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     idx_multi_spandels = df.index[combined_overlaps]
     df.drop(idx_multi_spandels, axis=0, inplace=True)
     mug = pd.concat((multiallelic_groups, spanning_deletions), ignore_index=True)  # resetting index
-    return pd.concat((df, mug))
+    return pd.concat((df, mug)).convert_dtypes()
+
+
+def _split_multiallelic_if_necessary(
+    multiallelic_variant: pd.DataFrame,
+    call_vcf_header: pysam.VariantHeader | pysam.VariantFile | str,
+    ref: pyfaidx.FastaRecord,
+) -> pd.DataFrame:
+    """Splits a variant into multiallelics if necessary or returns the original variant
+
+    Parameters
+    ----------
+    multiallelic_variant : pd.Series
+        A row from the training set dataframe
+    call_vcf_header :
+        Header of the VCF : pysam.VariantHeader | pysam.VariantFile | str
+    ref : pyfaidx.Fasta
+        Reference chromosome
+    """
+    assert multiallelic_variant.shape[0] == 1, "Should be a single row"
+    alleles = multiallelic_variant["alleles"].values[0]
+    if len(alleles) == 2:
+        return multiallelic_variant
+    return mu.split_multiallelic_variants(multiallelic_variant.iloc[0], call_vcf_header, ref)
