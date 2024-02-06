@@ -114,11 +114,15 @@ def metrics2df(doc: dict, metrics_to_report: list = None) -> pd.DataFrame:
     if metrics_to_report is None:
         metrics_to_report = DEFAULT_METRICS_TO_REPORT
 
-    metadata = pd.DataFrame(
-        (pd.DataFrame(_cleanup_metadata(doc["metadata"])))
-        .query('(workflowEntity=="sample") | (workflowEntity=="Sample") | (workflowEntity=="Unknown")')
-        .loc["entityType"]
-    ).T
+    if "workflowEntity" not in doc["metadata"]:  # omics documents
+        metadata = pd.DataFrame((pd.DataFrame(_cleanup_metadata(doc["metadata"]))).loc["submission"]).T
+
+    else:
+        metadata = pd.DataFrame(
+            (pd.DataFrame(_cleanup_metadata(doc["metadata"])))
+            .query('(workflowEntity=="sample") | (workflowEntity=="Sample") | (workflowEntity=="Unknown")')
+            .loc["entityType"]
+        ).T
     metadata.index = [0]
     metadata = pd.concat({"metadata": metadata}, axis=1)
     result = [
@@ -145,11 +149,14 @@ def inputs2df(doc: dict) -> pd.DataFrame:
     pd.DataFrame
         Dataframe of inputs and outputs combined (single row)
     """
-    metadata = (
-        pd.DataFrame(_cleanup_metadata(doc["metadata"]))
-        .query('(workflowEntity=="sample") | ' + '(workflowEntity=="Sample") | ' + '(workflowEntity=="Unknown")')
-        .loc["entityType"]
-    )
+    if "workflowEntity" not in doc["metadata"]:  # omics documents
+        metadata = pd.DataFrame(_cleanup_metadata(doc["metadata"])).loc["submission"]
+    else:
+        metadata = (
+            pd.DataFrame(_cleanup_metadata(doc["metadata"]))
+            .query('(workflowEntity=="sample") | ' + '(workflowEntity=="Sample") | ' + '(workflowEntity=="Unknown")')
+            .loc["entityType"]
+        )
     inputs = pd.Series(doc["inputs"])
     outputs = pd.Series(doc["outputs"])
     return pd.DataFrame(pd.concat((metadata, inputs, outputs))).T.set_index("workflowId")
@@ -192,26 +199,3 @@ def _cleanup_metadata(input_dict: dict) -> dict:
         if isinstance(input_dict[k], list):
             del input_dict[k]
     return input_dict
-
-
-def _flatten_dict(input_dict: dict) -> dict:
-    """Flattens dictionary of dictionaries and non-dictionaries
-
-    Parameters
-    ----------
-    input_dict: dict
-        Input dictionary of the form {a:value, b:{c:value, d:value}}
-
-    Returns
-    -------
-    dict:
-        Dictionary like {a:value, b_c:value, b_d:value}
-    """
-    result = {}
-    for key1 in input_dict.keys():
-        if isinstance(input_dict[key1], dict):
-            for key2 in input_dict[key1]:
-                result[f"{key1}___{key2}"] = input_dict[key1][key2]
-        else:
-            result[key1] = input_dict[key1]
-    return result
