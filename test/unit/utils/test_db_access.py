@@ -76,3 +76,10 @@ class TestDBAccess:
         assert len(docs) == 23
         df = pd.concat(db_access.nexus_metrics_to_df(x) for x in docs)
         assert df.equals(pd.read_hdf(pjoin(self.input_dir, "expected_nexus_df.h5"), key="df"))
+
+    def test_omics_inputs(self):
+        omics_wfids = ["503496316425-8760489", "503496316425-2270966", "503496316425-2984995"]
+        docs = db_access.query_database({"metadata.workflowId": {"$in": omics_wfids}})
+        df = pd.concat(db_access.inputs2df(x) for x in docs)
+        df.sort_index(inplace=True)
+        assert df.equals(pd.read_hdf(pjoin(self.input_dir, "expected_omics_df.h5"), key="df"))
