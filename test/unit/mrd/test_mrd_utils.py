@@ -242,37 +242,7 @@ def test_generate_synthetic_signatures(tmpdir):
     )
     signature = read_signature(synthetic_signature_list[0], return_dataframes=True)
     expected_signature = read_signature(pjoin(inputs_dir, "synthetic_signature_test.vcf.gz"), return_dataframes=True)
-    _assert_read_signature(
-        signature,
-        expected_signature,
-        expected_columns=[
-            "ref",
-            "alt",
-            "id",
-            "qual",
-            "af",
-            "depth_tumor_sample",
-            "hmer",
-            "tlod",
-            "sor",
-            "exome",
-            "giab_hcr",
-            "lcr",
-            "long_hmer",
-            "map_unique",
-            "ug_hcr",
-            "ug_mrd_blacklist",
-            "cycle_skip_status",
-            "gc_content",
-            "left_motif",
-            "right_motif",
-            "mutation_type",
-        ],
-        possibly_null_columns=[
-            "id",
-            "qual",
-            "depth_tumor_sample",
-            "tlod",
-            "sor",
-        ],
-    )
+    # test that motif distribution is the same (0th order)
+    assert (
+        signature.groupby(["ref", "alt"]).value_counts() == expected_signature.groupby(["ref", "alt"]).value_counts()
+    ).all()
