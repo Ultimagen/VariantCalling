@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import subprocess
 
 from simppl.simple_pipeline import SimplePipeline
@@ -7,9 +9,9 @@ from ugvc import logger
 
 def print_and_execute(
     command: str,
-    output_file: str = None,
-    simple_pipeline: SimplePipeline = None,
-    module_name: str = None,
+    output_file: str | None = None,
+    simple_pipeline: SimplePipeline | None = None,
+    module_name: str | None = None,
     shell: bool = False,
 ):
     """

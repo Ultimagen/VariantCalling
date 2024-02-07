@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
@@ -20,6 +21,23 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 def calculate_labeled_vcf(call_vcf: str, vcfeval_vcf: str, contig: str) -> pd.DataFrame:
+    """Receives a VCF and a result of its comparison (vcfeval) and returns a joint vcf ready to create training labels.
+    The function also prints some statistics about the join, to help debugging.
+
+    Parameters
+    ----------
+    call_vcf : str
+        Call VCF
+    vcfeval_vcf : str
+        VCFEVAL VCF (vcfeval should run in 'combine' mode)
+    contig : str
+        Chromosome to work on
+
+    Returns
+    -------
+    pd.DataFrame
+        Joined VCF, vcfeval coluns will get a suffix _vcfeval
+    """
     df_original = vcftools.get_vcf_df(call_vcf, chromosome=contig)
     df_vcfeval = vcftools.get_vcf_df(vcfeval_vcf, chromosome=contig)
 
@@ -44,6 +62,21 @@ def calculate_labeled_vcf(call_vcf: str, vcfeval_vcf: str, contig: str) -> pd.Da
 
 
 def calculate_labels(labeled_df: pd.DataFrame) -> pd.Series:
+    """Receives a dataframe that is output of calculate_labeled_vcf and returns a series of label for each variant.
+
+    Parameters
+    ----------
+    labeled_df : pd.DataFrame
+        Joint dataframe
+
+    Returns
+    -------
+    pd.Series
+        Series of tuples for the genotype for each variant. Note that -1 and -2 are IGNORE and MISS values
+        They are used to mark false negatives or variants outside of the HCR region. IGNORE is for variants
+        that are labeled by vcfeval as OUT/IGN/HARD, MISS are for alleles that were missing from the callset
+    """
+
     result_gt1 = pd.Series(np.zeros(labeled_df.shape[0]), index=labeled_df.index)
     result_gt2 = pd.Series(np.zeros(labeled_df.shape[0]), index=labeled_df.index)
     nans = (
@@ -98,7 +131,38 @@ def calculate_labels(labeled_df: pd.DataFrame) -> pd.Series:
     return result["true_gt"]
 
 
-def prepare_ground_truth(input_vcf, base_vcf, hcr, reference, output_h5, chromosome: list = None):
+def prepare_ground_truth(
+    input_vcf: str, base_vcf: str, hcr: str, reference: str, output_h5: str, chromosome: list | None = None
+) -> None:
+    """Generates a training set dataframe from callset and the ground truth VCF. The following steps are peformed:
+    1. Run vcfeval to compare the callset to the ground truth
+    2. Join the callset and the vcfeval output
+    3. Calculate the labels for each variant
+    4. Process multiallelic variants and spanning deletions (splitting them into multiple lines,
+    asking each time if one or two non-reference alleles are present). For example if the true
+    variant is (1,2), we will generate two rows in the training df:
+    in the first row we will have the reference and the strongest
+    alt allele and the label is (1,1) and in the second row we will have
+    the strongest alt allele and the second strongest alt allele and the label will
+    be (0, 1)
+    The results are saved in output_h5 file, with each chromosome in a separate key.
+
+    Parameters
+    ----------
+    input_vcf : str
+        Input (call) VCF file
+    base_vcf : str
+        Truth VCF file (e.g GIAB callset)
+    hcr : str
+        HCR bed file to generate training set on
+    reference : str
+        Reference fasta. Note that .sdf file will be required
+    output_h5 : str
+        Output file
+    chromosome : list, optional
+        List of chromosomes to operate on, by default None
+
+    """
     pipeline = vpu.VcfPipelineUtils()
     vcfeval_output = pipeline.run_vcfeval_concordance(
         input_file=input_vcf,
@@ -119,11 +183,24 @@ def prepare_ground_truth(input_vcf, base_vcf, hcr, reference, output_h5, chromos
         labeled_df.to_hdf(output_h5, key=chrom, mode="a")
 
 
-def encode_labels(ll):
+def encode_labels(ll: Iterable[tuple[int, int]]) -> list[int]:
+    """Convert genotype label (tuple) to number
+
+    Parameters
+    ----------
+    ll : Iterable[tuple[int, int]]
+        List of labels
+
+    Returns
+    -------
+    list[int]
+        List of encoded labels
+    """
     return [encode_label(x) for x in ll]
 
 
-def encode_label(label):
+def encode_label(label: tuple[int, ...]) -> int:
+    "Convert genotype label (tuple) to number"
     label = tuple(sorted(label))
     if label == (0, 0):
         return 2
@@ -134,7 +211,8 @@ def encode_label(label):
     raise RuntimeError(f"Encoding of gt={label} not supported")
 
 
-def decode_label(label):
+def decode_label(label: int) -> tuple[int, int]:
+    "Numerical encoding of genotype to tuple of genotypes"
     decode_dct = {0: (0, 1), 1: (1, 1), 2: (0, 0)}
     return decode_dct[label]
 
@@ -161,6 +239,7 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
         The corresponding row of the dataframe is marked by "multiallelic_group column"
     """
     df = df.copy()
+    column_dtypes = df.dtypes
     overlaps = mu.select_overlapping_variants(df)
     combined_overlaps = sum(overlaps, [])
     multiallelics = [x for x in overlaps if len(x) == 1]
@@ -195,7 +274,7 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
     idx_multi_spandels = df.index[combined_overlaps]
     df.drop(idx_multi_spandels, axis=0, inplace=True)
     mug = pd.concat((multiallelic_groups, spanning_deletions), ignore_index=True)  # resetting index
-    return pd.concat((df, mug)).convert_dtypes()
+    return pd.concat((df, mug)).astype(column_dtypes)
 
 
 def _split_multiallelic_if_necessary(
@@ -213,6 +292,11 @@ def _split_multiallelic_if_necessary(
         Header of the VCF : pysam.VariantHeader | pysam.VariantFile | str
     ref : pyfaidx.Fasta
         Reference chromosome
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataframe of split variant
     """
     assert multiallelic_variant.shape[0] == 1, "Should be a single row"
     alleles = multiallelic_variant["alleles"].values[0]

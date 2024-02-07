@@ -29,7 +29,7 @@ class VcfPipelineUtils:
         Simple pipeline object
     """
 
-    def __init__(self, simple_pipeline: SimplePipeline = None):
+    def __init__(self, simple_pipeline: SimplePipeline | None = None):
         """Combines VCF in parts from GATK and indices the result
 
         Parameters
@@ -39,7 +39,7 @@ class VcfPipelineUtils:
         """
         self.sp = simple_pipeline
 
-    def __execute(self, command: str, output_file: str = None):
+    def __execute(self, command: str, output_file: str | None = None):
         """Summary
 
         Parameters
