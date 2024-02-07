@@ -993,9 +993,12 @@ def generate_synthetic_signatures(
         trinuc_dict[trinucsub]["index_to_sample"] = {}
         trinuc_dict[trinucsub]["trinuc_counter"] = {}
         random_choice_replace = n_subs_db < n_subs_signature
+        np_choose_can_sample = n_subs_signature > 0 or n_subs_db == 0
         for i in range(n_synthetic_signatures):
-            trinuc_dict[trinucsub]["index_to_sample"][i] = np.random.choice(
-                range(0, n_subs_db), n_subs_signature, replace=random_choice_replace
+            trinuc_dict[trinucsub]["index_to_sample"][i] = (
+                np.random.choice(range(0, n_subs_db), n_subs_signature, replace=random_choice_replace)
+                if np_choose_can_sample
+                else np.array([], dtype="int64")
             )
             trinuc_dict[trinucsub]["trinuc_counter"][i] = 0
 
