@@ -35,11 +35,43 @@ expected_output_featuremap_LAv5and6 = pjoin(
     inputs_dir,
     "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.with_strand_ratios.vcf.gz",
 )
+sorter_stats_csv_ppmSeq_v2 = pjoin(inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.csv")
+sorter_stats_json_ppmSeq_v2 = pjoin(inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.json")
+trimmer_failure_codes_csv_ppmSeq_v2 = pjoin(
+    inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.failure_codes.csv"
+)
+trimmer_histogram_ppmSeq_v2_csv = pjoin(
+    inputs_dir,
+    "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT."
+    "Start_loop.Start_loop.End_loop.End_loop.native_adapter.histogram.csv",
+)
+parsed_histogram_parquet_ppmSeq_v2 = pjoin(
+    inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.parsed_histogram.parquet"
+)
 
 
 def _assert_files_are_identical(file1, file2):
     with open(file1, "rb") as f1, open(file2, "rb") as f2:
         assert f1.read() == f2.read()
+
+
+def test_read_balanced_strand_ppmSeq_v2_trimmer_histogram(tmpdir):
+    tmp_out_path = pjoin(tmpdir, "tmp_out.parquet")
+    df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
+        BalancedStrandAdapterVersions.LA_v7,
+        trimmer_histogram_ppmSeq_v2_csv,
+        output_filename=tmp_out_path,
+    )
+    df_trimmer_histogram_from_parquet = pd.read_parquet(tmp_out_path)
+    df_trimmer_histogram_expected = pd.read_parquet(parsed_histogram_parquet_ppmSeq_v2)
+    assert_frame_equal(
+        df_trimmer_histogram,
+        df_trimmer_histogram_expected,
+    )
+    assert_frame_equal(
+        df_trimmer_histogram_from_parquet,
+        df_trimmer_histogram_expected,
+    )
 
 
 def test_read_balanced_strand_LAv5and6_trimmer_histogram(tmpdir):
@@ -121,7 +153,9 @@ def test_collect_statistics(tmpdir):
         keys = fh1.keys()
     for k in keys:
         assert_frame_equal(
-            pd.read_hdf(f1, k),
+            pd.read_hdf(f1, k).rename(
+                columns={"native_adapter_with_leading_C": "native_adapter"}
+            ),  # backwards compatibility patch for old test data
             pd.read_hdf(f2, k),
         )
 
