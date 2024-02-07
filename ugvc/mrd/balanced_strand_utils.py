@@ -1915,7 +1915,14 @@ def balanced_strand_analysis(
         )
         illustration_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/ppm_seq/ppmSeq_illustration.png",
+            "reports/ppm_seq/ppmSeq_v1_illustration.png"
+            if adapter_version
+            in (
+                BalancedStrandAdapterVersions.LA_v5.value,
+                BalancedStrandAdapterVersions.LA_v5and6.value,
+                BalancedStrandAdapterVersions.LA_v6.value,
+            )
+            else "ppmSeq_v2_illustration.png",
         )
         parameters = dict(
             adapter_version=(adapter_version if isinstance(adapter_version, str) else adapter_version.value),
