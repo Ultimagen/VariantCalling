@@ -1922,7 +1922,7 @@ def balanced_strand_analysis(
                 BalancedStrandAdapterVersions.LA_v5and6.value,
                 BalancedStrandAdapterVersions.LA_v6.value,
             )
-            else "ppmSeq_v2_illustration.png",
+            else "reports/ppm_seq/ppmSeq_v2_illustration.png",
         )
         parameters = dict(
             adapter_version=(adapter_version if isinstance(adapter_version, str) else adapter_version.value),
