@@ -6,9 +6,8 @@ import pyfaidx
 import pysam
 
 import ugvc.filtering.multiallelics as mu
+from ugvc.filtering.tprep_constants import SPAN_DEL
 from ugvc.vcfbed import vcftools
-
-SPAN_DEL = mu.SPAN_DEL
 
 
 def split_multiallelic_variants_with_spandel(

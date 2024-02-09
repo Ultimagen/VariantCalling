@@ -13,10 +13,9 @@ import ugvc.comparison.vcf_pipeline_utils as vpu
 import ugvc.filtering.multiallelics as mu
 import ugvc.filtering.spandel as sp
 from ugvc import logger
+from ugvc.filtering.tprep_constants import IGNORE, MISS
 from ugvc.vcfbed import vcftools
 
-IGNORE = -1
-MISS = -2
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 

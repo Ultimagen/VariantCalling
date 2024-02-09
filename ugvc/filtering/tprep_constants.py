@@ -1,0 +1,3 @@
+SPAN_DEL = "*"
+IGNORE = -1
+MISS = -2
