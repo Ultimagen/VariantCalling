@@ -25,7 +25,7 @@ class TestTrainingPrep:
         joint_vcf_df = pd.DataFrame(pd.read_hdf(joint_vcf_df_file, key="result"))
         labeled_df = tprep.calculate_labels(joint_vcf_df)
         expected_result_file = str(pathlib.Path(inputs_dir, "expected_labels.h5"))
-        pd.testing.assert_series_equal(labeled_df, pd.read_hdf(expected_result_file, key="labels"))
+        pd.testing.assert_series_equal(labeled_df, pd.read_hdf(expected_result_file, key="labels"))  # type: ignore
 
     def test_encode_labels(self):
         labels = [(0, 1), (0, 0), (1, 0), (1, 1)]
@@ -33,6 +33,6 @@ class TestTrainingPrep:
         expected_result = [0, 2, 0, 1]
         assert encoded_labels == expected_result
         with pytest.raises(ValueError):
-            tprep.encode_labels([(0, 1, 2), (0, 0, 1)])
+            tprep.encode_labels([(0, 1, 2), (0, 0, 1)])  # type: ignore
         with pytest.raises(ValueError):
             tprep.encode_labels([(0, 2), (1, 2)])
