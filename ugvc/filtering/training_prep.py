@@ -208,7 +208,7 @@ def encode_label(label: tuple[int, ...]) -> int:
         return 0
     if label == (1, 1):
         return 1
-    raise RuntimeError(f"Encoding of gt={label} not supported")
+    raise ValueError(f"Encoding of gt={label} not supported")
 
 
 def decode_label(label: int) -> tuple[int, int]:
