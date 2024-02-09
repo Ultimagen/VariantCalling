@@ -8,8 +8,9 @@ import pysam
 import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.filtering.training_prep as tprep
 import ugvc.flow_format.flow_based_read as fbr
-from ugvc.filtering.spandel import SPAN_DEL
 from ugvc.vcfbed import vcftools
+
+SPAN_DEL = "*"
 
 
 def select_overlapping_variants(df: pd.DataFrame) -> list:

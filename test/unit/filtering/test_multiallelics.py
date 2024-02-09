@@ -136,8 +136,8 @@ def test_encode_label(label, allele_indices, expected):
 def test_cleanup_multiallelics():
     inputs_dir = get_resource_dir(__file__)
 
-    input = pd.read_hdf(f"{inputs_dir}/cleanup_multiallelics_input.h5")
-    expected = pd.read_hdf(f"{inputs_dir}/cleanup_multiallelics_expected.h5")
+    input = pd.DataFrame(pd.read_hdf(f"{inputs_dir}/cleanup_multiallelics_input.h5"))
+    expected = pd.DataFrame(pd.read_hdf(f"{inputs_dir}/cleanup_multiallelics_expected.h5"))
     result = tprep.cleanup_multiallelics(input)
     pd.testing.assert_frame_equal(result, expected)
     result = result.loc[result["label"].apply(lambda x: x in {(0, 1), (1, 1), (0, 0)})]

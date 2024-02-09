@@ -8,7 +8,7 @@ import pysam
 import ugvc.filtering.multiallelics as mu
 from ugvc.vcfbed import vcftools
 
-SPAN_DEL = "*"
+SPAN_DEL = mu.SPAN_DEL
 
 
 def split_multiallelic_variants_with_spandel(
