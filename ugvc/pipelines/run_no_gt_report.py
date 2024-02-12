@@ -350,7 +350,7 @@ def run_somatic_analysis(arg_values):
                            context_type="96",
                            genome_build=arg_values.reference_name,
                            cosmic_version=arg_values.cosmic_version)
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         # check if the exception was caused because there are no snp variants at all
         variant_count = _check_number_of_variants(arg_values.input_file, "snp")
         logger.info(f"Number of snps in vcf: {variant_count}")
@@ -369,9 +369,9 @@ def run_somatic_analysis(arg_values):
                            genome_build=arg_values.reference_name,
                            collapse_to_SBS96=False,
                            cosmic_version=arg_values.cosmic_version)
-    except ValueError as e:
-        # check if the exception was caused because there are no snp variants at all
-        variant_count = _check_number_of_variants(arg_values.input_file, "indel")
+    except (ValueError, KeyError) as e:
+        # check if the exception was caused because there are no indel variants at all
+        variant_count = _check_number_of_variants(arg_values.input_file, "h-indel")
         logger.info(f"Number of indels in vcf: {variant_count}")
         if variant_count > 0:
             raise e
@@ -388,12 +388,12 @@ def run_somatic_analysis(arg_values):
                            genome_build=arg_values.reference_name,
                            collapse_to_SBS96=False,
                            cosmic_version=arg_values.cosmic_version)
-    except ValueError as e:
+    except (ValueError, KeyError) as e:
         # check if the exception was caused because there are no snp variants at all
         variant_count = _check_number_of_variants(arg_values.input_file,"snp")
         logger.info(f"Number of snps in vcf: {variant_count}")
         if variant_count > 0:
-            raise e
+            logger.info("No dinuc in vcf file, only snps")
         else:
             logger.info("No snps in vcf file")
             plot_dinuc = False
