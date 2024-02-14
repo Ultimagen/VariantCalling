@@ -396,7 +396,7 @@ def run_somatic_analysis(arg_values):
             logger.info("No dinuc in vcf file, only snps")
         else:
             logger.info("No snps in vcf file")
-            plot_dinuc = False
+        plot_dinuc = False
 
     logger.info("Plotting the signatures profiles")
     if plot_snps:
