@@ -421,77 +421,95 @@ def run_somatic_analysis(arg_values):
                                           vcf_dirname, plot=True,
                                           exome=False, bed_file=None, chrom_based=False, tsb_stat=False,
                                           seqInfo=False, cushion=100)
+    if plot_snps:
+        sigPlt.plotSBS(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"),
+                       output_dir,
+                       'sample',
+                       "96", percentage=False, savefig_format="png")
 
-    sigPlt.plotSBS(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"),
-                   output_dir,
-                   'sample',
-                   "96", percentage=False, savefig_format="png")
+    if plot_indels:
+        sigPlt.plotID(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"),
+                      output_dir,
+                      'sample',
+                      "83", percentage=False, savefig_format="png")
 
-    sigPlt.plotID(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"),
-                  output_dir,
-                  'sample',
-                  "83", percentage=False, savefig_format="png")
-
-    sigPlt.plotDBS(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"),
-                   output_dir,
-                   'sample',
-                   "78", percentage=False, savefig_format="png")
+    if plot_dinuc:
+        sigPlt.plotDBS(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"),
+                       output_dir,
+                       'sample',
+                       "78", percentage=False, savefig_format="png")
 
     logger.info("Parse what are the relevant signatures")
-    with open(os.path.join(output_dir, 'sbs', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-        sig_sbs,activity_values_sbs = _get_signatures_from_sig_log(log_file)
-        print(sig_sbs)
+    if plot_snps:
+        with open(os.path.join(output_dir, 'sbs', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+            sig_sbs,activity_values_sbs = _get_signatures_from_sig_log(log_file)
+            print(sig_sbs)
 
-    with open(os.path.join(output_dir, 'id', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-        sig_id,activity_values_id = _get_signatures_from_sig_log(log_file)
-        print(sig_id)
+    if plot_indels:
+        with open(os.path.join(output_dir, 'id', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+            sig_id,activity_values_id = _get_signatures_from_sig_log(log_file)
+            print(sig_id)
 
-    with open(os.path.join(output_dir, 'dinuc', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-        sig_dinuc,activity_values_dinuc = _get_signatures_from_sig_log(log_file)
-        print(sig_dinuc)
+    if plot_dinuc:
+        with open(os.path.join(output_dir, 'dinuc', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
+            sig_dinuc,activity_values_dinuc = _get_signatures_from_sig_log(log_file)
+            print(sig_dinuc)
 
     final_results_folder = os.path.join(output_dir, 'final_results')
     os.mkdir(final_results_folder)
 
 
     logger.info("Copy the signatures pngs")
-    for sig in sig_sbs:
-        shutil.copy(os.path.join(output_dir,f'SBS_96_plots_{sig}.png'), final_results_folder)
+    if plot_snps:
+        for sig in sig_sbs:
+            shutil.copy(os.path.join(output_dir,f'SBS_96_plots_{sig}.png'), final_results_folder)
 
-    for sig in sig_id:
-        shutil.copy(os.path.join(output_dir,f'ID_83_plots_{sig}.png'), final_results_folder)
+    if plot_indels:
+        for sig in sig_id:
+            shutil.copy(os.path.join(output_dir,f'ID_83_plots_{sig}.png'), final_results_folder)
 
-    for sig in sig_dinuc:
-        shutil.copy(os.path.join(output_dir,f'DBS_78_plots_{sig}.png'), final_results_folder)
+    if plot_dinuc:
+        for sig in sig_dinuc:
+            shutil.copy(os.path.join(output_dir,f'DBS_78_plots_{sig}.png'), final_results_folder)
 
 
     logger.info("Create signatures activity files")
-    activities_sbs = pd.Series(activity_values_sbs, index=sig_sbs)
-    activities_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_activity")
+    if plot_snps:
+        activities_sbs = pd.Series(activity_values_sbs, index=sig_sbs)
+        activities_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_activity")
 
-    activities_id = pd.Series(activity_values_id, index=sig_id)
-    activities_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_activity")
+    if plot_indels:
+        activities_id = pd.Series(activity_values_id, index=sig_id)
+        activities_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_activity")
 
-    activities_dinuc = pd.Series(activity_values_dinuc, index=sig_dinuc)
-    activities_dinuc.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_activity")
-
+    if plot_dinuc:
+        activities_dinuc = pd.Series(activity_values_dinuc, index=sig_dinuc)
+        activities_dinuc.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_activity")
 
 
     vcf_prefix = os.path.basename(arg_values.input_file).split('.')[0]
-    shutil.copy(os.path.join(output_dir, f'SBS_96_plots_{vcf_prefix}.png'), final_results_folder)
-    shutil.copy(os.path.join(output_dir, f'ID_83_plots_{vcf_prefix}.png'), final_results_folder)
-    shutil.copy(os.path.join(output_dir, f'DBS_78_plots_{vcf_prefix}.png'), final_results_folder)
+    if plot_snps:
+        shutil.copy(os.path.join(output_dir, f'SBS_96_plots_{vcf_prefix}.png'), final_results_folder)
+
+    if plot_indels:
+        shutil.copy(os.path.join(output_dir, f'ID_83_plots_{vcf_prefix}.png'), final_results_folder)
+
+    if plot_dinuc:
+        shutil.copy(os.path.join(output_dir, f'DBS_78_plots_{vcf_prefix}.png'), final_results_folder)
 
 
     logger.info("Save the sample profile to h5")
-    sig_profile_sbs = pd.read_csv(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"), sep='\t')
-    sig_profile_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_profile")
+    if plot_snps:
+        sig_profile_sbs = pd.read_csv(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"), sep='\t')
+        sig_profile_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_profile")
 
-    sig_profile_id = pd.read_csv(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"), sep='\t')
-    sig_profile_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_profile")
+    if plot_indels:
+        sig_profile_id = pd.read_csv(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"), sep='\t')
+        sig_profile_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_profile")
 
-    sig_profile_dbs = pd.read_csv(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"), sep='\t')
-    sig_profile_dbs.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_profile")
+    if plot_dinuc:
+        sig_profile_dbs = pd.read_csv(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"), sep='\t')
+        sig_profile_dbs.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_profile")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
