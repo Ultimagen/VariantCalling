@@ -12,7 +12,6 @@ import pandas as pd
 import pysam
 import sklearn
 import xgboost as xgb
-from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
@@ -68,7 +67,6 @@ def prepare_featuremap_for_model(
     read_effective_coverage_from_sorter_json_kwargs: dict = None,
     keep_temp_file: bool = False,
     random_seed: bool = None,
-    sp: SimplePipeline = None,
 ):
     """
     Prepare a featuremap for training. This function takes an input featuremap and creates two downsampled dataframes,
@@ -104,8 +102,6 @@ def prepare_featuremap_for_model(
         Random seed to use for sampling, by default None
     balanced_sampling_info_fields: list[str], optional
         List of info fields to balance the TP data by, default None (do not balance)
-    sp : SimplePipeline, optional
-        SimplePipeline object to use for printing and running commands
 
 
     Returns
@@ -162,14 +158,13 @@ def prepare_featuremap_for_model(
     else:
         min_coverage = None
         max_coverage = None
-    filter_featuremap_with_bcftools_view(
+    entry_number_counts = filter_featuremap_with_bcftools_view(
         input_featuremap_vcf=input_featuremap_vcf,
         intersect_featuremap_vcf=intersect_featuremap_vcf,
         min_coverage=min_coverage,
         max_coverage=max_coverage,
         regions_file=regions_file,
         bcftools_include_filter=pre_filter_bcftools_include,
-        sp=sp,
     )
 
     # count entries in intersected featuremap and determine downsampling rate
@@ -322,6 +317,7 @@ def prepare_featuremap_for_model(
         featuremap_entry_number,
         train_set_size,
         test_set_size,
+        entry_number_counts,
     )
 
 
@@ -351,7 +347,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         balanced_strand_adapter_version: str = None,
         pre_filter: str = None,
         random_seed: int = None,
-        simple_pipeline: SimplePipeline = None,
     ):
         """
         Train a classifier on FP and TP featuremaps
@@ -488,7 +483,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         self.flow_order = flow_order
         self.balanced_strand_adapter_version = balanced_strand_adapter_version
-        self.sp = simple_pipeline
 
         # set and check train and test sizes
         self.train_set_size = train_set_size
@@ -541,8 +535,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "tp_featuremap_entry_number": self.tp_featuremap_entry_number,
             "fp_test_set_size": self.fp_test_set_size,
             "fp_train_set_size": self.fp_train_set_size,
+            "fp_entry_number_counts": self.fp_entry_number_counts,
             "tp_test_set_size": self.tp_test_set_size,
             "tp_train_set_size": self.tp_train_set_size,
+            "tp_entry_number_counts": self.tp_entry_number_counts,
             "lod_filters": self.lod_filters,
             "adapter_version": self.balanced_strand_adapter_version,
             "columns": self.columns,
@@ -604,6 +600,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.tp_featuremap_entry_number,
             self.tp_train_set_size,
             self.tp_test_set_size,
+            self.tp_entry_number_counts,
         ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
@@ -615,7 +612,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             balanced_sampling_info_fields=self.balanced_sampling_info_fields,
             sorter_json_stats_file=self.sorter_json_stats_file,
             random_seed=self.random_seed,
-            sp=self.sp,
         )
         # prepare FP featuremaps for training
         logger.info("Preparing FP featuremaps for training and test")
@@ -625,6 +621,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.fp_featuremap_entry_number,
             self.fp_train_set_size,
             self.fp_test_set_size,
+            self.fp_entry_number_counts,
         ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.single_substitution_featuremap,
@@ -635,7 +632,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             regions_file=self.fp_regions_bed_file,
             sorter_json_stats_file=self.sorter_json_stats_file,
             random_seed=self.random_seed,
-            sp=self.sp,
         )
 
     def create_dataframes(self):
