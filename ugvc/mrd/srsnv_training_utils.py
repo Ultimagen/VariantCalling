@@ -69,7 +69,7 @@ def prepare_featuremap_for_model(
     keep_temp_file: bool = False,
     random_seed: bool = None,
     sp: SimplePipeline = None,
-) -> (str, int):
+):
     """
     Prepare a featuremap for training. This function takes an input featuremap and creates two downsampled dataframes,
     one for training (size training_set_size) and one for testing (size test_set_size). The first training_set_size

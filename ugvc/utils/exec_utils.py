@@ -11,6 +11,7 @@ def print_and_execute(
     simple_pipeline: SimplePipeline = None,
     module_name: str = None,
     shell: bool = False,
+    subprocess_kwargs: dict = None,
 ):
     """
     Print and execute command through simple_pipeline or subprocess
@@ -27,15 +28,19 @@ def print_and_execute(
         optional module name to use for simple pipeline
     shell: bool, optional
         whether to use shell for subprocess execution, default False, only relevant if simple_pipeline is None
+    subprocess_kwargs: dict, optional
+        additional kwargs to pass to subprocess.call or subprocess.check_call
     """
     if simple_pipeline is None:
+        if subprocess_kwargs is None:
+            subprocess_kwargs = {}
         logger.info(command)
         cmd = command if shell else [x.strip() for x in command.strip().split(" ") if x]
         if output_file is not None:
             with open(output_file, "w", encoding="utf-8") as f:
-                subprocess.call(cmd, stdout=f, shell=shell)
+                subprocess.call(cmd, stdout=f, shell=shell, **subprocess_kwargs)
         else:
-            subprocess.check_call(cmd, shell=shell)
+            subprocess.check_call(cmd, shell=shell, **subprocess_kwargs)
     elif output_file is not None:
         simple_pipeline.print_and_run(command, out=output_file, module_name=module_name)
     else:

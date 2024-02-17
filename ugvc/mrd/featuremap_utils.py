@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import tempfile
 from enum import Enum
 
 import numpy as np
@@ -164,7 +165,6 @@ class FeaturemapAnnotator(VcfAnnotator):
         return records_out
 
 
-# pylint: disable=too-many-instance-attributes
 class RefContextVcfAnnotator(VcfAnnotator):
     def __init__(
         self,
@@ -283,7 +283,10 @@ class RefContextVcfAnnotator(VcfAnnotator):
                 ("ID", self.HMER_CONTEXT_REF),
                 ("Number", 1),
                 ("Type", "Integer"),
-                ("Description", f"reference homopolymer context, up to length {self.max_hmer_length}"),
+                (
+                    "Description",
+                    f"reference homopolymer context, up to length {self.max_hmer_length}",
+                ),
             ],
         )
 
@@ -490,25 +493,92 @@ def filter_featuremap_with_bcftools_view(
     sp : SimplePipeline, optional
         SimplePipeline object to use for printing and running commands, by default None
     """
-    bcftools_view_command = f"bcftools view {input_featuremap_vcf} -O z -o {intersect_featuremap_vcf} "
-    include_filters = [bcftools_include_filter.replace("'", '"')] if bcftools_include_filter else []
-    # filter out variants with coverage outside of min and max coverage
-    if min_coverage is not None:
-        include_filters.append(f"(INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage})")
-    if max_coverage is not None:
-        include_filters.append(f"(INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage})")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # files to write intermediate line numbers to
+        header_line_count_file = os.path.join(tmpdir, "header_line_count.txt")
+        original_line_count_file = os.path.join(tmpdir, "original_line_count.txt")
+        after_region_filter_line_count_file = os.path.join(tmpdir, "after_region_filter_line_count.txt")
+        after_coverage_filter_line_count_file = os.path.join(tmpdir, "after_coverage_filter_line_count.txt")
+        after_pre_filter_line_count_file = os.path.join(tmpdir, "after_pre_filter_line_count.txt")
 
-    bcftools_include_string = " && ".join(include_filters)
-    if bcftools_include_string:
-        bcftools_view_command += f" -i '{bcftools_include_string}' "
-    if regions_file:
-        bcftools_view_command += f" -T {regions_file} "
-    bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
+        # count header lines
+        cmd_count_header_lines = f"bcftools view -h {input_featuremap_vcf} | wc -l > {header_line_count_file}"
+        print_and_execute(cmd_count_header_lines, simple_pipeline=sp, module_name=__name__, shell=True)
+        with open(header_line_count_file, encoding="utf-8") as f:
+            header_lines = int(f.read().strip())
 
-    print_and_execute(bcftools_view_command, simple_pipeline=sp, module_name=__name__, shell=True)
-    print_and_execute(
-        bcftools_index_command,
-        simple_pipeline=sp,
-        module_name=__name__,
-    )
-    assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
+        # first part of the command - save total line number
+        bcftools_view_command = f"bcftools view {input_featuremap_vcf} | tee >(wc -l > {original_line_count_file}) "
+
+        # second part - apply region filter
+        if regions_file:
+            bcftools_view_command += (
+                f"| bcftools view - -T {regions_file} | tee >(wc -l > {after_region_filter_line_count_file}) "
+            )
+
+        # third part - apply coverage filters
+        if min_coverage or max_coverage:
+            coverage_include_filters = []
+            if min_coverage is not None:
+                coverage_include_filters.append(f"(INFO/{FeatureMapFields.READ_COUNT.value} >= {min_coverage})")
+            if max_coverage is not None:
+                coverage_include_filters.append(f"(INFO/{FeatureMapFields.READ_COUNT.value} <= {max_coverage})")
+            bcftools_include_string = " && ".join(coverage_include_filters)
+            bcftools_view_command += (
+                f"""| bcftools view - -i '{bcftools_include_string}' """
+                f"""| tee >(wc -l > {after_coverage_filter_line_count_file}) """
+            )
+
+        # fourth part - apply pre-filter
+        if bcftools_include_filter:
+            bcftools_include_string = bcftools_include_filter.replace("'", '"')
+            bcftools_view_command += (
+                f"""| bcftools view - -i '{bcftools_include_string}' """
+                f"""| tee >(wc -l > {after_pre_filter_line_count_file}) """
+            )
+
+        # fifth part - save the final vcf
+        bcftools_view_command += f"| bcftools view - -Oz -o {intersect_featuremap_vcf} "
+        bcftools_index_command = f"bcftools index -t {intersect_featuremap_vcf}"
+
+        # execute the command
+        print_and_execute(
+            bcftools_view_command,
+            simple_pipeline=sp,
+            module_name=__name__,
+            shell=True,
+            subprocess_kwargs={"executable": "/bin/bash"},
+        )
+        print_and_execute(bcftools_index_command, simple_pipeline=sp, module_name=__name__)
+        assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
+
+        # save line counts
+        with open(original_line_count_file, encoding="utf-8") as f_original:
+            original_line_count = int(f_original.read().strip())
+        if os.path.isfile(after_region_filter_line_count_file):
+            with open(after_region_filter_line_count_file, encoding="utf-8") as f_region:
+                after_region_filter_line_count = int(f_region.read().strip())
+        if os.path.isfile(after_coverage_filter_line_count_file):
+            with open(after_coverage_filter_line_count_file, encoding="utf-8") as f_coverage:
+                after_coverage_filter_line_count = int(f_coverage.read().strip())
+        if os.path.isfile(after_pre_filter_line_count_file):
+            with open(after_pre_filter_line_count_file, encoding="utf-8") as f_pre:
+                after_pre_filter_line_count = int(f_pre.read().strip())
+        line_counts = {
+            "header_lines": header_lines,
+            "number_of_entries_original": (original_line_count - header_lines),
+            "number_of_entries_after_region_filter": (
+                after_region_filter_line_count - header_lines
+                if os.path.isfile(after_region_filter_line_count_file)
+                else None
+            ),
+            "number_of_entries_after_coverage_filter": (
+                after_coverage_filter_line_count - header_lines
+                if os.path.isfile(after_coverage_filter_line_count_file)
+                else None
+            ),
+            "number_of_entries_after_pre_filter": (
+                after_pre_filter_line_count - header_lines if os.path.isfile(after_pre_filter_line_count_file) else None
+            ),
+        }
+    return line_counts
