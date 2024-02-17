@@ -470,8 +470,7 @@ def filter_featuremap_with_bcftools_view(
     max_coverage: int = None,
     regions_file: str = None,
     bcftools_include_filter: str = None,
-    sp: SimplePipeline = None,
-) -> str:
+) -> dict:
     """
     Create a bcftools view command to filter a featuremap vcf
 
@@ -490,8 +489,17 @@ def filter_featuremap_with_bcftools_view(
     bcftools_include_filter: str, optional
         bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter_bcftools_include'"
         before sampling, by default None
-    sp : SimplePipeline, optional
-        SimplePipeline object to use for printing and running commands, by default None
+
+    Returns
+    -------
+    dict
+        Dictionary with the following keys:
+        - header_lines: number of header lines
+        - number_of_entries_original: number of entries in the original featuremap
+        - number_of_entries_after_region_filter: number of entries after region filter
+        - number_of_entries_after_coverage_filter: number of entries after coverage filter
+        - number_of_entries_after_pre_filter: number of entries after pre filter
+
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         # files to write intermediate line numbers to
@@ -503,7 +511,7 @@ def filter_featuremap_with_bcftools_view(
 
         # count header lines
         cmd_count_header_lines = f"bcftools view -h {input_featuremap_vcf} | wc -l > {header_line_count_file}"
-        print_and_execute(cmd_count_header_lines, simple_pipeline=sp, module_name=__name__, shell=True)
+        print_and_execute(cmd_count_header_lines, module_name=__name__, shell=True)
         with open(header_line_count_file, encoding="utf-8") as f:
             header_lines = int(f.read().strip())
 
@@ -544,12 +552,11 @@ def filter_featuremap_with_bcftools_view(
         # execute the command
         print_and_execute(
             bcftools_view_command,
-            simple_pipeline=sp,
             module_name=__name__,
             shell=True,
             subprocess_kwargs={"executable": "/bin/bash"},
         )
-        print_and_execute(bcftools_index_command, simple_pipeline=sp, module_name=__name__)
+        print_and_execute(bcftools_index_command, module_name=__name__)
         assert os.path.isfile(intersect_featuremap_vcf), f"failed to create {intersect_featuremap_vcf}"
 
         # save line counts
@@ -564,7 +571,7 @@ def filter_featuremap_with_bcftools_view(
         if os.path.isfile(after_pre_filter_line_count_file):
             with open(after_pre_filter_line_count_file, encoding="utf-8") as f_pre:
                 after_pre_filter_line_count = int(f_pre.read().strip())
-        line_counts = {
+        entry_number_counts = {
             "header_lines": header_lines,
             "number_of_entries_original": (original_line_count - header_lines),
             "number_of_entries_after_region_filter": (
@@ -581,4 +588,4 @@ def filter_featuremap_with_bcftools_view(
                 after_pre_filter_line_count - header_lines if os.path.isfile(after_pre_filter_line_count_file) else None
             ),
         }
-    return line_counts
+    return entry_number_counts
