@@ -74,6 +74,27 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Number of processes to use for parallelization.
              If N < 1, use all-available - abs(N) cores. Default 0""",
     )
+    parser.add_argument(
+        "-n",
+        "--num_folds",
+        type=int,
+        default=0,
+        help="""Number of cross-validation folds. If 0, do not use CV. Default 0""",
+    )
+    parser.add_argument(
+        "-c",
+        "--chrom_folds_path",
+        type=int,
+        default=None,
+        help="""The path to a csv file with information about which chromosomes belong to which CV fold. 
+        By default, use the following grouping into folds:
+        {'chr2': 0, 'chr6': 0, 'chr22': 0, 'chr14': 0,
+        'chr3': 1, 'chr4': 1, 'chr5': 1,
+        'chr7': 2, 'chr8': 2, 'chr9': 2, 'chr11': 2,
+        'chr1': 3, 'chr20': 3, 'chr10': 3, 'chr12': 3,
+        'chr15': 4, 'chr16': 4, 'chr17': 4, 'chr18': 4, 'chr19': 4, 'chr13': 4, 'chr21': 4}
+        """,
+    )
 
     return parser.parse_args(argv[1:])
 
@@ -90,4 +111,6 @@ def run(argv: list[str]):
         out_path=args.output_path,
         test_set_mrd_simulation_dataframe_file=args.test_set_mrd_simulation_dataframe_file,
         process_number=args.process_number,
+        num_folds=args.num_folds, 
+        chrom_folds_path=args.chrom_folds_path
     )

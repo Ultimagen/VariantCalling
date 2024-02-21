@@ -45,10 +45,12 @@ class MLQualAnnotator(VcfAnnotator):
 
     Parameters
     ----------
-    model : sklearn.BaseEstimator
-        Trained model
+    models : list[sklearn.BaseEstimator]
+        Trained models. If len(models)==1, do not use cross validation
     categorical_features : list[str]
         List of categorical features
+    categorical_features : list[str] | None
+        List of new categorical features (with new context variables). If None, use old context variables
     numerical_features : list[str]
         List of numerical features
     X_train_path : str
@@ -62,25 +64,30 @@ class MLQualAnnotator(VcfAnnotator):
 
     def __init__(
         self,
-        model,
+        models,
         categorical_features: list[str],
         numerical_features: list[str],
         X_train_path: str,
         pre_filter: str = None,
         test_set_mrd_simulation_dataframe_file: str = None,
         low_qual_threshold: float = LOW_QUAL_THRESHOLD,
+        new_categorical_features: list[str] = None,
+        chrom_folds: pd.DataFrame = None
     ):
-        self.model = model
+        self.models = models
+        self.num_folds = len(models)
         self.numerical_features = numerical_features
         self.categorical_features = categorical_features
-        self.categories = extract_categories_from_parquet(X_train_path)
+        self.new_categorical_features = new_categorical_features
+        self.categories = extract_categories_from_parquet(X_train_path) ## TODO: Need to make sure that I'm extracting the new categorical features
         if pre_filter:
-            self.pre_filter = pre_filter.replace("INFO/", "").replace("&&", "&")
+            self.pre_filter = pre_filter.replace("INFO/", "").replace("&&", "&").replace('=','==')
             logger.debug(f"Using pre-filter query: {self.pre_filter} (original: {pre_filter})")
         else:
             self.pre_filter = None
         self.quality_interpolation_function = get_quality_interpolation_function(test_set_mrd_simulation_dataframe_file)
         self.low_qual_threshold = low_qual_threshold
+        self.chrom_folds = chrom_folds
 
     def edit_vcf_header(self, header: pysam.VariantHeader) -> pysam.VariantHeader:
         """
@@ -122,6 +129,13 @@ class MLQualAnnotator(VcfAnnotator):
 
         return header
 
+    def add_new_context_columns(self, df):
+        for i in range(3):
+            df[f'next_{i+1}'] = df['next_3bp'].str[i]
+        for i in range(3):
+            df[f'prev_{i+1}'] = df['prev_3bp'].str[-(i+1)]
+        return df
+    
     def process_records(self, records: list[pysam.VariantRecord]) -> list[pysam.VariantRecord]:
         """
         Apply trained model and annotate a list of VCF records with ML_QUAL scores
@@ -142,15 +156,24 @@ class MLQualAnnotator(VcfAnnotator):
             If the pre-filter is not valid
         """
         # Convert list of variant records to a pandas DataFrame
-        columns = self.numerical_features + self.categorical_features
+        columns = self.numerical_features + self.categorical_features + ['ref', 'alt', 'chrom']
         data = [{column: _vcf_getter(variant, column) for column in columns} for variant in records]
         df = pd.DataFrame(data)[columns]
+        if self.new_categorical_features is not None:
+            df = self.add_new_context_columns(df)
 
         # encode categorical features
         for column, cat_values in self.categories.items():
             if column in df.columns:
                 cat_dtype = CategoricalDtype(categories=cat_values, ordered=False)
                 df[column] = df[column].astype(cat_dtype)
+        if self.new_categorical_features is not None:
+            for col in ['alt', 'ref', 'next_1', 'next_2', 'next_3', 'prev_1', 'prev_2', 'prev_3']:
+                if col in df.columns:
+                    df[col] = df[col].astype(CategoricalDtype(categories=['A','C','G','T'], ordered=False)) # Categories of new features are always A, C, G, T
+
+        # df['X_SMQ_LEFT_MEAN'] = df['X_SMQ_LEFT']
+        # df['X_SMQ_RIGHT_MEAN'] = df['X_SMQ_RIGHT']
 
         # TODO remove this patch (types should be read from header as in featuremap_to_dataframe)
         df = df.astype(
@@ -164,7 +187,19 @@ class MLQualAnnotator(VcfAnnotator):
         )
 
         # Apply the provided model to assign a new quality value
-        predicted_probability = self.model.predict_proba(df)
+        features_for_model = self.numerical_features + self.categorical_features if self.new_categorical_features is None else self.numerical_features + self.new_categorical_features
+        if self.num_folds ==1: 
+            # No CV
+            predicted_probability = self.model.predict_proba(df[features_for_model])
+        else:
+            predicted_probability = np.zeros((df.shape[0],2))
+            df['fold'] = df['chrom'].map(self.chrom_folds['fold'].to_dict(), na_action='ignore')
+            for k, model in enumerate(self.models):
+                if (df['fold']==k).any():
+                    predicted_probability[(df['fold']==k).index,:] = model.predict_proba(df.loc[df['fold']==k,features_for_model]) # predict on chromosomes of fold k
+                if (df['fold'].isna().any()):
+                    predicted_probability[df['fold'].isna().index,:] += model.predict_proba(df.loc[df['fold'].isna(), features_for_model])/self.num_folds # chromosomes not in any fold, predict with all models and take mean
+
         if self.pre_filter:
             try:
                 # the bcftools filter should work as a query if applied on info fields because their names are the same
@@ -268,6 +303,8 @@ def single_read_snv_inference(
     out_path: str,
     low_qual_threshold: float = LOW_QUAL_THRESHOLD,
     process_number: int = 0,
+    num_folds: int = 0,
+    chrom_folds_path: str = None,
 ) -> None:
     """
     Annotate a featuremap with single-read-SNV model ML_QUAL scores
@@ -290,19 +327,54 @@ def single_read_snv_inference(
         Threshold for low quality variants, default 40
     process_number: int, optional
         Number of processes to use for parallelization. If N < 1, use all-available - abs(N) cores. Default 0
-
+    num_folds: int, optional
+        Number of cross-validation folds.  If 0, do not use CV. Default 0
+    chrom_folds_path:
+        The path to a csv file with information about which chromosomes belong to which CV fold. 
+        By default, use the following grouping into folds:
+        {'chr2': 0, 'chr6': 0, 'chr22': 0, 'chr14': 0,
+        'chr3': 1, 'chr4': 1, 'chr5': 1,
+        'chr7': 2, 'chr8': 2, 'chr9': 2, 'chr11': 2,
+        'chr1': 3, 'chr20': 3, 'chr10': 3, 'chr12': 3,
+        'chr15': 4, 'chr16': 4, 'chr17': 4, 'chr18': 4, 'chr19': 4, 'chr13': 4, 'chr21': 4}
     """
-    model = joblib.load(model_path)
+    # Load model / models for cv
+    if num_folds==0:
+        models = [joblib.load(model_path)]
+        logger.info('Cross-validation off, using single model for inference. Model loaded')
+    else:
+        base_name, extension = model_path.rsplit('.', 1)
+        if base_name.rsplit('_', 2)[1]=='fold':
+            # If model filename is like "XXXXX_fold_0.joblib":
+            model_fnames = ['.'.join([base_name[:-1]+f'{k}', extension]) for k in range(num_folds)]
+        else:
+            # If model filename is like "XXXXX.joblib":
+            model_fnames = ['.'.join([fname.rsplit('.', 1)[0]+f'_fold_{k}', fname.rsplit('.', 1)[1]]) for k in range(num_folds)]
+        models = [joblib.load(model_fname) for model_fname in model_fnames]
+        logger.info('Cross-validation on, number of folds: {num_folds}. Models loaded')
+        if chrom_folds_path is None:
+            chrom_folds = pd.Series({
+                'chr2': 0, 'chr6': 0, 'chr22': 0, 'chr14': 0,
+                'chr3': 1, 'chr4': 1, 'chr5': 1,
+                'chr7': 2, 'chr8': 2, 'chr9': 2, 'chr11': 2,
+                'chr1': 3, 'chr20': 3, 'chr10': 3, 'chr12': 3,
+                'chr15': 4, 'chr16': 4, 'chr17': 4, 'chr18': 4, 'chr19': 4, 'chr13': 4, 'chr21': 4
+            }).to_frame(name='fold')
+        else:
+            chrom_folds = pd.read_csv(chrom_folds_path)
+
     with open(params_path, "r", encoding="UTF-8") as p_fh:
         params = json.load(p_fh)
     ml_qual_annotator = MLQualAnnotator(
-        model,
+        models,
         categorical_features=params["categorical_features"],
+        new_categorical_features=params.get("new_categorical_features", None), 
         numerical_features=params["numerical_features"],
         X_train_path=X_train_path,
         pre_filter=params["pre_filter"],
         test_set_mrd_simulation_dataframe_file=test_set_mrd_simulation_dataframe_file,
         low_qual_threshold=low_qual_threshold,
+        chrom_folds = chrom_folds
     )
     VcfAnnotator.process_vcf(
         annotators=[ml_qual_annotator],
