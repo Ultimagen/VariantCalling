@@ -179,13 +179,17 @@ def intersect_bed_regions(
                 if exclude_bed_or_vcf.endswith(".vcf") or exclude_bed_or_vcf.endswith(".vcf.gz"):  # vcf file
                     if not assume_input_sorted:
                         print_and_execute(
-                            f"bcftools view {exclude_bed_or_vcf} | vcf2bed --max-mem {max_mem} > {sorted_exclude_bed}",
+                            f"bcftools view {exclude_bed_or_vcf} | "
+                            "bcftools annotate -x INFO,FORMAT | "
+                            f"vcf2bed --max-mem {max_mem} > {sorted_exclude_bed}",
                             simple_pipeline=sp,
                             module_name=__name__,
                         )
                     else:
                         print_and_execute(
-                            f"bcftools view {exclude_bed_or_vcf} | vcf2bed --do-not-sort > {sorted_exclude_bed}",
+                            f"bcftools view {exclude_bed_or_vcf} | "
+                            "bcftools annotate -x INFO,FORMAT | "
+                            f"vcf2bed --do-not-sort > {sorted_exclude_bed}",
                             simple_pipeline=sp,
                             module_name=__name__,
                         )
