@@ -11,7 +11,7 @@ RUN conda env create -f /VariantCalling/setup/environment.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cutadaptenv.yml && \
     conda env create -f /VariantCalling/setup/other_envs/ucsc.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cnmops.yml && \
-    conda init --all
+    conda init --all && conda clean -a -y
 
 ## install ug-cn.mops (branch: ilyasoifer/test.1.40):
 RUN cd /opt && \
