@@ -16,10 +16,10 @@ import pysam
 def get_vcf_df(
     variant_calls: str,
     sample_id: int = 0,
-    sample_name: str = None,
-    chromosome: str = None,
-    scoring_field: str = None,
-    ignore_fields: list = None,
+    sample_name: str | None = None,
+    chromosome: str | None = None,
+    scoring_field: str | None = None,
+    ignore_fields: list | None = None,
 ) -> pd.DataFrame:
     """Reads VCF file into dataframe
 
@@ -605,6 +605,7 @@ def genotype_ordering(num_alt: int) -> np.ndarray:
     return gr_ar
 
 
+# pylint: disable=missing-param-doc
 def replace_data_in_specific_chromosomes(
     input_vcf: str, new_data_json: str, header_file: str, output_vcf: str, tempdir: str | None = None
 ):
