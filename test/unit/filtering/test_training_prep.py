@@ -1,3 +1,4 @@
+import os.path
 import pathlib
 from test import get_resource_dir
 
@@ -36,3 +37,19 @@ class TestTrainingPrep:
             tprep.encode_labels([(0, 1, 2), (0, 0, 1)])  # type: ignore
         with pytest.raises(ValueError):
             tprep.encode_labels([(0, 2), (1, 2)])
+
+    def test_label_with_approximate_gt(self, tmpdir):
+        inputs_dir = self.inputs_dir
+        inputs_file = str(pathlib.Path(inputs_dir, "006919_no_frd_chr1_1_5000000.vcf.gz"))
+        blacklist_file = str(pathlib.Path(inputs_dir, "blacklist_chr1_1_5000000.h5"))
+        tprep.label_with_approximate_gt(
+            inputs_file,
+            blacklist_file,
+            chromosomes_to_read=["chr1"],
+            output_file=str(pathlib.Path(tmpdir, "output.h5")),
+        )
+        assert os.path.exists(str(pathlib.Path(tmpdir, "output.h5")))
+        vc = pd.read_hdf(str(pathlib.Path(tmpdir, "output.h5")), key="chr1")["label"].value_counts()
+        assert len(vc) == 2
+        assert vc["tp"] == 8715
+        assert vc["fp"] == 2003

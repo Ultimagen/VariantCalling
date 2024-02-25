@@ -302,3 +302,42 @@ def _split_multiallelic_if_necessary(
     if len(alleles) == 2:
         return multiallelic_variant
     return mu.split_multiallelic_variants(multiallelic_variant.iloc[0], call_vcf_header, ref)
+
+
+def label_with_approximate_gt(
+    vcf: str, blacklist: str, output_file: str, chromosomes_to_read: list | None = None
+) -> None:
+    """Use approximate ground truth to generate labels. Specifically, all variants that belong to the blacklist are
+    considered false positives, all variants that have "id" tag are considered true positives.
+    The rest are considered "unknown" and are removed from the dataframe. Writes to `output_file`
+    a dataframe with the labeled on "label", split on chromosomes
+
+    Parameters
+    ----------
+    vcf : str
+        VCF file
+    blacklist : str
+        Blacklist dataframe
+    output_file : str
+        Output labeled dataframe
+    chromosomes_to_read : list, optional
+        List of chromosomes to operate on, by default None
+
+    """
+    blacklist_df = pd.read_hdf(blacklist, key="blacklist")
+
+    if chromosomes_to_read is None:
+        chromosomes_to_read = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]
+
+    for chromosome in tqdm.tqdm(chromosomes_to_read):
+        df = vcftools.get_vcf_df(vcf, chromosome=chromosome)
+        df = df.merge(blacklist_df, left_index=True, right_index=True, how="left")
+        df["bl"].fillna(False, inplace=True)
+        classify_clm = "label"
+
+        df[classify_clm] = "unknown"
+        df[classify_clm].loc[df["bl"]] = "fp"
+        df[classify_clm].loc[~df["id"].isna()] = "tp"
+        df = df[df[classify_clm] != "unknown"]
+        df.drop("bl", axis=1, inplace=True)
+        df.to_hdf(output_file, key=chromosome, mode="a")
