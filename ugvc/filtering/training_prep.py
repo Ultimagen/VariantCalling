@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Iterable
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -131,7 +132,13 @@ def calculate_labels(labeled_df: pd.DataFrame) -> pd.Series:
 
 
 def prepare_ground_truth(
-    input_vcf: str, base_vcf: str, hcr: str, reference: str, output_h5: str, chromosome: list | None = None
+    input_vcf: str,
+    base_vcf: str,
+    hcr: str,
+    reference: str,
+    output_h5: str,
+    chromosome: list | None = None,
+    test_split: str | None = None,
 ) -> None:
     """Generates a training set dataframe from callset and the ground truth VCF. The following steps are peformed:
     1. Run vcfeval to compare the callset to the ground truth
@@ -144,6 +151,7 @@ def prepare_ground_truth(
     alt allele and the label is (1,1) and in the second row we will have
     the strongest alt allele and the second strongest alt allele and the label will
     be (0, 1)
+    If test_train_split is a name of a chromosome, that chromosome is saved in
     The results are saved in output_h5 file, with each chromosome in a separate key.
 
     Parameters
@@ -160,6 +168,9 @@ def prepare_ground_truth(
         Output file
     chromosome : list, optional
         List of chromosomes to operate on, by default None
+    test_split : str, optional
+        The test set will be either single chromosome (str, will be saved in a separate file)
+        or None (in which case no test set is produced)
 
     """
     pipeline = vpu.VcfPipelineUtils()
@@ -173,13 +184,17 @@ def prepare_ground_truth(
     )
     if chromosome is None:
         chromosome = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]
-
     for chrom in tqdm.tqdm(chromosome):
         labeled_df = calculate_labeled_vcf(input_vcf, vcfeval_output, contig=chrom)
         labels = calculate_labels(labeled_df)
         labeled_df["label"] = labels
         labeled_df = process_multiallelic_spandel(labeled_df, reference, chrom, input_vcf)
-        labeled_df.to_hdf(output_h5, key=chrom, mode="a")
+        if test_split == chrom:
+            dirname = Path(output_h5).parent
+            stemname = Path(output_h5).stem
+            labeled_df.to_hdf((dirname / Path(stemname + "_test")).with_suffix("h5"), key=chrom, mode="a")
+        else:
+            labeled_df.to_hdf(output_h5, key=chrom, mode="a")
 
 
 def encode_labels(ll: Iterable[tuple[int, int]]) -> list[int]:
@@ -305,12 +320,13 @@ def _split_multiallelic_if_necessary(
 
 
 def label_with_approximate_gt(
-    vcf: str, blacklist: str, output_file: str, chromosomes_to_read: list | None = None
+    vcf: str, blacklist: str, output_file: str, chromosomes_to_read: list | None = None, test_split: str | None = None
 ) -> None:
     """Use approximate ground truth to generate labels. Specifically, all variants that belong to the blacklist are
     considered false positives, all variants that have "id" tag are considered true positives.
     The rest are considered "unknown" and are removed from the dataframe. Writes to `output_file`
-    a dataframe with the labeled on "label", split on chromosomes
+    a dataframe with the labeled on "label", split on chromosomes. If `test_split` is not None, the chromosome
+    with this name will be written separately in test.h5 dataframe
 
     Parameters
     ----------
@@ -322,7 +338,8 @@ def label_with_approximate_gt(
         Output labeled dataframe
     chromosomes_to_read : list, optional
         List of chromosomes to operate on, by default None
-
+    test_split : str, optional
+        Chromosome to put aside as test
     """
     blacklist_df = pd.read_hdf(blacklist, key="blacklist")
 
@@ -340,4 +357,9 @@ def label_with_approximate_gt(
         df[classify_clm].loc[~df["id"].isna()] = "tp"
         df = df[df[classify_clm] != "unknown"]
         df.drop("bl", axis=1, inplace=True)
-        df.to_hdf(output_file, key=chromosome, mode="a")
+        if chromosome == test_split:
+            dirname = Path(output_file).parent
+            stemname = Path(output_file).stem
+            df.to_hdf((dirname / Path(stemname + "_test")).with_suffix("h5"), key=chromosome, mode="a")
+        else:
+            df.to_hdf(output_file, key=chromosome, mode="a")
