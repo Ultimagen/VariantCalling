@@ -345,6 +345,8 @@ parser$add_argument("-chrY_name", "--chrY_name", default = "chrY",
 					required = FALSE)
 parser$add_argument("--save_csv", action='store_true',
                     help="whether to save normalized reads count data-frames in csv format")
+parser$add_argument("--cap_coverage", action='store_true',
+                    help="whether to cap extremely high average coverage windows to 2*99.9 average coverage quantile value")
 
 
 args <- parser$parse_args()
@@ -360,7 +362,9 @@ cohort_reads_count<- readRDS(file = cohort_reads_count_file )
 if (!is.null(ploidy_file)) {
 	ploidy_vector<-readLines(ploidy_file)
 	cohort_reads_count_normalized <- normalizeChromosomesGenomewize(cohort_reads_count,ploidy=ploidy_vector,chr_X_name=chrX_name,chr_Y_name=chrY_name)
-	cohort_reads_count_normalized <- cap_high_cov_windows(cohort_reads_count_normalized)
+	if(args$cap_coverage){
+		cohort_reads_count_normalized <- cap_high_cov_windows(cohort_reads_count_normalized)
+	}	
 	saveRDS(cohort_reads_count_normalized,paste(out_prefix,"cohort_reads_count.norm.rds",sep=""))
 	if(args$save_csv){
 		write.csv(as.data.frame(cohort_reads_count_normalized),paste(out_prefix,"cohort_reads_count.norm.csv",sep=""), row.names = FALSE,quote=FALSE)
@@ -368,7 +372,9 @@ if (!is.null(ploidy_file)) {
 } else {
 	print("Sex will be estimated by chrX coverage")
 	cohort_reads_count_normalized <- normalizeChromosomesGenomewize(cohort_reads_count,chr_X_name=chrX_name,chr_Y_name=chrY_name)
-	cohort_reads_count_normalized <- cap_high_cov_windows(cohort_reads_count_normalized)
+	if(args$cap_coverage){
+		cohort_reads_count_normalized <- cap_high_cov_windows(cohort_reads_count_normalized)
+	}
 	saveRDS(cohort_reads_count_normalized,paste(out_prefix,"cohort_reads_count.norm.rds",sep=""))
 	if(args$save_csv){
 		write.csv(as.data.frame(cohort_reads_count_normalized),paste(out_prefix,"cohort_reads_count.norm.csv",sep=""), row.names = FALSE,quote=FALSE)
