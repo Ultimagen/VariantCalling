@@ -8,6 +8,7 @@ import pandas as pd
 import pysam
 from pandas.api.types import CategoricalDtype
 from scipy.interpolate import interp1d
+import re
 
 from ugvc import logger
 from ugvc.dna.format import ALT, CHROM, FILTER, POS, QUAL, REF
@@ -37,7 +38,17 @@ def _vcf_getter(variant, field):
     if field == QUAL:
         return variant.qual
     return variant.info.get(field, None)
-
+ 
+def sanitize_for_vcf_general(input_string):
+    # Allow only a specific set of characters, escape others
+    # This regex will match any character that is NOT a safe character
+    unsafe_chars = re.compile(r'[^a-zA-Z0-9 _.,;:|\-<>=()&]')
+ 
+    # Replace unsafe characters with an underscore or some other placeholder
+    # Or you could choose to remove them entirely by replacing with an empty string
+    sanitized = unsafe_chars.sub("", input_string)
+ 
+    return sanitized
 
 class MLQualAnnotator(VcfAnnotator):
     """
@@ -120,11 +131,12 @@ class MLQualAnnotator(VcfAnnotator):
             description=f"SNV quality is below {self.low_qual_threshold}",
         )
         if self.pre_filter:
+            sanitized_pre_filter = sanitize_for_vcf_general(self.pre_filter)
             header.filters.add(
                 id=PRE_FILTERED,
                 number=None,
                 type=None,
-                description=f"Variant failed SRSNV pre-filter: {self.pre_filter}",
+                description=f"Variant failed SRSNV pre-filter: {sanitized_pre_filter}",
             )
 
         return header
