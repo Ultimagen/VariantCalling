@@ -24,29 +24,6 @@ from ugvc.utils.misc_utils import filter_valid_queries
 from ugvc.utils.plotting_utils import set_default_plt_rc_params
 from ugvc.vcfbed.filter_bed import count_bases_in_bed_file
 
-edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
-HQ_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 7.9"
-CSKP_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 10"
-read_end_filter = (
-    f"{FeatureMapFields.X_INDEX.value} > 12 and "
-    f"{FeatureMapFields.X_INDEX.value} < ({FeatureMapFields.X_LENGTH.value} - 12)"
-)
-mixed_read_filter = "is_mixed"  # TODO use adapter_version
-default_LoD_filters = {
-    "no_filter": f"{FeatureMapFields.X_SCORE.value} >= 0",
-    "HQ_SNV": f"{HQ_SNV_filter} and {edist_filter}",
-    "CSKP": f"{CSKP_SNV_filter} and {edist_filter}",
-    "HQ_SNV_trim_ends": f"{HQ_SNV_filter} and {edist_filter} and {read_end_filter}",
-    "CSKP_trim_ends": f"{CSKP_SNV_filter} and {edist_filter} and {read_end_filter}",
-    "HQ_SNV_mixed_only": f"{HQ_SNV_filter} and {edist_filter} and {mixed_read_filter}",
-    "CSKP_mixed_only": f"{CSKP_SNV_filter} and {edist_filter} and {mixed_read_filter}",
-    "HQ_SNV_trim_ends_mixed_only": f"{HQ_SNV_filter} and {edist_filter} and {read_end_filter} and {mixed_read_filter}",
-    "CSKP_trim_ends_mixed_only": f"{CSKP_SNV_filter} and {edist_filter} and {read_end_filter} and {mixed_read_filter}",
-}
-TP_READ_RETENTION_RATIO = "tp_read_retention_ratio"
-FP_READ_RETENTION_RATIO = "fp_read_retention_ratio"
-RESIDUAL_SNV_RATE = "residual_snv_rate"
-
 
 def create_data_for_report(
     classifier: xgb.XGBClassifier,

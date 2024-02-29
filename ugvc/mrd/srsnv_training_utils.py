@@ -21,6 +21,8 @@ from ugvc.mrd.srsnv_inference_utils import get_quality_interpolation_function
 from ugvc.mrd.srsnv_plotting_utils import create_report
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
+from ugvc.utils.misc_utils import filter_valid_queries
+from ugvc.vcfbed.filter_bed import count_bases_in_bed_file
 
 default_xgboost_model_params = {
     "n_estimators": 100,
@@ -53,6 +55,33 @@ default_categorical_features = [
     FeatureMapFields.NEXT_3.value,
 ]
 
+mixed_read_filter = "is_mixed"
+edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
+HQ_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 7.9"
+CSKP_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 10"
+read_end_filter = (
+    f"{FeatureMapFields.X_INDEX.value} > 12 and "
+    f"{FeatureMapFields.X_INDEX.value} < ({FeatureMapFields.X_LENGTH.value} - 12)"
+)
+default_snv_filters = {
+    "no_filter": f"{FeatureMapFields.X_SCORE.value} >= 0",
+    "HQ_SNV": f"{HQ_SNV_filter} and {edist_filter}",
+    "CSKP": f"{CSKP_SNV_filter} and {edist_filter}",
+    "HQ_SNV_trim_ends": f"{HQ_SNV_filter} and {edist_filter} and {read_end_filter}",
+    "CSKP_trim_ends": f"{CSKP_SNV_filter} and {edist_filter} and {read_end_filter}",
+    "HQ_SNV_mixed_only": f"{HQ_SNV_filter} and {edist_filter} and {mixed_read_filter}",
+    "CSKP_mixed_only": f"{CSKP_SNV_filter} and {edist_filter} and {mixed_read_filter}",
+    "HQ_SNV_trim_ends_mixed_only": f"{HQ_SNV_filter} and {edist_filter} and {read_end_filter} and {mixed_read_filter}",
+    "CSKP_trim_ends_mixed_only": f"{CSKP_SNV_filter} and {edist_filter} and {read_end_filter} and {mixed_read_filter}",
+}
+MIN_TP_RETENTION = 0.01
+TP_RETENTION_RATIO = "tp_read_retention_ratio"
+TP_RETENTION_RATIO_ABS = "tp_read_retention_ratio_abs"
+FP_RETENTION_RATIO = "fp_read_retention_ratio"
+FP_COUNT = "fp_count"
+RESIDUAL_SNV_RATE = "residual_snv_rate"
+LABEL = "label"
+
 
 # pylint:disable=too-many-arguments
 def prepare_featuremap_for_model(
@@ -67,7 +96,7 @@ def prepare_featuremap_for_model(
     read_effective_coverage_from_sorter_json_kwargs: dict = None,
     keep_temp_file: bool = False,
     random_seed: bool = None,
-):
+) -> tuple[str, str, dict]:
     """
     Prepare a featuremap for training. This function takes an input featuremap and creates two downsampled dataframes,
     one for training (size training_set_size) and one for testing (size test_set_size). The first training_set_size
@@ -106,12 +135,12 @@ def prepare_featuremap_for_model(
 
     Returns
     -------
-    downsampled_training_featuremap_vcf, str
+    str
         Downsampled training featuremap
-    downsampled_test_featuremap_vcf, str
+    str
         Downsampled test featuremap
-    int
-        Number of entries in intersected featuremap
+    dict
+        Counts of entries in intersected featuremap, training and test size
 
     """
 
@@ -158,7 +187,7 @@ def prepare_featuremap_for_model(
     else:
         min_coverage = None
         max_coverage = None
-    entry_number_counts = filter_featuremap_with_bcftools_view(
+    featuremap_entry_number_counts = filter_featuremap_with_bcftools_view(
         input_featuremap_vcf=input_featuremap_vcf,
         intersect_featuremap_vcf=intersect_featuremap_vcf,
         min_coverage=min_coverage,
@@ -166,16 +195,15 @@ def prepare_featuremap_for_model(
         regions_file=regions_file,
         bcftools_include_filter=pre_filter_bcftools_include,
     )
+    featuremap_entry_number = featuremap_entry_number_counts["number_of_entries_original"]
 
     # count entries in intersected featuremap and determine downsampling rate
     # count the number of entries with each combination of info fields to balance by if balanced_sampling_info_fields
     train_and_test_size = train_set_size + test_set_size
     balanced_sampling_info_fields_counter = defaultdict(int)
-    with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
-        featuremap_entry_number = 0
-        for record in fmap.fetch():
-            featuremap_entry_number += 1
-            if do_motif_balancing_in_tp:
+    if do_motif_balancing_in_tp:
+        with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
+            for record in fmap.fetch():
                 balanced_sampling_info_fields_counter[
                     tuple(record.info.get(info_field) for info_field in balanced_sampling_info_fields)
                 ] += 1
@@ -190,7 +218,7 @@ def prepare_featuremap_for_model(
         logger.warning(f"Set train_set_size to {train_set_size} and test_set_size to {test_set_size}")
     # set sampling rate to be slightly higher than the desired training set size
     overhead_factor = 1.03  # 3% overhead to make sure we get the desired number of entries
-    downsampling_rate = overhead_factor * train_and_test_size / featuremap_entry_number
+    downsampling_rate = min(1, overhead_factor * train_and_test_size / featuremap_entry_number)
     logger.info(
         f"training_set_size={train_set_size}, featuremap_entry_number = {featuremap_entry_number},"
         f"downsampling_rate {downsampling_rate}"
@@ -311,13 +339,15 @@ def prepare_featuremap_for_model(
         f"downsampled_test_featuremap_vcf={downsampled_test_featuremap_vcf}"
     )
 
+    # add train and test sizes to entry_number_counts dict
+    featuremap_entry_number_counts["train_set_size"] = train_set_size
+    featuremap_entry_number_counts["test_set_size"] = test_set_size
+    featuremap_entry_number_counts["downsampling_rate"] = downsampling_rate
+
     return (
         downsampled_training_featuremap_vcf,
         downsampled_test_featuremap_vcf,
-        featuremap_entry_number,
-        train_set_size,
-        test_set_size,
-        entry_number_counts,
+        featuremap_entry_number_counts,
     )
 
 
@@ -531,8 +561,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "flow_order": self.flow_order,
             "train_set_size": self.train_set_size,
             "test_set_size": self.test_set_size,
-            "fp_featuremap_entry_number": self.fp_featuremap_entry_number,
-            "tp_featuremap_entry_number": self.tp_featuremap_entry_number,
+            "fp_featuremap_entry_number_counts": self.fp_featuremap_entry_number_counts,
+            "tp_featuremap_entry_number_counts": self.tp_featuremap_entry_number_counts,
             "fp_test_set_size": self.fp_test_set_size,
             "fp_train_set_size": self.fp_train_set_size,
             "fp_entry_number_counts": self.fp_entry_number_counts,
@@ -597,10 +627,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         (
             self.tp_train_featuremap_vcf,
             self.tp_test_featuremap_vcf,
-            self.tp_featuremap_entry_number,
-            self.tp_train_set_size,
-            self.tp_test_set_size,
-            self.tp_entry_number_counts,
+            self.tp_featuremap_entry_number_counts,
         ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.hom_snv_featuremap,
@@ -618,10 +645,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         (
             self.fp_train_featuremap_vcf,
             self.fp_test_featuremap_vcf,
-            self.fp_featuremap_entry_number,
-            self.fp_train_set_size,
-            self.fp_test_set_size,
-            self.fp_entry_number_counts,
+            self.fp_featuremap_entry_number_counts,
         ) = prepare_featuremap_for_model(
             workdir=self.out_path,
             input_featuremap_vcf=self.single_substitution_featuremap,
@@ -635,35 +659,190 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         )
 
     def create_dataframes(self):
-        """create X and y dataframes for train and test"""
+        """create dataframes for train and test"""
         # read dataframes
-        df_tp_train = featuremap_to_dataframe(self.tp_train_featuremap_vcf)
-        df_tp_test = featuremap_to_dataframe(self.tp_test_featuremap_vcf)
-        df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)
-        df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)
+        df_tp_train = featuremap_to_dataframe(self.tp_train_featuremap_vcf).assign(**{{LABEL: True}})
+        df_tp_test = featuremap_to_dataframe(self.tp_test_featuremap_vcf).assign(**{{LABEL: True}})
+        df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf).assign(**{{LABEL: False}})
+        df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf).assign(**{{LABEL: False}})
         # create X and y
-        self.X_train = pd.concat((df_tp_train, df_fp_train)).astype({c: "category" for c in self.categorical_features})
-        self.X_test = pd.concat((df_tp_test, df_fp_test)).astype({c: "category" for c in self.categorical_features})
-        self.y_train = (
-            pd.concat(
-                [
-                    pd.Series(np.ones(df_tp_train.shape[0])),
-                    pd.Series(np.zeros(df_fp_train.shape[0])),
-                ]
-            )
-            .astype(bool)
-            .to_frame(name="label")
-        )
-        self.y_test = (
-            pd.concat(
-                [
-                    pd.Series(np.ones(df_tp_test.shape[0])),
-                    pd.Series(np.zeros(df_fp_test.shape[0])),
-                ]
-            )
-            .astype(bool)
-            .to_frame(name="label")
-        )
+        self.df_train = pd.concat((df_tp_train, df_fp_train)).astype({c: "category" for c in self.categorical_features})
+        self.df_test = pd.concat((df_tp_test, df_fp_test)).astype({c: "category" for c in self.categorical_features})
+
+    # def quality_calibration(
+    #     self,
+    #     df: pd.DataFrame,
+    #     single_sub_regions: str,
+    #     sorter_json_stats_file: str,
+    #     training_set_downsampling_rate: float,
+    #     lod_filters: dict
+    # ):
+    #     """Estimate the MRD LoD based on the FeatureMap dataframe and the LoD simulation params
+
+    #     Parameters
+    #     ----------
+    #     df : pd.DataFrame
+    #         dataset with features, labels, and quals of the model.
+    #     single_sub_regions : str
+    #         a path to the single substitutions (FP) regions bed file.
+    #     sorter_json_stats_file : str
+    #         a path to the cram statistics file.
+    #     training_set_downsampling_rate : float
+    #         the size of the dataset / # of reads in single sub featuremap after intersection with single_sub_regions.
+    #     lod_filters : dict
+    #         filters for LoD simulation.
+    #     sensitivity_at_lod: float
+    #         The sensitivity at which LoD is estimated.
+    #     specificity_at_lod: float
+    #         The specificity at which LoD is estimated.
+    #     simulated_signature_size: int
+    #         The size of the simulated signature.
+    #     simulated_coverage: int
+    #         The simulated coverage.
+    #     minimum_number_of_read_for_detection: int
+    #         The minimum number of reads required for detection in the LoD simulation. Default 2.
+    #     output_dataframe_file: str, optional
+    #         Path to output dataframe file. If None, don't save.
+
+    #     Returns
+    #     -------
+    #     df_mrd_sim: pd.DataFrame
+    #         The estimated LoD parameters per filter.
+    #     lod_label: str
+    #         Label for the legend in the Lod plot.
+    #     c_lod: str
+    #         lod column name
+    #     """
+
+    #     # Filter queries in LoD dict that raise an error (e.g. contain non existing fields like "is_mixed")
+    #     lod_filters = filter_valid_queries(df_test=df.head(10), queries=lod_filters)
+
+    #     # apply filters
+    #     df = df.assign(
+    #         **{
+    #             filter_name: df.eval(filter_query)
+    #             for filter_name, filter_query in tqdm(lod_filters.items())
+    #             if filter_query is not None
+    #         }
+    #     )
+    #     df_fp = df.query("label == 0")
+    #     df_tp = df.query("label == 1")
+
+    #     # count the # of bases in region
+    #     n_bases_in_region = count_bases_in_bed_file(single_sub_regions)
+
+    #     # get coverage statistics
+    #     (
+    #         mean_coverage,
+    #         ratio_of_reads_over_mapq,
+    #         ratio_of_bases_in_coverage_range,
+    #         _,
+    #         _,
+    #     ) = read_effective_coverage_from_sorter_json(sorter_json_stats_file)
+
+    #     # calculate the read filter correction factor (TP reads pre-filtered from the FeatureMap)
+    #     read_filter_correction_factor = 1
+    #     if (f"{FeatureMapFields.FILTERED_COUNT.value}" in df_tp) and (f"{FeatureMapFields.READ_COUNT.value}" in df_tp):
+    #         read_filter_correction_factor = (df_tp[f"{FeatureMapFields.FILTERED_COUNT.value}"]).sum() / df_tp[
+    #             f"{FeatureMapFields.READ_COUNT.value}"
+    #         ].sum()
+    #     else:
+    #         logger.warning(
+    #             f"{FeatureMapFields.FILTERED_COUNT.value} or {FeatureMapFields.READ_COUNT.value} no in dataset, \
+    #                 read_filter_correction_factor = 1 in LoD"
+    #         )
+
+    #     # calculate the error rate (residual SNV rate) normalization factors
+    #     n_noise_reads = df_fp.shape[0]
+    #     n_signal_reads = df_tp.shape[0]
+    #     effective_bases_covered = (
+    #         mean_coverage
+    #         * n_bases_in_region
+    #         * training_set_downsampling_rate
+    #         * ratio_of_reads_over_mapq
+    #         * ratio_of_bases_in_coverage_range
+    #         * read_filter_correction_factor
+    #     )
+    #     residual_snv_rate_no_filter = n_noise_reads / effective_bases_covered
+    #     ratio_filtered_prior_to_featuremap = ratio_of_reads_over_mapq * read_filter_correction_factor
+    #     logger.info(
+    #         f"n_noise_reads {n_noise_reads}, n_signal_reads {n_signal_reads}"
+    #         f", effective_bases_covered {effective_bases_covered}, "
+    #         f"residual_snv_rate_no_filter {residual_snv_rate_no_filter}"
+    #     )
+
+    #     # Calculate simulated LoD definitions and correction factors
+    #     effective_signature_bases_covered = int(
+    #         simulated_coverage * simulated_signature_size
+    #     )  # The ratio_filtered_prior_to_featuremap is not taken into account here, but later in the binomial calculation
+
+    #     # create a dataframe with the LoD parameters per filter
+    #     df_mrd_simulation = pd.concat(
+    #         (
+    #             (df_fp[list(lod_filters.keys())].sum() / n_noise_reads).rename(FP_READ_RETENTION_RATIO),
+    #             (df_tp[list(lod_filters.keys())].sum() / n_signal_reads * ratio_filtered_prior_to_featuremap).rename(
+    #                 TP_READ_RETENTION_RATIO
+    #             ),
+    #         ),
+    #         axis=1,
+    #     )
+
+    #     # remove filters with a low TP read retention ratio
+    #     MIN_TP_RETENTION = 0.01
+    #     df_mrd_simulation = df_mrd_simulation[df_mrd_simulation[TP_READ_RETENTION_RATIO] > MIN_TP_RETENTION]
+
+    #     # Assign the residual SNV rate per filter
+    #     df_mrd_simulation.loc[:, RESIDUAL_SNV_RATE] = (
+    #         df_mrd_simulation[FP_READ_RETENTION_RATIO]
+    #         * residual_snv_rate_no_filter
+    #         / df_mrd_simulation[TP_READ_RETENTION_RATIO]
+    #     )
+
+    #     # Calculate the minimum number of reads required for detection, per filter, assuming a binomial distribution
+    #     # The probability of success is the product of the read retention ratio and the residual SNV rate
+    #     df_mrd_simulation = df_mrd_simulation.assign(
+    #         min_reads_for_detection=np.ceil(
+    #             binom.ppf(
+    #                 n=int(effective_signature_bases_covered),
+    #                 p=df_mrd_simulation[TP_READ_RETENTION_RATIO] * df_mrd_simulation[RESIDUAL_SNV_RATE],
+    #                 q=specificity_at_lod,
+    #             )
+    #         )
+    #         .clip(min=minimum_number_of_read_for_detection)
+    #         .astype(int),
+    #     )
+
+    #     # Simulate the LoD per filter, assuming a binomial distribution
+    #     # The simulation is done by drawing the expected number of reads in the Qth percentile, where the percentile is
+    #     # (1-sensitivity), for a range of tumor frequencies (tf_sim). The lowest tumor fraction that passes the prescribed
+    #     # minimum number of reads for detection is the LoD.
+    #     tf_sim = np.logspace(-8, 0, 500)
+    #     c_lod = f"LoD_{sensitivity_at_lod*100:.0f}"
+    #     df_mrd_simulation = df_mrd_simulation.join(
+    #         df_mrd_simulation.apply(
+    #             lambda row: tf_sim[
+    #                 np.argmax(
+    #                     binom.ppf(
+    #                         q=1 - sensitivity_at_lod,
+    #                         n=int(effective_signature_bases_covered),
+    #                         p=row[TP_READ_RETENTION_RATIO] * (tf_sim + row[RESIDUAL_SNV_RATE]),
+    #                     )
+    #                     >= row["min_reads_for_detection"]
+    #                 )
+    #             ],
+    #             axis=1,
+    #         ).rename(c_lod)
+    #     )
+
+    #     lod_label = f"LoD @ {specificity_at_lod*100:.0f}% specificity, \
+    #     {sensitivity_at_lod*100:.0f}% sensitivity (estimated)\
+    #     \nsignature size {simulated_signature_size}, \
+    #     {simulated_coverage}x coverage"
+
+    #     if output_dataframe_file:
+    #         df_mrd_simulation.to_parquet(output_dataframe_file)
+
+    #     return df_mrd_simulation, lod_filters, lod_label, c_lod
 
     def process(self):
         # prepare featuremaps
@@ -689,3 +868,188 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.save_model_and_data()
 
         return self
+
+
+def quality_calibration(
+    df: pd.DataFrame,
+    single_sub_regions: str,
+    sorter_json_stats_file: str,
+    single_sub_downsampling_rate: float,
+    pre_filtering_tp_rate: float,
+    snv_filters: dict = None,
+):
+    """
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataset with features, labels, and quals of the model.
+    single_sub_regions : str
+        a path to the single substitutions (FP) regions bed file.
+    sorter_json_stats_file : str
+        a path to the cram statistics file.
+    single_sub_downsampling_rate : float
+        the size of the dataset / # of reads in single sub featuremap after intersection with single_sub_regions.
+    pre_filtering_tp_rate : float
+        the rate of TP SNVs pre-filtered from the train+test set.
+    snv_filters : dict, optional
+        filters for to apply as queries to the FeatureMap dataframe, by default None
+
+
+    Returns
+    -------
+    df_mrd_sim: pd.DataFrame
+        The estimated LoD parameters per filter.
+    lod_label: str
+        Label for the legend in the Lod plot.
+    c_lod: str
+        lod column name
+
+    Raises
+    ------
+    AssertionError
+        If "label" or "RAW_QUAL" not in df.columns
+    """
+
+    # check input
+    assert LABEL in df.columns, f"{LABEL} not in df.columns ({df.columns})"
+    assert (
+        FeatureMapFields.RAW_QUAL.value in df.columns
+    ), f"{FeatureMapFields.RAW_QUAL.value} not in df.columns ({df.columns})"
+
+    # Filter queries in LoD dict that raise an error (e.g. contain non existing fields like "is_mixed")
+    if snv_filters:
+        logger.info(f"Validating filters")
+        snv_filters = filter_valid_queries(df_test=df.head(10), queries=snv_filters)
+    else:
+        snv_filters = {}
+
+        # Create RAW_QUAL filters
+        max_score = np.ceil(df[FeatureMapFields.RAW_QUAL.value].max())
+        raw_qual_filters = {
+            f"{FeatureMapFields.RAW_QUAL.value}_{q}": f"{FeatureMapFields.RAW_QUAL.value} >= {q} and {FeatureMapFields.RAW_QUAL.value} < {q+1}"
+            for q in range(0, max_score + 1)
+        }
+
+    # Merge filters
+    snv_filters = {
+        **raw_qual_filters,
+        **snv_filters,
+    }
+
+    # apply filters
+    df = df.assign(
+        **{
+            filter_name: df.eval(filter_query)
+            for filter_name, filter_query in snv_filters.items()
+            if filter_query is not None
+        }
+    )
+    df_fp = df.query(f"not {LABEL}")
+    df_tp = df.query(LABEL)
+
+    # Get the effective number of covered bases after all the filters are applied
+    effective_bases_covered, ratio_filtered_prior_to_featuremap = get_effective_bases_covered(
+        single_sub_regions=single_sub_regions,
+        sorter_json_stats_file=sorter_json_stats_file,
+        df_tp=df_tp,
+    )
+
+    #
+
+    # calculate the error rate (residual SNV rate) normalization factors
+    n_fp_snvs = df_fp.shape[0]
+    n_tp_snvs = df_tp.shape[0]
+    residual_snv_rate_no_filter = (n_fp_snvs / single_sub_downsampling_rate) / (
+        effective_bases_covered * pre_filtering_tp_rate
+    )
+
+    logger.info(
+        f"{n_fp_snvs} FP SNVs, {n_tp_snvs} TP SNVs"
+        f", {effective_bases_covered} bases covered, "
+        f"{residual_snv_rate_no_filter} residual SNV rate with no filter"
+    )
+
+    # create a dataframe with the LoD parameters per filter
+    df_quality = pd.concat(
+        (
+            ((df_tp[list(snv_filters.keys())].mean()) * ratio_filtered_prior_to_featuremap).rename(
+                TP_RETENTION_RATIO_ABS
+            ),  # Absolute TP SNV retention ratio, takes into account the bases filtered before the FeatureMap
+            ((df_tp[list(snv_filters.keys())].mean())).rename(
+                TP_RETENTION_RATIO
+            ),  # TP SNV retention ratio relative to the total number of TP SNVs in the dataframe
+            (df_fp[list(snv_filters.keys())].mean()).rename(
+                FP_RETENTION_RATIO
+            ),  # FP SNV retention ratio relative to the total number of FP SNVs in the dataframe
+            (df_fp[list(snv_filters.keys())].sum()).rename(FP_COUNT),  # FP SNV count
+        ),
+        axis=1,
+    )
+
+    # remove filters with a low TP read retention ratio
+    df_quality = df_quality[df_quality[TP_RETENTION_RATIO_ABS] > MIN_TP_RETENTION]
+
+    # Assign the residual SNV rate per filter
+    df_quality.loc[:, RESIDUAL_SNV_RATE] = (
+        df_quality[FP_RETENTION_RATIO] * residual_snv_rate_no_filter / df_quality[TP_RETENTION_RATIO]
+    )
+
+    return df_quality, snv_filters
+
+
+def get_effective_bases_covered(single_sub_regions: str, sorter_json_stats_file: str, df_tp: pd.DataFrame):
+    """
+    Calculate the effective number of covered bases after all the filters are applied
+
+    Parameters
+    ----------
+    single_sub_regions : str
+        a path to the single substitutions (FP) regions bed file.
+    sorter_json_stats_file : str
+        a path to the cram statistics file.
+    df_tp : pd.DataFrame
+        dataset of TP SNVs
+
+    Returns
+    -------
+    effective_bases_covered: float
+        The effective number of covered bases after all the filters are applied
+    ratio_filtered_prior_to_featuremap: float
+        The ratio of reads filtered prior to the FeatureMap
+    """
+    # count the # of bases in region
+    n_bases_in_region = count_bases_in_bed_file(single_sub_regions)
+
+    # get coverage statistics
+    (
+        mean_coverage,
+        ratio_of_reads_over_mapq,
+        ratio_of_bases_in_coverage_range,
+        _,
+        _,
+    ) = read_effective_coverage_from_sorter_json(sorter_json_stats_file)
+
+    # calculate the read filter correction factor (TP reads pre-filtered from the FeatureMap)
+    read_filter_correction_factor = 1
+    if (f"{FeatureMapFields.FILTERED_COUNT.value}" in df_tp) and (f"{FeatureMapFields.READ_COUNT.value}" in df_tp):
+        read_filter_correction_factor = (df_tp[f"{FeatureMapFields.FILTERED_COUNT.value}"]).sum() / df_tp[
+            f"{FeatureMapFields.READ_COUNT.value}"
+        ].sum()
+    else:
+        logger.warning(
+            f"{FeatureMapFields.FILTERED_COUNT.value} or {FeatureMapFields.READ_COUNT.value} no in dataset, \
+                read_filter_correction_factor = 1 in LoD"
+        )
+
+    # Calculate the effective number of covered bases after all the filters are applied
+    effective_bases_covered = (
+        mean_coverage
+        * n_bases_in_region
+        * ratio_of_reads_over_mapq
+        * ratio_of_bases_in_coverage_range
+        * read_filter_correction_factor
+    )
+    ratio_filtered_prior_to_featuremap = ratio_of_reads_over_mapq * read_filter_correction_factor
+
+    return effective_bases_covered, ratio_filtered_prior_to_featuremap

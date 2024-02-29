@@ -25,6 +25,7 @@ class FeatureMapFields(Enum):
     ALT = ALT
     QUAL = QUAL
     FILTER = FILTER
+    RAW_QUAL = "RAW_QUAL"
     READ_COUNT = "X_READ_COUNT"
     FILTERED_COUNT = "X_FILTERED_COUNT"
     X_SCORE = "X_SCORE"
@@ -571,21 +572,23 @@ def filter_featuremap_with_bcftools_view(
         if os.path.isfile(after_pre_filter_line_count_file):
             with open(after_pre_filter_line_count_file, encoding="utf-8") as f_pre:
                 after_pre_filter_line_count = int(f_pre.read().strip())
-        entry_number_counts = {
+        featuremap_entry_number_counts = {
             "header_lines": header_lines,
             "number_of_entries_original": (original_line_count - header_lines),
-            "number_of_entries_after_region_filter": (
-                after_region_filter_line_count - header_lines
-                if os.path.isfile(after_region_filter_line_count_file)
-                else None
-            ),
-            "number_of_entries_after_coverage_filter": (
-                after_coverage_filter_line_count - header_lines
-                if os.path.isfile(after_coverage_filter_line_count_file)
-                else None
-            ),
-            "number_of_entries_after_pre_filter": (
-                after_pre_filter_line_count - header_lines if os.path.isfile(after_pre_filter_line_count_file) else None
-            ),
         }
-    return entry_number_counts
+        featuremap_entry_number_counts["number_of_entries_after_region_filter"] = (
+            after_region_filter_line_count - header_lines
+            if os.path.isfile(after_region_filter_line_count_file)
+            else featuremap_entry_number_counts["number_of_entries_original"]
+        )
+        featuremap_entry_number_counts["number_of_entries_after_coverage_filter"] = (
+            after_coverage_filter_line_count - header_lines
+            if os.path.isfile(after_coverage_filter_line_count_file)
+            else featuremap_entry_number_counts["number_of_entries_after_region_filter"]
+        )
+        featuremap_entry_number_counts["number_of_entries_after_pre_filter"] = (
+            after_pre_filter_line_count - header_lines
+            if os.path.isfile(after_pre_filter_line_count_file)
+            else featuremap_entry_number_counts["number_of_entries_after_coverage_filter"]
+        )
+    return featuremap_entry_number_counts
