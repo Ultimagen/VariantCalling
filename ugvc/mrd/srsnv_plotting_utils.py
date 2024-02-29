@@ -371,11 +371,6 @@ def retention_noise_and_mrd_lod_simulation(
         f"residual_snv_rate_no_filter {residual_snv_rate_no_filter}"
     )
 
-    # Calculate simulated LoD definitions and correction factors
-    effective_signature_bases_covered = int(
-        simulated_coverage * simulated_signature_size
-    )  # The ratio_filtered_prior_to_featuremap is not taken into account here, but later in the binomial calculation
-
     # create a dataframe with the LoD parameters per filter
     df_mrd_simulation = pd.concat(
         (
@@ -397,6 +392,14 @@ def retention_noise_and_mrd_lod_simulation(
         * residual_snv_rate_no_filter
         / df_mrd_simulation[TP_READ_RETENTION_RATIO]
     )
+
+    # END OF QUALITY PROFILE CALCULATION
+    # START OF MRD SIMULATION
+
+    # Calculate simulated LoD definitions and correction factors
+    effective_signature_bases_covered = int(
+        simulated_coverage * simulated_signature_size
+    )  # The ratio_filtered_prior_to_featuremap is not taken into account here, but later in the binomial calculation
 
     # Calculate the minimum number of reads required for detection, per filter, assuming a binomial distribution
     # The probability of success is the product of the read retention ratio and the residual SNV rate
