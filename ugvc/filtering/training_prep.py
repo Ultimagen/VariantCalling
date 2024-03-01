@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
@@ -195,40 +194,6 @@ def prepare_ground_truth(
             labeled_df.to_hdf((dirname / Path(stemname + "_test")).with_suffix("h5"), key=chrom, mode="a")
         else:
             labeled_df.to_hdf(output_h5, key=chrom, mode="a")
-
-
-def encode_labels(ll: Iterable[tuple[int, int]]) -> list[int]:
-    """Convert genotype label (tuple) to number
-
-    Parameters
-    ----------
-    ll : Iterable[tuple[int, int]]
-        List of labels
-
-    Returns
-    -------
-    list[int]
-        List of encoded labels
-    """
-    return [encode_label(x) for x in ll]
-
-
-def encode_label(label: tuple[int, ...]) -> int:
-    "Convert genotype label (tuple) to number"
-    label = tuple(sorted(label))
-    if label == (0, 0):
-        return 2
-    if label in [(0, 1), (1, 0)]:
-        return 0
-    if label == (1, 1):
-        return 1
-    raise ValueError(f"Encoding of gt={label} not supported")
-
-
-def decode_label(label: int) -> tuple[int, int]:
-    "Numerical encoding of genotype to tuple of genotypes"
-    decode_dct = {0: (0, 1), 1: (1, 1), 2: (0, 0)}
-    return decode_dct[label]
 
 
 def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: str, vcf: str) -> pd.DataFrame:
