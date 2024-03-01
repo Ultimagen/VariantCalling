@@ -1,7 +1,9 @@
 import pandas as pd
+import pytest
 
 from ugvc.filtering.transformers import (
     allele_encode,
+    encode_labels,
     gt_encode,
     ins_del_encode,
     motif_encode_left,
@@ -72,3 +74,13 @@ class TestTransformers:
         assert result == 1
         result = ins_del_encode("NA")
         assert result == 0
+
+    def test_encode_labels(self):
+        labels = [(0, 1), (0, 0), (1, 0), (1, 1)]
+        encoded_labels = encode_labels(labels)
+        expected_result = [1, 0, 1, 2]
+        assert encoded_labels == expected_result
+        with pytest.raises(ValueError):
+            encode_labels([(0, 1, 2), (0, 0, 1)])  # type: ignore
+        with pytest.raises(ValueError):
+            encode_labels([(0, 2), (1, 2)])

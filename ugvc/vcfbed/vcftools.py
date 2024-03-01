@@ -197,7 +197,7 @@ def get_vcf_df(
 
     df["indel"] = df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
 
-    df.index = [(x[1]["chrom"], x[1]["pos"]) for x in df.iterrows()]
+    df.index = pd.Index([(x[1]["chrom"], x[1]["pos"]) for x in df.iterrows()])
 
     return df
 
