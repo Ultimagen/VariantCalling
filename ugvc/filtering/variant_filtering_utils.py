@@ -7,12 +7,11 @@ import numpy as np
 import pandas as pd
 import xgboost
 from sklearn import compose
-from sklearn.metrics import f1_score, precision_recall_curve, precision_score, recall_score
 
 from ugvc import logger
 from ugvc.filtering import transformers
 from ugvc.filtering.tprep_constants import GtType, VcfType
-from ugvc.utils import math_utils
+from ugvc.utils import math_utils, stats_utils
 
 
 def train_model(
@@ -198,14 +197,6 @@ def eval_model(
     df["ml_qual"] = quals
     df["predict"] = predictions
 
-    if add_testing_group_column:
-        df = add_grouping_column(df, get_testing_selection_functions(), "group_testing")
-        groups = list(get_testing_selection_functions().keys())
-
-    else:
-        assert "group_testing" in df.columns, "group_testing column should be given"
-        groups = list(set(df["group_testing"]))
-
     labels = df["label"]
     if probs.shape[1] == 2:
         gt_type = GtType.APPROXIMATE
@@ -222,8 +213,192 @@ def eval_model(
     if gt_type == GtType.EXACT:
         labels = transformers.label_encode.transform(list(labels))
     df = df.loc[select]
+    result = evaluate_results(df, pd.Series(list(labels), index=df.index), add_testing_group_column)
+    if isinstance(result, tuple):
+        return result
+    raise RuntimeError("Unexpected result")
 
-    accuracy_df = pd.DataFrame(
+
+def evaluate_results(
+    df: pd.DataFrame,
+    labels: pd.Series,
+    add_testing_group_column: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Evaluate concordance results for the dataframe
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        _description_
+    labels : pd.Series
+        _description_
+    add_testing_group_column : bool, optional
+        _description_, by default True
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        Returns summary metrics and precision/recall curves in two dataframes
+    """
+    if add_testing_group_column:
+        df = add_grouping_column(df, get_testing_selection_functions(), "group_testing")
+        groups = list(get_testing_selection_functions().keys())
+
+    else:
+        assert "group_testing" in df.columns, "group_testing column should be given"
+        groups = list(set(df["group_testing"]))
+
+    accuracy_df = _init_metrics_df
+    curve_df = pd.DataFrame(columns=["group", "precision", "recall", "f1", "threshold"])
+    for g_val in groups:
+        select = df["group_testing"] == g_val
+        group_df = df[select]
+        group_labels = labels[select]
+        acc, curve = get_concordance_metrics(
+            group_df["predict"], group_df["ml_qual"], np.array(group_labels), group_df["fn_mask"]
+        )
+        acc["group"] = g_val
+        curve["group"] = g_val
+        accuracy_df = pd.concat((accuracy_df, acc), ignore_index=True)
+        curve_df = pd.concat((curve_df, curve), ignore_index=True)
+    return accuracy_df, curve_df
+
+
+def get_empty_recall_precision() -> dict:
+    """Return empty recall precision dictionary for category given"""
+    return {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "initial_tp": 0,
+        "initial_fp": 0,
+        "initial_fn": 0,
+        "initial_precision": 1.0,
+        "initial_recall": 1.0,
+        "initial_f1": 1.0,
+    }
+
+
+def get_empty_recall_precision_curve() -> dict:
+    """Return empty recall precision curve dictionary for category given"""
+    return {"predictions": [], "precision": [], "recall": [], "f1": [], "threshold": 0}
+
+
+def get_concordance_metrics(
+    predictions: np.ndarray,
+    scores: np.ndarray,
+    truth: np.ndarray,
+    fn_mask: np.ndarray,
+    return_metrics: bool = True,
+    return_curves: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame] | pd.DataFrame:
+    """Calculate concordance metrics. The input of predictions is assumed to be numbers,
+    with zeros be negative calls. fn_mask denotes the locations that were not called in
+    predictions and that are called in the truth (false negatives).
+    The scores are the scores of the predictions.
+
+    Parameters
+    ----------
+    predictions: np.ndarray
+        Predictions (number array)
+    scores: np.ndarray
+        Scores (float array of scores for predictions)
+    truth: np.ndarray
+        Truth (number array)
+    fn_mask: np.ndarray
+        False negative mask (boolean array of the length of truth, predictions and scores that
+        contains True for false negatives and False for the rest of the values)
+    return_metrics: bool
+        Convenience, should the function return metrics (True) or only precision-recall curves (False)
+    return_curves: bool
+        Convenience, should the function return precision-recall curves (True) or only metrics (False)
+
+    Returns
+    -------
+    tuple or pd.DataFrame
+        Concordance metrics and precision recall curves or one of them dependent on the return_metrics and return_curves
+
+    Raises
+    ------
+    AssertionError
+        At least one of return_curves or return_metrics should be True
+    """
+
+    truth_curve = truth > 0
+    truth_curve[fn_mask] = True
+    MIN_EXAMPLE_COUNT = 20
+    precisions_curve, recalls_curve, f1_curve, thresholds_curve = stats_utils.precision_recall_curve(
+        truth, scores, fn_mask, min_class_counts_to_output=MIN_EXAMPLE_COUNT
+    )
+    if len(f1_curve) > 0:
+        threshold_loc = np.argmax(f1_curve)
+        threshold = thresholds_curve[threshold_loc]
+    else:
+        threshold = 0
+
+    curve_df = pd.DataFrame(
+        pd.Series(
+            {
+                "predictions": thresholds_curve,
+                "precision": precisions_curve,
+                "recall": recalls_curve,
+                "f1": f1_curve,
+                "threshold": threshold,
+            }
+        )
+    ).T
+
+    fn = fn_mask.sum()
+    predictions = predictions.copy()[~fn_mask]
+    scores = scores.copy()[~fn_mask]
+    truth = truth.copy()[~fn_mask]
+
+    if len(predictions) == 0:
+        return pd.DataFrame(get_empty_recall_precision(), index=[0]), pd.DataFrame(
+            get_empty_recall_precision_curve(), index=[0]
+        )
+    tp = ((truth > 0) & (predictions > 0) & (truth == predictions)).sum()
+    fp = ((predictions > truth)).sum()
+    fn = fn + ((predictions < truth)).sum()
+    precision = stats_utils.get_precision(fp, tp)
+    recall = stats_utils.get_recall(fn, tp)
+    f1 = stats_utils.get_f1(precision, recall)
+    initial_tp = (truth > 0).sum()
+    initial_fp = truth.sum() - initial_tp
+    initial_fn = fn_mask.sum()
+    initial_precision = stats_utils.get_precision(initial_fp, initial_tp)
+    initial_recall = stats_utils.get_recall(initial_fn, initial_tp)
+    initial_f1 = stats_utils.get_f1(initial_precision, initial_recall)
+    metrics_df = pd.DataFrame(
+        {
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "initial_tp": initial_tp,
+            "initial_fp": initial_fp,
+            "initial_fn": initial_fn,
+            "initial_precision": initial_precision,
+            "initial_recall": initial_recall,
+            "initial_f1": initial_f1,
+        },
+        index=[0],
+    )
+    assert return_curves or return_metrics, "At least one of return_curves or return_metrics should be True"
+    if return_curves and return_metrics:
+        return metrics_df, curve_df
+    if return_curves:
+        return curve_df
+    return metrics_df
+
+
+def _init_metrics_df() -> pd.DataFrame:
+    return pd.DataFrame(
         columns=[
             "group",
             "tp",
@@ -231,86 +406,15 @@ def eval_model(
             "fn",
             "precision",
             "recall",
-            "gt_precision",
-            "gt_recall",
             "f1",
+            "initial_tp",
+            "initial_fp",
+            "initial_fn",
+            "initial_precision",
+            "initial_recall",
+            "initial_f1",
         ]
     )
-    curve_df = pd.DataFrame(columns=["group", "precision", "recall", "f1", "threshold"])
-    for g_val in groups:
-        select = df["group_testing"] == g_val
-        group_df = df[select]
-        group_labels = labels[select]
-        tp = (group_df["predict"] > 0) & (group_labels > 0)
-        fp = (group_df["predict"] > 0) & (group_labels == 0)
-        fn = (group_df["predict"] == 0) & (group_labels > 0)
-
-        precision = precision_score(group_labels > 0, group_df["predict"] > 0)
-        recall = recall_score(group_labels > 0, group_df["predict"] > 0)
-        f1 = f1_score(group_labels > 0, group_df["predict"] > 0)
-        prc = precision_recall_curve(group_labels > 0, group_df["ml_qual"])
-        gt_select = (group_labels > 0) & (group_df["predict"] > 0)
-        gt_precision = precision_score(group_labels[gt_select], group_df["predict"][gt_select], pos_label=2)
-        gt_recall = recall_score(group_labels[gt_select], group_df["predict"][gt_select], pos_label=2)
-
-        accuracy_df = pd.concat(
-            (
-                accuracy_df,
-                pd.DataFrame(
-                    {
-                        "group": g_val,
-                        "tp": tp,
-                        "fp": fp,
-                        "fn": fn,
-                        "precision": precision,
-                        "recall": recall,
-                        "f1": f1,
-                        "gt_precision": gt_precision,
-                        "gt_recall": gt_recall,
-                    },
-                    index=[0],
-                ),
-            ),
-            ignore_index=True,
-        )
-        curve_df = pd.concat(
-            (
-                curve_df,
-                pd.DataFrame(
-                    {
-                        "group": g_val,
-                        "precision": prc[0],
-                        "recall": prc[1],
-                        "f1": 2 * prc[0] * prc[1] / (prc[0] + prc[1]),
-                        "threshold": prc[2],
-                    },
-                    index=[0],
-                ),
-            ),
-            ignore_index=True,
-        )
-
-    return accuracy_df, curve_df
-
-
-def get_empty_recall_precision(category: str) -> dict:
-    """Return empty recall precision dictionary for category given"""
-    return {
-        "group": category,
-        "tp": 0,
-        "fp": 0,
-        "fn": 0,
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "gt_precision": 1.0,
-        "gt_recall": 1.0,
-    }
-
-
-def get_empty_recall_precision_curve(category: str) -> dict:
-    """Return empty recall precision curve dictionary for category given"""
-    return {"group": category, "precision": [], "recall": [], "f1": [], "threshold": 0}
 
 
 class VariantSelectionFunctions(Enum):
