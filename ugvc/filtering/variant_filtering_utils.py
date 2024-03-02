@@ -146,12 +146,12 @@ def get_testing_selection_functions() -> OrderedDict:
     """Return dictionary of categories functions"""
     sfs = OrderedDict()
     sfs["SNP"] = lambda x: np.logical_not(x.indel)
-    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x["x_hil"] == 0)
-    sfs["HMER indel <= 4"] = lambda x: x.indel & (x["x_hil"] > 0) & (x["x_hil"] < 5)
-    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x["x_hil"] >= 5) & (x["x_hil"] < 8)
-    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x["x_hil"] >= 8) & (x["x_hil"] <= 10)
-    sfs["HMER indel 11,12"] = lambda x: x.indel & (x["x_hil"] >= 11) & (x["x_hil"] <= 12)
-    sfs["HMER indel > 12"] = lambda x: x.indel & (x["x_hil"] > 12)
+    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x["x_hil"][0] == 0)
+    sfs["HMER indel <= 4"] = lambda x: x.indel & (x["x_hil"][0] > 0) & (x["x_hil"][0] < 5)
+    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x["x_hil"][0] >= 5) & (x["x_hil"][0] < 8)
+    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x["x_hil"][0] >= 8) & (x["x_hil"][0] <= 10)
+    sfs["HMER indel 11,12"] = lambda x: x.indel & (x["x_hil"][0] >= 11) & (x["x_hil"][0] <= 12)
+    sfs["HMER indel > 12"] = lambda x: x.indel & (x["x_hil"][0] > 12)
     return sfs
 
 
