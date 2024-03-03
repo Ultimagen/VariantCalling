@@ -28,10 +28,14 @@ from pandas import DataFrame, Series
 from simppl.cli import get_parser
 
 from ugvc import logger
-from ugvc.comparison.concordance_utils import calc_accuracy_metrics, read_hdf, validate_preprocess_concordance
+from ugvc.comparison.concordance_utils import (
+    apply_filter,
+    calc_accuracy_metrics,
+    read_hdf,
+    validate_preprocess_concordance,
+)
 from ugvc.comparison.vcf_pipeline_utils import annotate_concordance
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.filtering.variant_filtering_utils import apply_filter
 from ugvc.utils.stats_utils import get_precision, get_recall
 
 

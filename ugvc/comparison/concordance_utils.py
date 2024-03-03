@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Iterable
 
 import h5py
@@ -122,18 +123,16 @@ def calc_accuracy_metrics(
 
     # calc recall,precision, f1 per variant category
     if group_testing_column_name is None:
-        df = variant_filtering_utils.add_grouping_column(
-            df, variant_filtering_utils.get_testing_selection_functions(), "group_testing"
-        )
+        df = variant_filtering_utils.add_grouping_column(df, get_selection_functions(), "group_testing")
         group_testing_column_name = "group_testing"
     accuracy_df = variant_filtering_utils._init_metrics_df()
-    groups = list(set(group_testing_column_name))
+    groups = list(get_selection_functions().keys())
     for g_val in groups:
         dfselect = df[df[group_testing_column_name] == g_val]
         acc = variant_filtering_utils.get_concordance_metrics(
             dfselect["vc_call"].replace({"tp": 1, "fp": 0}).to_numpy(),
             dfselect["tree_score"].to_numpy(),
-            dfselect[classify_column_name].to_numpy(),
+            dfselect[classify_column_name].replace({"tp": 1, "fn": 1, "fp": 0, "tn": 0}).to_numpy(),
             (dfselect[classify_column_name] == "fn").to_numpy(),
             return_curves=False,
         )
@@ -146,31 +145,31 @@ def calc_accuracy_metrics(
     # Add summary for indels
     df_indels = df.copy()
     df_indels["group_testing"] = np.where(df_indels["indel"], "INDELS", "SNP")
-    for g_val in ("INDELS", "SNP"):
-        dfselect = df[df["group_testing"] == g_val]
-        acc = variant_filtering_utils.get_concordance_metrics(
-            dfselect["vc_call"].replace({"tp": 1, "fp": 0}).to_numpy(),
-            dfselect["tree_score"].to_numpy(),
-            dfselect[classify_column_name].to_numpy(),
-            (dfselect[classify_column_name] == "fn").to_numpy(),
-            return_curves=False,
-        )
-        if isinstance(acc, pd.DataFrame):
-            acc["group"] = g_val
-        else:
-            raise RuntimeError("The output of get_concordance_metrics should be a DataFrame")
-        accuracy_df = pd.concat((accuracy_df, acc), ignore_index=True)
+    g_val = "INDELS"
+    dfselect = df_indels[df_indels["group_testing"] == g_val]
+    acc = variant_filtering_utils.get_concordance_metrics(
+        dfselect["vc_call"].replace({"tp": 1, "fp": 0}).to_numpy(),
+        dfselect["tree_score"].to_numpy(),
+        dfselect[classify_column_name].replace({"tp": 1, "fn": 1, "fp": 0, "tn": 0}).to_numpy(),
+        (dfselect[classify_column_name] == "fn").to_numpy(),
+        return_curves=False,
+    )
+    if isinstance(acc, pd.DataFrame):
+        acc["group"] = g_val
+    else:
+        raise RuntimeError("The output of get_concordance_metrics should be a DataFrame")
+    accuracy_df = pd.concat((accuracy_df, acc), ignore_index=True)
 
     # Add summary for h-indels
     df_indels = df.copy()
     df_indels["group_testing"] = np.where(df_indels["hmer_indel_length"] > 0, "H-INDELS", "SNP")
 
     g_val = "H-INDELS"
-    dfselect = df[df["group_testing"] == g_val]
+    dfselect = df_indels[df_indels["group_testing"] == g_val]
     acc = variant_filtering_utils.get_concordance_metrics(
         dfselect["vc_call"].replace({"tp": 1, "fp": 0}).to_numpy(),
         dfselect["tree_score"].to_numpy(),
-        dfselect[classify_column_name].to_numpy(),
+        dfselect[classify_column_name].replace({"tp": 1, "fn": 1, "fp": 0, "tn": 0}).to_numpy(),
         (dfselect[classify_column_name] == "fn").to_numpy(),
         return_curves=False,
     )
@@ -225,20 +224,18 @@ def calc_recall_precision_curve(
 
     # calc recall,precision, f1 per variant category
     if group_testing_column_name is None:
-        df = variant_filtering_utils.add_grouping_column(
-            df, variant_filtering_utils.get_testing_selection_functions(), "group_testing"
-        )
+        df = variant_filtering_utils.add_grouping_column(df, get_selection_functions(), "group_testing")
         group_testing_column_name = "group_testing"
 
     recall_precision_curve_df = pd.DataFrame(columns=["group", "precision", "recall", "f1", "threshold"])
 
-    groups = list(set(group_testing_column_name))
+    groups = list(get_selection_functions().keys())
     for g_val in groups:
         dfselect = df[df[group_testing_column_name] == g_val]
         curve = variant_filtering_utils.get_concordance_metrics(
             dfselect["vc_call"].replace({"tp": 1, "fp": 0}).to_numpy(),
             dfselect["tree_score"].to_numpy(),
-            dfselect[classify_column_name].to_numpy(),
+            dfselect[classify_column_name].replace({"tp": 1, "fn": 1, "fp": 0, "tn": 0}).to_numpy(),
             (dfselect[classify_column_name] == "fn").to_numpy(),
             return_metrics=False,
         )
@@ -251,20 +248,20 @@ def calc_recall_precision_curve(
     # Add summary for indels
     df_indels = df.copy()
     df_indels["group_testing"] = np.where(df_indels["indel"], "INDELS", "SNP")
-    for g_val in "INDELS", "SNP":
-        dfselect = df[df["group_testing"] == g_val]
-        curve = variant_filtering_utils.get_concordance_metrics(
-            dfselect["vc_call"].replace({"tp": 1, "fp": 0}).to_numpy(),
-            dfselect["tree_score"].to_numpy(),
-            dfselect[classify_column_name].to_numpy(),
-            (dfselect[classify_column_name] == "fn").to_numpy(),
-            return_metrics=False,
-        )
-        if isinstance(curve, pd.DataFrame):
-            curve["group"] = g_val
-        else:
-            raise RuntimeError("The output of get_concordance_metrics should be a DataFrame")
-        recall_precision_curve_df = pd.concat((recall_precision_curve_df, curve), ignore_index=True)
+    g_val = "INDELS"
+    dfselect = df_indels[df_indels["group_testing"] == g_val]
+    curve = variant_filtering_utils.get_concordance_metrics(
+        dfselect["vc_call"].replace({"tp": 1, "fp": 0}).to_numpy(),
+        dfselect["tree_score"].to_numpy(),
+        dfselect[classify_column_name].replace({"tp": 1, "fn": 1, "fp": 0, "tn": 0}).to_numpy(),
+        (dfselect[classify_column_name] == "fn").to_numpy(),
+        return_metrics=False,
+    )
+    if isinstance(curve, pd.DataFrame):
+        curve["group"] = g_val
+    else:
+        raise RuntimeError("The output of get_concordance_metrics should be a DataFrame")
+    recall_precision_curve_df = pd.concat((recall_precision_curve_df, curve), ignore_index=True)
 
     return recall_precision_curve_df
 
@@ -340,3 +337,15 @@ def apply_filter(pre_filtering_classification: pd.Series, is_filtered: pd.Series
     post_filtering_classification.loc[is_filtered & (post_filtering_classification == "fp")] = "tn"
     post_filtering_classification.loc[is_filtered & (post_filtering_classification == "tp")] = "fn"
     return post_filtering_classification
+
+
+def get_selection_functions() -> OrderedDict:
+    sfs = OrderedDict()
+    sfs["SNP"] = lambda x: np.logical_not(x.indel)
+    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x.hmer_indel_length == 0)
+    sfs["HMER indel <= 4"] = lambda x: x.indel & (x.hmer_indel_length > 0) & (x.hmer_indel_length < 5)
+    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x.hmer_indel_length >= 5) & (x.hmer_indel_length < 8)
+    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x.hmer_indel_length >= 8) & (x.hmer_indel_length <= 10)
+    sfs["HMER indel 11,12"] = lambda x: x.indel & (x.hmer_indel_length >= 11) & (x.hmer_indel_length <= 12)
+    sfs["HMER indel > 12"] = lambda x: x.indel & (x.hmer_indel_length > 12)
+    return sfs

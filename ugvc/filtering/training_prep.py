@@ -307,6 +307,7 @@ def label_with_approximate_gt(
         Chromosome to put aside as test
     """
     blacklist_df = pd.read_hdf(blacklist, key="blacklist")
+    blacklist_df.index = pd.MultiIndex.from_tuples(blacklist_df.index)
 
     if chromosomes_to_read is None:
         chromosomes_to_read = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]

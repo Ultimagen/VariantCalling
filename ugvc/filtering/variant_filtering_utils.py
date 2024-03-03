@@ -142,19 +142,6 @@ def add_grouping_column(df: pd.DataFrame, selection_functions: dict, column_name
     return df
 
 
-def get_testing_selection_functions() -> OrderedDict:
-    """Return dictionary of categories functions"""
-    sfs = OrderedDict()
-    sfs["SNP"] = lambda x: np.logical_not(x.indel)
-    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x["x_hil"][0] == 0)
-    sfs["HMER indel <= 4"] = lambda x: x.indel & (x["x_hil"][0] > 0) & (x["x_hil"][0] < 5)
-    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x["x_hil"][0] >= 5) & (x["x_hil"][0] < 8)
-    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x["x_hil"][0] >= 8) & (x["x_hil"][0] <= 10)
-    sfs["HMER indel 11,12"] = lambda x: x.indel & (x["x_hil"][0] >= 11) & (x["x_hil"][0] <= 12)
-    sfs["HMER indel > 12"] = lambda x: x.indel & (x["x_hil"][0] > 12)
-    return sfs
-
-
 def eval_model(
     df: pd.DataFrame,
     model: xgboost.XGBClassifier,
@@ -240,8 +227,8 @@ def evaluate_results(
         Returns summary metrics and precision/recall curves in two dataframes
     """
     if add_testing_group_column:
-        df = add_grouping_column(df, get_testing_selection_functions(), "group_testing")
-        groups = list(get_testing_selection_functions().keys())
+        df = add_grouping_column(df, get_selection_functions(), "group_testing")
+        groups = list(get_selection_functions().keys())
 
     else:
         assert "group_testing" in df.columns, "group_testing column should be given"
@@ -283,7 +270,7 @@ def get_empty_recall_precision() -> dict:
 
 def get_empty_recall_precision_curve() -> dict:
     """Return empty recall precision curve dictionary for category given"""
-    return {"predictions": [], "precision": [], "recall": [], "f1": [], "threshold": 0}
+    return {"threshold": 0, "predictions": [], "precision": [], "recall": [], "f1": []}
 
 
 def get_concordance_metrics(
@@ -356,38 +343,43 @@ def get_concordance_metrics(
     truth = truth.copy()[~fn_mask]
 
     if len(predictions) == 0:
-        return pd.DataFrame(get_empty_recall_precision(), index=[0]), pd.DataFrame(
-            get_empty_recall_precision_curve(), index=[0]
+
+        result = (
+            pd.DataFrame(get_empty_recall_precision(), index=[0]),
+            pd.DataFrame(pd.Series(get_empty_recall_precision_curve())).T,
         )
-    tp = ((truth > 0) & (predictions > 0) & (truth == predictions)).sum()
-    fp = ((predictions > truth)).sum()
-    fn = fn + ((predictions < truth)).sum()
-    precision = stats_utils.get_precision(fp, tp)
-    recall = stats_utils.get_recall(fn, tp)
-    f1 = stats_utils.get_f1(precision, recall)
-    initial_tp = (truth > 0).sum()
-    initial_fp = truth.sum() - initial_tp
-    initial_fn = fn_mask.sum()
-    initial_precision = stats_utils.get_precision(initial_fp, initial_tp)
-    initial_recall = stats_utils.get_recall(initial_fn, initial_tp)
-    initial_f1 = stats_utils.get_f1(initial_precision, initial_recall)
-    metrics_df = pd.DataFrame(
-        {
-            "tp": tp,
-            "fp": fp,
-            "fn": fn,
-            "precision": precision,
-            "recall": recall,
-            "f1": f1,
-            "initial_tp": initial_tp,
-            "initial_fp": initial_fp,
-            "initial_fn": initial_fn,
-            "initial_precision": initial_precision,
-            "initial_recall": initial_recall,
-            "initial_f1": initial_f1,
-        },
-        index=[0],
-    )
+    else:
+        tp = ((truth > 0) & (predictions > 0) & (truth == predictions)).sum()
+        fp = ((predictions > truth)).sum()
+        fn = fn + ((predictions < truth)).sum()
+        precision = stats_utils.get_precision(fp, tp)
+        recall = stats_utils.get_recall(fn, tp)
+        f1 = stats_utils.get_f1(precision, recall)
+        initial_tp = (truth > 0).sum()
+        initial_fp = len(truth) - initial_tp
+        initial_fn = fn_mask.sum()
+        initial_precision = stats_utils.get_precision(initial_fp, initial_tp)
+        initial_recall = stats_utils.get_recall(initial_fn, initial_tp)
+        initial_f1 = stats_utils.get_f1(initial_precision, initial_recall)
+        metrics_df = pd.DataFrame(
+            {
+                "tp": tp,
+                "fp": fp,
+                "fn": fn,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "initial_tp": initial_tp,
+                "initial_fp": initial_fp,
+                "initial_fn": initial_fn,
+                "initial_precision": initial_precision,
+                "initial_recall": initial_recall,
+                "initial_f1": initial_f1,
+            },
+            index=[0],
+        )
+        result = metrics_df, curve_df
+    metrics_df, curve_df = result
     assert return_curves or return_metrics, "At least one of return_curves or return_metrics should be True"
     if return_curves and return_metrics:
         return metrics_df, curve_df
@@ -414,6 +406,18 @@ def _init_metrics_df() -> pd.DataFrame:
             "initial_f1",
         ]
     )
+
+
+def get_selection_functions() -> OrderedDict:
+    sfs = OrderedDict()
+    sfs["SNP"] = lambda x: np.logical_not(x.indel)
+    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x["x_hil"][0] == 0)
+    sfs["HMER indel <= 4"] = lambda x: x.indel & (x["x_hil"][0] > 0) & (x["x_hil"][0] < 5)
+    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x["x_hil"][0] >= 5) & (x["x_hil"][0] < 8)
+    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x["x_hil"][0] >= 8) & (x["x_hil"][0] <= 10)
+    sfs["HMER indel 11,12"] = lambda x: x.indel & (x["x_hil"][0] >= 11) & (x["x_hil"][0] <= 12)
+    sfs["HMER indel > 12"] = lambda x: x.indel & (x["x_hil"][0] > 12)
+    return sfs
 
 
 class VariantSelectionFunctions(Enum):
