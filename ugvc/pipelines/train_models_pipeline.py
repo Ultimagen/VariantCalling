@@ -100,7 +100,7 @@ def run(argv: list[str]):
         train_df["tree_score"] = None
 
         # Train the model
-        transformer, model = variant_filtering_utils.train_model(
+        model, transformer = variant_filtering_utils.train_model(
             train_df, gt_type=args.gt_type, vtype=VcfType.SINGLE_SAMPLE, annots=args.annotation_columns
         )
 
@@ -110,8 +110,8 @@ def run(argv: list[str]):
             dfs.append(df)
         test_df = pd.concat(dfs)
 
-        train_results = variant_filtering_utils.eval_model(train_df, transformer, model)
-        test_results = variant_filtering_utils.eval_model(test_df, transformer, model)
+        train_results = variant_filtering_utils.eval_model(train_df, model, transformer)
+        test_results = variant_filtering_utils.eval_model(test_df, model, transformer)
 
         results_dict = {}
         results_dict["transformer"] = transformer
