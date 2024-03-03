@@ -73,3 +73,81 @@ def test_validate_data():
     test2 = pd.Series([1, np.NaN])
     with pytest.raises(AssertionError):
         variant_filtering_utils._validate_data(test2)
+
+
+def test_get_empty_recall_precision():
+    result = variant_filtering_utils.get_empty_recall_precision()
+    expected_result = {
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "initial_tp": 0,
+        "initial_fp": 0,
+        "initial_fn": 0,
+        "initial_precision": 1.0,
+        "initial_recall": 1.0,
+        "initial_f1": 1.0,
+    }
+    assert result == expected_result
+
+
+def test_get_empty_recall_precision_curve():
+    result = variant_filtering_utils.get_empty_recall_precision_curve()
+    expected_result = {
+        "threshold": 0,
+        "predictions": [],
+        "precision": [],
+        "recall": [],
+        "f1": [],
+    }
+    assert result == expected_result
+
+
+def test_get_concordance_metrics():
+    predictions = np.array([0, 1, 0, 1, 0])
+    scores = np.array([0.2, 0.8, 0.4, 0.6, 0.3])
+    truth = np.array([0, 1, 1, 0, 1])
+    fn_mask = np.array([False, False, True, False, False])
+    return_metrics = True
+    return_curves = False
+
+    result = variant_filtering_utils.get_concordance_metrics(
+        predictions, scores, truth, fn_mask, return_metrics, return_curves
+    )
+
+    expected_metrics_df = pd.DataFrame(
+        {
+            "tp": [1],
+            "fp": [1],
+            "fn": [2],
+            "precision": [0.5],
+            "recall": [0.3333333],
+            "f1": [0.4],
+            "initial_tp": [2],
+            "initial_fp": [2],
+            "initial_fn": [1],
+            "initial_precision": [0.5],
+            "initial_recall": [0.6666666666666666],
+            "initial_f1": [0.5714285714285714],
+        }
+    )
+
+    assert isinstance(result, pd.DataFrame)
+    pd.testing.assert_frame_equal(result, expected_metrics_df)
+
+
+def test_get_concordance_metrics_no_return():
+    predictions = np.array([0, 1, 0, 1, 0])
+    scores = np.array([0.2, 0.8, 0.4, 0.6, 0.3])
+    truth = np.array([0, 1, 1, 0, 1])
+    fn_mask = np.array([False, False, True, False, False])
+    return_metrics = False
+    return_curves = False
+
+    with pytest.raises(AssertionError):
+        variant_filtering_utils.get_concordance_metrics(
+            predictions, scores, truth, fn_mask, return_metrics, return_curves
+        )
