@@ -21,10 +21,10 @@ from __future__ import annotations
 
 import argparse
 import logging
-import pickle
 import random
 import sys
 
+import dill as pickle
 import numpy as np
 import pandas as pd
 
@@ -62,7 +62,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=GtType.EXACT,
     )
 
-    ap_var.add_argument("--annotation_columns", help="Annotation columns to use", type=str, nargs="*", required=False)
+    ap_var.add_argument(
+        "--annotation_columns", help="Annotation columns to use", type=str, nargs="*", required=False, default=[]
+    )
 
     ap_var.add_argument(
         "--verbosity",
@@ -81,9 +83,10 @@ def run(argv: list[str]):
     random.seed(1984)
     args = parse_args(argv)
     logger.setLevel(getattr(logging, args.verbosity))
+    logger.debug(args)
     try:
         features_to_extract = (
-            transformers.get_needed_features(transformers.VcfType.SINGLE_SAMPLE) + args.annotation_columns
+            transformers.get_needed_features(transformers.VcfType.SINGLE_SAMPLE) + args.annotation_columns + ["label"]
         )
         # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         dfs = []
@@ -123,7 +126,7 @@ def run(argv: list[str]):
         accuracy_dfs = []
         prcdict = {}
         for m_var in ("xgb", "xgb_train"):
-            name_optimum = f"{m_var}_model_recall_precision"
+            name_optimum = f"{m_var}_recall_precision"
             accuracy_df_per_model = results_dict[name_optimum]
             accuracy_df_per_model["model"] = name_optimum
             accuracy_dfs.append(accuracy_df_per_model)

@@ -318,9 +318,9 @@ def label_with_approximate_gt(
         df["bl"].fillna(False, inplace=True)
         classify_clm = "label"
 
-        df[classify_clm] = "unknown"
-        df[classify_clm].loc[df["bl"]] = "fp"
-        df[classify_clm].loc[~df["id"].isna()] = "tp"
+        df[classify_clm] = np.nan
+        df[classify_clm].loc[df["bl"]] = 0
+        df[classify_clm].loc[~df["id"].isna()] = 1
         df = df[df[classify_clm] != "unknown"]
         df.drop("bl", axis=1, inplace=True)
         if chromosome == test_split:

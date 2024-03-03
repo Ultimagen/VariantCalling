@@ -150,8 +150,11 @@ def modify_features_based_on_vcf_type(vtype: VcfType = VcfType.SINGLE_SAMPLE):
     def gt_encode_df(s):
         return pd.DataFrame(np.array([gt_encode(y) for y in s]).reshape((-1, 1)), index=s.index)
 
+    def ins_del_encode_df(df):
+        return pd.DataFrame(np.array(df[0].apply(ins_del_encode)).reshape(-1, 1), index=df.index)
+
     tuple_filter = preprocessing.FunctionTransformer(tuple_encode_df)
-    ins_del_encode_filter = preprocessing.FunctionTransformer(ins_del_encode)
+    ins_del_encode_filter = preprocessing.FunctionTransformer(ins_del_encode_df)
     tuple_encode_df_transformer = preprocessing.FunctionTransformer(tuple_encode_df)
     tuple_encode_doublet_df_transformer = preprocessing.FunctionTransformer(tuple_encode_doublet_df)
     tuple_uniform_encode_df_transformer = preprocessing.FunctionTransformer(tuple_uniform_encode)

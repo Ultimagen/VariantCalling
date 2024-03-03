@@ -58,6 +58,7 @@ def train_model(
     else:
         raise ValueError("Unknown gt_type")
 
+    logger.info(f"Training model on {len(df_train)} samples")
     x_train_df = pd.DataFrame(transformer.fit_transform(df_train))
     _validate_data(x_train_df)
     clf = xgboost.XGBClassifier(
@@ -174,7 +175,7 @@ def eval_model(
         If the group_testing column is not present in the dataframe
     """
     df = df.copy()
-    probs, predictions = apply_model(df, model, transformer)
+    predictions, probs = apply_model(df, model, transformer)
     phred_pls = math_utils.phred(probs)
     sorted_pls = np.sort(phred_pls, axis=1)
     gqs = sorted_pls[:, -1] - sorted_pls[:, -2]
@@ -234,14 +235,14 @@ def evaluate_results(
         assert "group_testing" in df.columns, "group_testing column should be given"
         groups = list(set(df["group_testing"]))
 
-    accuracy_df = _init_metrics_df
+    accuracy_df = _init_metrics_df()
     curve_df = pd.DataFrame(columns=["group", "precision", "recall", "f1", "threshold"])
     for g_val in groups:
         select = df["group_testing"] == g_val
         group_df = df[select]
         group_labels = labels[select]
         acc, curve = get_concordance_metrics(
-            group_df["predict"], group_df["ml_qual"], np.array(group_labels), group_df["fn_mask"]
+            group_df["predict"], group_df["ml_qual"], np.array(group_labels), np.zeros(group_df.shape[0], dtype=bool)
         )
         acc["group"] = g_val
         curve["group"] = g_val
@@ -411,12 +412,20 @@ def _init_metrics_df() -> pd.DataFrame:
 def get_selection_functions() -> OrderedDict:
     sfs = OrderedDict()
     sfs["SNP"] = lambda x: np.logical_not(x.indel)
-    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x["x_hil"][0] == 0)
-    sfs["HMER indel <= 4"] = lambda x: x.indel & (x["x_hil"][0] > 0) & (x["x_hil"][0] < 5)
-    sfs["HMER indel (4,8)"] = lambda x: x.indel & (x["x_hil"][0] >= 5) & (x["x_hil"][0] < 8)
-    sfs["HMER indel [8,10]"] = lambda x: x.indel & (x["x_hil"][0] >= 8) & (x["x_hil"][0] <= 10)
-    sfs["HMER indel 11,12"] = lambda x: x.indel & (x["x_hil"][0] >= 11) & (x["x_hil"][0] <= 12)
-    sfs["HMER indel > 12"] = lambda x: x.indel & (x["x_hil"][0] > 12)
+    sfs["Non-hmer INDEL"] = lambda x: x.indel & (x["x_hil"].apply(lambda y: y[0]) == 0)
+    sfs["HMER indel <= 4"] = (
+        lambda x: x.indel & (x["x_hil"].apply(lambda y: y[0]) > 0) & (x["x_hil"].apply(lambda y: y[0]) < 5)
+    )
+    sfs["HMER indel (4,8)"] = (
+        lambda x: x.indel & (x["x_hil"].apply(lambda y: y[0]) >= 5) & (x["x_hil"].apply(lambda y: y[0]) < 8)
+    )
+    sfs["HMER indel [8,10]"] = (
+        lambda x: x.indel & (x["x_hil"].apply(lambda y: y[0]) >= 8) & (x["x_hil"].apply(lambda y: y[0]) <= 10)
+    )
+    sfs["HMER indel 11,12"] = (
+        lambda x: x.indel & (x["x_hil"].apply(lambda y: y[0]) >= 11) & (x["x_hil"].apply(lambda y: y[0]) <= 12)
+    )
+    sfs["HMER indel > 12"] = lambda x: x.indel & (x["x_hil"].apply(lambda y: y[0]) > 12)
     return sfs
 
 

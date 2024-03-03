@@ -6,11 +6,17 @@ MISS = -2
 
 
 class GtType(Enum):
-    APPROXIMATE = 1
-    EXACT = 2
+    APPROXIMATE = "approximate"
+    EXACT = "exact"
+
+    def __str__(self):
+        return self.value
 
 
 class VcfType(Enum):
-    SINGLE_SAMPLE = 1
-    DEEP_VARIANT = 4
-    JOINT = 2
+    SINGLE_SAMPLE = "single_sample"
+    DEEP_VARIANT = "deep_variant"
+    JOINT = "joint_callset"
+
+    def __str__(self):
+        return self.value

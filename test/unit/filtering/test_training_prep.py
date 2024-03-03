@@ -40,5 +40,5 @@ class TestTrainingPrep:
         assert os.path.exists(str(pathlib.Path(tmpdir, "output.h5")))
         vc = pd.read_hdf(str(pathlib.Path(tmpdir, "output.h5")), key="chr1")["label"].value_counts()
         assert len(vc) == 2
-        assert vc["tp"] == 8715
-        assert vc["fp"] == 2003
+        assert vc[1] == 8715
+        assert vc[0] == 2003
