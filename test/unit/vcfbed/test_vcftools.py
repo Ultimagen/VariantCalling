@@ -120,10 +120,14 @@ class TestGetVcfDf:
             "dp",
             "excesshet",
             "filter",
+            "filtered_haps",
             "fs",
             "gnomad_af",
             "gq",
             "gt",
+            "hapcomp",
+            "hapdom",
+            "hec",
             "id",
             "indel",
             "mleac",
@@ -171,10 +175,14 @@ class TestGetVcfDf:
             "dp",
             "excesshet",
             "filter",
+            "filtered_haps",
             "fs",
             "gnomad_af",
             "gq",
             "gt",
+            "hapcomp",
+            "hapdom",
+            "hec",
             "id",
             "indel",
             "mleac",
@@ -244,3 +252,6 @@ class TestReplaceDataInSpecificChromosomes:
             columns = line.split("\t")
             vcounts.append(int(columns[2]))
         assert vcounts == [653, 227, 523, 1147]
+
+
+# TODO: tests for subsample_to_alleles and header_record_number

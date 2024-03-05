@@ -10,6 +10,7 @@ import tqdm
 from pandas import DataFrame
 from sklearn import compose, impute, preprocessing
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import make_pipeline
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 import ugvc.utils.misc_utils as utils
@@ -21,6 +22,7 @@ from ugvc.utils.stats_utils import get_f1, get_precision, get_recall, precision_
 
 class VcfType(Enum):
     SINGLE_SAMPLE = 1
+    SINGLE_SAMPLE_OLD_VC = 3
     JOINT = 2
 
 
@@ -30,7 +32,7 @@ class SingleModel:
         self.threshold_dict = threshold_dict
         self.is_greater_then = is_greater_then
 
-    def predict(self, df: pd.DataFrame) -> pd.Series:
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
         result_vec = np.ones(df.shape[0], dtype=bool)
         for var in self.threshold_dict:
             result_vec = result_vec & ((df[var] > self.threshold_dict[var]) == self.is_greater_then[var])
@@ -390,15 +392,22 @@ def get_all_precision_recalls(results: pd.DataFrame) -> dict:
 def tuple_break(x):
     """Returns the first element in the tuple"""
     if isinstance(x, tuple):
-        return x[0]
+        return x[0] if x[0] is not None else np.nan
     return 0 if (x is None or np.isnan(x)) else x
 
 
 def tuple_break_second(x):
     """Returns the second element in the tuple"""
-    if isinstance(x, tuple):
+    if isinstance(x, tuple) and len(x) > 1:
         return x[1]
-    return 0 if (x is None or np.isnan(x)) else x
+    return 0 if (x is None or (isinstance(x, tuple) and len(x) < 2) or np.isnan(x)) else x
+
+
+def tuple_break_third(x):
+    """Returns the third element in the tuple"""
+    if isinstance(x, tuple) and len(x) > 1:
+        return x[2]
+    return 0 if (x is None or (isinstance(x, tuple) and len(x) < 2) or np.isnan(x)) else x
 
 
 def motif_encode_left(x):
@@ -428,6 +437,15 @@ def motif_encode_right(x):
     return num
 
 
+# def trinucleotide_encode(q):
+#     bases = {"A": 1, "T": 2, "G": 3, "C": 4, "N": 5}
+
+#     result = 0
+#     for i in range(4):
+#         result += result * 10 + bases[q[i]]
+#     return result
+
+
 def allele_encode(x):
     """Translate base into integer.
     In case we don't get a single base, we return zero
@@ -449,7 +467,7 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     Parameters
     ----------
     vtype: string
-        The type of the input vcf. Either "single_sample" or "joint"
+        The type of the input vcf. Either "single_sample", "joint" or "dv"
 
     Returns
     -------
@@ -466,6 +484,12 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     def tuple_encode_df(s):
         return pd.DataFrame(np.array([tuple_break(y) for y in s]).reshape((-1, 1)), index=s.index)
 
+    def tuple_encode_doublet_df(s):
+        return pd.DataFrame(np.array([y[:2] for y in s]).reshape((-1, 2)), index=s.index)
+
+    def tuple_uniform_encode(s):
+        return pd.DataFrame(list(s), index=s.index).fillna(1000)
+
     def motif_encode_left_df(s):
         return pd.DataFrame(np.array([motif_encode_left(y) for y in s]).reshape((-1, 1)), index=s.index)
 
@@ -473,7 +497,16 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
         return pd.DataFrame(np.array([motif_encode_right(y) for y in s]).reshape((-1, 1)), index=s.index)
 
     tuple_filter = preprocessing.FunctionTransformer(tuple_encode_df)
+    INS_DEL_ENCODE = {"ins": -1, "del": 1, "NA": 0}
 
+    def ins_del_encode(x):
+        return x.replace(INS_DEL_ENCODE)
+
+    ins_del_encode_filter = preprocessing.FunctionTransformer(ins_del_encode)
+
+    tuple_encode_df_transformer = preprocessing.FunctionTransformer(tuple_encode_df)
+    tuple_encode_doublet_df_transformer = preprocessing.FunctionTransformer(tuple_encode_doublet_df)
+    tuple_uniform_encode_df_transformer = preprocessing.FunctionTransformer(tuple_uniform_encode)
     left_motif_filter = preprocessing.FunctionTransformer(motif_encode_left_df)
 
     right_motif_filter = preprocessing.FunctionTransformer(motif_encode_right_df)
@@ -481,6 +514,10 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
     def allele_encode_df(s):
         return pd.DataFrame(np.array([x[:2] for x in s]), index=s.index).applymap(allele_encode)
 
+    def allele_encode_single(df):
+        return df.applymap(allele_encode)
+
+    allele_filter_single = preprocessing.FunctionTransformer(allele_encode_single)
     allele_filter = preprocessing.FunctionTransformer(allele_encode_df)
 
     def gt_encode_df(s):
@@ -502,65 +539,147 @@ def modify_features_based_on_vcf_type(vtype: VcfType = "single_sample"):
         "alleles",
         "indel",
         "indel_length",
-        "gc_content",
-        "cycleskip_status",
-        "left_motif",
-        "right_motif",
-        "hmer_indel_length",
-        "inside_hmer_run",
-        "hmer_indel_nuc",
-        "close_to_hmer_run",
+        "x_gcc",
+        "x_css",
+        "x_lm",
+        "x_rm",
+        "x_hil",
+        "x_hin",
+        "x_il",
+        "x_ic",
     ]
 
     transform_list = [
         ("sor", default_filler, ["sor"]),
         ("dp", default_filler, ["dp"]),
-        ("inside_hmer_run", "passthrough", ["inside_hmer_run"]),
-        ("close_to_hmer_run", "passthrough", ["close_to_hmer_run"]),
-        ("hmer_indel_length", default_filler, ["hmer_indel_length"]),
-        ("indel_length", default_filler, ["indel_length"]),
-        ("fs", default_filler, ["fs"]),
-        ("qd", default_filler, ["qd"]),
-        ("mq", default_filler, ["mq"]),
-        ("an", default_filler, ["an"]),
-        ("baseqranksum", default_filler, ["baseqranksum"]),
-        ("excesshet", default_filler, ["excesshet"]),
-        ("mqranksum", default_filler, ["mqranksum"]),
-        ("readposranksum", default_filler, ["readposranksum"]),
-        ("indel", "passthrough", ["indel"]),
-        ("hmer_indel_nuc", preprocessing.OrdinalEncoder(), ["hmer_indel_nuc"]),
-        ("left_motif", left_motif_filter, "left_motif"),
-        ("right_motif", right_motif_filter, "right_motif"),
-        ("cycleskip_status", preprocessing.OrdinalEncoder(), ["cycleskip_status"]),
         ("alleles", allele_filter, "alleles"),
-        ("gc_content", default_filler, ["gc_content"]),
+        ("x_hin", make_pipeline(tuple_filter, allele_filter_single), "x_hin"),
+        ("x_hil", make_pipeline(tuple_filter, default_filler), "x_hil"),
+        ("x_il", make_pipeline(tuple_filter, default_filler), "x_il"),
+        ("indel", "passthrough", ["indel"]),
+        ("x_ic", make_pipeline(tuple_filter, ins_del_encode_filter), "x_ic"),
+        ("x_lm", left_motif_filter, "x_lm"),
+        ("x_rm", right_motif_filter, "x_rm"),
+        ("x_css", make_pipeline(tuple_filter, preprocessing.OrdinalEncoder()), "x_css"),
+        ("x_gcc", default_filler, ["x_gcc"]),
     ]
 
+    if vtype == "dv":
+        qual_column = "qual"
+        features.extend(["vaf", "ad"])
+        transform_list.extend(
+            [
+                ("vaf", tuple_filter, "vaf"),
+                ("ad", tuple_encode_doublet_df_transformer, "ad"),
+                ("mq0_ref", default_filler, ["mq0_ref"]),
+                ("mq0_alt", default_filler, ["mq0_alt"]),
+                ("ls_ref", default_filler, ["ls_ref"]),
+                ("ls_alt", default_filler, ["ls_alt"]),
+                ("rs_ref", default_filler, ["rs_ref"]),
+                ("rs_alt", default_filler, ["rs_alt"]),
+                ("mean_nm_ref", default_filler, ["mean_nm_ref"]),
+                ("median_nm_ref", default_filler, ["median_nm_ref"]),
+                ("mean_nm_alt", default_filler, ["mean_nm_alt"]),
+                ("median_nm_alt", default_filler, ["median_nm_alt"]),
+                ("mean_mis_ref", default_filler, ["mean_mis_ref"]),
+                ("median_mis_ref", default_filler, ["median_mis_ref"]),
+                ("mean_mis_alt", default_filler, ["mean_mis_alt"]),
+                ("median_mis_alt", default_filler, ["median_mis_alt"]),
+                ("qual", "passthrough", ["qual"]),
+            ]
+        )
     if vtype == "single_sample":
         qual_column = "qual"
-        features.extend(["qual", "ps", "ac", "ad", "gt", "xc", "gq", "pl", "af", "mleac", "mleaf"])
+        features.extend(
+            [
+                "qual",
+                "ps",
+                "ac",
+                "ad",
+                "gt",
+                "xc",
+                "gq",
+                "pl",
+                "af",
+                "mleac",
+                "mleaf",
+                "mq0c",
+                "scl",
+                "scr",
+                "hapcomp",
+            ]
+        )
         transform_list.extend(
             [
                 ("qual", "passthrough", ["qual"]),
-                ("ps", default_filler, ["ps"]),
-                ("ac", tuple_filter, "ac"),
-                ("ad", tuple_filter, "ad"),
+                ("fs", default_filler, ["fs"]),
+                ("qd", default_filler, ["qd"]),
+                ("mq", default_filler, ["mq"]),
+                ("an", default_filler, ["an"]),
+                ("baseqranksum", default_filler, ["baseqranksum"]),
+                ("excesshet", default_filler, ["excesshet"]),
+                ("mqranksum", default_filler, ["mqranksum"]),
+                ("readposranksum", default_filler, ["readposranksum"]),
+                ("ac", tuple_encode_df_transformer, "ac"),
+                ("ad", tuple_encode_doublet_df_transformer, "ad"),
                 ("gt", gt_filter, "gt"),
                 ("xc", default_filler, ["xc"]),
                 ("gq", default_filler, ["gq"]),
-                ("pl", tuple_filter, "pl"),
-                ("af", tuple_filter, "af"),
-                ("mleac", tuple_filter, "mleac"),
-                ("mleaf", tuple_filter, "mleaf"),
+                ("pl", tuple_uniform_encode_df_transformer, "pl"),
+                ("af", tuple_encode_df_transformer, "af"),
+                ("mleac", tuple_encode_df_transformer, "mleac"),
+                ("mleaf", tuple_encode_df_transformer, "mleaf"),
+                ("hapcomp", tuple_encode_df_transformer, "hapcomp"),
+                ("mq0c", tuple_encode_doublet_df_transformer, "mq0c"),
+                ("scl", tuple_encode_doublet_df_transformer, "scl"),
+                ("scr", tuple_encode_doublet_df_transformer, "scr"),
             ]
         )
-
+    elif vtype == "single_sample_old_vc":  # needs to just be able to work with old vc
+        qual_column = "qual"
+        features.extend(
+            [
+                "qual",
+                "ps",
+                "ac",
+                "ad",
+                "gt",
+                "gq",
+                "pl",
+                "af",
+                "mleac",
+                "mleaf",
+            ]
+        )
+        transform_list.extend(
+            [
+                ("qual", "passthrough", ["qual"]),
+                ("fs", default_filler, ["fs"]),
+                ("qd", default_filler, ["qd"]),
+                ("mq", default_filler, ["mq"]),
+                ("an", default_filler, ["an"]),
+                ("baseqranksum", default_filler, ["baseqranksum"]),
+                ("excesshet", default_filler, ["excesshet"]),
+                ("mqranksum", default_filler, ["mqranksum"]),
+                ("readposranksum", default_filler, ["readposranksum"]),
+                ("ac", tuple_encode_df_transformer, "ac"),
+                ("ad", tuple_encode_doublet_df_transformer, "ad"),
+                ("gt", gt_filter, "gt"),
+                ("gq", default_filler, ["gq"]),
+                ("pl", tuple_uniform_encode_df_transformer, "pl"),
+                ("af", tuple_encode_df_transformer, "af"),
+                ("mleac", tuple_encode_df_transformer, "mleac"),
+                ("mleaf", tuple_encode_df_transformer, "mleaf"),
+            ]
+        )
     elif vtype == "joint":
         qual_column = "qd"
+    elif vtype == "dv":
+        qual_column = "qual"
     else:
         raise ValueError("Unrecognized VCF type")
-
-    return features, transform_list, f"{qual_column}__{qual_column}"
+    qual_column = "qual"
+    return [features, transform_list, f"{qual_column}__{qual_column}"]
 
 
 def feature_prepare(vtype: VcfType, output_df: bool = False, annots: list = None) -> compose.ColumnTransformer:
@@ -568,10 +687,10 @@ def feature_prepare(vtype: VcfType, output_df: bool = False, annots: list = None
 
     Parameters
     ----------
+    vtype: VcfType
+        The type of the input vcf. Either "single_sample" or "joint"
     output_df: bool
         Should the transformer output dataframe (for threshold models) or numpy array (for trees)
-    vtype: string
-        The type of the input vcf. Either "single_sample" or "joint"
     annots: list, optional
         List of annotation features (will be transformed with "None")
 

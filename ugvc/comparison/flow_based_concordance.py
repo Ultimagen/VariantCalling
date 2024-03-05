@@ -137,7 +137,7 @@ def compare_two_sets_of_variants(
     set1_genotype_col: str,
     set2_genotype_col: str,
     variant_intervals: list,
-    given_haplotype_pairs: set = None,
+    given_haplotype_pairs: set | None = None,
 ) -> tuple[list, set]:
     """Asks how many hmer indels are needed to convert variants in set1 to variant in set2
 
@@ -190,7 +190,7 @@ def compare_two_sets_of_variants(
 
     chromosome = set(set1_variants["chrom"])
     if len(chromosome) == 0:
-        return [], {}
+        return [], set()
     assert len(chromosome) == 1, "All variants should belong to a single chromosome"
     chromosome = chromosome.pop()
 
@@ -460,7 +460,7 @@ def find_best_pairs_of_haplotypes(flows: list, flows_variant: list, best_diff: t
     return best_pairs
 
 
-def _apply_alleles_to_ref(chunks: list, combination: list) -> str:
+def _apply_alleles_to_ref(chunks: list, combination: list | tuple) -> str:
     "Concatenates reference sequences with allele sequences"
 
     return "".join([x[0] + x[1] for x in itertools.zip_longest(chunks, combination, fillvalue="")])
@@ -516,13 +516,13 @@ def _fix_zero_mer_indels(_df: pd.DataFrame) -> pd.DataFrame:
     return _df
 
 
-def get_reference_from_region(refidx: pyfaidx.Fasta, region: tuple) -> str:
+def get_reference_from_region(refidx: pyfaidx.FastaRecord | str, region: tuple) -> str:
     """Get the reference sequence of the region
 
     Parameters
     ----------
 
-    refidx : pyfaidx.Fasta
+    refidx : pyfaidx.FastaRecord or str
         Indexed fasta (`pyfaidx.Fasta`) - single chromosome
     region : tuple
         [start, end), 1-based coordinates of the region!
@@ -540,7 +540,7 @@ def _select_best_region(interval_starts: list, intervals: list, pos: int) -> tup
     found the interval with the highest distance of pos from the ends.
     """
 
-    pos1 = np.searchsorted(interval_starts, pos) - 1
+    pos1 = np.searchsorted(interval_starts, pos).astype(int) - 1
     best_distance = None
     best_index = -1
     while pos1 >= 0 and utils.isin(pos, intervals[pos1]):

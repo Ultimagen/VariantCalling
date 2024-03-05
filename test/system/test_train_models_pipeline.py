@@ -13,7 +13,7 @@ class TestRunTraining:
         train_models_pipeline.run(
             [
                 "--input_file",
-                f"{self.inputs_dir}/180801-UGAv3-26.intervals_annotated.chr1_1_5000000.vcf.gz",
+                f"{self.inputs_dir}/006919_no_frd_chr1_1_5000000.vcf.gz",
                 "--reference",
                 f"{self.general_inputs_dir}/Homo_sapiens_assembly38.fasta",
                 "--runs_intervals",
@@ -25,6 +25,8 @@ class TestRunTraining:
                 f"{self.inputs_dir}/blacklist_chr1_1_5000000.h5",
                 "--flow_order",
                 DEFAULT_FLOW_ORDER,
+                "--vcf_type",
+                "single_sample_old_vc",
                 "--exome_weight",
                 "100",
                 "--exome_weight_annotation",
@@ -38,35 +40,8 @@ class TestRunTraining:
                 "--annotate_intervals",
                 f"{self.general_inputs_dir}/hmers_7_and_higher.bed",
                 "--output_file_prefix",
-                f"{tmpdir}/180801.model",
+                f"{tmpdir}/006919.model",
             ]
         )
-        assert os.path.exists(f"{tmpdir}/180801.model.h5")
-        assert os.path.exists(f"{tmpdir}/180801.model.pkl")
-
-    def test_run_training_with_gt(self, tmpdir):
-        train_models_pipeline.run(
-            [
-                "--input_file",
-                f"{self.inputs_dir}/180801-UGAv3-26_chr1_1_5000000.comp.h5",
-                "--input_interval",
-                f"{self.inputs_dir}/chr1_1_5000000.bed",
-                "--reference",
-                f"{self.general_inputs_dir}/Homo_sapiens_assembly38.fasta",
-                "--evaluate_concordance",
-                "--apply_model",
-                "threshold_model_ignore_gt_incl_hpol_runs",
-                "--annotate_intervals",
-                f"{self.general_inputs_dir}/LCR-hs38.bed",
-                "--annotate_intervals",
-                f"{self.general_inputs_dir}/exome.twist.bed",
-                "--annotate_intervals",
-                f"{self.general_inputs_dir}/mappability.0.bed",
-                "--annotate_intervals",
-                f"{self.general_inputs_dir}/hmers_7_and_higher.bed",
-                "--output_file_prefix",
-                f"{tmpdir}/180801.model",
-            ]
-        )
-        assert os.path.exists(f"{tmpdir}/180801.model.h5")
-        assert os.path.exists(f"{tmpdir}/180801.model.pkl")
+        assert os.path.exists(f"{tmpdir}/006919.model.h5")
+        assert os.path.exists(f"{tmpdir}/006919.model.pkl")

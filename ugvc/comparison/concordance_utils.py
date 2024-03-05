@@ -14,7 +14,7 @@ from ugvc.filtering import variant_filtering_utils
 def read_hdf(
     file_name: str,
     key: str = "all",
-    skip_keys: collections.abc.Iterable[str] = (),
+    skip_keys: list[str] | None = None,
     columns_subset: list[str] | None = None,
 ) -> DataFrame:
     """
@@ -39,6 +39,8 @@ def read_hdf(
     -------
     data-frame or concat data-frame read from the h5 file according to key
     """
+    if skip_keys is None:
+        skip_keys = []
     if key == "all":
         with h5py.File(file_name, "r") as h5_file:
             keys = list(h5_file.keys())
@@ -47,23 +49,23 @@ def read_hdf(
                 keys.remove(k)
         dfs = []
         for k in keys:
-            tmpdf = pd.read_hdf(file_name, key=k)
+            tmpdf: DataFrame = DataFrame(pd.read_hdf(file_name, key=k))
             if columns_subset is not None:
                 tmpdf = tmpdf[[x for x in columns_subset if x in tmpdf.columns]]
             if tmpdf.shape[0] > 0:
                 dfs.append(tmpdf)
         return pd.concat(dfs)
     if key == "all_human_chrs":
-        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23)) + ["X", "Y"]]
+        dfs = [DataFrame(pd.read_hdf(file_name, key=f"chr{x}")) for x in list(range(1, 23)) + ["X", "Y"]]
         return pd.concat(dfs)
     if key == "all_hg19_human_chrs":
-        dfs = [pd.read_hdf(file_name, key=list(range(1, 23)) + ["X", "Y"])]
+        dfs = [DataFrame(pd.read_hdf(file_name, key=x)) for x in list(range(1, 23)) + ["X", "Y"]]
         return pd.concat(dfs)
     if key == "all_somatic_chrs":
-        dfs = [pd.read_hdf(file_name, key=f"chr{x}") for x in list(range(1, 23))]
+        dfs = [DataFrame(pd.read_hdf(file_name, key=f"chr{x}")) for x in list(range(1, 23))]
         return pd.concat(dfs)
     # If not one of the special keys:
-    return pd.read_hdf(file_name, key=key)
+    return DataFrame(pd.read_hdf(file_name, key=key))
 
 
 def get_h5_keys(file_name: str) -> list[str]:
@@ -86,7 +88,7 @@ def get_h5_keys(file_name: str) -> list[str]:
 def calc_accuracy_metrics(
     df: DataFrame,
     classify_column_name: str,
-    ignored_filters: collections.abc.Iterable[str] = (),
+    ignored_filters: collections.Iterable[str] = (),
     group_testing_column_name: str | None = None,
 ) -> DataFrame:
     """
@@ -249,7 +251,7 @@ def validate_preprocess_concordance(df: DataFrame, group_testing_column_name: st
 
 
 def initialize_trivial_classifier(
-    ignored_filters: collections.abc.Iterable[str],
+    ignored_filters: collections.Iterable[str],
 ) -> variant_filtering_utils.MaskedHierarchicalModel:
     """
     initialize a classifier that will be used to simply apply filter column on the variants
