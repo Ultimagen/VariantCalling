@@ -25,14 +25,20 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
     list
         List of list of indices that generate the co-genotyped sets
     """
+    # first we generate a list of multiallelic locations
     multiallelic_locations = set(np.where(df["alleles"].apply(len) > 2)[0])
     del_length = df["alleles"].apply(lambda x: max(len(x[0]) - len(y) for y in x))
     current_span = 0
     results = []
     cluster = []
     for i in range(df.shape[0]):
+        # The cluster is a long deletion with the variants that it spans (in which case they
+        # should contain SPAN_DEL allele)
+
+        # If there is no suspicious spanning deletion and the variant is not a deletion - skip
         if len(cluster) == 0 and del_length[i] == 0:
             continue
+        # if we are out of the span of the current deletion, we need to close the cluster
         if df.iloc[i]["pos"] > current_span:
             if len(cluster) > 1:
                 for c in cluster:
@@ -40,13 +46,17 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
                         multiallelic_locations.remove(c)
                 results.append(cluster[:])
             cluster = []
+        # if we start a new deletion
         if len(cluster) == 0:
             cluster.append(i)
+        # or if we are in a deletion and the variant contains SPAN_DEL
         elif len(cluster) > 0 and SPAN_DEL in df.iloc[i]["alleles"]:
             cluster.append(i)
+        # case when a deletion spans another deletion
         current_span = max(current_span, del_length[i] + df.iloc[i]["pos"])
     for m in multiallelic_locations:
         results.append([m])
+    # sorting the list of lists according to the position. Not sure how critical this is.
     sorted_results = sorted(results)
     return sorted_results
 
@@ -56,7 +66,12 @@ def split_multiallelic_variants(
     call_vcf_header: pysam.VariantHeader | pysam.VariantFile | str,
     ref: pyfaidx.FastaRecord,
 ) -> pd.DataFrame:
-    """Splits multiallelic variants into multiple rows
+    """Splits multiallelic variants into multiple rows. It is hard to train a model that would predict
+    a genotype of (1/2). So we split the multiallelic variant into two rows: one genotypes the REF with the
+    first (strongest ALT) and basically asks if there are REF reads. The second genotypes the second ALT with the
+    first ALT as the reference (basically asks if there are reads supporting the second ALT).
+
+    Note that we do not treat cases when there are more than two alternative alleles.
 
     Parameters
     ----------
@@ -70,7 +85,10 @@ def split_multiallelic_variants(
     Returns
     -------
     pd.DataFrame
-        A dataframe with the same columns as the training set dataframe
+        A dataframe with the same columns as the input Series index (input Series are
+        originally a row in the training set dataframe). The multiallielic variant will be
+        split into multiple rows that will first genotype REF and ALT1, and then ALT1 and ALT2.
+        We do not genotype more than two alleles of the multiallelic variant.
     """
     record_to_nbr_dict = vcftools.header_record_number(call_vcf_header)
     ignore_columns = ["gt_vcfeval", "alleles_vcfeval", "label", "sync"]
