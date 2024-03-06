@@ -20,7 +20,7 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 def calculate_labeled_vcf(
-    call_vcf: str, vcfeval_vcf: str, contig: str, custom_info_fields: list[str] | None
+    call_vcf: str, vcfeval_vcf: str, contig: str, custom_info_fields: list[str] | None = None
 ) -> pd.DataFrame:
     """Receives a VCF and a result of its comparison (vcfeval) and returns a joint vcf ready to create training labels.
     The function also prints some statistics about the join, to help debugging.
