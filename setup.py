@@ -18,6 +18,7 @@ setup(
         "ugvc/pipelines/mrd/featuremap_to_dataframe.py",
         "ugvc/pipelines/mrd/intersect_featuremap_with_signature.py",
         "ugvc/pipelines/mrd/prepare_data_from_mrd_pipeline.py",
+        "ugvc/pipelines/training_prep_pipeline.py",
         "ugvc/pipelines/train_models_pipeline.py",
         "ugvc/pipelines/filter_variants_pipeline.py",
         "ugvc/pipelines/evaluate_concordance.py",
