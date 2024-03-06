@@ -19,7 +19,9 @@ from ugvc.vcfbed import vcftools
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
-def calculate_labeled_vcf(call_vcf: str, vcfeval_vcf: str, contig: str) -> pd.DataFrame:
+def calculate_labeled_vcf(
+    call_vcf: str, vcfeval_vcf: str, contig: str, custom_info_fields: list[str] | None
+) -> pd.DataFrame:
     """Receives a VCF and a result of its comparison (vcfeval) and returns a joint vcf ready to create training labels.
     The function also prints some statistics about the join, to help debugging.
 
@@ -31,13 +33,14 @@ def calculate_labeled_vcf(call_vcf: str, vcfeval_vcf: str, contig: str) -> pd.Da
         VCFEVAL VCF (vcfeval should run in 'combine' mode)
     contig : str
         Chromosome to work on
-
+    custom_info_fields: list, optional
+        List of custom INFO fields to read from the VCF
     Returns
     -------
     pd.DataFrame
         Joined VCF, vcfeval coluns will get a suffix _vcfeval
     """
-    df_original = vcftools.get_vcf_df(call_vcf, chromosome=contig)
+    df_original = vcftools.get_vcf_df(call_vcf, chromosome=contig, custom_info_fields=custom_info_fields)
     df_vcfeval = vcftools.get_vcf_df(vcfeval_vcf, chromosome=contig)
 
     joint_df = df_original.join(df_vcfeval, rsuffix="_vcfeval")
@@ -138,6 +141,7 @@ def prepare_ground_truth(
     output_h5: str,
     chromosome: list | None = None,
     test_split: str | None = None,
+    custom_info_fields: list[str] | None = None,
 ) -> None:
     """Generates a training set dataframe from callset and the ground truth VCF. The following steps are peformed:
     1. Run vcfeval to compare the callset to the ground truth
@@ -170,7 +174,8 @@ def prepare_ground_truth(
     test_split : str, optional
         The test set will be either single chromosome (str, will be saved in a separate file)
         or None (in which case no test set is produced)
-
+    custom_info_fields: list, optional
+        List of custom INFO annotations to read
     """
     pipeline = vpu.VcfPipelineUtils()
     vcfeval_output = pipeline.run_vcfeval_concordance(
@@ -184,7 +189,9 @@ def prepare_ground_truth(
     if chromosome is None:
         chromosome = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]
     for chrom in tqdm.tqdm(chromosome):
-        labeled_df = calculate_labeled_vcf(input_vcf, vcfeval_output, contig=chrom)
+        labeled_df = calculate_labeled_vcf(
+            input_vcf, vcfeval_output, contig=chrom, custom_info_fields=custom_info_fields
+        )
         labels = calculate_labels(labeled_df)
         labeled_df["label"] = labels
         labeled_df = process_multiallelic_spandel(labeled_df, reference, chrom, input_vcf)
@@ -285,7 +292,12 @@ def _split_multiallelic_if_necessary(
 
 
 def label_with_approximate_gt(
-    vcf: str, blacklist: str, output_file: str, chromosomes_to_read: list | None = None, test_split: str | None = None
+    vcf: str,
+    blacklist: str,
+    output_file: str,
+    chromosomes_to_read: list | None = None,
+    test_split: str | None = None,
+    interval_annotations: list | None = None,
 ) -> None:
     """Use approximate ground truth to generate labels. Specifically, all variants that belong to the blacklist are
     considered false positives, all variants that have "id" tag are considered true positives.
@@ -305,6 +317,8 @@ def label_with_approximate_gt(
         List of chromosomes to operate on, by default None
     test_split : str, optional
         Chromosome to put aside as test
+    interval_annotations: list, optional
+        The names of interval annotations to read from the VCF
     """
     blacklist_df = pd.read_hdf(blacklist, key="blacklist")
     blacklist_df.index = pd.MultiIndex.from_tuples(blacklist_df.index)
@@ -313,7 +327,9 @@ def label_with_approximate_gt(
         chromosomes_to_read = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]
 
     for chromosome in tqdm.tqdm(chromosomes_to_read):
-        df = vcftools.get_vcf_df(vcf, chromosome=chromosome)
+        if interval_annotations is None:
+            interval_annotations = []
+        df = vcftools.get_vcf_df(vcf, chromosome=chromosome, custom_info_fields=interval_annotations)
         df = df.merge(blacklist_df, left_index=True, right_index=True, how="left")
         df["bl"].fillna(False, inplace=True)
         classify_clm = "label"

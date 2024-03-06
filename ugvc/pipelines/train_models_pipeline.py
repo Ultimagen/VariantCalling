@@ -84,6 +84,7 @@ def run(argv: list[str]):
     args = parse_args(argv)
     logger.setLevel(getattr(logging, args.verbosity))
     logger.debug(args)
+    args.annotation_columns = [x.lower() for x in args.annotation_columns]
     try:
         features_to_extract = (
             transformers.get_needed_features(transformers.VcfType.SINGLE_SAMPLE) + args.annotation_columns + ["label"]

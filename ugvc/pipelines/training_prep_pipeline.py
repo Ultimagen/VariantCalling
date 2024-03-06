@@ -43,6 +43,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     ap_var.add_argument("--hcr", help="High confidence regions BED file", type=str, required=False)
     ap_var.add_argument(
+        "--interval_annotations",
+        help="List of custom interval annotations in the VCF",
+        required=False,
+        type=str,
+        nargs="+",
+    )
+    ap_var.add_argument(
         "--contigs_to_read",
         help="List of chromosomes to read the data from, default: all",
         nargs="+",
@@ -78,6 +85,7 @@ def run(argv: list[str]):
             args.output_prefix + ".h5",
             args.contigs_to_read,
             args.contig_for_test,
+            custom_info_fields=args.interval_annotations,
         )
     elif args.gt_type == tprep_constants.GtType.APPROXIMATE:
         assert args.blacklist is not None
@@ -85,7 +93,12 @@ def run(argv: list[str]):
         assert args.reference is None
         assert args.hcr is None
         training_prep.label_with_approximate_gt(
-            args.call_vcf, args.blacklist, args.output_prefix + ".h5", args.contigs_to_read, args.contig_for_test
+            args.call_vcf,
+            args.blacklist,
+            args.output_prefix + ".h5",
+            args.contigs_to_read,
+            args.contig_for_test,
+            interval_annotations=args.interval_annotations,
         )
     logger.info("Prepare training data finished")
     return 0
