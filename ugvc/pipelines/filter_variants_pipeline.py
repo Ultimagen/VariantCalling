@@ -40,12 +40,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     ap_var.add_argument("--model_file", help="Pickle model file", type=str, required=False)
     ap_var.add_argument("--blacklist", help="Blacklist file", type=str, required=False)
     ap_var.add_argument(
-        "--interval_annotations",
-        help="Names of the interval annotations in the INFO of the VCF",
-        type=str,
-        nargs="+",
+        "--custom_annotations",
+        help="Custom INFO annotations to read from the VCF (multiple possible)",
         required=False,
+        type=str,
+        default=None,
+        action="append",
     )
+
     ap_var.add_argument(
         "--blacklist_cg_insertions",
         help="Should CCG/GGC insertions be filtered out?",
@@ -68,8 +70,7 @@ def run(argv: list[str]):
     logger.info("Reading VCF")
 
     try:
-        df = vcftools.get_vcf_df(args.input_file, custom_info_fields=args.interval_annotations)
-
+        df = vcftools.get_vcf_df(args.input_file, custom_info_fields=args.custom_annotations)
         if args.model_file is not None:
             with open(args.model_file, "rb") as model_file:
                 mf = pickle.load(model_file)

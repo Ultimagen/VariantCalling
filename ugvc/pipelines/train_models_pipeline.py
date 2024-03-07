@@ -63,7 +63,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
 
     ap_var.add_argument(
-        "--annotation_columns", help="Annotation columns to use", type=str, nargs="*", required=False, default=[]
+        "--custom_annotations",
+        help="Custom INFO annotations in the training VCF (multiple possible)",
+        required=False,
+        type=str,
+        default=None,
+        action="append",
     )
 
     ap_var.add_argument(
@@ -84,10 +89,10 @@ def run(argv: list[str]):
     args = parse_args(argv)
     logger.setLevel(getattr(logging, args.verbosity))
     logger.debug(args)
-    args.annotation_columns = [x.lower() for x in args.annotation_columns]
+    args.custom_annotations = [x.lower() for x in args.custom_annotations]
     try:
         features_to_extract = (
-            transformers.get_needed_features(transformers.VcfType.SINGLE_SAMPLE) + args.annotation_columns + ["label"]
+            transformers.get_needed_features(transformers.VcfType.SINGLE_SAMPLE) + args.custom_annotations + ["label"]
         )
         # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         dfs = []
@@ -102,7 +107,7 @@ def run(argv: list[str]):
 
         # Train the model
         model, transformer = variant_filtering_utils.train_model(
-            train_df, gt_type=args.gt_type, vtype=VcfType.SINGLE_SAMPLE, annots=args.annotation_columns
+            train_df, gt_type=args.gt_type, vtype=VcfType.SINGLE_SAMPLE, annots=args.custom_annotations
         )
 
         dfs = []
