@@ -89,7 +89,9 @@ def run(argv: list[str]):
     args = parse_args(argv)
     logger.setLevel(getattr(logging, args.verbosity))
     logger.debug(args)
-    args.custom_annotations = [x.lower() for x in args.custom_annotations]
+    args.custom_annotations = (
+        [x.lower() for x in args.custom_annotations] if args.custom_annotations is not None else []
+    )
     try:
         features_to_extract = (
             transformers.get_needed_features(transformers.VcfType.SINGLE_SAMPLE) + args.custom_annotations + ["label"]
