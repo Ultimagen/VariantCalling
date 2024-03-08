@@ -177,7 +177,7 @@ def eval_model(
     """
     df = df.copy()
     predictions, probs = apply_model(df, model, transformer)
-    phred_pls = math_utils.phred(probs)
+    phred_pls = -math_utils.phred(probs)
     sorted_pls = np.sort(phred_pls, axis=1)
     gqs = sorted_pls[:, -1] - sorted_pls[:, -2]
     quals = phred_pls[:, 1:].max(axis=1) - phred_pls[:, 0]

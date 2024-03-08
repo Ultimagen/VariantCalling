@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import itertools
 import logging
 import pickle
 import subprocess
@@ -54,6 +55,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
     )
     ap_var.add_argument("--output_file", help="Output VCF file", type=str, required=True)
+    ap_var.add_argument(
+        "--limit_to_contigs", help="Limit filtering to these contigs", nargs="+", type=str, default=None
+    )
     return ap_var.parse_args(argv)
 
 
@@ -70,7 +74,13 @@ def run(argv: list[str]):
     logger.info("Reading VCF")
 
     try:
-        df = vcftools.get_vcf_df(args.input_file, custom_info_fields=args.custom_annotations)
+        if args.limit_to_contigs is None:
+            df = vcftools.get_vcf_df(args.input_file, custom_info_fields=args.custom_annotations)
+        else:
+            df = pd.concat(
+                (vcftools.get_vcf_df(args.input_file, chromosome=x, custom_info_fields=args.custom_annotations))
+                for x in args.limit_to_contigs
+            )
         if args.model_file is not None:
             with open(args.model_file, "rb") as model_file:
                 mf = pickle.load(model_file)
@@ -96,7 +106,7 @@ def run(argv: list[str]):
         if args.model_file is not None:
             predictions, scores = variant_filtering_utils.apply_model(df, model, transformer)
             phred_pls = math_utils.phred(scores)
-            quals = phred_pls[:, 1:].max(axis=1) - phred_pls[:, 0]
+            quals = -phred_pls[:, 1:].max(axis=1) + phred_pls[:, 0]
             quals = np.clip(quals + 30, 0, 100)
 
         logger.info("Writing")
@@ -120,7 +130,11 @@ def run(argv: list[str]):
             if args.model_file is not None:
                 protected_add(hdr.info, "TREE_SCORE", 1, "Float", "Filtering score")
             with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
-                for i, rec in tqdm.tqdm(enumerate(infile)):
+                if args.limit_to_contigs is None:
+                    it = infile
+                else:
+                    it = itertools.chain(*(infile.fetch(x) for x in args.limit_to_contigs))
+                for i, rec in tqdm.tqdm(enumerate(it)):
                     if args.model_file is not None:
                         if predictions[i] == 0:
                             if "PASS" in rec.filter.keys():
