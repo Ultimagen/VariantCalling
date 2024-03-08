@@ -110,7 +110,7 @@ def run(argv: list[str]):
             args.output_prefix + ".h5",
             args.contigs_to_read,
             args.contig_for_test,
-            interval_annotations=args.custom_annotations,
+            custom_info_fields=args.custom_annotations,
         )
     logger.info("Prepare training data finished")
     return 0

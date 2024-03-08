@@ -298,7 +298,7 @@ def label_with_approximate_gt(
     output_file: str,
     chromosomes_to_read: list | None = None,
     test_split: str | None = None,
-    interval_annotations: list | None = None,
+    custom_info_fields: list | None = None,
 ) -> None:
     """Use approximate ground truth to generate labels. Specifically, all variants that belong to the blacklist are
     considered false positives, all variants that have "id" tag are considered true positives.
@@ -318,7 +318,7 @@ def label_with_approximate_gt(
         List of chromosomes to operate on, by default None
     test_split : str, optional
         Chromosome to put aside as test
-    interval_annotations: list, optional
+    custom_info_fields: list, optional
         The names of interval annotations to read from the VCF
     """
     logger.info("Training data with approximate GT")
@@ -331,9 +331,9 @@ def label_with_approximate_gt(
         chromosomes_to_read = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]
     logger.info(f"Reading VCF from {len(chromosomes_to_read)} chromosomes")
     for chromosome in tqdm.tqdm(chromosomes_to_read):
-        if interval_annotations is None:
-            interval_annotations = []
-        df = vcftools.get_vcf_df(vcf, chromosome=chromosome, custom_info_fields=interval_annotations)
+        if custom_info_fields is None:
+            custom_info_fields = []
+        df = vcftools.get_vcf_df(vcf, chromosome=chromosome, custom_info_fields=custom_info_fields)
         df = df.merge(blacklist_df, left_index=True, right_index=True, how="left")
         df["bl"].fillna(False, inplace=True)
         classify_clm = "label"
