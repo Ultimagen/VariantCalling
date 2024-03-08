@@ -180,7 +180,9 @@ def get_vcf_df(
         "NMC",
         "BG_AD",
     ]
-    columns += custom_info_fields
+    for cf in custom_info_fields:
+        if cf not in columns:
+            columns.append(cf)
     if scoring_field is not None and scoring_field not in columns:
         columns.append(scoring_field)
 
