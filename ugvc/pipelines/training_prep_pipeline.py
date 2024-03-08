@@ -21,6 +21,7 @@ import argparse
 import logging
 import sys
 
+from ugvc import logger
 from ugvc.filtering import tprep_constants, training_prep
 
 
@@ -65,14 +66,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=False,
     )
     ap_var.add_argument("--output_prefix", help="Output HDF5 files prefix", type=str, required=True)
+
+    ap_var.add_argument(
+        "--verbosity",
+        help="Verbosity: ERROR, WARNING, INFO, DEBUG",
+        required=False,
+        default="INFO",
+    )
+
     return ap_var.parse_args(argv)
 
 
 def run(argv: list[str]):
     """Run function"""
     args = parse_args(argv)
-    logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
-    logger = logging.getLogger(__name__)
+    logger.setLevel(getattr(logging, args.verbosity))
+    logger.debug(args)
+
     logger.info("Prepare training data started")
     if args.gt_type == tprep_constants.GtType.EXACT:
         assert args.blacklist is None

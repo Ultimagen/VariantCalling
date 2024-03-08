@@ -17,6 +17,7 @@ from ugvc.filtering.tprep_constants import IGNORE, MISS
 from ugvc.vcfbed import vcftools
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
+warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
 
 def calculate_labeled_vcf(
@@ -320,12 +321,15 @@ def label_with_approximate_gt(
     interval_annotations: list, optional
         The names of interval annotations to read from the VCF
     """
+    logger.info("Training data with approximate GT")
     blacklist_df = pd.read_hdf(blacklist, key="blacklist")
+    logger.info("Finished reading blacklist")
     blacklist_df.index = pd.MultiIndex.from_tuples(blacklist_df.index)
+    logger.debug("Coverted blacklist index to MultiIndex")
 
     if chromosomes_to_read is None:
         chromosomes_to_read = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]
-
+    logger.info(f"Reading VCF from {len(chromosomes_to_read)} chromosomes")
     for chromosome in tqdm.tqdm(chromosomes_to_read):
         if interval_annotations is None:
             interval_annotations = []
@@ -334,14 +338,15 @@ def label_with_approximate_gt(
         df["bl"].fillna(False, inplace=True)
         classify_clm = "label"
 
-        df[classify_clm] = np.nan
-        df[classify_clm].loc[df["bl"]] = 0
-        df[classify_clm].loc[~df["id"].isna()] = 1
-        df = df[df[classify_clm] != "unknown"]
+        df[classify_clm] = -1
+        df.loc[df["bl"], classify_clm] = 0
+        df.loc[~(df["id"].isna()), classify_clm] = 1
+        df = df[df[classify_clm] != -1]
+
         df.drop("bl", axis=1, inplace=True)
         if chromosome == test_split:
             dirname = Path(output_file).parent
             stemname = Path(output_file).stem
-            df.to_hdf((dirname / Path(stemname + "_test")).with_suffix("h5"), key=chromosome, mode="a")
+            df.to_hdf((dirname / Path(stemname + "_test")).with_suffix(".h5"), key=chromosome, mode="a")
         else:
             df.to_hdf(output_file, key=chromosome, mode="a")
