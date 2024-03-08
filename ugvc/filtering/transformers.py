@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterable
 
 import numpy as np
@@ -90,7 +91,7 @@ def ins_del_encode(x, encode_dct=INS_DEL_ENCODE):  # pylint: disable=dangerous-d
     return encode_dct[x]
 
 
-def get_needed_features(vtype: VcfType = VcfType.SINGLE_SAMPLE) -> list:
+def get_needed_features(vtype: VcfType = VcfType.SINGLE_SAMPLE, custom_annotations: list | None = None) -> list:
     """Get the list of features that are needed for the model
 
     Parameters
@@ -98,22 +99,27 @@ def get_needed_features(vtype: VcfType = VcfType.SINGLE_SAMPLE) -> list:
     vtype: string
         The type of the input vcf. Either "single_sample", "joint" or "dv"
 
+    custom_annotations: list, optional
+        Additional custom (non-required) annotations. Some will have pre-registered custom transforms
     Returns
     -------
     list of features
     """
-    features, _, _ = modify_features_based_on_vcf_type(vtype)
+    features, _, _ = modify_features_based_on_vcf_type(vtype, custom_annotations)
     return features
 
 
-def modify_features_based_on_vcf_type(vtype: VcfType = VcfType.SINGLE_SAMPLE):
+def modify_features_based_on_vcf_type(
+    vtype: VcfType = VcfType.SINGLE_SAMPLE, custom_annotations: list | None = None
+) -> tuple[list, list, str]:
     """Modify training features based on the type of the vcf
 
     Parameters
     ----------
     vtype: string
         The type of the input vcf. Either "single_sample", "joint" or "dv"
-
+    custom_annotations: list, optional
+        Additional custom (non-required) annotations. Some will have pre-registered custom transforms
     Returns
     -------
     list of features, list of transform, column used for qual (qual or qd)
@@ -123,8 +129,6 @@ def modify_features_based_on_vcf_type(vtype: VcfType = VcfType.SINGLE_SAMPLE):
     ValueError
         If vcf is of unrecognized type.
     """
-
-    default_filler = impute.SimpleImputer(strategy="constant", fill_value=0)
 
     def tuple_encode_df(s):
         return pd.DataFrame(np.array([tuple_break(y) for y in s]).reshape((-1, 1)), index=s.index)
@@ -153,6 +157,7 @@ def modify_features_based_on_vcf_type(vtype: VcfType = VcfType.SINGLE_SAMPLE):
     def ins_del_encode_df(df):
         return pd.DataFrame(np.array(df[0].apply(ins_del_encode)).reshape(-1, 1), index=df.index)
 
+    default_filler = impute.SimpleImputer(strategy="constant", fill_value=0)
     tuple_filter = preprocessing.FunctionTransformer(tuple_encode_df)
     ins_del_encode_filter = preprocessing.FunctionTransformer(ins_del_encode_df)
     tuple_encode_df_transformer = preprocessing.FunctionTransformer(tuple_encode_df)
@@ -236,19 +241,42 @@ def modify_features_based_on_vcf_type(vtype: VcfType = VcfType.SINGLE_SAMPLE):
     else:
         raise ValueError("Unrecognized VCF type")
 
+    # Taking care of custom annotations
+    # In general we assume that custom annotations are TRUE/NONE
+    # Some custom annotation require special treatment and this is defined in custom_fields_dict
+    default_transformer = make_pipeline(
+        impute.SimpleImputer(strategy="constant", missing_values=None, fill_value="FALSE"),
+        preprocessing.OrdinalEncoder(),
+    )
+
+    def convert_to_numeric(df):
+        return pd.DataFrame(pd.to_numeric(pd.Series(df.iloc[:, 0])))
+
+    convert_to_numeric_transformer = preprocessing.FunctionTransformer(convert_to_numeric)
+
+    long_hmer_transformer = make_pipeline(
+        impute.SimpleImputer(strategy="constant", fill_value="0", missing_values=None), convert_to_numeric_transformer
+    )
+
+    if custom_annotations is None:
+        custom_annotations = []
+    custom_fields_dict = defaultdict(lambda: default_transformer)
+    custom_fields_dict["long_hmer"] = long_hmer_transformer
+    for an in custom_annotations:
+        features.append(an)
+        transform_list.append((an, custom_fields_dict[an], [an]))
+
     qual_column = "qual"
-    return [features, transform_list, f"{qual_column}__{qual_column}"]
+    return features, transform_list, f"{qual_column}__{qual_column}"
 
 
-def get_transformer(vtype: VcfType, output_df: bool = False, annots: list | None = None) -> compose.ColumnTransformer:
+def get_transformer(vtype: VcfType, annots: list | None = None) -> compose.ColumnTransformer:
     """Prepare dataframe for analysis (encode features, normalize etc.)
 
     Parameters
     ----------
     vtype: VcfType
         The type of the input vcf. Either "single_sample" or "joint"
-    output_df: bool
-        Should the transformer output dataframe (for threshold models) or numpy array (for trees)
     annots: list, optional
         List of annotation features (will be transformed with "None")
 
@@ -257,16 +285,9 @@ def get_transformer(vtype: VcfType, output_df: bool = False, annots: list | None
     compose.ColumnTransformer
         Transformer of the dataframe to dataframe
     """
-    _, transform_list, _ = modify_features_based_on_vcf_type(vtype)
-    if annots is None:
-        annots = []
-    for annot in annots:
-        transform_list.append((annot, "passthrough", [annot]))
-    if output_df:
-        transformer = compose.ColumnTransformer(transform_list)
-        transformer.set_output(transform="pandas")
-    else:
-        transformer = compose.ColumnTransformer(transform_list)
+    _, transform_list, _ = modify_features_based_on_vcf_type(vtype, annots)
+    transformer = compose.ColumnTransformer(transform_list)
+    transformer.set_output(transform="pandas")
 
     return transformer
 

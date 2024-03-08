@@ -43,7 +43,7 @@ def train_model(
     ValueError
         If the gt_type is not recognized
     """
-    transformer = transformers.get_transformer(vtype, output_df=True, annots=annots)
+    transformer = transformers.get_transformer(vtype, annots=annots)
     if gt_type == GtType.APPROXIMATE:
         select_train = concordance["label"].apply(lambda x: x in {0, 1})
     elif gt_type == GtType.EXACT:
@@ -58,9 +58,10 @@ def train_model(
     else:
         raise ValueError("Unknown gt_type")
 
-    logger.info(f"Training model on {len(df_train)} samples")
+    logger.info(f"Training model on {len(df_train)} samples: start")
     x_train_df = pd.DataFrame(transformer.fit_transform(df_train))
     _validate_data(x_train_df)
+    logger.info("Transform: done")
     clf = xgboost.XGBClassifier(
         n_estimators=100,
         learning_rate=0.15,

@@ -89,38 +89,43 @@ def run(argv: list[str]):
     args = parse_args(argv)
     logger.setLevel(getattr(logging, args.verbosity))
     logger.debug(args)
+    logger.info("Training pipeline: START")
     args.custom_annotations = (
         [x.lower() for x in args.custom_annotations] if args.custom_annotations is not None else []
     )
     try:
-        features_to_extract = (
-            transformers.get_needed_features(transformers.VcfType.SINGLE_SAMPLE) + args.custom_annotations + ["label"]
-        )
+        features_to_extract = transformers.get_needed_features(
+            transformers.VcfType.SINGLE_SAMPLE, args.custom_annotations
+        ) + ["label"]
+        logger.debug(f"(len(features_to_extract)={len(features_to_extract)}")
         # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         dfs = []
         for input_file in args.train_dfs:
             df = concordance_utils.read_hdf(input_file, columns_subset=features_to_extract)
             dfs.append(df)
         train_df = pd.concat(dfs)
-
-        # Reset the FILTER and TREE_SCORE fields
-        train_df["filter"] = ""
-        train_df["tree_score"] = None
+        logger.info("Read training data: success")
 
         # Train the model
+        logger.info("Model training: start")
         model, transformer = variant_filtering_utils.train_model(
             train_df, gt_type=args.gt_type, vtype=VcfType.SINGLE_SAMPLE, annots=args.custom_annotations
         )
-
+        logger.info("Model training: done")
+        logger.info("Read test data: start")
         dfs = []
         for input_file in args.test_dfs:
             df = concordance_utils.read_hdf(input_file, columns_subset=features_to_extract)
             dfs.append(df)
         test_df = pd.concat(dfs)
+        logger.info("Read test data: done")
 
+        logger.info("Evaluate training: start")
         train_results = variant_filtering_utils.eval_model(train_df, model, transformer)
+        logger.info("Evaluate training: done")
+        logger.info("Evaluate test: start")
         test_results = variant_filtering_utils.eval_model(test_df, model, transformer)
-
+        logger.info("Evaluate test: done")
         results_dict = {}
         results_dict["transformer"] = transformer
         results_dict["xgb"] = model
