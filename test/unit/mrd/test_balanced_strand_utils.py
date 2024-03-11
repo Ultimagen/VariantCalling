@@ -61,6 +61,7 @@ def test_read_balanced_strand_ppmSeq_v2_trimmer_histogram(tmpdir):
         BalancedStrandAdapterVersions.LA_v7,
         trimmer_histogram_ppmSeq_v2_csv,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
     df_trimmer_histogram_from_parquet = pd.read_parquet(tmp_out_path)
     df_trimmer_histogram_expected = pd.read_parquet(parsed_histogram_parquet_ppmSeq_v2)
@@ -80,6 +81,7 @@ def test_read_balanced_strand_LAv5and6_trimmer_histogram(tmpdir):
         BalancedStrandAdapterVersions.LA_v5and6,
         input_histogram_LAv5and6_csv,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
     df_trimmer_histogram_from_parquet = pd.read_parquet(tmp_out_path)
     df_trimmer_histogram_expected = pd.read_parquet(parsed_histogram_LAv5and6_parquet)
@@ -100,6 +102,7 @@ def test_read_balanced_strand_LAv5_trimmer_histogram(tmpdir):
         BalancedStrandAdapterVersions.LA_v5,
         input_histogram_LAv5_csv,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
     df_trimmer_histogram_from_parquet = pd.read_parquet(tmp_out_path)
     df_trimmer_histogram_expected = pd.read_parquet(parsed_histogram_LAv5_parquet)
@@ -119,6 +122,7 @@ def test_plot_trimmer_histogram(tmpdir):
         BalancedStrandAdapterVersions.LA_v5,
         input_histogram_LAv5_csv,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
     plot_trimmer_histogram(
         BalancedStrandAdapterVersions.LA_v5,
@@ -129,6 +133,7 @@ def test_plot_trimmer_histogram(tmpdir):
         BalancedStrandAdapterVersions.LA_v5and6,
         input_histogram_LAv5and6_csv,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
     plot_trimmer_histogram(
         BalancedStrandAdapterVersions.LA_v5and6,
@@ -144,6 +149,7 @@ def test_collect_statistics(tmpdir):
         trimmer_histogram_csv=input_histogram_LAv5and6_csv,
         sorter_stats_csv=sorter_stats_LAv5and6_csv,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
 
     f1 = collected_stats_LAv5and6_h5
@@ -164,6 +170,7 @@ def test_collect_statistics(tmpdir):
         trimmer_histogram_csv=input_histogram_LAv5_csv,
         sorter_stats_csv=sorter_stats_LAv5and6_csv,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
     f1 = collected_stats_LAv5_h5
     f2 = tmp_out_path
@@ -262,6 +269,7 @@ def test_balanced_strand_analysis(tmpdir):
         output_path=tmpdir,
         output_basename="TEST_LAv56",
         collect_statistics_kwargs={"input_material_ng": 10},
+        legacy_histogram_column_names=True,
     )
 
     balanced_strand_analysis(
@@ -271,4 +279,5 @@ def test_balanced_strand_analysis(tmpdir):
         output_path=tmpdir,
         output_basename="TEST_LAv5",
         collect_statistics_kwargs={"input_material_ng": 10},
+        legacy_histogram_column_names=True,
     )

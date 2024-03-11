@@ -54,6 +54,12 @@ class TrimmerSegmentTags(Enum):
     STEM_END = "s2"  # when native adapter trimming was done on-tool a modified format is used
 
 
+class TrimmerHistogramSuffixes(Enum):
+    NAME = "_name"
+    LENGTH = "_length"
+    PATTERN_FW = "_pattern_fw"
+
+
 class BalancedCategories(Enum):
     # Category names
     MIXED = "MIXED"
@@ -310,6 +316,7 @@ def read_balanced_strand_trimmer_histogram(
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
     sample_name: str = "",
     output_filename: str = None,
+    legacy_histogram_column_names: bool = False,
 ) -> pd.DataFrame:
     """
     Read a balanced ePCR trimmer histogram file and add columns for strand ratio and strand ratio category
@@ -338,6 +345,8 @@ def read_balanced_strand_trimmer_histogram(
         sample name to use as index, by default ""
     output_filename : str, optional
         path to save dataframe to in parquet format, by default None (not saved).
+    legacy_histogram_column_names : bool, optional
+        use legacy column names without suffixes, by default False
 
     Returns
     -------
@@ -355,6 +364,34 @@ def read_balanced_strand_trimmer_histogram(
         columns={TrimmerSegmentLabels.NATIVE_ADAPTER_WITH_C.value: TrimmerSegmentLabels.NATIVE_ADAPTER.value}
     )
 
+    # column name suffixes
+    name_suffix = TrimmerHistogramSuffixes.NAME.value if not legacy_histogram_column_names else ""
+    length_suffix = TrimmerHistogramSuffixes.LENGTH.value if not legacy_histogram_column_names else ""
+    pattern_fw_suffix = TrimmerHistogramSuffixes.PATTERN_FW.value if not legacy_histogram_column_names else ""
+
+    # change legacy segment names
+    df_trimmer_histogram = df_trimmer_histogram.rename(
+        columns={
+            "T hmer": TrimmerSegmentLabels.T_HMER_START.value,
+            "A hmer": TrimmerSegmentLabels.A_HMER_START.value,
+            "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value,
+            "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value,
+            "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value,
+            "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value,
+        }
+    ).rename(
+        columns={
+            TrimmerSegmentLabels.START_LOOP.value + name_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+            TrimmerSegmentLabels.START_LOOP.value
+            + pattern_fw_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+            f"{TrimmerSegmentLabels.START_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_START.value,  # Legacy
+            TrimmerSegmentLabels.END_LOOP.value + name_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+            TrimmerSegmentLabels.END_LOOP.value
+            + pattern_fw_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+            f"{TrimmerSegmentLabels.END_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_END.value,  # Legacy
+        }
+    )
+
     # determine if end was reached - at least 1bp native adapter or all of the end stem were found
     if adapter_version in [
         BalancedStrandAdapterVersions.LA_v6,
@@ -367,9 +404,10 @@ def read_balanced_strand_trimmer_histogram(
         BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
     ]:
         is_end_reached = (
-            df_trimmer_histogram[TrimmerSegmentLabels.NATIVE_ADAPTER.value] >= 1
+            df_trimmer_histogram[TrimmerSegmentLabels.NATIVE_ADAPTER.value + length_suffix] >= 1
             if TrimmerSegmentLabels.NATIVE_ADAPTER.value in df_trimmer_histogram.columns
-            else df_trimmer_histogram[TrimmerSegmentLabels.STEM_END.value] >= min_stem_end_matched_length
+            else df_trimmer_histogram[TrimmerSegmentLabels.STEM_END.value + length_suffix]
+            >= min_stem_end_matched_length
         )
 
     # Handle v5 and v6 loops
@@ -381,17 +419,7 @@ def read_balanced_strand_trimmer_histogram(
         BalancedStrandAdapterVersions.LA_v6.value,
         BalancedStrandAdapterVersions.LA_v5and6.value,
     ]:
-        # change legacy segment names
-        df_trimmer_histogram = df_trimmer_histogram.rename(
-            columns={
-                "T hmer": TrimmerSegmentLabels.T_HMER_START.value,
-                "A hmer": TrimmerSegmentLabels.A_HMER_START.value,
-                "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value,
-                "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value,
-                "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value,
-                "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value,
-            }
-        )
+
         # make sure expected columns exist
         for col in (
             HistogramColumnNames.COUNT.value,
@@ -401,11 +429,11 @@ def read_balanced_strand_trimmer_histogram(
             if col not in df_trimmer_histogram.columns:
                 raise ValueError(f"Missing expected column {col} in {trimmer_histogram_csv}")
         if (
-            TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
-            or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
+            TrimmerSegmentLabels.A_HMER_END.value + length_suffix in df_trimmer_histogram.columns
+            or TrimmerSegmentLabels.T_HMER_END.value + length_suffix in df_trimmer_histogram.columns
         ) and (
-            TrimmerSegmentLabels.NATIVE_ADAPTER.value not in df_trimmer_histogram.columns
-            and TrimmerSegmentLabels.STEM_END.value not in df_trimmer_histogram.columns
+            TrimmerSegmentLabels.NATIVE_ADAPTER.value + length_suffix not in df_trimmer_histogram.columns
+            and TrimmerSegmentLabels.STEM_END.value + length_suffix not in df_trimmer_histogram.columns
         ):
             # If an end tag exists (LA-v6)
             raise ValueError(
@@ -423,11 +451,11 @@ def read_balanced_strand_trimmer_histogram(
         )
         # add strand ratio columns and determine categories
         tags_sum_start = (
-            df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value]
-            + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_START.value]
+            df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value + length_suffix]
+            + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_START.value + length_suffix]
         )
         df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_START.value] = (
-            (df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value] / tags_sum_start)
+            (df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_START.value + length_suffix] / tags_sum_start)
             .where(
                 (tags_sum_start >= min_total_hmer_lengths_in_tags) & (tags_sum_start <= max_total_hmer_lengths_in_tags)
             )
@@ -450,15 +478,15 @@ def read_balanced_strand_trimmer_histogram(
                     df_trimmer_histogram.loc[:, c] = 0
 
             tags_sum_end = (
-                df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
-                + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value]
+                df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value + length_suffix]
+                + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value + length_suffix]
             )
             df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_END.value] = (
                 (
-                    df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
+                    df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value + length_suffix]
                     / (
-                        df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value]
-                        + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value]
+                        df_trimmer_histogram[TrimmerSegmentLabels.T_HMER_END.value + length_suffix]
+                        + df_trimmer_histogram[TrimmerSegmentLabels.A_HMER_END.value + length_suffix]
                     )
                 )
                 .where(
@@ -479,15 +507,6 @@ def read_balanced_strand_trimmer_histogram(
         BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
         BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
     ]:
-        # rename columns
-        df_trimmer_histogram = df_trimmer_histogram.rename(
-            columns={
-                TrimmerSegmentLabels.START_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
-                f"{TrimmerSegmentLabels.START_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_START.value,
-                TrimmerSegmentLabels.END_LOOP.value: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
-                f"{TrimmerSegmentLabels.END_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_END.value,
-            }
-        )
         # In LA-v7 the tags are explicitly detected from the loop sequences
         # an unmatched start tag indicates an undetermined call
         df_trimmer_histogram = df_trimmer_histogram.fillna(
@@ -1749,6 +1768,7 @@ def balanced_strand_analysis(
     min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
     max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
+    legacy_histogram_column_names=False,
 ):
     """
     Run the balanced strand analysis pipeline
@@ -1791,6 +1811,8 @@ def balanced_strand_analysis(
         default 8
     min_stem_end_matched_length : int, optional
         minimum length of stem end matched to determine the read end was reached
+    legacy_histogram_column_names : bool, optional
+        use legacy column names without suffixes, by default False
 
     """
     # Handle input and output files
@@ -1850,6 +1872,7 @@ def balanced_strand_analysis(
     collect_statistics_kwargs.setdefault("min_total_hmer_lengths_in_tags", min_total_hmer_lengths_in_tags)
     collect_statistics_kwargs.setdefault("max_total_hmer_lengths_in_tags", max_total_hmer_lengths_in_tags)
     collect_statistics_kwargs.setdefault("min_stem_end_matched_length", min_stem_end_matched_length)
+    collect_statistics_kwargs.setdefault("legacy_histogram_column_names", legacy_histogram_column_names)
     collect_statistics(**collect_statistics_kwargs)
 
     # read Trimmer histogram output from collect statistics
