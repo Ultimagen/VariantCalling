@@ -592,12 +592,23 @@ def vcf2concordance(
     concordance_df.drop("qual", axis=1, inplace=True)
 
     drop_candidates = ["chrom", "pos", "alleles", "indel", "ref", "str", "ru", "rpa"]
-    concordance = concordance_df.join(
-        original.drop(
+    if original.shape[0] > 0:
+        concordance = concordance_df.join(
+            original.drop(
+                [x for x in drop_candidates if x in original.columns and x in concordance_df.columns],
+                axis=1,
+            )
+        )
+    else:
+        concordance = concordance_df.copy()
+
+        tmp = original.drop(
             [x for x in drop_candidates if x in original.columns and x in concordance_df.columns],
             axis=1,
         )
-    )
+        for t in tmp.columns:
+            concordance[t] = None
+
     only_ref = concordance["alleles"].apply(len) == 1
     concordance = concordance[~only_ref]
 
