@@ -1,0 +1,6 @@
+read group,code,format,segment,reason,failed read count,total read count
+Z0035,402,LA-v7_dumbbell,Unrecognized_Start_loop,sequence was too long,6450637,1349456140
+Z0035,503,LA-v7_dumbbell,Stem_start,no match,5238248,1349456140
+Z0035,701,LA-v7_dumbbell,insert,sequence was too short,4570879,1349456140
+Z0035,1102,LA-v7_dumbbell,Unrecognized_End_loop,sequence was too long,619968658,1349456140
+Z0035,1302,LA-v7_dumbbell,end,sequence was too long,10066739,1349456140

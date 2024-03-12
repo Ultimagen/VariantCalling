@@ -370,26 +370,39 @@ def read_balanced_strand_trimmer_histogram(
     pattern_fw_suffix = TrimmerHistogramSuffixes.PATTERN_FW.value if not legacy_histogram_column_names else ""
 
     # change legacy segment names
-    df_trimmer_histogram = df_trimmer_histogram.rename(
-        columns={
-            "T hmer": TrimmerSegmentLabels.T_HMER_START.value,
-            "A hmer": TrimmerSegmentLabels.A_HMER_START.value,
-            "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value,
-            "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value,
-            "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value,
-            "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value,
-        }
-    ).rename(
-        columns={
-            TrimmerSegmentLabels.START_LOOP.value + name_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
-            TrimmerSegmentLabels.START_LOOP.value
-            + pattern_fw_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
-            f"{TrimmerSegmentLabels.START_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_START.value,  # Legacy
-            TrimmerSegmentLabels.END_LOOP.value + name_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
-            TrimmerSegmentLabels.END_LOOP.value
-            + pattern_fw_suffix: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
-            f"{TrimmerSegmentLabels.END_LOOP.value}.1": HistogramColumnNames.LOOP_SEQUENCE_END.value,  # Legacy
-        }
+    strand_ratio_category_start = HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value
+    strand_ratio_category_end = HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value
+    loop_sequence_start = HistogramColumnNames.LOOP_SEQUENCE_START.value
+    loop_sequence_end = HistogramColumnNames.LOOP_SEQUENCE_END.value
+    df_trimmer_histogram = (
+        df_trimmer_histogram.rename(
+            columns={
+                "T hmer": TrimmerSegmentLabels.T_HMER_START.value,
+                "A hmer": TrimmerSegmentLabels.A_HMER_START.value,
+                "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value,
+                "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value,
+                "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value,
+                "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value,
+            }
+        )
+        .rename(
+            columns={
+                f"{TrimmerSegmentLabels.START_LOOP.value}.1": loop_sequence_start,  # Legacy
+                f"{TrimmerSegmentLabels.END_LOOP.value}.1": loop_sequence_end,  # Legacy
+            }
+        )
+        .rename(
+            columns={
+                f"{TrimmerSegmentLabels.START_LOOP.value+name_suffix}": strand_ratio_category_start,
+                f"{TrimmerSegmentLabels.END_LOOP.value+name_suffix}": strand_ratio_category_end,
+            }
+        )
+        .rename(
+            columns={
+                f"{TrimmerSegmentLabels.START_LOOP.value+pattern_fw_suffix}": loop_sequence_start,
+                f"{TrimmerSegmentLabels.END_LOOP.value+pattern_fw_suffix}": loop_sequence_end,
+            }
+        )
     )
 
     # determine if end was reached - at least 1bp native adapter or all of the end stem were found
@@ -437,9 +450,9 @@ def read_balanced_strand_trimmer_histogram(
         ):
             # If an end tag exists (LA-v6)
             raise ValueError(
-                f"Missing expected column {TrimmerSegmentLabels.NATIVE_ADAPTER_WITH_C.value} "
-                f"or {TrimmerSegmentLabels.NATIVE_ADAPTER.value} "
-                f"or {TrimmerSegmentLabels.STEM_END.value} in {trimmer_histogram_csv}"
+                f"Missing expected column {TrimmerSegmentLabels.NATIVE_ADAPTER_WITH_C.value + length_suffix} "
+                f"or {TrimmerSegmentLabels.NATIVE_ADAPTER.value + length_suffix} "
+                f"or {TrimmerSegmentLabels.STEM_END.value + length_suffix} in {trimmer_histogram_csv}"
             )
 
         df_trimmer_histogram.index.name = sample_name
@@ -946,7 +959,7 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str):
     return df_trimmer_failure_codes, df_metrics
 
 
-def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv):
+def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv, legacy_histogram_column_names=False):
     """
     Read the dumbell leftover stats (constant sequences after trimming) from the trimmer histogram
 
@@ -954,6 +967,8 @@ def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv):
     ----------
     trimmer_histogram_extra_csv : str
         path to a Trimmer histogram extra file
+    legacy_histogram_column_names : bool, optional
+        use legacy column names without suffixes, by default False
 
     Returns
     -------
@@ -962,6 +977,10 @@ def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv):
     """
     df_dumbbell_leftover = pd.read_csv(trimmer_histogram_extra_csv)
     expected_columns = ["Dumbbell_leftover_start", "Dumbbell_leftover_end", "count"]
+    if not legacy_histogram_column_names:
+        df_dumbbell_leftover = df_dumbbell_leftover.rename(
+            columns={c + TrimmerHistogramSuffixes.LENGTH.value: c for c in expected_columns}
+        )
     assert (
         df_dumbbell_leftover.columns.tolist() == expected_columns
     ), f"Unexpected columns {df_dumbbell_leftover.columns.tolist()}, expected {expected_columns}"
@@ -1000,6 +1019,7 @@ def collect_statistics(
     trimmer_histogram_extra_csv: str = None,
     trimmer_failure_codes_csv: str = None,
     input_material_ng: float = None,
+    legacy_histogram_column_names: bool = False,
     **trimmer_histogram_kwargs,
 ):
     """
@@ -1017,6 +1037,14 @@ def collect_statistics(
         path to save dataframe to in hdf format (should end with .h5)
     input_material_ng : float, optional
         input material in ng, by default None
+    trimmer_histogram_extra_csv : str, optional
+        path to a Trimmer histogram extra file, by default None
+    trimmer_failure_codes_csv : str, optional
+        path to a Trimmer failure codes file, by default None
+    legacy_histogram_column_names : bool, optional
+        use legacy column names without suffixes, by default False
+    trimmer_histogram_kwargs : dict
+        additional keyword arguments to pass to read_balanced_strand_trimmer_histogram
 
     Raises
     ------
@@ -1026,7 +1054,10 @@ def collect_statistics(
     _assert_adapter_version_supported(adapter_version)
     # read Trimmer histogram
     df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
-        adapter_version, trimmer_histogram_csv, **trimmer_histogram_kwargs
+        adapter_version,
+        trimmer_histogram_csv,
+        legacy_histogram_column_names=legacy_histogram_column_names,
+        **trimmer_histogram_kwargs,
     )
     df_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram)
     adapter_in_both_ends = adapter_version in (
@@ -1074,7 +1105,9 @@ def collect_statistics(
         and trimmer_histogram_extra_csv
     )
     if is_v7_dumbell:
-        df_dumbell_leftover = read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv)
+        df_dumbell_leftover = read_dumbell_leftover_from_trimmer_histogram(
+            trimmer_histogram_extra_csv, legacy_histogram_column_names=legacy_histogram_column_names
+        )
         df_stats_shortlist = pd.concat((df_stats_shortlist, df_dumbell_leftover))
 
     # save
@@ -1091,7 +1124,7 @@ def collect_statistics(
             store["df_category_consensus"] = df_category_consensus
         if trimmer_failure_codes_csv:
             store["df_trimmer_failure_codes"] = df_trimmer_failure_codes
-        if is_v7_dumbell:
+        if is_v7_dumbell and trimmer_failure_codes_csv:
             store["df_failure_codes_metrics"] = df_failure_codes_metrics
 
 

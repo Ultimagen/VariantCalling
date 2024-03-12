@@ -49,6 +49,20 @@ parsed_histogram_parquet_ppmSeq_v2 = pjoin(
     inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.parsed_histogram.parquet"
 )
 
+sorter_stats_csv_ppmSeq_v2_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.csv")
+sorter_stats_json_ppmSeq_v2_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.json")
+trimmer_failure_codes_csv_ppmSeq_v2_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.failure_codes.csv")
+trimmer_histogram_ppmSeq_v2_amp = pjoin(
+    inputs_dir,
+    "400808-Lb_2768-Z0035-CTGAATGATCTCGAT."
+    "Start_loop_name.Start_loop_pattern_fw.End_loop_name.End_loop_pattern_fw.Stem_end_length.histogram.csv",
+)
+trimmer_histogram_extra_ppmSeq_v2_amp = pjoin(
+    inputs_dir,
+    "400808-Lb_2768-Z0035-CTGAATGATCTCGAT."
+    "Dumbbell_leftover_start_length.Dumbbell_leftover_end_length.histogram_extra.csv",
+)
+
 
 def _assert_files_are_identical(file1, file2):
     with open(file1, "rb") as f1, open(file2, "rb") as f2:
@@ -280,4 +294,14 @@ def test_balanced_strand_analysis(tmpdir):
         output_basename="TEST_LAv5",
         collect_statistics_kwargs={"input_material_ng": 10},
         legacy_histogram_column_names=True,
+    )
+
+    balanced_strand_analysis(
+        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
+        trimmer_histogram_csv=[trimmer_histogram_ppmSeq_v2_amp],
+        trimmer_histogram_extra_csv=[trimmer_histogram_extra_ppmSeq_v2_amp],
+        sorter_stats_csv=sorter_stats_csv_ppmSeq_v2_amp,
+        trimmer_failure_codes_csv=trimmer_failure_codes_csv_ppmSeq_v2_amp,
+        output_path=tmpdir,
+        output_basename="TEST_LA_v7_amp_dumbbell",
     )
