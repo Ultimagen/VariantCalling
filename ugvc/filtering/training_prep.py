@@ -207,7 +207,7 @@ def prepare_ground_truth(
         if test_split == chrom:
             dirname = Path(output_h5).parent
             stemname = Path(output_h5).stem
-            labeled_df.to_hdf((dirname / Path(stemname + "_test")).with_suffix("h5"), key=chrom, mode="a")
+            labeled_df.to_hdf((dirname / Path(stemname + "_test")).with_suffix(".h5"), key=chrom, mode="a")
         else:
             labeled_df.to_hdf(output_h5, key=chrom, mode="a")
 
