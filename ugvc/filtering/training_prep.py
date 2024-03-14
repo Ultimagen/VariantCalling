@@ -43,7 +43,12 @@ def calculate_labeled_vcf(
     """
     df_original = vcftools.get_vcf_df(call_vcf, chromosome=contig, custom_info_fields=custom_info_fields)
     df_vcfeval = vcftools.get_vcf_df(vcfeval_vcf, chromosome=contig)
-
+    if df_vcfeval.shape[0] == 0:
+        logger.warning(f"No records in vcfeval_vcf for chromosome {contig}")
+        return pd.DataFrame()
+    if df_original.shape[0] == 0:
+        logger.warning(f"No records in call_vcf for chromosome {contig}")
+        return pd.DataFrame()
     joint_df = df_original.join(df_vcfeval, rsuffix="_vcfeval")
     missing = df_vcfeval.loc[df_vcfeval.index.difference(joint_df.index)]
     counts_base = missing["base"].value_counts()
@@ -193,6 +198,9 @@ def prepare_ground_truth(
         labeled_df = calculate_labeled_vcf(
             input_vcf, vcfeval_output, contig=chrom, custom_info_fields=custom_info_fields
         )
+        if labeled_df.shape[0] == 0:
+            logger.warning(f"Skipping chromosome {chrom}: empty")
+            continue
         labels = calculate_labels(labeled_df)
         labeled_df["label"] = labels
         labeled_df = process_multiallelic_spandel(labeled_df, reference, chrom, input_vcf)
@@ -338,6 +346,9 @@ def label_with_approximate_gt(
         if custom_info_fields is None:
             custom_info_fields = []
         df = vcftools.get_vcf_df(vcf, chromosome=chromosome, custom_info_fields=custom_info_fields)
+        if df.shape[0] == 0:
+            logger.warning(f"Skipping chromosome {chromosome}: empty")
+            continue
         df = df.merge(blacklist_df, left_index=True, right_index=True, how="left")
         df["bl"].fillna(False, inplace=True)
         classify_clm = "label"
