@@ -52,12 +52,12 @@ def calculate_labeled_vcf(
     logger.info(f"Duplicates in vcfeval: {df_vcfeval.index.duplicated().sum()}")
 
     logger.info(
-        f"Counts of 'BASE' tag of the variants that were in the vcfeval output but \
-        did not match to call_vcf: {counts_base}"
+        "Counts of 'BASE' tag of the variants that were in the vcfeval output but "
+        f"did not match to call_vcf:\n {counts_base}"
     )
     logger.info(
-        f"Counts of 'CALL' tag of the variants that were in the vcfeval output but \
-            did not match to call_vcf: {counts_call}"
+        "Counts of 'CALL' tag of the variants that were in the vcfeval output but "
+        f"did not match to call_vcf:\n {counts_call}"
     )
     vcfeval_miss = (pd.isnull(joint_df["call"]) & (pd.isnull(joint_df["base"]))).sum()
     logger.info(f"Number of records in call_vcf that did not exist in vcfeval_vcf: {vcfeval_miss}")

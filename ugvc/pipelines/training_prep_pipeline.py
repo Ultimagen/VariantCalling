@@ -79,7 +79,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def run(argv: list[str]):
     """Run function"""
-    args = parse_args(argv)
+    args = parse_args(argv[1:])
     logger.setLevel(getattr(logging, args.verbosity))
     logger.debug(args)
 
@@ -117,4 +117,4 @@ def run(argv: list[str]):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run(sys.argv)
