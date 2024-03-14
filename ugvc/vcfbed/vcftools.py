@@ -714,12 +714,14 @@ def header_record_number(header_source: pysam.VariantHeader | pysam.VariantFile 
     # bug fixes - adjust when this is fixed
 
     # GATK fixes
-    if result["hapcomp"] == "A":
-        result["hapcomp"] = 1
-        result["HAPCOMP"] = 1
-    if result["hapdom"] == "A":
-        result["hapdom"] = 1
-        result["HAPDOM"] = 1
+    if "hapcomp" in result or "HAPCOMP" in result:
+        if result["hapcomp"] == "A":
+            result["hapcomp"] = 1
+            result["HAPCOMP"] = 1
+    if "hapdom" in result or "HAPDOM" in result:
+        if result["hapdom"] == "A":
+            result["hapdom"] = 1
+            result["HAPDOM"] = 1
 
     # my fixes - maybe in the VCF there is already a header
     result["RPA"] = result["rpa"] = "R"
