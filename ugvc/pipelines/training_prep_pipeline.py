@@ -61,7 +61,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     ap_var.add_argument(
         "--contig_for_test",
-        help="Chromosome to split into test set, contained in contigs_to_read",
+        help="Chromosome to split into test set, **contained** in contigs_to_read",
         type=str,
         required=False,
     )

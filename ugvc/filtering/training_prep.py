@@ -240,27 +240,31 @@ def process_multiallelic_spandel(df: pd.DataFrame, reference: str, chromosome: s
 
     multiallelic_groups = pd.concat(multiallelic_groups, ignore_index=True)
     multiallelic_groups = mu.cleanup_multiallelics(multiallelic_groups)
-    spanning_deletions = [
-        pd.concat(
-            [_split_multiallelic_if_necessary(df.iloc[olp[0] : olp[0] + 1], vcf, fasta[chromosome])]
-            + [
-                sp.split_multiallelic_variants_with_spandel(df.iloc[olp[i]], df.iloc[olp[0]], vcf, fasta[chromosome])
-                for i in range(1, len(olp))
-            ]
-        )
-        for olp in tqdm.tqdm(spandels)
-    ]
+    if len(spandels) > 0:
+        spanning_deletions = [
+            pd.concat(
+                [_split_multiallelic_if_necessary(df.iloc[olp[0] : olp[0] + 1], vcf, fasta[chromosome])]
+                + [
+                    sp.split_multiallelic_variants_with_spandel(
+                        df.iloc[olp[i]], df.iloc[olp[0]], vcf, fasta[chromosome]
+                    )
+                    for i in range(1, len(olp))
+                ]
+            )
+            for olp in tqdm.tqdm(spandels)
+        ]
 
-    for i, n in enumerate(spanning_deletions):
-        n.loc[:, "spanning_deletion"] = [(df.iloc[spandels[i][0]]["chrom"], df.iloc[spandels[i][0]]["pos"])] * (
-            n.shape[0]
-        )
-    spanning_deletions = pd.concat(spanning_deletions, ignore_index=True)
-    spanning_deletions = mu.cleanup_multiallelics(spanning_deletions)
-
+        for i, n in enumerate(spanning_deletions):
+            n.loc[:, "spanning_deletion"] = [(df.iloc[spandels[i][0]]["chrom"], df.iloc[spandels[i][0]]["pos"])] * (
+                n.shape[0]
+            )
+        spanning_deletions = pd.concat(spanning_deletions, ignore_index=True)
+        spanning_deletions = mu.cleanup_multiallelics(spanning_deletions)
+        mug = pd.concat((multiallelic_groups, spanning_deletions), ignore_index=True)  # resetting index
+    else:
+        mug = multiallelic_groups.reset_index()
     idx_multi_spandels = df.index[combined_overlaps]
     df.drop(idx_multi_spandels, axis=0, inplace=True)
-    mug = pd.concat((multiallelic_groups, spanning_deletions), ignore_index=True)  # resetting index
     return pd.concat((df, mug)).astype(column_dtypes)
 
 
