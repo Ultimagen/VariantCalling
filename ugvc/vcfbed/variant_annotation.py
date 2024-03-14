@@ -550,21 +550,21 @@ def close_to_hmer_run(
 
 def annotate_intervals(df: pd.DataFrame, annotfile: str) -> tuple[pd.DataFrame, str]:
     """
-        Adds column based on interval annotation file (T/F)
+    Adds column based on interval annotation file (T/F)
 
-        Parameters
-        ----------
-        df: pd.DataFrame
-            Dataframe to be annotated
-        annotfile: str
-            bed file of the annotated intervals
-    train
-        Returns
-        -------
-        pd.DataFrame
-            Adds boolean column for the annotation (parsed from the file name)
-        str
-            Annotation name
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Dataframe to be annotated
+    annotfile: str
+        bed file of the annotated intervals
+
+    Returns
+    -------
+    pd.DataFrame
+        Adds boolean column for the annotation (parsed from the file name)
+    str
+        Annotation name
 
 
     """
