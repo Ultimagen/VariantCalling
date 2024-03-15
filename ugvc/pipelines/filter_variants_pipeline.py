@@ -114,6 +114,7 @@ def run(argv: list[str]):
                     if df.shape[0] == 0:
                         logger.info(f"No variants found on {contig}")
                         continue
+                    logger.info(f"{df.shape[0]} variants found on {contig}")
                     if args.blacklist is not None:
                         blacklist_app = [x.apply(df) for x in blacklists]
                         blacklist = merge_blacklists(blacklist_app)
