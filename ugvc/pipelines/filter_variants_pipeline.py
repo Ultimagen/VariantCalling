@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import argparse
-import itertools
 import logging
 import pickle
 import subprocess
@@ -71,49 +70,21 @@ def run(argv: list[str]):
     args = parse_args(argv)
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     logger = logging.getLogger(__name__)
-    logger.info("Reading VCF")
 
     try:
-        if args.limit_to_contigs is None:
-            df = vcftools.get_vcf_df(args.input_file, custom_info_fields=args.custom_annotations)
-        else:
-            df = pd.concat(
-                (vcftools.get_vcf_df(args.input_file, chromosome=x, custom_info_fields=args.custom_annotations))
-                for x in args.limit_to_contigs
-            )
         if args.model_file is not None:
+            logger.info(f"Loading model from {args.model_file}")
             with open(args.model_file, "rb") as model_file:
                 mf = pickle.load(model_file)
                 model = mf["xgb"]
                 transformer = mf["transformer"]
-
-            logger.info("Applying classifier")
-
         if args.blacklist is not None:
+            logger.info(f"Loading blacklist from {args.blacklist}")
             with open(args.blacklist, "rb") as blf:
                 blacklists = pickle.load(blf)
-            blacklist_app = [x.apply(df) for x in blacklists]
-            blacklist = merge_blacklists(blacklist_app)
-            logger.info("Applying blacklist")
-        else:
-            blacklist = pd.Series("PASS", index=df.index, dtype=str)
-
-        if args.blacklist_cg_insertions:
-            cg_blacklist = blacklist_cg_insertions(df)
-            blacklist = merge_blacklists([cg_blacklist, blacklist])
-            logger.info("Marking CG insertions")
-
-        if args.model_file is not None:
-            predictions, scores = variant_filtering_utils.apply_model(df, model, transformer)
-            phred_pls = math_utils.phred(scores)
-            quals = -phred_pls[:, 1:].max(axis=1) + phred_pls[:, 0]
-            quals = np.clip(quals + 30, 0, 100)
-
-        logger.info("Writing")
 
         with pysam.VariantFile(args.input_file) as infile:
             hdr = infile.header
-
             if args.model_file is not None:
                 protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
             if args.blacklist is not None:
@@ -129,30 +100,60 @@ def run(argv: list[str]):
 
             if args.model_file is not None:
                 protected_add(hdr.info, "TREE_SCORE", 1, "Float", "Filtering score")
+
             with pysam.VariantFile(args.output_file, mode="w", header=hdr) as outfile:
                 if args.limit_to_contigs is None:
-                    it = infile
+                    it = ((x, infile.fetch(str(x))) for x in infile.header.contigs.keys())
                 else:
-                    it = itertools.chain(*(infile.fetch(x) for x in args.limit_to_contigs))
-                for i, rec in tqdm.tqdm(enumerate(it)):
-                    if args.model_file is not None:
-                        if predictions[i] == 0:
-                            if "PASS" in rec.filter.keys():
-                                del rec.filter["PASS"]
-                            rec.filter.add("LOW_SCORE")
-                        rec.info["TREE_SCORE"] = quals[i]
-                    if blacklist is not None:
-                        if blacklist[i] != "PASS":
-                            blacklists_info = []
-                            for value in blacklist[i].split(";"):
-                                if value != "PASS":
-                                    blacklists_info.append(value)
-                            if len(blacklists_info) != 0:
-                                rec.info["BLACKLST"] = blacklists_info
-                    if len(rec.filter) == 0:
-                        rec.filter.add("PASS")
+                    it = ((x, infile.fetch(x)) for x in args.limit_to_contigs)
+                for contig, chunk in it:  # pylint: disable=too-many-nested-blocks
+                    logger.info(f"Filtering variants from {contig}")
+                    df = vcftools.get_vcf_df(
+                        args.input_file, chromosome=str(contig), custom_info_fields=args.custom_annotations
+                    )
+                    if df.shape[0] == 0:
+                        logger.info(f"No variants found on {contig}")
+                        continue
+                    if args.blacklist is not None:
+                        blacklist_app = [x.apply(df) for x in blacklists]
+                        blacklist = merge_blacklists(blacklist_app)
+                        logger.info("Applying blacklist")
+                    else:
+                        blacklist = pd.Series("PASS", index=df.index, dtype=str)
 
-                    outfile.write(rec)
+                    if args.blacklist_cg_insertions:
+                        cg_blacklist = blacklist_cg_insertions(df)
+                        blacklist = merge_blacklists([cg_blacklist, blacklist])
+                        logger.info("Marking CG insertions")
+
+                    if args.model_file is not None:
+                        logger.info("Applying classifier")
+                        predictions, scores = variant_filtering_utils.apply_model(df, model, transformer)
+                        phred_pls = math_utils.phred(scores)
+                        quals = -phred_pls[:, 1:].max(axis=1) + phred_pls[:, 0]
+                        quals = np.clip(quals + 30, 0, 100)
+
+                    logger.info("Writing records")
+                    for i, rec in tqdm.tqdm(enumerate(chunk)):
+                        if args.model_file is not None:
+                            if predictions[i] == 0:
+                                if "PASS" in rec.filter.keys():
+                                    del rec.filter["PASS"]
+                                rec.filter.add("LOW_SCORE")
+                            rec.info["TREE_SCORE"] = quals[i]
+                        if blacklist is not None:
+                            if blacklist[i] != "PASS":
+                                blacklists_info = []
+                                for value in blacklist[i].split(";"):
+                                    if value != "PASS":
+                                        blacklists_info.append(value)
+                                if len(blacklists_info) != 0:
+                                    rec.info["BLACKLST"] = blacklists_info
+                        if len(rec.filter) == 0:
+                            rec.filter.add("PASS")
+
+                        outfile.write(rec)
+                    logger.info(f"{contig} done")
 
         cmd = ["bcftools", "index", "-t", args.output_file]
         subprocess.check_call(cmd)
