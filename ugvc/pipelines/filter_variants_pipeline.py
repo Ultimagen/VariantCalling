@@ -14,7 +14,7 @@
 #    limitations under the License.
 # DESCRIPTION
 #    Filter raw GATK callset using ML model
-# CHANGELOG in reverse chronological order
+
 from __future__ import annotations
 
 import argparse
@@ -91,17 +91,8 @@ def run(argv: list[str]):
             hdr = infile.header
             if args.model_file is not None:
                 protected_add(hdr.filters, "LOW_SCORE", None, None, "Low decision tree score")
-            if args.blacklist is not None:
+            if args.blacklist is not None or args.blacklist_cg_insertions:
                 protected_add(hdr.info, "BLACKLST", ".", "String", "blacklist")
-            if args.blacklist_cg_insertions:
-                protected_add(
-                    hdr.filters,
-                    "CG_NON_HMER_INDEL",
-                    None,
-                    None,
-                    "Insertion/deletion of CG",
-                )
-
             if args.model_file is not None:
                 protected_add(hdr.info, "TREE_SCORE", 1, "Float", "Filtering score")
 

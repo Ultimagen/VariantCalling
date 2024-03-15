@@ -42,4 +42,18 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
+        assert 3 == df[df["blacklst"].notna()]["blacklst"].count()
+
+    def test_filter_variants_pipeline_cg_only(self, tmpdir):
+        output_file = f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.blacklist_only.vcf.gz"
+        filter_variants_pipeline.run(
+            [
+                "--input_file",
+                f"{self.inputs_dir}/004777-X0024.annotated.AF_chr1_1_1000000.vcf.gz",
+                "--blacklist_cg_insertions",
+                "--output_file",
+                output_file,
+            ]
+        )
+        df = vcftools.get_vcf_df(output_file)
         assert 4 == df[df["blacklst"].notna()]["blacklst"].count()
