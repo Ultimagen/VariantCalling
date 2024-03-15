@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os.path
 import pickle
 import subprocess
 import sys
@@ -36,7 +37,9 @@ from ugvc.vcfbed import vcftools
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     ap_var = argparse.ArgumentParser(prog="filter_variants_pipeline.py", description="Filter VCF")
-    ap_var.add_argument("--input_file", help="Name of the input VCF file", type=str, required=True)
+    ap_var.add_argument(
+        "--input_file", help="Name of the input VCF file (requires .tbi index)", type=str, required=True
+    )
     ap_var.add_argument("--model_file", help="Pickle model file", type=str, required=False)
     ap_var.add_argument("--blacklist", help="Blacklist file", type=str, required=False)
     ap_var.add_argument(
@@ -82,7 +85,8 @@ def run(argv: list[str]):
             logger.info(f"Loading blacklist from {args.blacklist}")
             with open(args.blacklist, "rb") as blf:
                 blacklists = pickle.load(blf)
-
+        assert os.path.exists(args.input_file), f"Input file {args.input_file} does not exist"
+        assert os.path.exists(args.input_file + ".tbi"), f"Index file {args.input_file}.tbi does not exist"
         with pysam.VariantFile(args.input_file) as infile:
             hdr = infile.header
             if args.model_file is not None:

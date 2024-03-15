@@ -63,6 +63,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
 
     ap_var.add_argument(
+        "--vcf_type",
+        help='VCF type - "single_sample"(GATK) or "deep_variant"',
+        type=VcfType,
+        choices=list(VcfType),
+        default=VcfType.SINGLE_SAMPLE,
+    )
+    ap_var.add_argument(
         "--custom_annotations",
         help="Custom INFO annotations in the training VCF (multiple possible)",
         required=False,
@@ -94,9 +101,7 @@ def run(argv: list[str]):
         [x.lower() for x in args.custom_annotations] if args.custom_annotations is not None else []
     )
     try:
-        features_to_extract = transformers.get_needed_features(
-            transformers.VcfType.SINGLE_SAMPLE, args.custom_annotations
-        ) + ["label"]
+        features_to_extract = transformers.get_needed_features(args.vcf_type, args.custom_annotations) + ["label"]
         logger.debug(f"(len(features_to_extract)={len(features_to_extract)}")
         # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         dfs = []
@@ -109,7 +114,7 @@ def run(argv: list[str]):
         # Train the model
         logger.info("Model training: start")
         model, transformer = variant_filtering_utils.train_model(
-            train_df, gt_type=args.gt_type, vtype=VcfType.SINGLE_SAMPLE, annots=args.custom_annotations
+            train_df, gt_type=args.gt_type, vtype=args.vcf_type, annots=args.custom_annotations
         )
         logger.info("Model training: done")
         logger.info("Read test data: start")
