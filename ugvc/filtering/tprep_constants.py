@@ -16,6 +16,7 @@ class GtType(Enum):
 class VcfType(Enum):
     SINGLE_SAMPLE = "single_sample"
     DEEP_VARIANT = "deep_variant"
+    DEEP_VARIANT_WITH_SOFTCLIP_COUNTS = "deep_variant_extended"
     JOINT = "joint_callset"
 
     def __str__(self):

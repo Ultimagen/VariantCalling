@@ -170,6 +170,11 @@ def modify_features_based_on_vcf_type(
     gt_filter = preprocessing.FunctionTransformer(gt_encode_df)
 
     transform_list = [
+        ("ad", tuple_encode_doublet_df_transformer, "ad"),
+        ("gt", gt_filter, "gt"),
+        ("gq", default_filler, ["gq"]),
+        ("pl", tuple_uniform_encode_df_transformer, "pl"),
+        ("af", tuple_encode_df_transformer, "af"),
         ("sor", default_filler, ["sor"]),
         ("dp", default_filler, ["dp"]),
         ("alleles", allele_filter, "alleles"),
@@ -184,12 +189,13 @@ def modify_features_based_on_vcf_type(
         ("x_gcc", default_filler, ["x_gcc"]),
     ]
     features = [x[0] for x in transform_list]
-
     if vtype == VcfType.DEEP_VARIANT:
+        transform_list.extend([("vaf", tuple_filter, "vaf")])
+        features = [x[0] for x in transform_list]
+
+    elif vtype == VcfType.DEEP_VARIANT_WITH_SOFTCLIP_COUNTS:
         transform_list.extend(
             [
-                ("vaf", tuple_filter, "vaf"),
-                ("ad", tuple_encode_doublet_df_transformer, "ad"),
                 ("mq0_ref", default_filler, ["mq0_ref"]),
                 ("mq0_alt", default_filler, ["mq0_alt"]),
                 ("ls_ref", default_filler, ["ls_ref"]),
@@ -221,12 +227,7 @@ def modify_features_based_on_vcf_type(
                 ("mqranksum", default_filler, ["mqranksum"]),
                 ("readposranksum", default_filler, ["readposranksum"]),
                 ("ac", tuple_encode_df_transformer, "ac"),
-                ("ad", tuple_encode_doublet_df_transformer, "ad"),
-                ("gt", gt_filter, "gt"),
                 ("xc", default_filler, ["xc"]),
-                ("gq", default_filler, ["gq"]),
-                ("pl", tuple_uniform_encode_df_transformer, "pl"),
-                ("af", tuple_encode_df_transformer, "af"),
                 ("mleac", tuple_encode_df_transformer, "mleac"),
                 ("mleaf", tuple_encode_df_transformer, "mleaf"),
                 ("hapcomp", tuple_encode_df_transformer, "hapcomp"),
