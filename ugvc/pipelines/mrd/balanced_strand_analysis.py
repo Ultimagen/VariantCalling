@@ -125,6 +125,13 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         default=True,
         help="""generate an html + jupyter report""",
     )
+    parser.add_argument(
+        "--legacy-histogram-column-names",
+        required=False,
+        default=False,
+        action="store_true",
+        help="""use legacy histogram column names without suffixes""",
+    )
     return parser.parse_args(argv[1:])
 
 
@@ -150,6 +157,7 @@ def run(argv: list[str]):
         min_total_hmer_lengths_in_tags=args_in.min_tot_hmer,
         max_total_hmer_lengths_in_tags=args_in.max_tot_hmer,
         min_stem_end_matched_length=args_in.min_stem_length,
+        legacy_histogram_column_names=args_in.legacy_histogram_column_names,
     )
 
 

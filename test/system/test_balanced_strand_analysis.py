@@ -34,6 +34,7 @@ def test_balanced_strand_analysis_ppmSeq_v1(tmpdir):
             tmpdir.dirname,
             "--output-basename",
             "balanced_strand.healthy.022782-Lb_2146-UGAv3-168",
+            "--legacy-histogram-column-names",
         ]
     )
 
@@ -69,5 +70,6 @@ def test_balanced_strand_analysis_ppmSeq_v2(tmpdir):
             tmpdir.dirname,
             "--output-basename",
             "037239-CgD1502_Cord_Blood-Z0032",
+            "--legacy-histogram-column-names",
         ]
     )
