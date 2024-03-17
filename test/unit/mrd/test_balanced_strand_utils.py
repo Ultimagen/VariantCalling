@@ -59,9 +59,8 @@ trimmer_histogram_ppmSeq_v2_amp = pjoin(
 )
 trimmer_histogram_extra_ppmSeq_v2_amp = pjoin(
     inputs_dir,
-    "400808-Lb_2768-Z0035-CTGAATGATCTCGAT."
-    "Dumbbell_leftover_start_length.Dumbbell_leftover_end_length.histogram_extra.csv",
-)
+    "400762-Lb_2752-Z0123-CAGATCGCCACAGAT.subsample.Dumbbell_leftover_start_match.hist.csv",
+)  # it's not the same file but the right format
 
 
 def _assert_files_are_identical(file1, file2):

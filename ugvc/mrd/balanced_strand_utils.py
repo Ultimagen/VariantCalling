@@ -58,6 +58,7 @@ class TrimmerHistogramSuffixes(Enum):
     NAME = "_name"
     LENGTH = "_length"
     PATTERN_FW = "_pattern_fw"
+    MATCH = "_match"
 
 
 class BalancedCategories(Enum):
@@ -976,34 +977,28 @@ def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv, le
         dataframe with dumbell leftover stats
     """
     df_dumbbell_leftover = pd.read_csv(trimmer_histogram_extra_csv)
-    expected_columns = ["Dumbbell_leftover_start", "Dumbbell_leftover_end", "count"]
+    expected_columns = ["Dumbbell_leftover_start_match", "count"]
     if not legacy_histogram_column_names:
         df_dumbbell_leftover = df_dumbbell_leftover.rename(
-            columns={c + TrimmerHistogramSuffixes.LENGTH.value: c for c in expected_columns}
+            columns={c + TrimmerHistogramSuffixes.MATCH.value: c for c in expected_columns}
         )
     assert (
         df_dumbbell_leftover.columns.tolist() == expected_columns
     ), f"Unexpected columns {df_dumbbell_leftover.columns.tolist()}, expected {expected_columns}"
     df_dumbbell_leftover = df_dumbbell_leftover.assign(
-        Dumbbell_leftover_start_found=df_dumbbell_leftover.Dumbbell_leftover_start.notnull(),
-        Dumbbell_leftover_end_found=df_dumbbell_leftover.Dumbbell_leftover_end.notnull(),
+        Dumbbell_leftover_start_found=df_dumbbell_leftover["Dumbbell_leftover_start_match"].notnull(),
     )
     df_dumbbell_leftover = (
         100
-        * df_dumbbell_leftover.groupby(["Dumbbell_leftover_start_found", "Dumbbell_leftover_end_found"]).agg(
-            {HistogramColumnNames.COUNT.value: "sum"}
-        )
+        * df_dumbbell_leftover.groupby(["Dumbbell_leftover_start_found"]).agg({HistogramColumnNames.COUNT.value: "sum"})
         / df_dumbbell_leftover[HistogramColumnNames.COUNT.value].sum()
     ).rename(columns={HistogramColumnNames.COUNT.value: "value"})
     df_dumbbell_leftover = (
-        df_dumbbell_leftover.reindex([(True, True), (True, False), (False, True), (False, False)])
+        df_dumbbell_leftover.reindex([True])
         .fillna(0)
         .assign(
             metric=[
-                "% dumbbell leftover in both ends",
-                "% dumbbell leftover in start only",
-                "% dumbbell leftover in end only",
-                "% dumbbell leftover in neither end",
+                "% dumbbell leftover in read start",
             ]
         )
         .set_index("metric")
