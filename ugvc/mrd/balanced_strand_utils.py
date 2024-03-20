@@ -419,7 +419,7 @@ def read_balanced_strand_trimmer_histogram(
     ]:
         is_end_reached = (
             df_trimmer_histogram[TrimmerSegmentLabels.NATIVE_ADAPTER.value + length_suffix] >= 1
-            if TrimmerSegmentLabels.NATIVE_ADAPTER.value in df_trimmer_histogram.columns
+            if TrimmerSegmentLabels.NATIVE_ADAPTER.value + length_suffix in df_trimmer_histogram.columns
             else df_trimmer_histogram[TrimmerSegmentLabels.STEM_END.value + length_suffix]
             >= min_stem_end_matched_length
         )

@@ -62,6 +62,17 @@ trimmer_histogram_extra_ppmSeq_v2_amp = pjoin(
     "400762-Lb_2752-Z0123-CAGATCGCCACAGAT.subsample.Dumbbell_leftover_start_match.hist.csv",
 )  # it's not the same file but the right format
 
+subdir = pjoin(inputs_dir, "401057001")
+sorter_stats_csv_ppmSeq_v2_401057001 = pjoin(subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT.csv")
+sorter_stats_json_ppmSeq_v2_401057001 = pjoin(subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT.json")
+trimmer_failure_codes_csv_ppmSeq_v2_401057001 = pjoin(
+    subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT_trimmer-failure_codes.csv"
+)
+trimmer_histogram_ppmSeq_v2_401057001 = pjoin(
+    subdir,
+    "Z0016-Start_loop_name.Start_loop_pattern_fw.End_loop_name.End_loop_pattern_fw.native_adapter_length.histogram.csv",
+)
+
 
 def _assert_files_are_identical(file1, file2):
     with open(file1, "rb") as f1, open(file2, "rb") as f2:
@@ -274,7 +285,7 @@ def test_plot_strand_ratio_category_concordnace(tmpdir):
         )
 
 
-def test_balanced_strand_analysis(tmpdir):
+def test_balanced_strand_analysis_legacy(tmpdir):
     balanced_strand_analysis(
         BalancedStrandAdapterVersions.LA_v5and6,
         trimmer_histogram_csv=[input_histogram_LAv5and6_csv],
@@ -295,6 +306,8 @@ def test_balanced_strand_analysis(tmpdir):
         legacy_histogram_column_names=True,
     )
 
+
+def test_balanced_strand_analysis_v2_amp(tmpdir):
     balanced_strand_analysis(
         BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
         trimmer_histogram_csv=[trimmer_histogram_ppmSeq_v2_amp],
@@ -303,4 +316,15 @@ def test_balanced_strand_analysis(tmpdir):
         trimmer_failure_codes_csv=trimmer_failure_codes_csv_ppmSeq_v2_amp,
         output_path=tmpdir,
         output_basename="TEST_LA_v7_amp_dumbbell",
+    )
+
+
+def test_balanced_strand_analysis_v2(tmpdir):
+    balanced_strand_analysis(
+        BalancedStrandAdapterVersions.LA_v7,
+        trimmer_histogram_csv=[trimmer_histogram_ppmSeq_v2_401057001],
+        sorter_stats_csv=sorter_stats_csv_ppmSeq_v2_401057001,
+        trimmer_failure_codes_csv=trimmer_failure_codes_csv_ppmSeq_v2_401057001,
+        output_path=tmpdir,
+        output_basename="TEST_ppmSeq_v2",
     )

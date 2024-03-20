@@ -1,0 +1,41 @@
+PF_Barcode_reads,777120877
+PCT_PF_aligned,98.92
+PCT_PF_Reads_aligned,99.61
+PCT_PF_HQ_aligned,90.27
+PCT_PF_Q20_bases,96.32
+PCT_PF_Q30_bases,89.2
+Mean_quality,36.77
+Mismatch_Rate,0.27
+Indel_Rate,0.23
+Mean_Read_Length,181.98
+Median_Read_Length,171
+Mean_Aligned_Read_Length,183.24
+Failed_QC_reads,13413201
+PCT_Failed_QC_reads,1.7
+MAPQ >= 1,721590539
+MAPQ >= 10,717070005
+MAPQ >= 20,706878977
+MAPQ >= 30,701054879
+PCT_Chimeras,0.24
+Mean_cvg,45.05
+median_cvg,47.0
+%>=1x,99.76
+%>=10x,95.58
+%>=20x,86.49
+%>=50x,44.35
+%>=100x,0.64
+%>=500x,0.03
+%>=1000x,0.01
+% duplicates,8.47
+F80,1.88
+F90,2.94
+F95,4.7
+F80@30x,1.82
+F90@30x,3.1
+F95@30x,4.43
+PCT_contamination,0.17
+PCT_PF_Q20_FLOWS,97.32
+PCT_PF_Q30_FLOWS,92.48
+PCT_PF_Q20_SNVQ,99.79
+PCT_PF_Q30_SNVQ,99.12
+PCT_PF_Q40_SNVQ,97.61
