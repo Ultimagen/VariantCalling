@@ -29,7 +29,7 @@ def scale_contingency_table(table: list[int], n: int) -> list[int]:
     return table
 
 
-def correct_multinomial_frequencies(counts: list[int]) -> np.array:
+def correct_multinomial_frequencies(counts: list[int]) -> np.ndarray:
     """
 
     Parameters
@@ -116,15 +116,15 @@ def get_recall(false_negatives: int, true_positives: int, return_if_denominator_
     return 1 - false_negatives / (false_negatives + true_positives)
 
 
-def get_f1(precision: float, recall: float, null_value=np.nan) -> float:
+def get_f1(precision: float, recall, null_value=np.nan) -> float:
     """
     Get the F1 score (harmonic mean of precision and recall)
 
     Parameters
     ----------
-    precision : int
+    precision : float
         precision of the experiment
-    recall : int
+    recall : float
         recall of the experiment
     null_value: Any
         return this null_value if recall or precision are equal to this null_value

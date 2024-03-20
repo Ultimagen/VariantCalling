@@ -99,15 +99,17 @@ def split_multiallelic_variants(
     alleles = multiallelic_variant["alleles"]
 
     # select the strongest alleles in order
-    allele_order = (
-        np.argsort(
-            [
-                select_pl_for_allele_subset(multiallelic_variant["pl"], (0, i), normed=False)[-1]
-                for i in range(1, len(alleles))
-            ]
-        )
-        + 1
+    pls = np.array(
+        [
+            select_pl_for_allele_subset(multiallelic_variant["pl"], (0, i), normed=False)[-1]
+            for i in range(1, len(alleles))
+        ]
     )
+    notingt = np.array([i not in multiallelic_variant["gt"] for i in range(1, len(alleles))])
+
+    # taking care of the edge case when there are several equally strong alleles -
+    # then the ones that are in GT should be first
+    allele_order = np.argsort(pls + notingt * 1000) + 1
 
     # very rare case when there is a spanning deletion without an actual deletion (I guess GATK bug)
     allele_order = [x for x in allele_order if alleles[x] != SPAN_DEL]

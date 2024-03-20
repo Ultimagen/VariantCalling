@@ -16,10 +16,11 @@ import pysam
 def get_vcf_df(
     variant_calls: str,
     sample_id: int = 0,
-    sample_name: str = None,
-    chromosome: str = None,
-    scoring_field: str = None,
-    ignore_fields: list = None,
+    sample_name: str | None = None,
+    chromosome: str | None = None,
+    scoring_field: str | None = None,
+    ignore_fields: list | None = None,
+    custom_info_fields: list[str] | None = None,
 ) -> pd.DataFrame:
     """Reads VCF file into dataframe
 
@@ -39,6 +40,8 @@ def get_vcf_df(
         When None TREE_SCORE is not replaced (default: None)
     ignore_fields: list, optional
         List of VCF tags to ignore (save memory)
+    custom_info_fields: list, optional
+        List of custom info fields to include in the dataframe
     Returns
     -------
     pd.DataFrame
@@ -46,6 +49,8 @@ def get_vcf_df(
 
     if ignore_fields is None:
         ignore_fields = []
+    if custom_info_fields is None:
+        custom_info_fields = []
 
     header = pysam.VariantFile(variant_calls).header
     if chromosome is None:
@@ -70,7 +75,7 @@ def get_vcf_df(
                 ("REF", x.ref),
                 ("ID", x.id),
                 ("ALLELES", x.alleles),
-                ("FILTER", ";".join(x.filter.keys())),
+                ("FILTER", ";".join([str(y) for y in x.filter.keys()])),
             ],
         ),
         variant_file,
@@ -173,9 +178,10 @@ def get_vcf_df(
         "SCL",
         "SCR",
         "NMC",
-        "BG_AD",
     ]
-
+    for cf in custom_info_fields:
+        if cf not in columns:
+            columns.append(cf)
     if scoring_field is not None and scoring_field not in columns:
         columns.append(scoring_field)
 
@@ -197,8 +203,8 @@ def get_vcf_df(
 
     df["indel"] = df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
 
-    df.index = [(x[1]["chrom"], x[1]["pos"]) for x in df.iterrows()]
-
+    df.index = pd.Index([(x[1]["chrom"], x[1]["pos"]) for x in df.iterrows()])
+    assert df.columns.is_unique, "Columns are not unique"
     return df
 
 
@@ -307,7 +313,7 @@ def get_variants_from_region(variant_df: pd.DataFrame, region: tuple, max_n_vari
     inspoints = np.searchsorted(variant_df.pos, region)
     variants = variant_df.iloc[np.arange(*inspoints), :]
     if variants.shape[0] <= max_n_variants:
-        return variants
+        return pd.DataFrame(variants)
 
     center = (inspoints[1] - inspoints[0]) / 2
     distance = np.abs(variants.pos - center)
@@ -708,12 +714,14 @@ def header_record_number(header_source: pysam.VariantHeader | pysam.VariantFile 
     # bug fixes - adjust when this is fixed
 
     # GATK fixes
-    if result["hapcomp"] == "A":
-        result["hapcomp"] = 1
-        result["HAPCOMP"] = 1
-    if result["hapdom"] == "A":
-        result["hapdom"] = 1
-        result["HAPDOM"] = 1
+    if "hapcomp" in result or "HAPCOMP" in result:
+        if result["hapcomp"] == "A":
+            result["hapcomp"] = 1
+            result["HAPCOMP"] = 1
+    if "hapdom" in result or "HAPDOM" in result:
+        if result["hapdom"] == "A":
+            result["hapdom"] = 1
+            result["HAPDOM"] = 1
 
     # my fixes - maybe in the VCF there is already a header
     result["RPA"] = result["rpa"] = "R"
