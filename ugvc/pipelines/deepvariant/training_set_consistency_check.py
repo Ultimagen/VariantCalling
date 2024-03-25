@@ -262,7 +262,7 @@ def run(argv):
         elif len(background_bam_files) > 0:
             raise RuntimeError("Number of background bam files does not match number of bam files")
         else:
-            normal_crams = None
+            normal_crams = []
 
         ground_truth_vcf_file = cloud_sync(ground_truth_vcf_files[i], args.out_dir)
         training_hcr_file = cloud_sync(training_hcr_files[i], args.out_dir)
