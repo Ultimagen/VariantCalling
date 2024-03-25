@@ -235,7 +235,7 @@ def encode_gt_for_allele_subset(original_gt: tuple, allele_idcs: tuple) -> tuple
     raise RuntimeError("Neither allele found in the original genotype")
 
 
-def _get_pl_idx(tup: tuple) -> int:
+def get_pl_idx(tup: tuple) -> int:
     """Returns the index of the PL value in the tuple
 
     Parameters
@@ -271,7 +271,7 @@ def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: 
     """
     allele_idcs = tuple(allele_idcs)
     idcs = [
-        _get_pl_idx(x)
+        get_pl_idx(x)
         for x in ((allele_idcs[0], allele_idcs[0]), (allele_idcs[0], allele_idcs[1]), (allele_idcs[1], allele_idcs[1]))
     ]
     pltake = [original_pl[x] for x in idcs]

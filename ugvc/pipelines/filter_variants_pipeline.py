@@ -29,7 +29,7 @@ import pandas as pd
 import pysam
 import tqdm
 
-from ugvc.filtering import variant_filtering_utils
+from ugvc.filtering import training_prep, variant_filtering_utils
 from ugvc.filtering.blacklist import blacklist_cg_insertions, merge_blacklists
 from ugvc.utils import math_utils
 from ugvc.vcfbed import vcftools
@@ -55,6 +55,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--blacklist_cg_insertions",
         help="Should CCG/GGC insertions be filtered out?",
         action="store_true",
+    )
+    ap_var.add_argument(
+        "--treat_multiallelcis",
+        help="Should special treatment be applied to multiallelic and spanning deletions",
+        type=bool,
+        default=False,
+        action="store_true",
+    )
+    ap_var.add_argument(
+        "--ref_fasta", "Reference FASTA file (only required for multiallelic treatment)", required=False, type=str
     )
     ap_var.add_argument("--output_file", help="Output VCF file", type=str, required=True)
     ap_var.add_argument(
@@ -85,6 +95,8 @@ def run(argv: list[str]):
             logger.info(f"Loading blacklist from {args.blacklist}")
             with open(args.blacklist, "rb") as blf:
                 blacklists = pickle.load(blf)
+        if args.treat_multiallelcis and args.ref_fasta is None:
+            raise ValueError("Reference FASTA file is required for multiallelic treatment")
         assert os.path.exists(args.input_file), f"Input file {args.input_file} does not exist"
         assert os.path.exists(args.input_file + ".tbi"), f"Index file {args.input_file}.tbi does not exist"
         with pysam.VariantFile(args.input_file) as infile:
@@ -124,7 +136,18 @@ def run(argv: list[str]):
 
                     if args.model_file is not None:
                         logger.info("Applying classifier")
+                        if args.treat_multiallelcis:
+                            # df_original = df.copy()
+                            df = training_prep.process_multiallelic_spandel(
+                                df, args.reference, str(contig), args.input_file
+                            )
                         predictions, scores = variant_filtering_utils.apply_model(df, model, transformer)
+                        if args.treat_multiallelcis:
+                            pass
+                            # predictions, scores = variant_filtering_utils.combine_multiallelic_spandel(
+                            #     df_original, df, predictions, scores
+                            # )
+
                         phred_pls = math_utils.phred(scores)
                         quals = -phred_pls[:, 1:].max(axis=1) + phred_pls[:, 0]
                         quals = np.clip(quals + 30, 0, 100)
