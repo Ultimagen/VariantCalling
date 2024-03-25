@@ -448,3 +448,32 @@ class VariantSelectionFunctions(Enum):
     @staticmethod
     def ALL_except_HMER_INDEL_greater_than_or_equal_5(df: pd.DataFrame) -> np.ndarray:
         return np.array(~((df.hmer_indel_length >= 5)))
+
+
+# def combine_multiallelic_spandel(
+#     df: pd.DataFrame, df_unsplit: pd.DataFrame, predictions: np.ndarray, scores: np.ndarray
+# ) -> tuple[np.ndarray, np.ndarray]:
+#     """Combine predictions and scores for multiallelic spandel
+
+#     Parameters
+#     ----------
+#     df: pd.DataFrame
+#         Multiallelic spandel dataframe
+#     df_unsplit: pd.DataFrame
+#         Unsplit dataframe (the original read from the VCF)
+#     predictions: np.ndarray
+#         Predictions, in the order of the split dataframe
+#     scores: np.ndarray
+#         Scores, in the order of the split dataframe
+
+#     Returns
+#     -------
+#     tuple:
+#         Combined predictions and scores in the order of the un-split dataframe
+#     """
+#     multiallelics = df[~pd.isnull(df["multiallelic_group"])].groupby("multiallelic_group")
+#     multiallelic_scores = scores[:, ~pd.isnull(df["multiallelic_group"])]
+#     spandels = df[~pd.isnull(df["spanning_deletion"])].groupby("spanning_deletion")
+#     spandel_scores = scores[:, ~pd.isnull(df["spanning_deletion"])]
+
+#     return predictions, scores
