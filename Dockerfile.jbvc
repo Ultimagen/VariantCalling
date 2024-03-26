@@ -13,11 +13,11 @@ RUN conda env create -f /VariantCalling/setup/environment.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cnmops.yml && \
     conda init --all
 
-## install ug-cn.mops (branch: tammy/enable_moderate_amplifications_test):
+## install ug-cn.mops (branch: ilyasoifer/test.1.40):
 RUN cd /opt && \
-   git clone --branch tammy/enable_moderate_amplifications_test https://github.com/Ultimagen/cn.mops.git cn.mops && \
+   git clone --branch ilyasoifer/test.1.40 https://github.com/Ultimagen/cn.mops.git cn.mops && \
    cd cn.mops && \
-   git checkout 5f870ea11d23f15f4890cd0c6d66821d56b381bf
+   git checkout 824bb44318acf925691488a2d147d497400786ea
 
 RUN source ~/.bashrc && \
    conda activate cn.mops && \
