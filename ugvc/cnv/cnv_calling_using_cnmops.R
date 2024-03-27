@@ -46,12 +46,10 @@ merged_cohort_reads_count <- readRDS(file = cohort_reads_count_file) #variable n
 if(args$moderate_amplificiations)
 {
     resCNMOPS <- cn.mops(merged_cohort_reads_count,parallel=cores,minWidth = as.integer(min_width_val),norm=0,I = c(0.025,0.5,1,1.2,1.5,2,2.5,3,3.5,4),classes=c("CN0","CN1","CN2","CN2.5","CN3","CN4","CN5","CN6","CN7","CN8"),upperThreshold=0.2,lowerThreshold=-0.5,moderate_amplifications=TRUE)
-    saveRDS(resCNMOPS,file="cohort.cnmops.resCNMOPS.rds")
     resCNMOPS_Int <-calcIntegerCopyNumbers(resCNMOPS)
     saveRDS(resCNMOPS_Int,file="cohort.cnmops.resCNMOPS_Int.rds")
 }else {
     resCNMOPS <- cn.mops(merged_cohort_reads_count,parallel=cores,minWidth = as.integer(min_width_val),norm=0,I = c(0.025,0.5,1,1.5,2,2.5,3,3.5,4),classes=c("CN0","CN1","CN2","CN3","CN4","CN5","CN6","CN7","CN8"))
-    saveRDS(resCNMOPS,file="cohort.cnmops.resCNMOPS.rds")
     resCNMOPS_Int <-calcIntegerCopyNumbers(resCNMOPS)
     saveRDS(resCNMOPS_Int,file="cohort.cnmops.resCNMOPS_Int.rds")
 }
