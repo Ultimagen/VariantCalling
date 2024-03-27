@@ -346,7 +346,7 @@ parser$add_argument("-chrY_name", "--chrY_name", default = "chrY",
 parser$add_argument("--save_csv", action='store_true',
                     help="whether to save normalized reads count data-frames in csv format")
 parser$add_argument("--cap_coverage", action='store_true',
-                    help="whether to cap extremely high average coverage windows to 2*99.9 average coverage quantile value")
+                    help="whether to cap extremely high average coverage windows to 2*cohort's average coverage quantile 99.9% value")
 
 
 args <- parser$parse_args()
