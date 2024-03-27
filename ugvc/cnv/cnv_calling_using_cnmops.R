@@ -34,7 +34,7 @@ parser$add_argument("--save_hdf", action='store_true',
 parser$add_argument("--save_csv", action='store_true',
                     help="whether to save additional data-frames in csv format")
 parser$add_argument("--moderate_amplificiations", action='store_true',
-                    help="whether to call moderate amplifications (Fold-Change>0.2 & < 0.5 will be tagged as CN2.5)")
+                    help="whether to call moderate amplifications (Fold-Change>1.5 & < 2 will be tagged as CN2.5)")
 args <- parser$parse_args()
 
 cohort_reads_count_file <- args$cohort_reads_count_file
