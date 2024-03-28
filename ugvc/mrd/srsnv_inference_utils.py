@@ -179,10 +179,12 @@ class MLQualAnnotator(VcfAnnotator):
             if column in df.columns:
                 cat_dtype = CategoricalDtype(categories=cat_values, ordered=False)
                 df[column] = df[column].astype(cat_dtype)
+                df[column] = df[column].cat.set_categories(new_categories=cat_values, ordered=False)
         if self.new_categorical_features is not None:
             for col in ['alt', 'ref', 'next_1', 'next_2', 'next_3', 'prev_1', 'prev_2', 'prev_3']:
                 if col in df.columns:
                     df[col] = df[col].astype(CategoricalDtype(categories=['A','C','G','T'], ordered=False)) # Categories of new features are always A, C, G, T
+                    df[col] = df[col].cat.set_categories(new_categories=['A','C','G','T'], ordered=False)
 
         # df['X_SMQ_LEFT_MEAN'] = df['X_SMQ_LEFT']
         # df['X_SMQ_RIGHT_MEAN'] = df['X_SMQ_RIGHT']
@@ -361,9 +363,9 @@ def single_read_snv_inference(
             model_fnames = ['.'.join([base_name[:-1]+f'{k}', extension]) for k in range(num_folds)]
         else:
             # If model filename is like "XXXXX.joblib":
-            model_fnames = ['.'.join([fname.rsplit('.', 1)[0]+f'_fold_{k}', fname.rsplit('.', 1)[1]]) for k in range(num_folds)]
+            model_fnames = ['.'.join([base_name+f'_fold_{k}', extension]) for k in range(num_folds)]
         models = [joblib.load(model_fname) for model_fname in model_fnames]
-        logger.info('Cross-validation on, number of folds: {num_folds}. Models loaded')
+        logger.info(f'Cross-validation on, number of folds: {num_folds}. Models loaded')
         if chrom_folds_path is None:
             chrom_folds = pd.Series({
                 'chr2': 0, 'chr6': 0, 'chr22': 0, 'chr14': 0,
