@@ -20,6 +20,7 @@ class Collections(Enum):
     RUNS = "runs"
     SAMPLES = "samples"
     EXECUTIONS = "executions"
+    PPMSEQ = "ppmseq"
 
 
 def initialize_client() -> pymongo.MongoClient:
@@ -48,6 +49,7 @@ if "PAPYRUS_ACCESS_STRING" in os.environ:
     collections[Collections.RUNS] = my_db["runs"]
     collections[Collections.EXECUTIONS] = my_db["runs.executions"]
     collections[Collections.SAMPLES] = my_db["runs.executions.samples"]
+    collections[Collections.PPMSEQ] = my_db["ppmseq_workflows_view"]
 else:
     warnings.warn("Define PAPYRUS_ACCESS_STRING environmental variable to enable access to Papyrus")
     warnings.warn(
@@ -66,7 +68,7 @@ def query_database(query: dict, collection: str = "pipelines", **kwargs: Any) ->
     query : dict
         Pymongo query (dictionary)
     collection: str
-        Supported - 'pipelines' (default), 'runs', 'executions', samples'
+        Supported - 'pipelines' (default), 'runs', 'executions', samples', 'ppmseq'
     **kwargs: Any
         kwargs to pass to pymongo.find
 
