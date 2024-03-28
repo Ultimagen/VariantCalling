@@ -17,7 +17,7 @@ RUN conda env create -f /VariantCalling/setup/environment.yml && \
 RUN cd /opt && \
    git clone --branch ilyasoifer/test.1.40 https://github.com/Ultimagen/cn.mops.git cn.mops && \
    cd cn.mops && \
-   git checkout 491a3580c1e6f557df860d2055d2b8c5c98f4063
+   git checkout 824bb44318acf925691488a2d147d497400786ea
 
 RUN source ~/.bashrc && \
    conda activate cn.mops && \
