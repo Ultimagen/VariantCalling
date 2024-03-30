@@ -185,10 +185,10 @@ def precision_recall_curve(
     else:
         raw_precision = np.array([gtr_select.sum() / len(gtr_select), 1.0])
         raw_recall = np.array([1.0, 0.0])
-        if len(predictions_select) > 0:
-            thresholds = np.array([np.min(predictions_select)])
-        else:
+        if len(predictions_select) == 0:
             thresholds = np.array([0])
+        else:
+            thresholds = np.array([np.min(predictions_select)])
 
     recall_correction = gtr_select.sum() / (gtr_select.sum() + original_fn_count)
     recalls = raw_recall * recall_correction
