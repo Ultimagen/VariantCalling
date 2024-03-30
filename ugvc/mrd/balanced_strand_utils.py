@@ -437,8 +437,8 @@ def read_balanced_strand_trimmer_histogram(
         # make sure expected columns exist
         for col in (
             HistogramColumnNames.COUNT.value,
-            TrimmerSegmentLabels.T_HMER_START.value,
-            TrimmerSegmentLabels.A_HMER_START.value,
+            TrimmerSegmentLabels.T_HMER_START.value + length_suffix,
+            TrimmerSegmentLabels.A_HMER_START.value + length_suffix,
         ):
             if col not in df_trimmer_histogram.columns:
                 raise ValueError(f"Missing expected column {col} in {trimmer_histogram_csv}")
@@ -480,13 +480,13 @@ def read_balanced_strand_trimmer_histogram(
             HistogramColumnNames.STRAND_RATIO_START.value
         ].apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
         if (
-            TrimmerSegmentLabels.A_HMER_END.value in df_trimmer_histogram.columns
-            or TrimmerSegmentLabels.T_HMER_END.value in df_trimmer_histogram.columns
+            TrimmerSegmentLabels.A_HMER_END.value + length_suffix in df_trimmer_histogram.columns
+            or TrimmerSegmentLabels.T_HMER_END.value + length_suffix in df_trimmer_histogram.columns
         ):
             # if only one of the end tags exists (maybe a small subsample) assign the other to 0
             for c in (
-                TrimmerSegmentLabels.A_HMER_END.value,
-                TrimmerSegmentLabels.T_HMER_END.value,
+                TrimmerSegmentLabels.A_HMER_END.value + length_suffix,
+                TrimmerSegmentLabels.T_HMER_END.value + length_suffix,
             ):
                 if c not in df_trimmer_histogram.columns:
                     df_trimmer_histogram.loc[:, c] = 0
