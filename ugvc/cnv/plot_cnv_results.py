@@ -15,7 +15,8 @@ warnings.filterwarnings('ignore')
 sns.set_context("talk")
 sns.set_style("white")
 
-def smooth_wl (df_reads_count,wl=100000,bin_size=1000):
+def smooth_wl (df_reads_count,wl=100000,bin_size=1000) -> pd.DataFrame:
+    '''smooth coverage along the genome to a specicic window size (wl) using data with a specific bin size (bin_size)'''
     multiply_factor = wl/bin_size
     df_smooth_wl=pd.DataFrame(columns=['chr','start','end','cov'])
     chr_list=df_reads_count['chr'].unique()
@@ -33,7 +34,8 @@ def smooth_wl (df_reads_count,wl=100000,bin_size=1000):
     return df_smooth_wl
 
     
-def plot_coverage(sample_name,df_chr_graphic,out_directory,df_germline_cov_norm_100K,df_tumor_cov_norm_100K=None):    
+def plot_coverage(sample_name,df_chr_graphic,out_directory,df_germline_cov_norm_100K,df_tumor_cov_norm_100K=None) -> str:    
+    '''plot coverage along the genome for germline and tumor (if exists) samples'''
     fig = plt.figure(figsize=(20,4))
     marker_size=20
 
@@ -69,7 +71,8 @@ def plot_coverage(sample_name,df_chr_graphic,out_directory,df_germline_cov_norm_
     plt.savefig(out_cov_figure, dpi=300,bbox_inches="tight")
     return out_cov_figure
 
-def get_x_location_for_fig(df,df_germline_cov_norm_100K):
+def get_x_location_for_fig(df,df_germline_cov_norm_100K) -> pd.DataFrame:
+    '''get the x location for the CNV calls in the figure based on the coverage data'''
     start_fig_list = []
     end_fig_list = []
     for index, row in df.iterrows():
@@ -85,7 +88,8 @@ def get_x_location_for_fig(df,df_germline_cov_norm_100K):
     df['end_fig']=end_fig_list
     return df
 
-def plot_amp_del_cnv_calls(df_chr_graphic,out_directory,sample_name,df_DUP=None,df_DEL=None,df_gt_DUP=None,df_gt_DEL=None):
+def plot_amp_del_cnv_calls(df_chr_graphic,out_directory,sample_name,df_DUP=None,df_DEL=None,df_gt_DUP=None,df_gt_DEL=None) -> str:
+    '''plot CNV calls showing duplication and deletions along the genome with comparison to ground truth.'''
     fig = plt.figure(figsize=(20,2))
     marker_size=20
 
@@ -135,8 +139,8 @@ def plot_amp_del_cnv_calls(df_chr_graphic,out_directory,sample_name,df_DUP=None,
     plt.savefig(out_calls_figure, dpi=300,bbox_inches="tight")
     return out_calls_figure
 
-def plot_cnv_calls(sample_name,out_directory,df_chr_graphic,df_germline_cov_norm_100K,df_DUP=None,df_DEL=None):
-    
+def plot_cnv_calls(sample_name,out_directory,df_chr_graphic,df_germline_cov_norm_100K,df_DUP=None,df_DEL=None) -> str:
+    ''' plot the copy number along the genome'''
     if df_DUP is None and df_DEL is None:
         return None
     else:
@@ -180,18 +184,34 @@ def plot_cnv_calls(sample_name,out_directory,df_chr_graphic,df_germline_cov_norm
 
 def run(argv):
     """
-    Run the script    
+    Runs the plot_cnv_results.py script to generate CNV calling results description in figures.
+    input arguments:
+    --germline_coverage: input bed file holding the germline coverage along the genome.
+    --tumor_coverage: input bed file holding the tumor coverage along the genome.
+    --duplication_cnv_calls: input tsv file holding DUP CNV calls in the following format: <chr><start><end><copy-number>
+    --deletion_cnv_calls: input tsv file holding DEL CNV calls in the following format: <chr><start><end><copy-number>
+    --gt_duplication_cnv_calls: input tsv file holding ground truth DUP CNV calls in the following format: <chr><start><end><copy-number>
+    --gt_deletion_cnv_calls: input tsv file holding ground truth DEL CNV calls in the following format: <chr><start><end><copy-number>
+    --out_directory: output directory
+    --sample_name: sample name    
+    output files:
+    coverage plot: <sample_name>.CNV.coverage.jpeg 
+        shows normalized (log scale) coverage along the genome for the germline (and tumor) samples. 
+    duplications and deletions figure : <sample_name>.dup_del.calls.jpeg
+        CNV calls plot showing duplication and deletions along the genome with comparison to ground truth.
+    copy-number figure: <sample_name>.CNV.calls.jpeg
+        shows the copy number along the genome.
     """
     parser = argparse.ArgumentParser(
         prog="plot_cnv_results.py", description="plot CNV calling results"
     )
     
-    parser.add_argument("--germline_coverage", help="input bed file with holding the germline coverage along the genome", required=True, type=str)
-    parser.add_argument("--tumor_coverage", help="input bed file with holding the tumor coverage along the genome", required=False, type=str)
-    parser.add_argument("--duplication_cnv_calls", help="input tsv file holding DUP CNV calls in the following format", required=False, type=str)
-    parser.add_argument("--deletion_cnv_calls", help="input tsv file holding DEL CNV calls in the following format", required=False, type=str)
-    parser.add_argument("--gt_duplication_cnv_calls", help="input tsv file holding ground truth DUP CNV calls in the following format", required=False, type=str)
-    parser.add_argument("--gt_deletion_cnv_calls", help="input tsv file holding ground truth DEL CNV calls in the following format", required=False, type=str)
+    parser.add_argument("--germline_coverage", help="input bed file holding the germline coverage along the genome", required=True, type=str)
+    parser.add_argument("--tumor_coverage", help="input bed file holding the tumor coverage along the genome", required=False, type=str)
+    parser.add_argument("--duplication_cnv_calls", help="input tsv file holding DUP CNV calls in the following format: <chr><start><end><copy-number>", required=False, type=str)
+    parser.add_argument("--deletion_cnv_calls", help="input tsv file holding DEL CNV calls in the following format: <chr><start><end><copy-number>", required=False, type=str)
+    parser.add_argument("--gt_duplication_cnv_calls", help="input tsv file holding ground truth DUP CNV calls in the following format: <chr><start><end><copy-number>", required=False, type=str)
+    parser.add_argument("--gt_deletion_cnv_calls", help="input tsv file holding ground truth DEL CNV calls in the following format: <chr><start><end><copy-number>", required=False, type=str)
     parser.add_argument("--out_directory", help="output directory", required=True, type=str)
     parser.add_argument("--sample_name", help="sample name", required=True, type=str)
     parser.add_argument("--verbosity",help="Verbosity: ERROR, WARNING, INFO, DEBUG",required=False,default="INFO",)
