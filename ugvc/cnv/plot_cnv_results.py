@@ -123,10 +123,10 @@ def plot_amp_del_cnv_calls(df_chr_graphic,out_directory,sample_name,df_DUP=None,
     plt.xticks(xticks, xticks_labels,rotation=60)
   
     if gt and germline:
-        plt.yticks([0,0.5,1],['Ground Truth','UG calls','UG calls'])
-    elif gt:
+        plt.yticks([0,0.5],['Ground Truth','UG calls'])
+    elif gt and not germline:
         plt.yticks([0],['Ground Truth'])
-    elif germline:
+    elif germline and not gt:
         plt.yticks([0.5],['UG calls'])
     
     plt.xlabel('location on genome') 
