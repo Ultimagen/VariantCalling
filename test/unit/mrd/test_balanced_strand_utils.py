@@ -46,7 +46,8 @@ trimmer_histogram_ppmSeq_v2_csv = pjoin(
     "Start_loop.Start_loop.End_loop.End_loop.native_adapter.histogram.csv",
 )
 parsed_histogram_parquet_ppmSeq_v2 = pjoin(
-    inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.parsed_histogram.parquet"
+    inputs_dir,
+    "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.parsed_histogram.parquet",
 )
 
 sorter_stats_csv_ppmSeq_v2_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.csv")
@@ -152,6 +153,7 @@ def test_plot_trimmer_histogram(tmpdir):
         BalancedStrandAdapterVersions.LA_v5,
         df_trimmer_histogram,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
     df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
         BalancedStrandAdapterVersions.LA_v5and6,
@@ -163,6 +165,7 @@ def test_plot_trimmer_histogram(tmpdir):
         BalancedStrandAdapterVersions.LA_v5and6,
         df_trimmer_histogram,
         output_filename=tmp_out_path,
+        legacy_histogram_column_names=True,
     )
 
 
