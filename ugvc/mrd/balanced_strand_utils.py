@@ -378,12 +378,12 @@ def read_balanced_strand_trimmer_histogram(
     df_trimmer_histogram = (
         df_trimmer_histogram.rename(
             columns={
-                "T hmer": TrimmerSegmentLabels.T_HMER_START.value,
-                "A hmer": TrimmerSegmentLabels.A_HMER_START.value,
-                "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value,
-                "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value,
-                "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value,
-                "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value,
+                "T hmer": TrimmerSegmentLabels.T_HMER_START.value + length_suffix,
+                "A hmer": TrimmerSegmentLabels.A_HMER_START.value + length_suffix,
+                "A_hmer_5": TrimmerSegmentLabels.A_HMER_START.value + length_suffix,
+                "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value + length_suffix,
+                "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value + length_suffix,
+                "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value + length_suffix,
             }
         )
         .rename(
@@ -1476,6 +1476,7 @@ def plot_trimmer_histogram(
     output_filename: str = None,
     min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
     max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
+    legacy_histogram_column_names: bool = False,
 ) -> list[plt.Axes]:
     """
     Plot the trimmer hmer calls on a heatmap
@@ -1498,6 +1499,8 @@ def plot_trimmer_histogram(
     max_total_hmer_lengths_in_tags : int, optional
         maximum total hmer lengths in tags for determining strand ratio category
         default 8
+    legacy_histogram_column_names : bool, optional
+        use legacy column names without suffixes, by default False
 
     Returns
     -------
@@ -1513,6 +1516,9 @@ def plot_trimmer_histogram(
     _assert_adapter_version_supported(adapter_version)
     # display settings
     set_pyplot_defaults()
+
+    # column name suffixes
+    length_suffix = TrimmerHistogramSuffixes.LENGTH.value if not legacy_histogram_column_names else ""
 
     if adapter_version in (
         BalancedStrandAdapterVersions.LA_v5and6,
@@ -1531,14 +1537,14 @@ def plot_trimmer_histogram(
             fig.subplots_adjust(wspace=0.3)
             plot_iter = (
                 (
-                    TrimmerSegmentLabels.A_HMER_START.value,
-                    TrimmerSegmentLabels.T_HMER_START.value,
+                    TrimmerSegmentLabels.A_HMER_START.value + length_suffix,
+                    TrimmerSegmentLabels.T_HMER_START.value + length_suffix,
                     HistogramColumnNames.COUNT_NORM.value,
                     "Start loop",
                 ),
                 (
-                    TrimmerSegmentLabels.A_HMER_END.value,
-                    TrimmerSegmentLabels.T_HMER_END.value,
+                    TrimmerSegmentLabels.A_HMER_END.value + length_suffix,
+                    TrimmerSegmentLabels.T_HMER_END.value + length_suffix,
                     HistogramColumnNames.COUNT_NORM.value,
                     "End loop",
                 ),
@@ -1552,8 +1558,8 @@ def plot_trimmer_histogram(
             ):
                 plot_iter = (
                     (
-                        TrimmerSegmentLabels.A_HMER_START.value,
-                        TrimmerSegmentLabels.T_HMER_START.value,
+                        TrimmerSegmentLabels.A_HMER_START.value + length_suffix,
+                        TrimmerSegmentLabels.T_HMER_START.value + length_suffix,
                         HistogramColumnNames.COUNT_NORM.value,
                         "Start loop",
                     ),
@@ -1564,8 +1570,8 @@ def plot_trimmer_histogram(
             ):
                 plot_iter = (
                     (
-                        TrimmerSegmentLabels.A_HMER_END.value,
-                        TrimmerSegmentLabels.T_HMER_END.value,
+                        TrimmerSegmentLabels.A_HMER_END.value + length_suffix,
+                        TrimmerSegmentLabels.T_HMER_END.value + length_suffix,
                         HistogramColumnNames.COUNT_NORM.value,
                         "End loop",
                     ),
@@ -1915,6 +1921,7 @@ def balanced_strand_analysis(
         df_trimmer_histogram,
         title=f"{output_basename} hmer calls",
         output_filename=output_trimmer_histogram_plot,
+        legacy_histogram_column_names=legacy_histogram_column_names,
     )
     if adapter_version in [
         BalancedStrandAdapterVersions.LA_v5,
