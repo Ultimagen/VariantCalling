@@ -93,7 +93,7 @@ def run(argv: list[str]):
     "Train filtering model"
     np.random.seed(1984)
     random.seed(1984)
-    args = parse_args(argv)
+    args = parse_args(argv[1:])
     logger.setLevel(getattr(logging, args.verbosity))
     logger.debug(args)
     logger.info("Training pipeline: START")
@@ -169,4 +169,4 @@ def run(argv: list[str]):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run(sys.argv)
