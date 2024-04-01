@@ -78,7 +78,7 @@ def protected_add(hdr, field, n_vals, param_type, description):
         hdr.add(field, n_vals, param_type, description)
 
 
-def run(argv: list[str]):
+def run(argv: list[str]):  # pylint: disable=too-many-branches
     "POST-GATK variant filtering"
     args = parse_args(argv)
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
@@ -137,22 +137,28 @@ def run(argv: list[str]):
                     if args.model_file is not None:
                         logger.info("Applying classifier")
                         if args.treat_multiallelcis:
-                            # df_original = df.copy()
+                            df_original = df.copy()
                             df = training_prep.process_multiallelic_spandel(
                                 df, args.reference, str(contig), args.input_file
                             )
-                        predictions, scores = variant_filtering_utils.apply_model(df, model, transformer)
-                        if args.treat_multiallelcis:
-                            pass
-                            # predictions, scores = variant_filtering_utils.combine_multiallelic_spandel(
-                            #     df_original, df, predictions, scores
-                            # )
+                        _, scores = variant_filtering_utils.apply_model(df, model, transformer)
 
+                        if args.treat_multiallelcis:
+                            set_source = [x in df_original.index for x in df.index]
+                            set_dest = [x in df.index for x in df_original.index]
+                            df_original["ml_lik"] = pd.Series(
+                                [list(x) for x in scores[set_source, :]], index=df_original.loc[set_dest].index
+                            )
+
+                            df_original = variant_filtering_utils.combine_multiallelic_spandel(df, df_original, scores)
+                        else:
+                            df["ml_lik"] = pd.Series([list(x) for x in scores], index=df.index)
                         phred_pls = math_utils.phred(scores)
                         quals = -phred_pls[:, 1:].max(axis=1) + phred_pls[:, 0]
                         quals = np.clip(quals + 30, 0, 100)
 
                     logger.info("Writing records")
+                    predictions = []  # todo: fix this
                     for i, rec in tqdm.tqdm(enumerate(chunk)):
                         if args.model_file is not None:
                             if predictions[i] == 0:

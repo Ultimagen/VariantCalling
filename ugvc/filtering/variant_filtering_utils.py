@@ -6,9 +6,11 @@ from enum import Enum
 import numpy as np
 import pandas as pd
 import xgboost
+from pandas.core.groupby import DataFrameGroupBy as DFGB
 from sklearn import compose
 
 from ugvc import logger
+from ugvc.filtering import multiallelics as mu
 from ugvc.filtering import transformers
 from ugvc.filtering.tprep_constants import GtType, VcfType
 from ugvc.utils import math_utils, stats_utils
@@ -450,30 +452,69 @@ class VariantSelectionFunctions(Enum):
         return np.array(~((df.hmer_indel_length >= 5)))
 
 
-# def combine_multiallelic_spandel(
-#     df: pd.DataFrame, df_unsplit: pd.DataFrame, predictions: np.ndarray, scores: np.ndarray
-# ) -> tuple[np.ndarray, np.ndarray]:
-#     """Combine predictions and scores for multiallelic spandel
+def combine_multiallelic_spandel(df: pd.DataFrame, df_unsplit: pd.DataFrame, scores: np.ndarray) -> pd.DataFrame:
+    """Combine predictions and scores for multiallelic spandel
 
-#     Parameters
-#     ----------
-#     df: pd.DataFrame
-#         Multiallelic spandel dataframe
-#     df_unsplit: pd.DataFrame
-#         Unsplit dataframe (the original read from the VCF)
-#     predictions: np.ndarray
-#         Predictions, in the order of the split dataframe
-#     scores: np.ndarray
-#         Scores, in the order of the split dataframe
+    Parameters
+    ----------
+    df: pd.DataFrame
+        Multiallelic spandel dataframe
+    df_unsplit: pd.DataFrame
+        Unsplit dataframe (the original read from the VCF)
+    scores: np.ndarray
+        Scores, in the order of the split dataframe
 
-#     Returns
-#     -------
-#     tuple:
-#         Combined predictions and scores in the order of the un-split dataframe
-#     """
-#     multiallelics = df[~pd.isnull(df["multiallelic_group"])].groupby("multiallelic_group")
-#     multiallelic_scores = scores[:, ~pd.isnull(df["multiallelic_group"])]
-#     spandels = df[~pd.isnull(df["spanning_deletion"])].groupby("spanning_deletion")
-#     spandel_scores = scores[:, ~pd.isnull(df["spanning_deletion"])]
+    Returns
+    -------
+    pd.DataFrame:
+        df_unsplit with ml_lik column added representing the merged likelihoods
+    """
 
-#     return predictions, scores
+    multiallelics = df[~pd.isnull(df["multiallelic_group"])].groupby("multiallelic_group")
+    multiallelic_scores = scores[~pd.isnull(df["multiallelic_group"]), :]
+    multiallelic_scores = pd.Series(
+        [list(x) for x in multiallelic_scores], index=df[~pd.isnull(df["multiallelic_group"])]
+    )
+
+    df_unsplit = merge_and_assign_pls(df_unsplit, multiallelics, multiallelic_scores)
+    spandels = df[~pd.isnull(df["spanning_deletion"])].groupby(["chrom", "pos"])
+    spandel_scores = scores[~pd.isnull(df["spanning_deletion"]), :]
+    spandel_scores = pd.Series([list(x) for x in spandel_scores], index=df[~pd.isnull(df["spanning_deletion"])].index)
+    df_unsplit = merge_and_assign_pls(df_unsplit, spandels, spandel_scores)
+    return df_unsplit
+
+
+def merge_and_assign_pls(original_df: pd.DataFrame, grouped_split_df: DFGB, spit_scores: pd.Series) -> pd.DataFrame:
+    '''Merge the split dataframe and assign the likelihoods to the original dataframe
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    '''
+    result = []
+    for g in grouped_split_df.groups:
+        k = g
+        rg = grouped_split_df.get_group(k)
+        if rg.shape[0] == 1:
+            pls = spit_scores[grouped_split_df.groups[g]]
+        else:
+            orig_alleles = original_df.at[k, "alleles"]
+            n_alleles = len(orig_alleles)
+            n_pls = n_alleles * (n_alleles + 1) / 2
+            pls = np.zeros(int(n_pls))
+            idx1 = orig_alleles.index(rg.iloc[1]["alleles"][0])
+            idx2 = orig_alleles.index(rg.iloc[1]["alleles"][1])
+            tmp = spit_scores[grouped_split_df.groups[g][0]][2] * np.array(spit_scores[grouped_split_df.groups[g][1]])
+            tmp = np.insert(tmp, 1, 0)
+            merge_pls = np.concatenate((spit_scores[grouped_split_df.groups[g][0]][:2], tmp))
+            set_idx = [
+                mu.get_pl_idx(x) for x in ((0, 0), (0, idx1), (idx1, idx1), (0, idx2), (idx1, idx2), (idx2, idx2))
+            ]
+            pls[set_idx] = merge_pls
+        result.append(pls)
+
+    set_dest = list(grouped_split_df.groups.keys())
+    original_df.loc[set_dest, "ml_lik"] = pd.Series(result, index=original_df.loc[set_dest].index)
+    return original_df
