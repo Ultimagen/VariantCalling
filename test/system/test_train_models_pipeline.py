@@ -10,6 +10,7 @@ class TestRunTraining:
     def test_run_training_no_gt(self, tmpdir):
         train_models_pipeline.run(
             [
+                "train_models_pipeline",
                 "--train_dfs",
                 f"{self.inputs_dir}/train_model_approximate_gt_input.h5",
                 "--test_dfs",
