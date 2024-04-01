@@ -51,7 +51,7 @@ from ugvc.pipelines.mrd import (
     substitution_error_rate,
 )
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
-from ugvc.pipelines.vcfbed import annotate_contig, intersect_bed_regions
+from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
 from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.utils import cloud_sync
@@ -112,7 +112,7 @@ lpr_modules = [
     filter_vcf_with_lib_prep_recalibration_model,
 ]
 
-vcfbed_modules = [annotate_contig, intersect_bed_regions]
+vcfbed_modules = [annotate_contig, intersect_bed_regions, calibrate_bridging_snvs]
 deepvariant_modules = [training_set_consistency_check]
 
 modules.extend(mrd_modules)
