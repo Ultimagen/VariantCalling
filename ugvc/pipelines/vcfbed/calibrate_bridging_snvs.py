@@ -126,6 +126,8 @@ def run(argv):
                 record.qual = args.set_qual
 
         out_vcf.write(record)
+    out_vcf.close()
+    pysam.tabix_index(args.output, preset="vcf")
 
 
 if __name__ == "__main__":
