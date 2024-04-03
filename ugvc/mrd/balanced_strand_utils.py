@@ -361,9 +361,7 @@ def read_balanced_strand_trimmer_histogram(
     """
     _assert_adapter_version_supported(adapter_version)
     # read histogram
-    df_trimmer_histogram = pd.read_csv(trimmer_histogram_csv).rename(
-        columns={TrimmerSegmentLabels.NATIVE_ADAPTER_WITH_C.value: TrimmerSegmentLabels.NATIVE_ADAPTER.value}
-    )
+    df_trimmer_histogram = pd.read_csv(trimmer_histogram_csv)
 
     # column name suffixes
     name_suffix = TrimmerHistogramSuffixes.NAME.value if not legacy_histogram_column_names else ""
@@ -384,6 +382,9 @@ def read_balanced_strand_trimmer_histogram(
                 "T_hmer_5": TrimmerSegmentLabels.T_HMER_START.value + length_suffix,
                 "A_hmer_3": TrimmerSegmentLabels.A_HMER_END.value + length_suffix,
                 "T_hmer_3": TrimmerSegmentLabels.T_HMER_END.value + length_suffix,
+                TrimmerSegmentLabels.NATIVE_ADAPTER_WITH_C.value
+                + length_suffix: TrimmerSegmentLabels.NATIVE_ADAPTER.value
+                + length_suffix,
             }
         )
         .rename(
