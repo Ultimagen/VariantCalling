@@ -63,14 +63,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
     )
     ap_var.add_argument(
-        "--recalibrate_genotype",
-        help="Use if the model allows to re-call genotype",
-        default=False,
-        action="store_true",
+        "--recalibrate_genotype", help="Use if the model allows to re-call genotype", default=False, action="store_true"
     )
 
     ap_var.add_argument(
-        "--ref_fasta", "Reference FASTA file (only required for multiallelic treatment)", required=False, type=str
+        "--ref_fasta", help="Reference FASTA file (only required for multiallelic treatment)", required=False, type=str
     )
     ap_var.add_argument("--output_file", help="Output VCF file", type=str, required=True)
     ap_var.add_argument(
@@ -164,7 +161,7 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
                             for i, r in enumerate(df["ml_lik"]):
                                 likelihoods[i, : len(r)] = r
 
-                            phreds = (math_utils.phred(likelihoods + 1e-10)).astype(int)
+                            phreds = math_utils.phred(likelihoods + 1e-10)
                             quals = np.clip(30 + phreds[:, 0] - np.min(phreds[:, 1:], axis=1), 0, None)
                             tmp = np.argsort(phreds, axis=1)
                             gq = (
@@ -172,7 +169,7 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
                                 - phreds[np.arange(phreds.shape[0]), tmp[:, 0]]
                             )
                         else:
-                            phreds = math_utils.phred(np.concatenate(df["ml_lik"].values)).astype(int)
+                            phreds = math_utils.phred(np.vstack(df["ml_lik"].values))
                             quals = -phreds[:, 1] + phreds[:, 0]
                             quals = np.clip(quals + 30, 0, 100)
 
@@ -184,11 +181,13 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
                                     del rec.filter["PASS"]
                                 rec.filter.add("LOW_SCORE")
                             if not args.recalibrate_genotype:
-                                rec.info["TREE_SCORE"] = quals[i]
+                                rec.info["TREE_SCORE"] = float(quals[i])
                             else:
-                                rec.samples[0]["GQ"] = gq[i]
+                                rec.samples[0]["GQ"] = int(gq[i])
                                 assert rec.alleles is not None
-                                rec.samples[0]["PL"] = phreds[i][: (len(rec.alleles) + 1) * len(rec.alleles) // 2]
+                                rec.samples[0]["PL"] = phreds[
+                                    i, : (len(rec.alleles) + 1) * len(rec.alleles) // 2
+                                ].astype(int)
                                 rec.samples[0]["GT"] = multiallelics.get_gt_from_pl_idx(
                                     np.argmin(rec.samples[0]["PL"]).astype(int)
                                 )
