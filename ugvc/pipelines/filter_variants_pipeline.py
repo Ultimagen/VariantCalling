@@ -29,7 +29,7 @@ import pandas as pd
 import pysam
 import tqdm
 
-from ugvc.filtering import training_prep, variant_filtering_utils
+from ugvc.filtering import multiallelics, training_prep, variant_filtering_utils
 from ugvc.filtering.blacklist import blacklist_cg_insertions, merge_blacklists
 from ugvc.utils import math_utils
 from ugvc.vcfbed import vcftools
@@ -59,10 +59,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     ap_var.add_argument(
         "--treat_multiallelcis",
         help="Should special treatment be applied to multiallelic and spanning deletions",
-        type=bool,
         default=False,
         action="store_true",
     )
+    ap_var.add_argument(
+        "--recalibrate_genotype",
+        help="Use if the model allows to re-call genotype",
+        default=False,
+        action="store_true",
+    )
+
     ap_var.add_argument(
         "--ref_fasta", "Reference FASTA file (only required for multiallelic treatment)", required=False, type=str
     )
@@ -78,7 +84,7 @@ def protected_add(hdr, field, n_vals, param_type, description):
         hdr.add(field, n_vals, param_type, description)
 
 
-def run(argv: list[str]):  # pylint: disable=too-many-branches
+def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many-statements
     "POST-GATK variant filtering"
     args = parse_args(argv)
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
@@ -149,23 +155,44 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches
                             df_original["ml_lik"] = pd.Series(
                                 [list(x) for x in scores[set_source, :]], index=df_original.loc[set_dest].index
                             )
-
                             df_original = variant_filtering_utils.combine_multiallelic_spandel(df, df_original, scores)
+                            df = df_original.copy()
                         else:
                             df["ml_lik"] = pd.Series([list(x) for x in scores], index=df.index)
-                        phred_pls = math_utils.phred(scores)
-                        quals = -phred_pls[:, 1:].max(axis=1) + phred_pls[:, 0]
-                        quals = np.clip(quals + 30, 0, 100)
+                        if args.recalibrate_genotype:
+                            likelihoods = np.zeros((df.shape[0], max(df["ml_lik"].apply(len))))
+                            for i, r in enumerate(df["ml_lik"]):
+                                likelihoods[i, : len(r)] = r
+
+                            phreds = (math_utils.phred(likelihoods + 1e-10)).astype(int)
+                            quals = np.clip(30 + phreds[:, 0] - np.min(phreds[:, 1:], axis=1), 0, None)
+                            tmp = np.argsort(phreds, axis=1)
+                            gq = (
+                                phreds[np.arange(phreds.shape[0]), tmp[:, 1]]
+                                - phreds[np.arange(phreds.shape[0]), tmp[:, 0]]
+                            )
+                        else:
+                            phreds = math_utils.phred(np.concatenate(df["ml_lik"].values)).astype(int)
+                            quals = -phreds[:, 1] + phreds[:, 0]
+                            quals = np.clip(quals + 30, 0, 100)
 
                     logger.info("Writing records")
-                    predictions = []  # todo: fix this
                     for i, rec in tqdm.tqdm(enumerate(chunk)):
                         if args.model_file is not None:
-                            if predictions[i] == 0:
+                            if quals[i] <= 30:
                                 if "PASS" in rec.filter.keys():
                                     del rec.filter["PASS"]
                                 rec.filter.add("LOW_SCORE")
-                            rec.info["TREE_SCORE"] = quals[i]
+                            if not args.recalibrate_genotype:
+                                rec.info["TREE_SCORE"] = quals[i]
+                            else:
+                                rec.samples[0]["GQ"] = gq[i]
+                                assert rec.alleles is not None
+                                rec.samples[0]["PL"] = phreds[i][: (len(rec.alleles) + 1) * len(rec.alleles) // 2]
+                                rec.samples[0]["GT"] = multiallelics.get_gt_from_pl_idx(
+                                    np.argmin(rec.samples[0]["PL"]).astype(int)
+                                )
+
                         if blacklist is not None:
                             if blacklist[i] != "PASS":
                                 blacklists_info = []

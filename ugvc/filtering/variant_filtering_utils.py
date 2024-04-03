@@ -474,8 +474,7 @@ def combine_multiallelic_spandel(df: pd.DataFrame, df_unsplit: pd.DataFrame, sco
     multiallelic_scores = scores[~pd.isnull(df["multiallelic_group"]), :]
     multiallelic_scores = pd.Series(
         [list(x) for x in multiallelic_scores], index=df[~pd.isnull(df["multiallelic_group"])]
-    )
-
+    )  # type: ignore
     df_unsplit = merge_and_assign_pls(df_unsplit, multiallelics, multiallelic_scores)
     spandels = df[~pd.isnull(df["spanning_deletion"])].groupby(["chrom", "pos"])
     spandel_scores = scores[~pd.isnull(df["spanning_deletion"]), :]
@@ -498,7 +497,7 @@ def merge_and_assign_pls(original_df: pd.DataFrame, grouped_split_df: DFGB, spit
         k = g
         rg = grouped_split_df.get_group(k)
         if rg.shape[0] == 1:
-            pls = spit_scores[grouped_split_df.groups[g]]
+            pls = spit_scores[grouped_split_df.groups[g][0]]
         else:
             orig_alleles = original_df.at[k, "alleles"]
             n_alleles = len(orig_alleles)

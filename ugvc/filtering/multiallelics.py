@@ -252,6 +252,30 @@ def get_pl_idx(tup: tuple) -> int:
     return offset + int(min(tup))
 
 
+def get_gt_from_pl_idx(idx: int) -> tuple:
+    """Returns GT given index in PL
+
+    Parameters
+    ----------
+    idx : int
+        index of the PL value
+
+    Returns
+    -------
+    tuple
+        Genotype
+    """
+
+    count = 0
+    n_alleles = 0
+    while count < idx + 1:
+        count += n_alleles
+        n_alleles += 1
+    max_allele = n_alleles - 1
+    min_allele = idx - (count - n_alleles)
+    return (min_allele - 1, max_allele - 1)
+
+
 def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: bool = True) -> tuple:
     """Selects Pl values according to the subsampled allele indices. Normalizes to the minimum
 
