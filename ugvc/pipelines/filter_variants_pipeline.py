@@ -57,7 +57,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
     )
     ap_var.add_argument(
-        "--treat_multiallelcis",
+        "--treat_multiallelics",
         help="Should special treatment be applied to multiallelic and spanning deletions",
         default=False,
         action="store_true",
@@ -98,7 +98,7 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
             logger.info(f"Loading blacklist from {args.blacklist}")
             with open(args.blacklist, "rb") as blf:
                 blacklists = pickle.load(blf)
-        if args.treat_multiallelcis and args.ref_fasta is None:
+        if args.treat_multiallelics and args.ref_fasta is None:
             raise ValueError("Reference FASTA file is required for multiallelic treatment")
         assert os.path.exists(args.input_file), f"Input file {args.input_file} does not exist"
         assert os.path.exists(args.input_file + ".tbi"), f"Index file {args.input_file}.tbi does not exist"
@@ -138,15 +138,18 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
                         logger.info("Marking CG insertions")
 
                     if args.model_file is not None:
-                        logger.info("Applying classifier")
-                        if args.treat_multiallelcis:
+                        if args.treat_multiallelics:
                             df_original = df.copy()
+                            logger.info("Processing multiallelics -> pre-classifier")
                             df = training_prep.process_multiallelic_spandel(
-                                df, args.reference, str(contig), args.input_file
+                                df, args.ref_fasta, str(contig), args.input_file
                             )
+                        logger.info("Applying classifier")
                         _, scores = variant_filtering_utils.apply_model(df, model, transformer)
 
-                        if args.treat_multiallelcis:
+                        if args.treat_multiallelics:
+                            logger.info("Treating multiallelics -> post-classifier")
+
                             set_source = [x in df_original.index for x in df.index]
                             set_dest = [x in df.index for x in df_original.index]
                             df_original["ml_lik"] = pd.Series(
@@ -169,7 +172,7 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
                                 - phreds[np.arange(phreds.shape[0]), tmp[:, 0]]
                             )
                         else:
-                            phreds = math_utils.phred(np.vstack(df["ml_lik"].values))
+                            phreds = math_utils.phred(np.vstack(tuple(df["ml_lik"].values)))
                             quals = -phreds[:, 1] + phreds[:, 0]
                             quals = np.clip(quals + 30, 0, 100)
 
@@ -185,9 +188,9 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
                             else:
                                 rec.samples[0]["GQ"] = int(gq[i])
                                 assert rec.alleles is not None
-                                rec.samples[0]["PL"] = phreds[
-                                    i, : (len(rec.alleles) + 1) * len(rec.alleles) // 2
-                                ].astype(int)
+                                rec.samples[0]["PL"] = [
+                                    int(x) for x in phreds[i, : (len(rec.alleles) + 1) * len(rec.alleles) // 2]
+                                ]
                                 rec.samples[0]["GT"] = multiallelics.get_gt_from_pl_idx(
                                     np.argmin(rec.samples[0]["PL"]).astype(int)
                                 )
