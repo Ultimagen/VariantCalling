@@ -41,8 +41,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-
-# import os.path
 import sys
 
 import pandas as pd
@@ -53,19 +51,27 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         prog="concat_methyldackel_csvs.py",
         description="Concatenate CSV output files of MethylDackel processing.",
     )
-    ap_var.add_argument("--mbias", help="csv summary of MethylDackelMbias", type=str, required=True)
     ap_var.add_argument(
-        "--mbias_non    _cpg", help="csv summary of MethylDackelMbias in the non-CpG mode", type=str, required=True
+        "--mbias", help="csv summary of MethylDackelMbias", type=str, required=True
     )
-    ap_var.add_argument("--merge_context", help="csv summary of MethylDackelMergeContext", type=str, required=True)
+    ap_var.add_argument(
+        "--mbias_non_cpg", help="csv summary of MethylDackelMbias in the non-CpG mode", type=str, required=True
+    )
+    ap_var.add_argument(
+        "--merge_context", help="csv summary of MethylDackelMergeContext", type=str, required=True
+    )
     ap_var.add_argument(
         "--merge_context_non_cpg",
         help="csv summary of MethylDackelMergeContext in the non-CpG mode",
         type=str,
         required=True,
     )
-    ap_var.add_argument("--per_read", help="csv summary of MethylDackelPerRead", type=str, required=True)
-    ap_var.add_argument("--output", help="Output file basename", type=str, required=True)
+    ap_var.add_argument(
+        "--per_read", help="csv summary of MethylDackelPerRead", type=str, required=True
+    )
+    ap_var.add_argument(
+        "--output", help="Output file basename", type=str, required=True
+    )
 
     return ap_var.parse_args(argv[1:])
 
@@ -123,5 +129,5 @@ def run(argv: list[str]):
         raise err
 
 
-# if __name__ == "__main__":
-#     run(sys.argv[1:])
+if __name__ == "__main__":
+    run(sys.argv[1:])
