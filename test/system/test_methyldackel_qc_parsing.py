@@ -135,23 +135,19 @@ class TestParsers:
         output_csv_file = output_prefix + ".csv"
         os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)
 
-        input_file_name = f"{self.inputs_dir}/csv_files.txt"
-        csv_files = open(input_file_name).read().rstrip().split(",")
-        csv_files_amended = []
-        for c in csv_files:
-            csv_files_amended.append(f"{self.inputs_dir}/" + os.path.basename(c))
-        csv_output = ",".join(csv_files_amended)
-        out_file_name = f"{self.inputs_dir}/" + "csv_files_amended.txt"
-
-        fobj = open(out_file_name, "w", encoding="utf-8")
-        fobj.write(csv_output)
-        fobj.close()
-
         concat_methyldackel_csvs.run(
             [
                 "concat_methyldackel_csvs",
-                "--input",
-                f"{self.inputs_dir}/csv_files_amended.txt",
+                "--mbias",
+                f"{self.inputs_dir}/ProcessMethylDackelMbias.csv",
+                "--mbias_non_cpg",
+                f"{self.inputs_dir}/ProcessMethylDackelMbiasNoCpG.csv",
+                "--merge_context",
+                f"{self.inputs_dir}/ProcessConcatMethylDackelMergeContext.csv",
+                "--merge_context_non_cpg",
+                f"{self.inputs_dir}/ProcessMethylDackelMergeContextNoCpG.csv",
+                "--per_read",
+                f"{self.inputs_dir}/ProcessMethylDackelPerRead.csv",
                 "--output",
                 f"{output_prefix}",
             ]
@@ -178,7 +174,12 @@ class TestParsers:
         input_file_name = f"{self.inputs_dir}/" + input_file_name
         input_csv = pd.read_csv(open(input_file_name))
         total += input_csv.shape[0]
-        os.unlink(out_file_name)
+
+        input_file_name = "ProcessMethylDackelMbiasNoCpG.csv"
+        input_file_name = f"{self.inputs_dir}/" + input_file_name
+        input_csv = pd.read_csv(open(input_file_name))
+        total += input_csv.shape[0]
+
         assert result_csv.shape[0] == total
 
     # ------------------------------------------------------
