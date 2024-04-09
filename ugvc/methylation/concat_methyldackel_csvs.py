@@ -40,10 +40,9 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import logging
-import os.path
-import re
+
+# import os.path
 import sys
 
 import pandas as pd
@@ -54,7 +53,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         prog="concat_methyldackel_csvs.py",
         description="Concatenate CSV output files of MethylDackel processing.",
     )
-    ap_var.add_argument("--input", help="Text file with list of CSV files", type=str, required=True)
+    ap_var.add_argument("--mbias", help="csv summary of MethylDackelMbias", type=str, required=True)
+    ap_var.add_argument(
+        "--mbias_non    _cpg", help="csv summary of MethylDackelMbias in the non-CpG mode", type=str, required=True
+    )
+    ap_var.add_argument("--merge_context", help="csv summary of MethylDackelMergeContext", type=str, required=True)
+    ap_var.add_argument(
+        "--merge_context_non_cpg",
+        help="csv summary of MethylDackelMergeContext in the non-CpG mode",
+        type=str,
+        required=True,
+    )
+    ap_var.add_argument("--per_read", help="csv summary of MethylDackelPerRead", type=str, required=True)
     ap_var.add_argument("--output", help="Output file basename", type=str, required=True)
 
     return ap_var.parse_args(argv[1:])
@@ -72,22 +82,18 @@ def run(argv: list[str]):
     try:
         # check if input files exist
 
-        in_file_name = args.input
-        df_csv_output = pd.DataFrame()
+        df_mbias = pd.read_csv(args.mbias)
+        df_mbias["table"] = "Mbias"
+        df_mbias_non_cpg = pd.read_csv(args.mbias_non_cpg)
+        df_mbias_non_cpg["table"] = "MbiasNoCpG"
+        df_merge_context = pd.read_csv(args.merge_context)
+        df_merge_context["table"] = "MergeContext"
+        df_merge_context_non_cpg = pd.read_csv(args.merge_context_non_cpg)
+        df_merge_context_non_cpg["table"] = "MergeContextNoCpG"
+        df_per_read = pd.read_csv(args.per_read)
+        df_per_read["table"] = "PerRead"
 
-        if os.path.isfile(in_file_name):
-
-            with open(in_file_name, "r", encoding="utf-8") as file:
-                csvreader = csv.reader(file)
-                list_csv_files = next(csvreader)
-
-            for csv_file in list_csv_files:
-                metric_name = re.findall(r"MethylDackel([A-Za-z]+)", csv_file, re.IGNORECASE)
-                metric_name = metric_name[-1]
-                df_csv = pd.read_csv(csv_file)
-                df_csv["table"] = metric_name
-                df_csv_output = pd.concat([df_csv_output, df_csv])
-
+        df_csv_output = pd.concat([df_mbias, df_mbias_non_cpg, df_merge_context, df_merge_context_non_cpg, df_per_read])
         # parse to create more readable columns
         temp = df_csv_output["metric"].str.split("_", n=1, expand=True)
         temp.columns = ["measure", "bin"]
@@ -117,5 +123,5 @@ def run(argv: list[str]):
         raise err
 
 
-if __name__ == "__main__":
-    run(sys.argv[1:])
+# if __name__ == "__main__":
+#     run(sys.argv[1:])
