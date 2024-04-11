@@ -51,27 +51,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         prog="concat_methyldackel_csvs.py",
         description="Concatenate CSV output files of MethylDackel processing.",
     )
-    ap_var.add_argument(
-        "--mbias", help="csv summary of MethylDackelMbias", type=str, required=True
-    )
+    ap_var.add_argument("--mbias", help="csv summary of MethylDackelMbias", type=str, required=True)
     ap_var.add_argument(
         "--mbias_non_cpg", help="csv summary of MethylDackelMbias in the non-CpG mode", type=str, required=True
     )
-    ap_var.add_argument(
-        "--merge_context", help="csv summary of MethylDackelMergeContext", type=str, required=True
-    )
+    ap_var.add_argument("--merge_context", help="csv summary of MethylDackelMergeContext", type=str, required=True)
     ap_var.add_argument(
         "--merge_context_non_cpg",
         help="csv summary of MethylDackelMergeContext in the non-CpG mode",
         type=str,
         required=True,
     )
-    ap_var.add_argument(
-        "--per_read", help="csv summary of MethylDackelPerRead", type=str, required=True
-    )
-    ap_var.add_argument(
-        "--output", help="Output file basename", type=str, required=True
-    )
+    ap_var.add_argument("--per_read", help="csv summary of MethylDackelPerRead", type=str, required=True)
+    ap_var.add_argument("--output", help="Output file basename", type=str, required=True)
 
     return ap_var.parse_args(argv[1:])
 
@@ -88,18 +80,18 @@ def run(argv: list[str]):
     try:
         # check if input files exist
 
-        df_mbias = pd.read_csv(args.mbias)
-        df_mbias["table"] = "Mbias"
-        df_mbias_non_cpg = pd.read_csv(args.mbias_non_cpg)
-        df_mbias_non_cpg["table"] = "MbiasNoCpG"
-        df_merge_context = pd.read_csv(args.merge_context)
-        df_merge_context["table"] = "MergeContext"
-        df_merge_context_non_cpg = pd.read_csv(args.merge_context_non_cpg)
-        df_merge_context_non_cpg["table"] = "MergeContextNoCpG"
-        df_per_read = pd.read_csv(args.per_read)
-        df_per_read["table"] = "PerRead"
-
-        df_csv_output = pd.concat([df_mbias, df_mbias_non_cpg, df_merge_context, df_merge_context_non_cpg, df_per_read])
+        df_csv_output = pd.concat(
+            (
+                pd.read_csv(filename).assign(table=table)
+                for table, filename in (
+                    ("Mbias", args.mbias),
+                    ("MbiasNoCpG", args.mbias_non_cpg),
+                    ("MergeContext", args.merge_context),
+                    ("MergeContextNoCpG", args.merge_context_non_cpg),
+                    ("PerRead", args.per_read),
+                )
+            )
+        )
         # parse to create more readable columns
         temp = df_csv_output["metric"].str.split("_", n=1, expand=True)
         temp.columns = ["measure", "bin"]

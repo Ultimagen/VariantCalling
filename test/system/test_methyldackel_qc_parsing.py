@@ -172,12 +172,12 @@ class TestParsers:
 
         input_file_name = "ProcessMethylDackelMbias.csv"
         input_file_name = f"{self.inputs_dir}/" + input_file_name
-        input_csv = pd.read_csv(open(input_file_name))
+        input_csv = pd.read_csv(input_file_name)
         total += input_csv.shape[0]
 
         input_file_name = "ProcessMethylDackelMbiasNoCpG.csv"
         input_file_name = f"{self.inputs_dir}/" + input_file_name
-        input_csv = pd.read_csv(open(input_file_name))
+        input_csv = pd.read_csv(input_file_name)
         total += input_csv.shape[0]
 
         assert result_csv.shape[0] == total
