@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "methylationqc"
+version = "1.0.2"
+description = ""
+authors = ["Gat Krieger <gat.krieger@ultimagen.com>"]
+readme = "README.md"
+license = "Apache-2.0"
+packages = [
+    { include = "ugvc" }, # necessary for creating a wheel out of the entire repository
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.10"
+pandas = "^2.2.1"
+papermill = "^2.5.0"
+jupyter = "^1.0.0"
+nbconvert = "^7.16.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+concat_methyldackel_csvs = 'ugvc.methylation.concat_methyldackel_csvs:run'
+process_Mbias = 'ugvc.methylation.process_Mbias:run'
+process_mergeContext = 'ugvc.methylation.process_mergeContext:run'
+process_mergeContextNoCpG = 'ugvc.methylation.process_mergeContextNoCpG:run'
+process_perRead = 'ugvc.methylation.process_perRead:run'
