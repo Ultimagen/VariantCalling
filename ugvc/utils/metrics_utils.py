@@ -331,3 +331,54 @@ def merge_trimmer_histograms(trimmer_histograms: list[str], output_path: str):
     )
     df_merged.to_csv(output_filename, index=False)
     return output_filename
+
+def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool = False) -> pd.DataFrame:
+    """
+    Read a trimmer failure codes csv file
+
+    Parameters
+    ----------
+    trimmer_failure_codes_csv : str
+        path to a Trimmer failure codes file
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with trimmer failure codes
+
+    Raises
+    ------
+    AssertionError
+        If the columns are not as expected
+    """
+    df_trimmer_failure_codes = pd.read_csv(trimmer_failure_codes_csv)
+    expected_columns = [
+        "read group",
+        "code",
+        "format",
+        "segment",
+        "reason",
+        "failed read count",
+        "total read count",
+    ]
+    assert (
+        list(df_trimmer_failure_codes.columns) == expected_columns
+    ), f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}"
+
+    df_trimmer_failure_codes = (
+        df_trimmer_failure_codes.groupby(["segment", "reason"])
+        .agg({x: "sum" for x in ("failed read count", "total read count")})
+        .assign(**{"% failure": lambda x: 100 * x["failed read count"] / x["total read count"]})
+    )
+
+    if add_total:
+        total_row = pd.DataFrame({
+            'failed read count': df_trimmer_failure_codes['failed read count'].sum(),
+            'total read count': df_trimmer_failure_codes['total read count'].iloc[0],
+            '% failure': df_trimmer_failure_codes['% failure'].sum()
+        }, index=pd.MultiIndex.from_tuples([('total', 'total')]))
+
+        df_trimmer_failure_codes = pd.concat([df_trimmer_failure_codes, total_row])
+        df_trimmer_failure_codes.index = df_trimmer_failure_codes.index.set_names(["segment", "reason"])
+        
+    return df_trimmer_failure_codes

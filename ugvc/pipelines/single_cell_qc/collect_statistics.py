@@ -5,12 +5,13 @@ from collections import defaultdict
 import pandas as pd
 from Bio import SeqIO
 
-from ugvc.mrd.balanced_strand_utils import read_trimmer_failure_codes
 from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import Inputs
 from ugvc.utils.metrics_utils import (
     merge_trimmer_histograms,
     read_sorter_statistics_csv,
+    read_trimmer_failure_codes,
 )
+
 
 def collect_statistics(input_files: Inputs, output_path: str) -> str:
     os.makedirs(output_path, exist_ok=True)
@@ -22,8 +23,9 @@ def collect_statistics(input_files: Inputs, output_path: str) -> str:
 
     # Read inputs into df_r2_quality
     trimmer_stats = pd.read_csv(input_files.trimmer_stats_csv)
-    df_trimmer_failure_codes, df_failure_codes_metrics = read_trimmer_failure_codes(
-        input_files.trimmer_failure_codes_csv
+    df_trimmer_failure_codes = read_trimmer_failure_codes(
+        input_files.trimmer_failure_codes_csv,
+        add_total=True,
     )
     histogram = pd.read_csv(merged_histogram_csv)
     sorter_stats = read_sorter_statistics_csv(input_files.sorter_stats_csv)
@@ -41,7 +43,6 @@ def collect_statistics(input_files: Inputs, output_path: str) -> str:
     with pd.HDFStore(output_filename, "w") as store:
         store["trimmer_stats"] = trimmer_stats
         store["trimmer_failure_codes"] = df_trimmer_failure_codes
-        store["trimmer_failure_codes_metrics"] = df_failure_codes_metrics
         store["trimmer_histogram"] = histogram
         store["sorter_stats"] = sorter_stats
         store["star_stats"] = star_stats
@@ -57,8 +58,12 @@ def read_star_stats(star_stats_file: str) -> pd.DataFrame:
     df_r2_quality.columns = ["metric", "value"]
 
     # parse metric description
-    df_r2_quality["metric"] = df_r2_quality["metric"].str.replace("|", "").str.strip().str.replace(" ", "_")
-    df_r2_quality.loc[:, "metric"] = df_r2_quality["metric"].str.replace(",", "").str.replace(":", "")
+    df_r2_quality["metric"] = (
+        df_r2_quality["metric"].str.replace("|", "").str.strip().str.replace(" ", "_")
+    )
+    df_r2_quality.loc[:, "metric"] = (
+        df_r2_quality["metric"].str.replace(",", "").str.replace(":", "")
+    )
 
     # Add read_type (general, unique_reads, multi_mapping_reads, unmapped_reads, chimeric_reads)
     df_r2_quality.loc[:, "read_type"] = (
@@ -73,8 +78,12 @@ def read_star_stats(star_stats_file: str) -> pd.DataFrame:
 
     # parse value: add value type (number, percentage, datetime)
     df_r2_quality["value_type"] = "number"
-    df_r2_quality.loc[df_r2_quality["value"].str.endswith("%"), "value_type"] = "percentage"
-    df_r2_quality.loc[df_r2_quality["value"].str.find(":") != -1, "value_type"] = "datetime"
+    df_r2_quality.loc[df_r2_quality["value"].str.endswith("%"), "value_type"] = (
+        "percentage"
+    )
+    df_r2_quality.loc[df_r2_quality["value"].str.find(":") != -1, "value_type"] = (
+        "datetime"
+    )
     df_r2_quality["value"] = df_r2_quality["value"].str.replace("%", "")
     return df_r2_quality
 
@@ -101,7 +110,7 @@ def get_r2_properties(r2_subsample, max_reads=None):
     df_r2_quality.columns.name = "position"
     # normalize
     df_r2_quality = df_r2_quality / df_r2_quality.sum().sum()
-    
+
     return df_r2_quality, r2_lengths
 
 
