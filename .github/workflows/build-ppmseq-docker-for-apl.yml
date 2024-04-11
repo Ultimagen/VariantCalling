@@ -2,6 +2,12 @@ name: ppmseq
 run-name: "Build PPMSeq Docker Image"
 
 on:
+  push:
+    branches:
+      - main
+      - release_*
+    paths:
+      - setup/ppmseq/pyproject.toml
   workflow_dispatch:
 
 permissions:
