@@ -44,6 +44,7 @@ jobs:
 
       - name: Update Version
         run: |
+            cd setup/ppmseq
             ppmseq_version=$($HOME/.local/bin/poetry version --short)
             echo "DOCKER_TAG=${ppmseq_version}" >> ${GITHUB_ENV}
 
