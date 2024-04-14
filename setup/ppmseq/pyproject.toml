@@ -27,7 +27,6 @@ pandas = {version = "^2.1.4", extras = ["hdf5"]}
 papermill = "^2.5.0"
 jupyter = "^1.0.0"
 
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
