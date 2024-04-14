@@ -17,7 +17,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  AWS_ROLE: arn:aws:iam::${{ secrets.AWS_ACCOUNT }}:role/github-actions-aws-role
+  AWS_ROLE: arn:aws:iam::525048827230:role/github-actions-aws-role
 
 jobs:
   build:
