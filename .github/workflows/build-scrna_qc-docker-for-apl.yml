@@ -48,6 +48,7 @@ jobs:
         run: |
             scrna_qc_version=$($HOME/.local/bin/poetry version --short)
             echo "DOCKER_TAG=${scrna_qc_version}" >> ${GITHUB_ENV}
+        working-directory: setup/scRNA_qc
 
       - name: Login to Amazon ECR
         id: ecr-login
