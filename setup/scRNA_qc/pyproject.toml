@@ -24,3 +24,6 @@ pysam = "^0.22.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+single_cell_qc = 'ugvc.pipelines.single_cell_qc.single_cell_qc_pipeline:main'

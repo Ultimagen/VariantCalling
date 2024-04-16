@@ -85,7 +85,7 @@ def generate_report(parameters, output_path, tmp_files=[]) -> str:
     return output_report_html
 
 
-if __name__ == "__main__":
+def main():
     # parse args from command line
     parser = ArgumentParser()
     parser.add_argument(
@@ -172,3 +172,6 @@ if __name__ == "__main__":
     single_cell_qc(
         input_files=inputs, output_path=args.output_path, thresholds=thresholds
     )
+
+if __name__ == "__main__":
+    main()

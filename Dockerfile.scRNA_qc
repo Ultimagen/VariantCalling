@@ -61,5 +61,3 @@ COPY ./setup/scRNA_qc/pyproject.toml ./pyproject.toml
 # Include licenses
 COPY ["samtools LICENSE.txt", "."]
 COPY ["star LICENSE.txt", "."]
-
-ENTRYPOINT [ "/opt/venv/bin/python", "/app/VariantCalling/ugvc/pipelines/single_cell_qc/single_cell_qc_pipeline.py" ]
