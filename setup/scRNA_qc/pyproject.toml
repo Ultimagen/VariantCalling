@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "scrna-qc"
+name = "scrna_qc"
 version = "1.0.0"
 description = ""
 authors = ["Inbal Zelig <inbal.zelig@ultimagen.com>"]
