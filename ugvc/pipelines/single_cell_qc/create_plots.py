@@ -53,7 +53,7 @@ def plot_r2_length_histogram(h5_file: str, output_path: str) -> str:
 
     plt.xlabel("Read Length")
     plt.ylabel("Frequency")
-    plt.title("R2 Length Histogram")
+    plt.title("Insert Length Histogram")
     plot_file = os.path.join(output_path, "r2_length_histogram.png")
     plt.savefig(plot_file)
     plt.close()
@@ -69,7 +69,7 @@ def plot_mean_r2_quality_histogram(h5_file: str, output_path: str) -> str:
     qual_hist.plot()
     plt.xlabel("Quality")
     plt.ylabel("Frequency")
-    plt.title("Mean R2 Quality Histogram")
+    plt.title("Mean insert Quality Histogram")
 
     plot_file = os.path.join(output_path, "mean_r2_quality_histogram.png")
     plt.savefig(plot_file)
