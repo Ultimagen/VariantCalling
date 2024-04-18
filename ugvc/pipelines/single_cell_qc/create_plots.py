@@ -34,7 +34,7 @@ def cbc_umi_plot(h5_file: str, output_path: str):
     )
 
     # Plotting
-    plt.figure(figsize=(12, 4))
+    plt.figure()
     ax = plt.gca()
 
     ax = sns.scatterplot(data=plot_df, x="CBC", y="Num Unique UMI", linewidth=0)
@@ -84,7 +84,7 @@ def plot_quality_per_position(h5_file: str, output_path: str) -> str:
     # quality percentiles per position
     df_cdf = r2_quality.cumsum() / r2_quality.sum()
     percentiles = {q: (df_cdf >= q).idxmax() for q in [0.05, 0.25, 0.5, 0.75, 0.95]}
-    plt.figure(figsize=(10, 5))
+    plt.figure()
     plt.fill_between(
         percentiles[0.05].index,
         percentiles[0.05],
