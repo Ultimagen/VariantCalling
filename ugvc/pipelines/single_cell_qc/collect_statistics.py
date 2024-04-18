@@ -28,6 +28,7 @@ def collect_statistics(input_files: Inputs, output_path: str) -> str:
         add_total=True,
     )
     histogram = pd.read_csv(merged_histogram_csv)
+    # histogram["count"] = histogram["count"].astype('int64')
     sorter_stats = read_sorter_statistics_csv(input_files.sorter_stats_csv)
     star_stats = read_star_stats(input_files.star_stats)
     star_reads_per_gene = pd.read_csv(
@@ -41,14 +42,23 @@ def collect_statistics(input_files: Inputs, output_path: str) -> str:
     output_filename = os.path.join(output_path, "single_cell_qc_stats.h5")
 
     with pd.HDFStore(output_filename, "w") as store:
-        store["trimmer_stats"] = trimmer_stats
-        store["trimmer_failure_codes"] = df_trimmer_failure_codes
-        store["trimmer_histogram"] = histogram
-        store["sorter_stats"] = sorter_stats
-        store["star_stats"] = star_stats
-        store["star_reads_per_gene"] = star_reads_per_gene
-        store["r2_quality"] = r2_quality
-        store["r2_lengths"] = pd.Series(r2_lengths)
+        store.put('trimmer_stats', trimmer_stats, format='table')
+        store.put('trimmer_failure_codes', df_trimmer_failure_codes, format='table')
+        store.put('trimmer_histogram', histogram, format='table')
+        store.put('sorter_stats', sorter_stats, format='table')
+        store.put('star_stats', star_stats, format='table')
+        store.put('star_reads_per_gene', star_reads_per_gene, format='table')
+        store.put('r2_quality', r2_quality, format='table')
+        store.put('r2_lengths', pd.Series(r2_lengths), format='table')
+
+        # store["trimmer_stats"] = trimmer_stats
+        # store["trimmer_failure_codes"] = df_trimmer_failure_codes
+        # store["trimmer_histogram"] = histogram
+        # store["sorter_stats"] = sorter_stats
+        # store["star_stats"] = star_stats
+        # store["star_reads_per_gene"] = star_reads_per_gene
+        # store["r2_quality"] = r2_quality
+        # store["r2_lengths"] = pd.Series(r2_lengths)
 
     return output_filename
 
