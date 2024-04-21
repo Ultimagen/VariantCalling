@@ -74,6 +74,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default="INFO",
     )
 
+    ap_var.add_argument(
+        "--ignore_genotype",
+        help="Ignore genotype information when comparing to ground-truth",
+        required=False,
+        default=False,
+        action="store_true",
+    )
+
     return ap_var.parse_args(argv)
 
 
@@ -98,6 +106,7 @@ def run(argv: list[str]):
             args.contigs_to_read,
             args.contig_for_test,
             custom_info_fields=args.custom_annotations,
+            ignore_genotype=args.ignore_genotype,
         )
     elif args.gt_type == tprep_constants.GtType.APPROXIMATE:
         assert args.blacklist is not None

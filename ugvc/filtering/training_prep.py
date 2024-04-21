@@ -148,6 +148,7 @@ def prepare_ground_truth(
     chromosome: list | None = None,
     test_split: str | None = None,
     custom_info_fields: list[str] | None = None,
+    ignore_genotype: bool = False,
 ) -> None:
     """Generates a training set dataframe from callset and the ground truth VCF. The following steps are peformed:
     1. Run vcfeval to compare the callset to the ground truth
@@ -182,6 +183,9 @@ def prepare_ground_truth(
         or None (in which case no test set is produced)
     custom_info_fields: list, optional
         List of custom INFO annotations to read
+    ignore_genotype: bool, optional
+        Don't compare genotype information, only compare if allele is present in ground-truth
+
     """
     pipeline = vpu.VcfPipelineUtils()
     vcfeval_output = pipeline.run_vcfeval_concordance(
@@ -191,6 +195,7 @@ def prepare_ground_truth(
         ref_genome=reference,
         evaluation_regions=hcr,
         ignore_filter=True,
+        ignore_genotype=ignore_genotype,
     )
     if chromosome is None:
         chromosome = [f"chr{x}" for x in list(range(1, 23)) + ["X", "Y"]]

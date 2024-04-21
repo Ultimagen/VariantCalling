@@ -144,6 +144,7 @@ class VcfPipelineUtils:
         truth_sample: str | None = None,
         ignore_filter: bool = False,
         mode: str = "combine",
+        ignore_genotype: bool = False,
     ) -> str:
         """Run vcfeval to evaluate concordance
 
@@ -169,6 +170,8 @@ class VcfPipelineUtils:
             Ignore status of the variant filter
         mode: str, optional
             Mode of vcfeval (default - combine)
+        ignore_genotype: bool, optional
+            Don't compare genotype information, only compare if allele is present in ground-truth
         Returns
         -------
         final concordance vcf file if the mode is "combine"
@@ -201,6 +204,10 @@ class VcfPipelineUtils:
             f"-m {mode} "
             f"--decompose "
         )
+
+        if ignore_genotype:
+            vcfeval_command += "--squash-ploidy "
+
         if truth_sample is not None and input_sample is not None:
             vcfeval_command += f"--sample {truth_sample},{input_sample} "
 
