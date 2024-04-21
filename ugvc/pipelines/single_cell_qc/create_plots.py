@@ -46,32 +46,32 @@ def cbc_umi_plot(h5_file: str, output_path: str):
     return plot_file
 
 
-def plot_r2_length_histogram(h5_file: str, output_path: str) -> str:
+def plot_insert_length_histogram(h5_file: str, output_path: str) -> str:
     with pd.HDFStore(h5_file, "r") as store:
-        r2_lengths = store["r2_lengths"]
-    pd.Series(r2_lengths).hist(color="gray", bins=1000)
+        insert_lengths = store["insert_lengths"]
+    pd.Series(insert_lengths).hist(color="gray", bins=1000)
 
     plt.xlabel("Read Length")
     plt.ylabel("Frequency")
     plt.title("Insert Length Histogram")
-    plot_file = os.path.join(output_path, "r2_length_histogram.png")
+    plot_file = os.path.join(output_path, "insert_length_histogram.png")
     plt.savefig(plot_file)
     plt.close()
     return plot_file
 
 
-def plot_mean_r2_quality_histogram(h5_file: str, output_path: str) -> str:
+def plot_mean_insert_quality_histogram(h5_file: str, output_path: str) -> str:
     with pd.HDFStore(h5_file, "r") as store:
-        r2_quality = store["r2_quality"]
+        insert_quality = store["insert_quality"]
 
     # histogram of overall quality
-    qual_hist = r2_quality.sum(axis=1)
+    qual_hist = insert_quality.sum(axis=1)
     qual_hist.plot()
     plt.xlabel("Quality")
     plt.ylabel("Frequency")
     plt.title("Mean insert Quality Histogram")
 
-    plot_file = os.path.join(output_path, "mean_r2_quality_histogram.png")
+    plot_file = os.path.join(output_path, "mean_insert_quality_histogram.png")
     plt.savefig(plot_file)
     plt.close()
     return plot_file
@@ -79,10 +79,10 @@ def plot_mean_r2_quality_histogram(h5_file: str, output_path: str) -> str:
 
 def plot_quality_per_position(h5_file: str, output_path: str) -> str:
     with pd.HDFStore(h5_file, "r") as store:
-        r2_quality = store["r2_quality"]
+        insert_quality = store["insert_quality"]
 
     # quality percentiles per position
-    df_cdf = r2_quality.cumsum() / r2_quality.sum()
+    df_cdf = insert_quality.cumsum() / insert_quality.sum()
     percentiles = {q: (df_cdf >= q).idxmax() for q in [0.05, 0.25, 0.5, 0.75, 0.95]}
     plt.figure()
     plt.fill_between(

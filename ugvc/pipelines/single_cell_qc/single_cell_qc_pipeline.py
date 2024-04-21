@@ -8,15 +8,22 @@ from typing import List, Union
 from ugvc.pipelines.single_cell_qc.collect_statistics import collect_statistics, extract_statistics_table
 from ugvc.pipelines.single_cell_qc.create_plots import (
     cbc_umi_plot,
-    plot_mean_r2_quality_histogram,
+    plot_mean_insert_quality_histogram,
     plot_quality_per_position,
-    plot_r2_length_histogram,
+    plot_insert_length_histogram,
 )
 from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import Inputs, Thresholds
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html
 
 
 def single_cell_qc(input_files: Inputs, output_path: str, thresholds: Thresholds):
+    """
+    Run single cell qc pipeline that collects statistics, prepares parameters for report and generates report
+
+    :param input_files: Inputs object with paths to input files
+    :param output_path: path to output directory
+    :param thresholds: Thresholds object with thresholds for qc
+    """
 
     h5_file = collect_statistics(input_files, output_path)
     extract_statistics_table(h5_file)
@@ -27,6 +34,15 @@ def single_cell_qc(input_files: Inputs, output_path: str, thresholds: Thresholds
 
 
 def prepare_parameters_for_report(h5_file: str, thresholds: Thresholds, output_path: str) -> Union[dict, List[str]]:
+    """
+    Prepare parameters for report generation (h5 file, thresholds, plots)
+
+    :param h5_file: path to h5 file with statistics
+    :param thresholds: Thresholds object with thresholds for qc
+    :param output_path: path to output directory
+    :return: parameters for report, list of temporary files to be removed after report generation
+    """
+
     # list of files to be removed after report generation
     tmp_files = []
 
@@ -42,13 +58,13 @@ def prepare_parameters_for_report(h5_file: str, thresholds: Thresholds, output_p
     parameters["cbc_umi_png"] = cbc_umi_png
     tmp_files.append(cbc_umi_png)
 
-    r2_length_png = plot_r2_length_histogram(h5_file, output_path)
-    parameters["r2_length_png"] = r2_length_png
-    tmp_files.append(r2_length_png)
+    insert_length_png = plot_insert_length_histogram(h5_file, output_path)
+    parameters["insert_length_png"] = insert_length_png
+    tmp_files.append(insert_length_png)
 
-    mean_r2_quality_histogram_png = plot_mean_r2_quality_histogram(h5_file, output_path)
-    parameters["mean_r2_quality_histogram_png"] = mean_r2_quality_histogram_png
-    tmp_files.append(mean_r2_quality_histogram_png)
+    mean_insert_quality_histogram_png = plot_mean_insert_quality_histogram(h5_file, output_path)
+    parameters["mean_insert_quality_histogram_png"] = mean_insert_quality_histogram_png
+    tmp_files.append(mean_insert_quality_histogram_png)
 
     quality_per_position_png = plot_quality_per_position(h5_file, output_path)
     parameters["quality_per_position_png"] = quality_per_position_png
@@ -117,10 +133,10 @@ def main():
         "--star-stats", type=str, required=True, help="path to STAR stats file"
     )
     parser.add_argument(
-        "--r2-subsample",
+        "--r2-subsample", #TODO: should be renamed to insert-subsample
         type=str,
         required=True,
-        help="path to R2 subsample .fastq.gz file",
+        help="path to insert subsample .fastq.gz file",
     )
     parser.add_argument(
         "--star-reads-per-gene",

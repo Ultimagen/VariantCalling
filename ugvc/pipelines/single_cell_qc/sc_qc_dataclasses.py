@@ -11,7 +11,7 @@ class Inputs:
     sorter_stats_csv: str
     star_stats: str
     star_reads_per_gene: str
-    r2_subsample: str
+    insert_subsample: str
 
     def __post_init__(self):
         for _, value in self.__dict__.items():

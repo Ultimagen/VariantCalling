@@ -21,107 +21,89 @@ def collect_statistics(input_files: Inputs, output_path: str) -> str:
         input_files.trimmer_histogram_csv, output_path=output_path
     )
 
-    # Read inputs into df_r2_quality
+    # Read inputs into df
     trimmer_stats = pd.read_csv(input_files.trimmer_stats_csv)
     df_trimmer_failure_codes = read_trimmer_failure_codes(
         input_files.trimmer_failure_codes_csv,
         add_total=True,
     )
     histogram = pd.read_csv(merged_histogram_csv)
-    # histogram["count"] = histogram["count"].astype('int64')
     sorter_stats = read_sorter_statistics_csv(input_files.sorter_stats_csv)
     star_stats = read_star_stats(input_files.star_stats)
     star_reads_per_gene = pd.read_csv(
         input_files.star_reads_per_gene, header=None, sep="\t"
     )
 
-    # Get R2 subsample quality and lengths
-    r2_quality, r2_lengths = get_r2_properties(input_files.r2_subsample)
+    # Get insert subsample quality and lengths
+    insert_quality, insert_lengths = get_insert_properties(input_files.insert_subsample)
 
     # Save statistics into h5
     output_filename = os.path.join(output_path, "single_cell_qc_stats.h5")
 
     with pd.HDFStore(output_filename, "w") as store:
-        store.put('trimmer_stats', trimmer_stats, format='table')
-        store.put('trimmer_failure_codes', df_trimmer_failure_codes, format='table')
-        store.put('trimmer_histogram', histogram, format='table')
-        store.put('sorter_stats', sorter_stats, format='table')
-        store.put('star_stats', star_stats, format='table')
-        store.put('star_reads_per_gene', star_reads_per_gene, format='table')
-        store.put('r2_quality', r2_quality, format='table')
-        store.put('r2_lengths', pd.Series(r2_lengths), format='table')
-
-        # store["trimmer_stats"] = trimmer_stats
-        # store["trimmer_failure_codes"] = df_trimmer_failure_codes
-        # store["trimmer_histogram"] = histogram
-        # store["sorter_stats"] = sorter_stats
-        # store["star_stats"] = star_stats
-        # store["star_reads_per_gene"] = star_reads_per_gene
-        # store["r2_quality"] = r2_quality
-        # store["r2_lengths"] = pd.Series(r2_lengths)
+        store.put("trimmer_stats", trimmer_stats, format="table")
+        store.put("trimmer_failure_codes", df_trimmer_failure_codes, format="table")
+        store.put("trimmer_histogram", histogram, format="table")
+        store.put("sorter_stats", sorter_stats, format="table")
+        store.put("star_stats", star_stats, format="table")
+        store.put("star_reads_per_gene", star_reads_per_gene, format="table")
+        store.put("insert_quality", insert_quality, format="table")
+        store.put("insert_lengths", pd.Series(insert_lengths), format="table")
 
     return output_filename
 
 
 def read_star_stats(star_stats_file: str) -> pd.DataFrame:
-    df_r2_quality = pd.read_csv(star_stats_file, header=None, sep="\t")
-    df_r2_quality.columns = ["metric", "value"]
+    df = pd.read_csv(star_stats_file, header=None, sep="\t")
+    df.columns = ["metric", "value"]
 
     # parse metric description
-    df_r2_quality["metric"] = (
-        df_r2_quality["metric"].str.replace("|", "").str.strip().str.replace(" ", "_")
-    )
-    df_r2_quality.loc[:, "metric"] = (
-        df_r2_quality["metric"].str.replace(",", "").str.replace(":", "")
-    )
+    df["metric"] = df["metric"].str.replace("|", "").str.strip().str.replace(" ", "_")
+    df.loc[:, "metric"] = df["metric"].str.replace(",", "").str.replace(":", "")
 
     # Add read_type (general, unique_reads, multi_mapping_reads, unmapped_reads, chimeric_reads)
-    df_r2_quality.loc[:, "read_type"] = (
-        df_r2_quality["metric"]
-        .where(df_r2_quality["value"].isnull())
+    df.loc[:, "read_type"] = (
+        df["metric"]
+        .where(df["value"].isnull())
         .ffill()
         .fillna("general")
         .str.lower()
         .str.replace(":", "")
     )
-    df_r2_quality = df_r2_quality.dropna(subset=["value"])
+    df = df.dropna(subset=["value"])
 
     # parse value: add value type (number, percentage, datetime)
-    df_r2_quality["value_type"] = "number"
-    df_r2_quality.loc[df_r2_quality["value"].str.endswith("%"), "value_type"] = (
-        "percentage"
-    )
-    df_r2_quality.loc[df_r2_quality["value"].str.find(":") != -1, "value_type"] = (
-        "datetime"
-    )
-    df_r2_quality["value"] = df_r2_quality["value"].str.replace("%", "")
-    return df_r2_quality
+    df["value_type"] = "number"
+    df.loc[df["value"].str.endswith("%"), "value_type"] = "percentage"
+    df.loc[df["value"].str.find(":") != -1, "value_type"] = "datetime"
+    df["value"] = df["value"].str.replace("%", "")
+    return df
 
 
-def get_r2_properties(r2_subsample, max_reads=None):
+def get_insert_properties(insert_subsample, max_reads=None):
     """
-    Read R2 subsample fastq.gz file and return quality scores per position and read lengths
+    Read insert subsample fastq.gz file and return quality scores per position and read lengths
     """
-    r2_lengths = []
+    insert_lengths = []
     counter = defaultdict(lambda: defaultdict(int))
 
-    fastq_parser = SeqIO.parse(gzip.open(r2_subsample, "rt"), "fastq")
+    fastq_parser = SeqIO.parse(gzip.open(insert_subsample, "rt"), "fastq")
 
     for j, record in enumerate(fastq_parser):
-        r2_lengths.append(len(record))
+        insert_lengths.append(len(record))
         score = record.letter_annotations["phred_quality"]
         for i in range(len(score)):
             counter[i + 1][score[i]] += 1
         if max_reads and j > max_reads:
             break
 
-    df_r2_quality = pd.DataFrame(counter).sort_index()
-    df_r2_quality.index.name = "quality"
-    df_r2_quality.columns.name = "position"
+    df_insert_quality = pd.DataFrame(counter).sort_index()
+    df_insert_quality.index.name = "quality"
+    df_insert_quality.columns.name = "position"
     # normalize
-    df_r2_quality = df_r2_quality / df_r2_quality.sum().sum()
+    df_insert_quality = df_insert_quality / df_insert_quality.sum().sum()
 
-    return df_r2_quality, r2_lengths
+    return df_insert_quality, insert_lengths
 
 
 def extract_statistics_table(h5_file: str) -> str:
@@ -155,11 +137,11 @@ def extract_statistics_table(h5_file: str) -> str:
         )
         stats["mean_read_length"] = mean_read_length
 
-        # %q >= 20 for R2
+        # %q >= 20 for insert
         q20 = store["sorter_stats"].loc["% PF_Q20_bases"].value
         stats["%q20"] = q20
 
-        # %q >= 30 for R2
+        # %q >= 30 for insert
         q30 = store["sorter_stats"].loc["% PF_Q30_bases"].value
         stats["%q30"] = q30
 
