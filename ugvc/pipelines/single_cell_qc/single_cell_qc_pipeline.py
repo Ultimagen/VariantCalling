@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import subprocess
 from argparse import ArgumentParser
@@ -12,7 +11,7 @@ from ugvc.pipelines.single_cell_qc.create_plots import (
     plot_quality_per_position,
     plot_insert_length_histogram,
 )
-from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import Inputs, Thresholds
+from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import Inputs, OutputFiles, Thresholds
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html
 
 
@@ -33,13 +32,14 @@ def single_cell_qc(input_files: Inputs, output_path: str, thresholds: Thresholds
     # TODO: export h5_file and report html to papyrus
 
 
-def prepare_parameters_for_report(h5_file: str, thresholds: Thresholds, output_path: str) -> Union[dict, List[str]]:
+def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_path: str) -> Union[dict, List[Path]]:
     """
     Prepare parameters for report generation (h5 file, thresholds, plots)
 
     :param h5_file: path to h5 file with statistics
     :param thresholds: Thresholds object with thresholds for qc
     :param output_path: path to output directory
+
     :return: parameters for report, list of temporary files to be removed after report generation
     """
 
@@ -73,12 +73,21 @@ def prepare_parameters_for_report(h5_file: str, thresholds: Thresholds, output_p
     return parameters, tmp_files
 
 
-def generate_report(parameters, output_path, tmp_files=[]) -> str:
+def generate_report(parameters, output_path, tmp_files=List[Path]) -> Path:
+    """
+    Generate report based on jupyter notebook template.
+
+    :param parameters: parameters for report
+    :param output_path: path to output directory
+    :param tmp_files: list of temporary files to be removed after report generation
+
+    :return: path to generated report
+    """
     # define outputs
-    output_report_html = os.path.join(output_path, f"single_cell_qc_report.html")
-    output_report_ipynb = os.path.join(output_path, f"single_cell_qc_report.ipynb")
+    output_report_html = Path(output_path) / OutputFiles.HTML_REPORT.value
+    output_report_ipynb = Path(output_path) / OutputFiles.NOTEBOOK.value
     tmp_files.append(output_report_ipynb)
-    template_notebook = Path.cwd() / 'ugvc' / 'reports' / 'single_cell_qc_report.ipynb'
+    template_notebook = Path.cwd() / 'ugvc' / 'reports' / OutputFiles.NOTEBOOK.value
 
     # inject parameters and run notebook
     papermill_params = f"{' '.join([f'-p {k} {v}' for k, v in parameters.items()])}"
@@ -95,8 +104,8 @@ def generate_report(parameters, output_path, tmp_files=[]) -> str:
 
     # remove temporary files - png and ipynb files
     for temp_file in tmp_files:
-        if os.path.isfile(temp_file):
-            os.remove(temp_file)
+        if temp_file.is_file():
+            temp_file.unlink()
 
     return output_report_html
 
