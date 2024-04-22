@@ -199,7 +199,8 @@ def eval_model(
         select = df["label"].apply(lambda x: x in {(0, 0), (0, 1), (1, 1), (1, 0)})
     labels = labels[select]
     if gt_type == GtType.EXACT:
-        labels = transformers.label_encode.transform(list(labels))
+        labels = np.array(transformers.label_encode.transform(list(labels))) > 0
+
     df = df.loc[select]
     result = evaluate_results(df, pd.Series(list(labels), index=df.index), add_testing_group_column)
     if isinstance(result, tuple):
@@ -243,7 +244,10 @@ def evaluate_results(
         group_df = df[select]
         group_labels = labels[select]
         acc, curve = get_concordance_metrics(
-            group_df["predict"], group_df["ml_qual"], np.array(group_labels), np.zeros(group_df.shape[0], dtype=bool)
+            group_df["predict"],
+            group_df["ml_qual"],
+            np.array(group_labels) > 0,
+            np.zeros(group_df.shape[0], dtype=bool),
         )
         acc["group"] = g_val
         curve["group"] = g_val
