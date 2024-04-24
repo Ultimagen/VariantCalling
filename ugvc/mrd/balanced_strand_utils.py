@@ -15,7 +15,7 @@ import seaborn as sns
 
 from ugvc.flow_format.flow_based_read import generate_key_from_sequence
 from ugvc.reports.report_utils import plot_read_length_histogram
-from ugvc.utils.metrics_utils import merge_trimmer_histograms, read_sorter_statistics_csv
+from ugvc.utils.metrics_utils import merge_trimmer_histograms, read_sorter_statistics_csv, read_trimmer_failure_codes
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html, set_pyplot_defaults
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
@@ -892,7 +892,7 @@ def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str, input_material_n
     return df_stats_shortlist
 
 
-def read_trimmer_failure_codes(trimmer_failure_codes_csv: str):
+def read_trimmer_failure_codes_mrd(trimmer_failure_codes_csv: str):
     """
     Read a trimmer failure codes csv file
 
@@ -914,24 +914,7 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str):
     AssertionError
         If the columns are not as expected
     """
-    df_trimmer_failure_codes = pd.read_csv(trimmer_failure_codes_csv)
-    expected_columns = [
-        "read group",
-        "code",
-        "format",
-        "segment",
-        "reason",
-        "failed read count",
-        "total read count",
-    ]
-    assert (
-        list(df_trimmer_failure_codes.columns) == expected_columns
-    ), f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}"
-    df_trimmer_failure_codes = (
-        df_trimmer_failure_codes.groupby(["segment", "reason"])
-        .agg({x: "sum" for x in ("failed read count", "total read count")})
-        .assign(**{"% failure": lambda x: 100 * x["failed read count"] / x["total read count"]})
-    )
+    df_trimmer_failure_codes = read_trimmer_failure_codes(trimmer_failure_codes_csv)
     adapter_dimers_index = ("insert", "sequence was too short")
     adapter_dimers = (
         df_trimmer_failure_codes.reindex([adapter_dimers_index]).fillna(0).loc[adapter_dimers_index, "% failure"]
@@ -957,6 +940,8 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str):
         ),
         columns=["metric", "value"],
     ).set_index("metric")
+
+
 
     return df_trimmer_failure_codes, df_metrics
 
@@ -1089,7 +1074,7 @@ def collect_statistics(
 
     # read Trimmer failure tags
     if trimmer_failure_codes_csv:
-        df_trimmer_failure_codes, df_failure_codes_metrics = read_trimmer_failure_codes(trimmer_failure_codes_csv)
+        df_trimmer_failure_codes, df_failure_codes_metrics = read_trimmer_failure_codes_mrd(trimmer_failure_codes_csv)
         df_stats_shortlist = pd.concat((df_stats_shortlist, df_failure_codes_metrics))
 
     is_v7_dumbell = (

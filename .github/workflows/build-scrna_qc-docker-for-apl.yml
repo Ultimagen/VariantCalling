@@ -19,7 +19,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  AWS_ROLE: arn:aws:iam::525048827230:role/github-actions-aws-role
+  AWS_ROLE: arn:aws:iam::337532070941:role/google-aws-sync-aws-role
 
 jobs:
   build:
@@ -30,6 +30,7 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: false
 
       - uses: actions/checkout@v3
         with:
@@ -48,6 +49,7 @@ jobs:
         run: |
             scrna_qc_version=$($HOME/.local/bin/poetry version --short)
             echo "DOCKER_TAG=${scrna_qc_version}" >> ${GITHUB_ENV}
+        working-directory: setup/scRNA_qc
 
       - name: Login to Amazon ECR
         id: ecr-login
@@ -65,7 +67,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: Dockerfile.scRNA_qc
+          file: setup/scRNA_qc/Dockerfile
           push: true
           tags: ${{ steps.ecr-login.outputs.registry }}/scrna_qc:${{ env.DOCKER_TAG }}
           build-args: |
