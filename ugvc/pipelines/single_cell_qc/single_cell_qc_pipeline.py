@@ -1,7 +1,6 @@
 from pathlib import Path
 import subprocess
 from argparse import ArgumentParser
-from typing import List
 
 
 from ugvc.pipelines.single_cell_qc.collect_statistics import collect_statistics, extract_statistics_table
@@ -32,7 +31,7 @@ def single_cell_qc(input_files: Inputs, output_path: str, thresholds: Thresholds
     # TODO: export h5_file and report html to papyrus
 
 
-def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_path: str) -> tuple[dict, List[Path]]:
+def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_path: str) -> tuple[dict, list[Path]]:
     """
     Prepare parameters for report generation (h5 file, thresholds, plots)
 
@@ -73,7 +72,7 @@ def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_
     return parameters, tmp_files
 
 
-def generate_report(parameters, output_path, tmp_files=List[Path]) -> Path:
+def generate_report(parameters, output_path, tmp_files=list[Path]) -> Path:
     """
     Generate report based on jupyter notebook template.
 

@@ -362,8 +362,8 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
         "total read count",
     ]
     if list(df_trimmer_failure_codes.columns) != expected_columns:
-        raise AssertionError(
-            f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}"
+        raise ValueError(
+            f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}, got {list(df_trimmer_failure_codes.columns)}"
         )
 
     df_trimmer_failure_codes = (

@@ -1,7 +1,6 @@
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
 
 
 class OutputFiles(Enum):
@@ -17,7 +16,7 @@ class OutputFiles(Enum):
 @dataclass
 class Inputs:
     trimmer_stats_csv: str
-    trimmer_histogram_csv: List[str]
+    trimmer_histogram_csv: list[str]
     trimmer_failure_codes_csv: str
     sorter_stats_csv: str
     star_stats: str
