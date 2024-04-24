@@ -1,0 +1,77 @@
+name: methylation_qc
+run-name: "Build Methylation QC Docker Image"
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - release_*
+    paths:
+      - setup/methylationqc/pyproject.toml
+      - ugvc/methylation/*.py
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Required for assuming an AWS role
+  contents: read # Required for actions/checkout
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ROLE: arn:aws:iam::337532070941:role/google-aws-sync-aws-role
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: false
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      # setup python and update the version in pyproject.toml
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install poetry
+        run: |
+            curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Update Version
+        run: |
+            methylationqc_version=$($HOME/.local/bin/poetry version --short)
+            echo "DOCKER_TAG=${methylationqc_version}" >> ${GITHUB_ENV}
+        working-directory: setup/methylationqc
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Extract build parameters
+        run: |
+          echo "BUILD_TIMESTAMP=$(date '+%F_%H:%M:%S')" >> ${GITHUB_ENV}
+          echo "BUILD_VERSION=$(git rev-parse --short HEAD)" >> ${GITHUB_ENV}
+
+      - name: Build and push methylation_qc docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: Dockerfile.methylationqc
+          push: true
+          tags: ${{ steps.ecr-login.outputs.registry }}/methylation_qc:${{ env.DOCKER_TAG }}
+          build-args: |
+            VERSION=${{ env.DOCKER_TAG }}
+            BUILD_TIMESTAMP=${{ env.BUILD_TIMESTAMP }}
+            BUILD_VERSION=${{ env.BUILD_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
