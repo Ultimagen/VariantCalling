@@ -1,7 +1,6 @@
 import gzip
 from collections import defaultdict
 from pathlib import Path
-from typing import Union
 
 import pandas as pd
 from Bio import SeqIO
@@ -94,7 +93,7 @@ def read_star_stats(star_stats_file: str) -> pd.DataFrame:
     return df
 
 
-def get_insert_properties(insert_subsample, max_reads=None) -> Union[pd.DataFrame, list[int]]:
+def get_insert_properties(insert_subsample, max_reads=None) -> tuple[pd.DataFrame, list[int]]:
     """
     Read insert subsample fastq.gz file and return quality scores per position and read lengths.
 
@@ -149,7 +148,7 @@ def extract_statistics_table(h5_file: Path):
         stats["pass_trimmer_rate"] = pass_trimmer_rate
 
         # Mean UMI per cell
-        mean_umi_per_cell = 0  # TODO: calculate based on store["trimmer_histogram"]?
+        mean_umi_per_cell = 0  # TODO: waiting for the calculation details from Gila
         stats["mean_umi_per_cell"] = mean_umi_per_cell
 
         # Mean read length

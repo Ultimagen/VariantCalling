@@ -67,7 +67,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: setup/scRNA_qc/Dockerfile.scRNA_qc
+          file: setup/scRNA_qc/Dockerfile
           push: true
           tags: ${{ steps.ecr-login.outputs.registry }}/scrna_qc:${{ env.DOCKER_TAG }}
           build-args: |

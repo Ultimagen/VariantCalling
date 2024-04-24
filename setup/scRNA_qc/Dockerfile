@@ -43,7 +43,6 @@ LABEL com.ultimagenomics.version=${VERSION}
 # Install STAR and samtools
 RUN apt-get update && apt-get install --no-install-recommends -y \
     wget \
-    samtools \
     libgomp1 \
     ; \
     apt-get autoclean && rm -rf /var/lib/apt/lists/*
@@ -59,5 +58,4 @@ COPY . .
 COPY ./setup/scRNA_qc/pyproject.toml ./pyproject.toml
 
 # Include licenses
-COPY ["samtools LICENSE.txt", "."]
-COPY ["star LICENSE.txt", "."]
+COPY ["Third Party Licenses/star LICENSE.txt", "."]

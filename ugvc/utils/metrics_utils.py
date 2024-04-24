@@ -361,9 +361,10 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
         "failed read count",
         "total read count",
     ]
-    assert (
-        list(df_trimmer_failure_codes.columns) == expected_columns
-    ), f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}"
+    if list(df_trimmer_failure_codes.columns) != expected_columns:
+        raise AssertionError(
+            f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}"
+        )
 
     df_trimmer_failure_codes = (
         df_trimmer_failure_codes.groupby(["segment", "reason"])
