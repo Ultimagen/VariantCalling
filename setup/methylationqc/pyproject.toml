@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "methylationqc"
-version = "1.0.2"
+version = "1.0.3"
 description = ""
 authors = ["Gat Krieger <gat.krieger@ultimagen.com>"]
 readme = "README.md"
@@ -15,6 +15,9 @@ pandas = "^2.2.1"
 papermill = "^2.5.0"
 jupyter = "^1.0.0"
 nbconvert = "^7.16.3"
+seaborn = "^0.13.2"
+matplotlib = "^3.8.4"
+ipython = "^8.0.0"
 
 
 [build-system]
