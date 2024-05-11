@@ -144,6 +144,7 @@ class VcfPipelineUtils:
         truth_sample: str | None = None,
         ignore_filter: bool = False,
         mode: str = "combine",
+        ignore_genotype: bool = False,
     ) -> str:
         """Run vcfeval to evaluate concordance
 
@@ -169,6 +170,8 @@ class VcfPipelineUtils:
             Ignore status of the variant filter
         mode: str, optional
             Mode of vcfeval (default - combine)
+        ignore_genotype: bool, optional
+            Don't compare genotype information, only compare if allele is present in ground-truth
         Returns
         -------
         final concordance vcf file if the mode is "combine"
@@ -201,6 +204,10 @@ class VcfPipelineUtils:
             f"-m {mode} "
             f"--decompose "
         )
+
+        if ignore_genotype:
+            vcfeval_command += "--squash-ploidy "
+
         if truth_sample is not None and input_sample is not None:
             vcfeval_command += f"--sample {truth_sample},{input_sample} "
 
@@ -280,13 +287,13 @@ class VcfPipelineUtils:
         df2 = pd.read_csv(os.path.join(tempdir, "dest.tsv"), sep="\t").set_index(["CHROM", "POS", "CALL"])
 
         difflines = df1.loc[df1.index.difference(df2.index)].reset_index().fillna(".")[["CHROM", "POS", "CALL"]]
-        difflines.to_csv(os.path.join(tempdir, "step3.call.tsv"), sep="\t", header=None, index=None)
+        difflines.to_csv(os.path.join(tempdir, "step3.call.tsv"), sep="\t", header=False, index=False)
 
         df1 = pd.read_csv(os.path.join(tempdir, "source.tsv"), sep="\t").set_index(["CHROM", "POS", "BASE"])
         df2 = pd.read_csv(os.path.join(tempdir, "dest.tsv"), sep="\t").set_index(["CHROM", "POS", "BASE"])
 
         difflines = df1.loc[df1.index.difference(df2.index)].reset_index().fillna(".")[["CHROM", "POS", "BASE"]]
-        difflines.to_csv(os.path.join(tempdir, "step3.base.tsv"), sep="\t", header=None, index=None)
+        difflines.to_csv(os.path.join(tempdir, "step3.base.tsv"), sep="\t", header=False, index=False)
 
         # Step 4 - annoate with the additional tsvs
         self.__execute(f"bgzip {tempdir}/step3.call.tsv")
@@ -444,8 +451,8 @@ def __map_variant_to_dict(variant: pysam.VariantRecord) -> defaultdict:
 def vcf2concordance(
     raw_calls_file: str,
     concordance_file: str,
-    chromosome: str = None,
-    scoring_field: str = None,
+    chromosome: str | None = None,
+    scoring_field: str | None = None,
 ) -> pd.DataFrame:
     """Generates concordance dataframe
 
@@ -586,18 +593,29 @@ def vcf2concordance(
     concordance_df.loc[called_fn & marked_fp, "classify"] = "fn"
     marked_fp = concordance_df["classify_gt"] == "fp"
     concordance_df.loc[called_fn & marked_fp, "classify_gt"] = "fn"
-    concordance_df.index = list(zip(concordance_df.chrom, concordance_df.pos))
+    concordance_df.index = pd.Index(list(zip(concordance_df.chrom, concordance_df.pos)))
     original = vcftools.get_vcf_df(raw_calls_file, chromosome=chromosome, scoring_field=scoring_field)
 
     concordance_df.drop("qual", axis=1, inplace=True)
 
     drop_candidates = ["chrom", "pos", "alleles", "indel", "ref", "str", "ru", "rpa"]
-    concordance = concordance_df.join(
-        original.drop(
+    if original.shape[0] > 0:
+        concordance = concordance_df.join(
+            original.drop(
+                [x for x in drop_candidates if x in original.columns and x in concordance_df.columns],
+                axis=1,
+            )
+        )
+    else:
+        concordance = concordance_df.copy()
+
+        tmp = original.drop(
             [x for x in drop_candidates if x in original.columns and x in concordance_df.columns],
             axis=1,
         )
-    )
+        for t in tmp.columns:
+            concordance[t] = None
+
     only_ref = concordance["alleles"].apply(len) == 1
     concordance = concordance[~only_ref]
 
@@ -641,7 +659,7 @@ def annotate_concordance(
     fasta: str,
     bw_high_quality: list[str] | None = None,
     bw_all_quality: list[str] | None = None,
-    annotate_intervals: list[str] = None,
+    annotate_intervals: list[str] | None = None,
     runfile: str | None = None,
     flow_order: str | None = DEFAULT_FLOW_ORDER,
     hmer_run_length_dist: tuple = (10, 10),

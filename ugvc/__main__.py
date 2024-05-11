@@ -29,6 +29,7 @@ from ugvc.pipelines import (
     filter_variants_pipeline,
     run_comparison_pipeline,
     train_models_pipeline,
+    training_prep_pipeline,
     vcfeval_flavors,
 )
 from ugvc.pipelines.deepvariant import training_set_consistency_check
@@ -62,6 +63,7 @@ modules = [
     coverage_analysis,
     evaluate_concordance,
     filter_variants_pipeline,
+    training_prep_pipeline,
     run_comparison_pipeline,
     train_models_pipeline,
     filter_sample_cnvs,

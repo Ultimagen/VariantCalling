@@ -14,12 +14,12 @@ class TestConcordanceUtils(unittest.TestCase):
         """
         concordance_df = pd.DataFrame(
             {
-                "classify": ["tp", "tp", "fp", "fn", "tp", "tn"],
-                "filter": ["PASS"] * 6,
-                "tree_score": [1] * 6,
-                "hmer_indel_nuc": ["N"] * 6,
-                "indel": [True] * 6,
-                "hmer_indel_length": [2] * 6,
+                "classify": ["tp", "tp", "fp", "fn", "tp"],
+                "filter": ["PASS"] * 5,
+                "tree_score": [1] * 5,
+                "hmer_indel_nuc": ["N"] * 5,
+                "indel": [True] * 5,
+                "hmer_indel_length": [2] * 5,
             }
         )
         accuracy_df = calc_accuracy_metrics(concordance_df, "classify")
@@ -59,7 +59,7 @@ class TestConcordanceUtils(unittest.TestCase):
         concordance_df = pd.DataFrame(
             {
                 "classify": ["tp", "tp", "fp", "fn", "tp", "tn"],
-                "filter": ["PASS", "PASS", "SEC", "LOW_SCORE", "PASS", "PASS"],
+                "filter": ["PASS", "PASS", "SEC", "LOW_SCORE", "PASS", "LOW_SCORE"],
                 "tree_score": [1] * 6,
                 "hmer_indel_nuc": ["N"] * 6,
                 "indel": [False] * 6,
@@ -70,11 +70,11 @@ class TestConcordanceUtils(unittest.TestCase):
 
         expected = {
             "initial_tp": [3],
-            "initial_fp": [1],
+            "initial_fp": [2],
             "initial_fn": [1],
-            "initial_precision": [0.75],
+            "initial_precision": [0.6],
             "initial_recall": [0.75],
-            "initial_f1": [0.75],
+            "initial_f1": [0.66667],
             "tp": [3],
             "fp": [0],
             "fn": [1],
