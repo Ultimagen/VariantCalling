@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -65,7 +66,20 @@ def plot_insert_length_histogram(h5_file: str, output_path: str) -> Path:
     """
     with pd.HDFStore(h5_file, "r") as store:
         insert_lengths = store[H5Keys.INSERT_LENGTHS.value]
-    pd.Series(insert_lengths).hist(color="gray", bins=1000)
+
+    # Calculate IQR
+    Q1 = np.percentile(insert_lengths, 25)
+    Q3 = np.percentile(insert_lengths, 75)
+    IQR = Q3 - Q1
+
+    # Calculate bin width using Freedman-Diaconis rule
+    bin_width = 2 * IQR * len(insert_lengths) ** (-1/3)
+    if bin_width == 0: # if all values are the same or if the data is extremely skewed the bin width will be 0
+        bins = 10  # Default value to avoid division by zero
+    else:
+        bins = int((max(insert_lengths) - min(insert_lengths)) / bin_width)
+    
+    pd.Series(insert_lengths).hist(color="gray", bins=bins, density=True)
 
     plt.xlabel("Read Length")
     plt.ylabel("Frequency")
