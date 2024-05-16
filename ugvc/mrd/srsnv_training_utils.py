@@ -313,7 +313,7 @@ def prepare_featuremap_for_model(
     balanced_sampling_info_fields_counter = defaultdict(int)
     with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
         featuremap_entry_number = 0
-        for record in fmap.fetch():
+        for record in fmap.fetch(): # TODO: Can this be parallelized by reading from each chromosome separately? 
             featuremap_entry_number += 1
             if do_motif_balancing_in_tp:
                 balanced_sampling_info_fields_counter[
@@ -321,8 +321,8 @@ def prepare_featuremap_for_model(
                 ] += 1
     if featuremap_entry_number < train_and_test_size:
         logger.warning(
-            "Requested training and test set size cannot be met - insufficient data"
-            f"featuremap_entry_number={featuremap_entry_number} < training_set_size={train_set_size}"
+            "Requested training and test set size cannot be met - insufficient data "
+            f"featuremap_entry_number={featuremap_entry_number} < training_set_size={train_set_size} "
             f"+ test_set_size={test_set_size if test_set_size else 0}"
         )
         train_set_size = np.floor(featuremap_entry_number * (train_set_size / train_and_test_size))
