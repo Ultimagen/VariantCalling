@@ -13,7 +13,7 @@ from ugvc.utils.metrics_utils import (
 )
 
 
-def collect_statistics(input_files: Inputs, output_path: str) -> Path:
+def collect_statistics(input_files: Inputs, output_path: str, barcode_name:str) -> Path:
     """
     Collect statistics from input files, parse and save them into h5 file
 
@@ -44,7 +44,7 @@ def collect_statistics(input_files: Inputs, output_path: str) -> Path:
     insert_quality, insert_lengths = get_insert_properties(input_files.insert_subsample)
 
     # Save statistics into h5
-    output_filename = Path(output_path) / OutputFiles.H5.value
+    output_filename = Path(output_path) / (barcode_name + OutputFiles.H5.value)
 
     with pd.HDFStore(output_filename, "w") as store:
         store.put(H5Keys.TRIMMER_STATS.value, trimmer_stats, format="table")
@@ -143,9 +143,9 @@ def extract_statistics_table(h5_file: Path):
         num_trimmed_reads = store[H5Keys.TRIMMER_STATS.value]["num trimmed reads"].values[0]
         stats["num_trimmed_reads"] = num_trimmed_reads
 
-        # Pass_Trimmer_Rate
+        # PCT_pass_trimmer
         pass_trimmer_rate = num_trimmed_reads / num_input_reads
-        stats["pass_trimmer_rate"] = pass_trimmer_rate
+        stats["PCT_pass_trimmer"] = pass_trimmer_rate * 100
 
         # Mean UMI per cell
         mean_umi_per_cell = 0  # TODO: waiting for the calculation details from Gila
@@ -164,11 +164,11 @@ def extract_statistics_table(h5_file: Path):
 
         # %q >= 20 for insert
         q20 = store[H5Keys.SORTER_STATS.value].loc["% PF_Q20_bases"].value
-        stats["%q20"] = q20
+        stats["PCT_q20"] = q20
 
         # %q >= 30 for insert
         q30 = store[H5Keys.SORTER_STATS.value].loc["% PF_Q30_bases"].value
-        stats["%q30"] = q30
+        stats["PCT_q30"] = q30
 
         # %Aligned to genome
         unmapped_reads_df = store[H5Keys.STAR_STATS.value].loc[
@@ -191,8 +191,8 @@ def extract_statistics_table(h5_file: Path):
                 unmapped_reads_df["metric"] == "%_of_reads_unmapped_other", "value"
             ].values[0]
         )
-        prc_aligned_to_genome = 100 - ur_tmm - ur_ts - ur_other
-        stats["prc_aligned_to_genome"] = prc_aligned_to_genome
+        pct_aligned_to_genome = 100 - ur_tmm - ur_ts - ur_other
+        stats["PCT_aligned_to_genome"] = pct_aligned_to_genome
 
         # %Assigned to genes (unique)
         unassigned_genes_df = store[H5Keys.STAR_READS_PER_GENE.value][
@@ -208,24 +208,24 @@ def extract_statistics_table(h5_file: Path):
             ]
             .values[0]
         )
-        prc_aligned_to_genes_unstranded = (
+        pct_aligned_to_genes_unstranded = (
             100 * (star_input_reads - unassigned_genes_unstranded) / star_input_reads
         )
-        stats["prc_aligned_to_genes_unstranded"] = prc_aligned_to_genes_unstranded
+        stats["PCT_aligned_to_genes_unstranded"] = pct_aligned_to_genes_unstranded
 
         # %Assigned to genes (unique; forward)
         unassigned_genes_forward = unassigned_genes_df.iloc[:, 2].sum()
-        prc_aligned_to_genes_forward = (
+        pct_aligned_to_genes_forward = (
             100 * (star_input_reads - unassigned_genes_forward) / star_input_reads
         )
-        stats["prc_aligned_to_genes_forward"] = prc_aligned_to_genes_forward
+        stats["PCT_aligned_to_genes_forward"] = pct_aligned_to_genes_forward
 
         # %Assigned to genes (unique; reverse)
         unassigned_genes_reverse = unassigned_genes_df.iloc[:, 3].sum()
-        prc_aligned_to_genes_reverse = (
+        pct_aligned_to_genes_reverse = (
             100 * (star_input_reads - unassigned_genes_reverse) / star_input_reads
         )
-        stats["prc_aligned_to_genes_reverse"] = prc_aligned_to_genes_reverse
+        stats["PCT_aligned_to_genes_reverse"] = pct_aligned_to_genes_reverse
 
         # Average_mapped_length
         unique_reads_df = store[H5Keys.STAR_STATS.value].loc[
@@ -237,28 +237,28 @@ def extract_statistics_table(h5_file: Path):
         stats["average_mapped_length"] = average_mapped_length
 
         # Uniquely_mapped_reads_%
-        prc_uniquely_mapped_reads = unique_reads_df.loc[
+        pct_uniquely_mapped_reads = unique_reads_df.loc[
             unique_reads_df["metric"] == "Uniquely_mapped_reads_%", "value"
         ].values[0]
-        stats["prc_uniquely_mapped_reads"] = prc_uniquely_mapped_reads
+        stats["PCT_uniquely_mapped_reads"] = pct_uniquely_mapped_reads
 
         # Mismatch_rate_per_base_%
-        prc_mismatch_rate_per_base = unique_reads_df.loc[
+        mismatch_rate = float(unique_reads_df.loc[
             unique_reads_df["metric"] == "Mismatch_rate_per_base_%", "value"
-        ].values[0]
-        stats["prc_mismatch_rate_per_base"] = prc_mismatch_rate_per_base
+        ].values[0])
+        stats["PCT_mismatch"] = mismatch_rate
 
-        # Deletion_rate_per_base
-        deletion_rate_per_base = unique_reads_df.loc[
+        # PCT_deletion
+        deletion_rate = float(unique_reads_df.loc[
             unique_reads_df["metric"] == "Deletion_rate_per_base", "value"
-        ].values[0]
-        stats["deletion_rate_per_base"] = deletion_rate_per_base
+        ].values[0])
+        stats["PCT_deletion"] = deletion_rate
 
-        # Insertion_rate_per_base
-        insertion_rate_per_base = unique_reads_df.loc[
+        # PCT_insertion
+        insertion_rate = float(unique_reads_df.loc[
             unique_reads_df["metric"] == "Insertion_rate_per_base", "value"
-        ].values[0]
-        stats["insertion_rate_per_base"] = insertion_rate_per_base
+        ].values[0])
+        stats["PCT_insertion"] = insertion_rate
 
     df = pd.DataFrame(stats.items(), columns=["statistic", "value"])
     df.set_index("statistic", inplace=True)
