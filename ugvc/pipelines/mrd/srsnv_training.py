@@ -82,10 +82,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Number of cross-validation folds to use. Default=1 (no CV)"""
     )
     parser.add_argument(
-        "--split_folds_by_chrom", 
-        type=int,
-        default=1, 
-        help="""If 1, split into folds by chromosomes. If 0 split randomly."""
+        "--split_folds_randomly", 
+        type=bool,
+        action="store_true",
+        help="""by default the training data is split into folds by chromosomes, if the flag is provided it is split randomly."""
     )
     parser.add_argument(
         "--numerical_features",
@@ -192,7 +192,7 @@ def run(argv: list[str]):
         train_set_size=args.train_set_size,
         test_set_size=args.test_set_size,
         k_folds=args.num_CV_folds, 
-        split_folds_by_chrom=args.split_folds_by_chrom, 
+        split_folds_by_chrom=not args.split_folds_randomly, 
         out_path=args.output,
         out_basename=args.basename,
         lod_filters=args.lod_filters,
