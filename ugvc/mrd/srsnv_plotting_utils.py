@@ -49,9 +49,8 @@ RESIDUAL_SNV_RATE = "residual_snv_rate"
 
 
 def create_data_for_report(
-    classifier: xgb.XGBClassifier,
-    X: pd.DataFrame,
-    y: pd.DataFrame,
+    classifiers: list[xgb.XGBClassifier],
+    df: pd.DataFrame,
 ):
     """create the data needed for the report plots
 
@@ -60,14 +59,10 @@ def create_data_for_report(
     classifier : xgb.XGBClassifier
         the trained ML model
     X : pd.DataFrame
-        input data with features for the classifier
-    y : pd.DataFrame
-        labels
+        input data with predictions
 
     Returns
     -------
-    df : pd.DataFrame
-        dataset with input features, model predicions and probabilities
     df_tp : pd.DataFrame
         TP subset of df
     df_fp : pd.DataFrame
@@ -82,18 +77,19 @@ def create_data_for_report(
         list of false positive rates per ML score per label
     """
 
-    cls_features = list(classifier.feature_names_in_)
-    probs = classifier.predict_proba(X[cls_features])
-    predictions = classifier.predict(X[cls_features])
-    quals = -10 * np.log10(1 - probs)
-    predictions_df = pd.DataFrame(y)
-    labels = np.unique(y["label"].astype(int))
-    for label in labels:
-        predictions_df[f"ML_prob_{label}"] = probs[:, label]
-        predictions_df[f"ML_qual_{label}"] = quals[:, label]
-        predictions_df[f"ML_prediction_{label}"] = predictions[:, label]
-    # TODO: write the code below with .assign rather than concat
-    df = pd.concat([X, predictions_df], axis=1)
+    cls_features = list(classifiers[0].feature_names_in_)
+
+    # probs = classifier.predict_proba(X[cls_features])
+    # predictions = classifier.predict(X[cls_features])
+    # quals = -10 * np.log10(1 - probs)
+    # predictions_df = pd.DataFrame(y)
+    labels = np.unique(df["label"].astype(int))
+    # for label in labels:
+    #     predictions_df[f"ML_prob_{label}"] = probs[:, label]
+    #     predictions_df[f"ML_qual_{label}"] = quals[:, label]
+    #     predictions_df[f"ML_prediction_{label}"] = predictions[:, label]
+    # # TODO: write the code below with .assign rather than concat
+    # df = pd.concat([X, predictions_df], axis=1)
     # TODO: use the information from adapter_version instead of this patch
     if "strand_ratio_category_end" in df and "strand_ratio_category_start" in df:
         df = df.assign(
@@ -118,7 +114,7 @@ def create_data_for_report(
         fprs[label].append(fprs_)
         recalls[label].append(recalls_)
 
-    return df, df_tp, df_fp, max_score, cls_features, fprs, recalls
+    return df_tp, df_fp, max_score, cls_features, fprs, recalls
 
 
 def srsnv_report(
@@ -1285,9 +1281,8 @@ def calculate_lod_stats(
 
 
 def create_report(
-    model: sklearn.base.BaseEstimator,
-    X: pd.DataFrame,
-    y: pd.DataFrame,
+    models: list[sklearn.base.BaseEstimator],
+    df: pd.DataFrame,
     params: dict,
     report_name: str,
     out_path: str,
@@ -1328,11 +1323,11 @@ def create_report(
         assert statistics_h5_file, "statistics_h5_file is required when statistics_json_file is provided"
 
     # check model, data and params
-    assert sklearn.base.is_classifier(model), f"model {model} is not a classifier, please provide a classifier model"
-    assert isinstance(X, pd.DataFrame), "X is not a DataFrame, please provide a DataFrame"
-    assert isinstance(
-        y, (pd.Series, pd.DataFrame)
-    ), "y is not a Series or DataFrame, please provide a Series or DataFrame"
+    assert isinstance(models, list), f"models should be a list of models, got {type(models)=}"
+    k_folds = len(models)
+    for k, model in enumerate(models): 
+        assert sklearn.base.is_classifier(model), f"model {model} (fold {k}) is not a classifier, please provide a classifier model"
+    assert isinstance(df, pd.DataFrame), "df is not a DataFrame, please provide a DataFrame"
     expected_keys_in_params = [
         "fp_featuremap_entry_number",
         f"fp_{report_name}_set_size",
@@ -1352,14 +1347,14 @@ def create_report(
         params["data_name"] = ""
 
     (
-        df_X_with_pred_columns,
         df_tp,
         df_fp,
         max_score,
         cls_features,
         fprs,
         _,
-    ) = create_data_for_report(model, X, y)
+    ) = create_data_for_report(models, df)
+    df_X_with_pred_columns = df
 
     labels_dict = {1: "TP", 0: "FP"}
 
