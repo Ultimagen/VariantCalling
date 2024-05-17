@@ -189,6 +189,8 @@ def k_fold_predict_proba(models, df, columns_for_training, k_folds, kfold_col="f
 
 
 # pylint:disable=too-many-arguments
+# pylint:disable=too-many-branches
+# pylint:disable=too-many-statements
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
@@ -223,6 +225,8 @@ def prepare_featuremap_for_model(
         Size of training set to create, must be at larger than 0
     test_set_size : int
         Size of test set to create, must be at larger than 0
+    k_folds : int
+        Number of folds for cross validation. Default 1 (no CV)
     regions_file : str, optional
         Path to regions file, by default None
     sorter_json_stats_file : str, optional
@@ -250,6 +254,11 @@ def prepare_featuremap_for_model(
         Downsampled test featuremap
     int
         Number of entries in intersected featuremap
+
+    Raises
+    ------
+    ValueError
+        If k_folds > 1 and test_set_size > 0
 
     """
 
@@ -313,7 +322,7 @@ def prepare_featuremap_for_model(
     balanced_sampling_info_fields_counter = defaultdict(int)
     with pysam.VariantFile(intersect_featuremap_vcf) as fmap:
         featuremap_entry_number = 0
-        for record in fmap.fetch(): # TODO: Can this be parallelized by reading from each chromosome separately? 
+        for record in fmap.fetch():  # TODO: Can this be parallelized by reading from each chromosome separately?
             featuremap_entry_number += 1
             if do_motif_balancing_in_tp:
                 balanced_sampling_info_fields_counter[

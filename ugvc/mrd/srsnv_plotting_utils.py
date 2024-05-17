@@ -56,10 +56,10 @@ def create_data_for_report(
 
     Parameters
     ----------
-    classifier : xgb.XGBClassifier
-        the trained ML model
-    X : pd.DataFrame
-        input data with predictions
+    classifiers : list[xgb.XGBClassifier]
+        A list of the trained ML models
+    df : pd.DataFrame
+        data dataframe data with predictions
 
     Returns
     -------
@@ -1296,12 +1296,10 @@ def create_report(
 
     Parameters
     ----------
-    model : sklearn.base.BaseEstimator
-        SKlearn model
-    X : str
-        X data set
-    y : str
-        y data set
+    models : list[sklearn.base.BaseEstimator]
+        A list of SKlearn models (for all folds)
+    df : pd.DataFrame
+        Dataframe of all fold data, including labels
     params : str
         params dict
     report_name : str
@@ -1324,9 +1322,10 @@ def create_report(
 
     # check model, data and params
     assert isinstance(models, list), f"models should be a list of models, got {type(models)=}"
-    k_folds = len(models)
-    for k, model in enumerate(models): 
-        assert sklearn.base.is_classifier(model), f"model {model} (fold {k}) is not a classifier, please provide a classifier model"
+    for k, model in enumerate(models):
+        assert sklearn.base.is_classifier(
+            model
+        ), f"model {model} (fold {k}) is not a classifier, please provide a classifier model"
     assert isinstance(df, pd.DataFrame), "df is not a DataFrame, please provide a DataFrame"
     expected_keys_in_params = [
         "fp_featuremap_entry_number",

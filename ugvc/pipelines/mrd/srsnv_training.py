@@ -72,14 +72,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--test_set_size",
         type=int,
-        default=None, 
+        default=None,
         help="""Size of the test set for the classification model""",
     )
     parser.add_argument(
-        "--num_CV_folds", 
+        "--num_CV_folds",
         type=int,
-        default=1, 
-        help="""Number of cross-validation folds to use. Default=1 (no CV)"""
+        default=1,
+        help="""Number of cross-validation folds to use. Default=1 (no CV)""",
     )
     parser.add_argument(
         "--split_folds_randomly", 
