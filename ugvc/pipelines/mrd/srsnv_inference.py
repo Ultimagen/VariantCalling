@@ -86,7 +86,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--chrom_folds_path",
         type=int,
         default=None,
-        help="""The path to a csv file with information about which chromosomes belong to which CV fold. 
+        help="""The path to a csv file with information about which chromosomes belong to which CV fold.
         By default, use the following grouping into folds:
         {'chr2': 0, 'chr6': 0, 'chr22': 0, 'chr14': 0,
         'chr3': 1, 'chr4': 1, 'chr5': 1,
@@ -111,6 +111,6 @@ def run(argv: list[str]):
         out_path=args.output_path,
         test_set_mrd_simulation_dataframe_file=args.test_set_mrd_simulation_dataframe_file,
         process_number=args.process_number,
-        num_folds=args.num_folds, 
-        chrom_folds_path=args.chrom_folds_path
+        num_folds=args.num_folds,
+        chrom_folds_path=args.chrom_folds_path,
     )
