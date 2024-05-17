@@ -12,7 +12,7 @@ from ugvc.filtering.tprep_constants import SPAN_DEL
 from ugvc.vcfbed import vcftools
 
 
-def select_overlapping_variants(df: pd.DataFrame) -> list:
+def select_overlapping_variants(df: pd.DataFrame, require_star_for_spandel: bool = True) -> list:
     """Selects lists of overlapping variants that need to be genotyped together. This
     can be multiallelic variants or variants with spanning deletion
 
@@ -20,6 +20,9 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
     ----------
     df : pd.DataFrame
         Training set dataframe
+    require_star_for_spandel: bool
+        Should "*" appear in the alleles of the row to be considered as a spanning deletion (true)
+        or just overlap with deletion is enough (false)
     Returns
     -------
     list
@@ -50,7 +53,7 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
         if len(cluster) == 0:
             cluster.append(i)
         # or if we are in a deletion and the variant contains SPAN_DEL
-        elif len(cluster) > 0 and SPAN_DEL in df.iloc[i]["alleles"]:
+        elif len(cluster) > 0 and ((SPAN_DEL in df.iloc[i]["alleles"]) or (not require_star_for_spandel)):
             cluster.append(i)
         # case when a deletion spans another deletion
         current_span = max(current_span, del_length[i] + df.iloc[i]["pos"])
