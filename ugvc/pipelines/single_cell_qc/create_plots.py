@@ -79,7 +79,7 @@ def plot_insert_length_histogram(h5_file: str, output_path: str) -> Path:
     else:
         bins = int((max(insert_lengths) - min(insert_lengths)) / bin_width)
     
-    pd.Series(insert_lengths).hist(color="gray", bins=bins, density=True)
+    pd.Series(insert_lengths).hist(bins=bins, density=True)
 
     plt.xlabel("Read Length")
     plt.ylabel("Frequency")
@@ -105,10 +105,11 @@ def plot_mean_insert_quality_histogram(h5_file: str, output_path: str) -> Path:
 
     # histogram of overall quality
     qual_hist = insert_quality.sum(axis=1)
-    qual_hist.plot()
+    qual_hist.plot.bar()
+    plt.xticks(rotation=0)
     plt.xlabel("Quality")
     plt.ylabel("Frequency")
-    plt.title("Mean insert Quality Histogram")
+    plt.title("Mean Insert Quality Histogram")
 
     plot_file = Path(output_path) / OutputFiles.MEAN_INSERT_QUALITY_PLOT.value
     plt.savefig(plot_file)
@@ -154,7 +155,7 @@ def plot_quality_per_position(h5_file: str, output_path: str) -> Path:
     plt.legend()
     plt.xlabel("Position")
     plt.ylabel("Quality")
-    plt.title("Quality per Position")
+    plt.title("Quality Per Position")
 
     plot_file = Path(output_path) / OutputFiles.QUALITY_PER_POSITION_PLOT.value
     plt.savefig(plot_file)
