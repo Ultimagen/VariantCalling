@@ -15,6 +15,8 @@ from ugvc.filtering import transformers
 from ugvc.filtering.tprep_constants import GtType, VcfType
 from ugvc.utils import math_utils, stats_utils
 
+MAX_CHUNK_SIZE = 1000000
+
 
 def train_model(
     concordance: pd.DataFrame,
@@ -96,8 +98,13 @@ def apply_model(
     tuple:
         Predictions and probabilities
     """
-    x_test_df = transformer.transform(input_df)
-    _validate_data(pd.DataFrame(x_test_df))
+    chunks = np.arange(0, input_df.shape[0], MAX_CHUNK_SIZE, dtype=int)
+    chunks = np.concatenate((chunks, [input_df.shape[0]]))
+    transformed_chunks = [
+        transformer.transform(input_df.iloc[chunks[i] : chunks[i + 1]]) for i in range(len(chunks) - 1)
+    ]
+    x_test_df = pd.concat(transformed_chunks)
+    _validate_data(x_test_df)
     predictions = model.predict(x_test_df)
     probabilities = model.predict_proba(x_test_df)
     return predictions, probabilities
