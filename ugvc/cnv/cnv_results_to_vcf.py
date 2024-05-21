@@ -129,7 +129,7 @@ def run(argv):
             record.info['CopyNumber'] = str(CN)
             record.info['RoundedCopyNumber'] = str(CN)
             record.info['SVLEN'] = str(int(end)-int(start))
-            record.info['SVTYPE'] = cnv_type
+            record.info['SVTYPE'] = cnv_type.replace("<","").replace(">","")
             #record.info['END_POS'] = str(end)
 
 
