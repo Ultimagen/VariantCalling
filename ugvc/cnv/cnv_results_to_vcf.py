@@ -23,8 +23,8 @@ def run(argv):
     --out_directory: output directory
     --sample_name: sample name    
     output files:
-    vcf file: <sample_name>.CNV.coverage.jpeg 
-        shows normalized (log scale) coverage along the genome for the germline (and tumor) samples. 
+    vcf file: <sample_name>.cnv.vcf
+        shows called CNVs in vcf format. 
     """
     parser = argparse.ArgumentParser(
         prog="cnv_results_to_vcf.py", description="converts CNV calls in bed format to vcf."
@@ -140,6 +140,9 @@ def run(argv):
 
             # Write the record to the VCF file
             vcf_out.write(record)
+        
+        vcf_out.close()
+        logger.info(f"output file: {outfile}")
 
 if __name__ == "__main__":
     run(sys.argv)
