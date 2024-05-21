@@ -21,7 +21,7 @@ from ugvc.utils.misc_utils import modify_jupyter_notebook_html
 
 
 def single_cell_qc(
-    input_files: Inputs, output_path: str, thresholds: Thresholds, barcode_name: str
+    input_files: Inputs, output_path: str, thresholds: Thresholds, sample_name: str
 ):
     """
     Run single cell qc pipeline that collects statistics, prepares parameters for report and generates report
@@ -29,15 +29,16 @@ def single_cell_qc(
     :param input_files: Inputs object with paths to input files
     :param output_path: path to output directory
     :param thresholds: Thresholds object with thresholds for qc
+    :param sample_name: sample name to be include as a prefix in the output files
     """
-    if not barcode_name.endswith("_"):
-        barcode_name += "_"
+    if not sample_name.endswith("_"):
+        sample_name += "_"
 
-    h5_file = collect_statistics(input_files, output_path, barcode_name)
+    h5_file = collect_statistics(input_files, output_path, sample_name)
     extract_statistics_table(h5_file)
 
     params, tmp_files = prepare_parameters_for_report(h5_file, thresholds, output_path)
-    output_report_html = generate_report(params, output_path, tmp_files, barcode_name)
+    output_report_html = generate_report(params, output_path, tmp_files, sample_name)
     # TODO: export h5_file and report html to papyrus
 
 
@@ -87,7 +88,7 @@ def prepare_parameters_for_report(
 
 
 def generate_report(
-    parameters, output_path, tmp_files: list[Path], barcode_name: str
+    parameters, output_path, tmp_files: list[Path], sample_name: str
 ) -> Path:
     """
     Generate report based on jupyter notebook template.
@@ -95,14 +96,15 @@ def generate_report(
     :param parameters: parameters for report
     :param output_path: path to output directory
     :param tmp_files: list of temporary files to be removed after report generation
+    :param sample_name: sample name to be include as a prefix in the output files
 
     :return: path to generated report
     """
     # define outputs
     output_report_html = (
-        Path(output_path) / (barcode_name + OutputFiles.HTML_REPORT.value)
+        Path(output_path) / (sample_name + OutputFiles.HTML_REPORT.value)
     )
-    output_report_ipynb = Path(output_path) / (barcode_name + OutputFiles.NOTEBOOK.value)
+    output_report_ipynb = Path(output_path) / (sample_name + OutputFiles.NOTEBOOK.value)
     tmp_files.append(output_report_ipynb)
     template_notebook = Path.cwd() / "ugvc" / "reports" / OutputFiles.NOTEBOOK.value
 
@@ -131,10 +133,10 @@ def main():
     # parse args from command line
     parser = ArgumentParser()
     parser.add_argument(
-        "--barcode-name",
+        "--sample-name",
         type=str,
         required=True,
-        help="barcode name to be include in the output files",
+        help="sample name to be include in the output files",
     )
     parser.add_argument(
         "--trimmer-stats",
@@ -165,10 +167,10 @@ def main():
         "--star-stats", type=str, required=True, help="path to STAR stats file"
     )
     parser.add_argument(
-        "--insert-subsample",
+        "--insert",
         type=str,
         required=True,
-        help="path to insert subsample .fastq.gz file",
+        help="path to insert .fastq.gz file",
     )
     parser.add_argument(
         "--star-reads-per-gene",
@@ -208,7 +210,7 @@ def main():
         args.sorter_stats,
         args.star_stats,
         args.star_reads_per_gene,
-        args.insert_subsample,
+        args.insert,
     )
     thresholds = Thresholds(
         args.pass_trim_rate,
@@ -221,7 +223,7 @@ def main():
         input_files=inputs,
         output_path=args.output_path,
         thresholds=thresholds,
-        barcode_name=args.barcode_name,
+        sample_name=args.sample_name,
     )
 
 
