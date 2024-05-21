@@ -209,6 +209,7 @@ def eval_model(
     labels = labels[select]
     if gt_type == GtType.EXACT:
         labels = np.array(transformers.label_encode.transform(list(labels))) > 0
+        df["predict"] = df["predict"] > 0
 
     df = df.loc[select]
     result = evaluate_results(df, pd.Series(list(labels), index=df.index), add_testing_group_column)
