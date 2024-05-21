@@ -61,8 +61,8 @@ def run(argv):
     
     # Add ALT
     header.add_line('##ALT=<ID=CNV,Description="Copy number variant region">')
-    header.add_line('##ALT=<ID=DEL,Description="Deletion relative to the reference">')
-    header.add_line('##ALT=<ID=DUP,Description="Region of elevated copy number relative to the reference">')
+    header.add_line('##ALT=<ID=<DEL>,Description="Deletion relative to the reference">')
+    header.add_line('##ALT=<ID=<DUP>,Description="Region of elevated copy number relative to the reference">')
     
     # Add FILTER
     header.add_line('##FILTER=<ID=PASS,Description="high confidence CNV call">')
@@ -72,7 +72,8 @@ def run(argv):
     # Add INFO
     header.add_line('##INFO=<ID=CONFIDENCE,Description="Confidence level for CNV call. 0-Low 1-High">')
     header.add_line('##INFO=<ID=CopyNumber,Description="copy number of CNV call">')
-    #header.add_line('##INFO=<ID=END,Description="end position of the CNV">')
+    header.add_line('##INFO=<ID=RoundedCopyNumber,Description="rounded copy number of CNV call">')
+    #header.add_line('##INFO=<ID=END_POS,Description="end position of the CNV">')
     header.add_line('##INFO=<ID=SVLEN,Description="CNV length">')
     header.add_line('##INFO=<ID=SVTYPE,Description="CNV type. can be DUP or DEL">')
     
@@ -97,9 +98,9 @@ def run(argv):
             info = row['info']
 
             CN = int(info.split("|")[0].replace("CN",""))
-            cnv_type = 'DUP'
+            cnv_type = '<DUP>'
             if CN<2:
-                cnv_type='DEL'
+                cnv_type='<DEL>'
 
             filters = []
             for item in info.split(';'):
@@ -126,8 +127,10 @@ def run(argv):
           
             record.info['CONFIDENCE'] = CONFIDENCE
             record.info['CopyNumber'] = str(CN)
+            record.info['RoundedCopyNumber'] = str(CN)
             record.info['SVLEN'] = str(int(end)-int(start))
             record.info['SVTYPE'] = cnv_type
+            #record.info['END_POS'] = str(end)
 
 
             # Set genotype information for each sample
