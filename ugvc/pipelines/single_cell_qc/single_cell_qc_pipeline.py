@@ -1,37 +1,50 @@
-from pathlib import Path
 import subprocess
 from argparse import ArgumentParser
+from pathlib import Path
 
-
-from ugvc.pipelines.single_cell_qc.collect_statistics import collect_statistics, extract_statistics_table
+from ugvc.pipelines.single_cell_qc.collect_statistics import (
+    collect_statistics,
+    extract_statistics_table,
+)
 from ugvc.pipelines.single_cell_qc.create_plots import (
     cbc_umi_plot,
+    plot_insert_length_histogram,
     plot_mean_insert_quality_histogram,
     plot_quality_per_position,
-    plot_insert_length_histogram,
 )
-from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import Inputs, OutputFiles, Thresholds
+from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import (
+    Inputs,
+    OutputFiles,
+    Thresholds,
+)
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html
 
 
-def single_cell_qc(input_files: Inputs, output_path: str, thresholds: Thresholds):
+def single_cell_qc(
+    input_files: Inputs, output_path: str, thresholds: Thresholds, sample_name: str
+):
     """
     Run single cell qc pipeline that collects statistics, prepares parameters for report and generates report
 
     :param input_files: Inputs object with paths to input files
     :param output_path: path to output directory
     :param thresholds: Thresholds object with thresholds for qc
+    :param sample_name: sample name to be include as a prefix in the output files
     """
+    if not sample_name.endswith("_"):
+        sample_name += "_"
 
-    h5_file = collect_statistics(input_files, output_path)
+    h5_file = collect_statistics(input_files, output_path, sample_name)
     extract_statistics_table(h5_file)
 
     params, tmp_files = prepare_parameters_for_report(h5_file, thresholds, output_path)
-    output_report_html = generate_report(params, output_path, tmp_files=tmp_files)
+    output_report_html = generate_report(params, output_path, tmp_files, sample_name)
     # TODO: export h5_file and report html to papyrus
 
 
-def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_path: str) -> tuple[dict, list[Path]]:
+def prepare_parameters_for_report(
+    h5_file: Path, thresholds: Thresholds, output_path: str
+) -> tuple[dict, list[Path]]:
     """
     Prepare parameters for report generation (h5 file, thresholds, plots)
 
@@ -50,7 +63,7 @@ def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_
 
     # add thresholds to parameters
     for threshold_name, threshold_value in vars(thresholds).items():
-        parameters[threshold_name+"_threshold"] = threshold_value
+        parameters[threshold_name + "_threshold"] = threshold_value
 
     # add plots to parameters
     cbc_umi_png = cbc_umi_plot(h5_file, output_path)
@@ -61,7 +74,9 @@ def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_
     parameters["insert_length_png"] = insert_length_png
     tmp_files.append(insert_length_png)
 
-    mean_insert_quality_histogram_png = plot_mean_insert_quality_histogram(h5_file, output_path)
+    mean_insert_quality_histogram_png = plot_mean_insert_quality_histogram(
+        h5_file, output_path
+    )
     parameters["mean_insert_quality_histogram_png"] = mean_insert_quality_histogram_png
     tmp_files.append(mean_insert_quality_histogram_png)
 
@@ -72,21 +87,26 @@ def prepare_parameters_for_report(h5_file: Path, thresholds: Thresholds, output_
     return parameters, tmp_files
 
 
-def generate_report(parameters, output_path, tmp_files=list[Path]) -> Path:
+def generate_report(
+    parameters, output_path, tmp_files: list[Path], sample_name: str
+) -> Path:
     """
     Generate report based on jupyter notebook template.
 
     :param parameters: parameters for report
     :param output_path: path to output directory
     :param tmp_files: list of temporary files to be removed after report generation
+    :param sample_name: sample name to be include as a prefix in the output files
 
     :return: path to generated report
     """
     # define outputs
-    output_report_html = Path(output_path) / OutputFiles.HTML_REPORT.value
-    output_report_ipynb = Path(output_path) / OutputFiles.NOTEBOOK.value
+    output_report_html = (
+        Path(output_path) / (sample_name + OutputFiles.HTML_REPORT.value)
+    )
+    output_report_ipynb = Path(output_path) / (sample_name + OutputFiles.NOTEBOOK.value)
     tmp_files.append(output_report_ipynb)
-    template_notebook = Path.cwd() / 'ugvc' / 'reports' / OutputFiles.NOTEBOOK.value
+    template_notebook = Path.cwd() / "ugvc" / "reports" / OutputFiles.NOTEBOOK.value
 
     # inject parameters and run notebook
     papermill_params = f"{' '.join([f'-p {k} {v}' for k, v in parameters.items()])}"
@@ -112,6 +132,12 @@ def generate_report(parameters, output_path, tmp_files=list[Path]) -> Path:
 def main():
     # parse args from command line
     parser = ArgumentParser()
+    parser.add_argument(
+        "--sample-name",
+        type=str,
+        required=True,
+        help="sample name to be include in the output files",
+    )
     parser.add_argument(
         "--trimmer-stats",
         type=str,
@@ -141,10 +167,10 @@ def main():
         "--star-stats", type=str, required=True, help="path to STAR stats file"
     )
     parser.add_argument(
-        "--r2-subsample", #TODO: should be renamed to insert-subsample
+        "--insert",
         type=str,
         required=True,
-        help="path to insert subsample .fastq.gz file",
+        help="path to insert .fastq.gz file",
     )
     parser.add_argument(
         "--star-reads-per-gene",
@@ -165,7 +191,7 @@ def main():
         "--fraction-below-read-length",
         type=float,
         required=True,
-        help="fraction of reads below read length",
+        help="Fraction of reads below read length threshold",
     )
     parser.add_argument(
         "--percent-aligned",
@@ -184,7 +210,7 @@ def main():
         args.sorter_stats,
         args.star_stats,
         args.star_reads_per_gene,
-        args.r2_subsample,
+        args.insert,
     )
     thresholds = Thresholds(
         args.pass_trim_rate,
@@ -194,8 +220,12 @@ def main():
     )
     # run single_cell_qc
     single_cell_qc(
-        input_files=inputs, output_path=args.output_path, thresholds=thresholds
+        input_files=inputs,
+        output_path=args.output_path,
+        thresholds=thresholds,
+        sample_name=args.sample_name,
     )
+
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -65,7 +66,20 @@ def plot_insert_length_histogram(h5_file: str, output_path: str) -> Path:
     """
     with pd.HDFStore(h5_file, "r") as store:
         insert_lengths = store[H5Keys.INSERT_LENGTHS.value]
-    pd.Series(insert_lengths).hist(color="gray", bins=1000)
+
+    # Calculate IQR
+    Q1 = np.percentile(insert_lengths, 25)
+    Q3 = np.percentile(insert_lengths, 75)
+    IQR = Q3 - Q1
+
+    # Calculate bin width using Freedman-Diaconis rule
+    bin_width = 2 * IQR * len(insert_lengths) ** (-1/3)
+    if bin_width == 0: # if all values are the same or if the data is extremely skewed the bin width will be 0
+        bins = 10  # Default value to avoid division by zero
+    else:
+        bins = int((max(insert_lengths) - min(insert_lengths)) / bin_width)
+    
+    pd.Series(insert_lengths).hist(bins=bins, density=True)
 
     plt.xlabel("Read Length")
     plt.ylabel("Frequency")
@@ -91,10 +105,11 @@ def plot_mean_insert_quality_histogram(h5_file: str, output_path: str) -> Path:
 
     # histogram of overall quality
     qual_hist = insert_quality.sum(axis=1)
-    qual_hist.plot()
+    qual_hist.plot.bar()
+    plt.xticks(rotation=0)
     plt.xlabel("Quality")
     plt.ylabel("Frequency")
-    plt.title("Mean insert Quality Histogram")
+    plt.title("Mean Insert Quality Histogram")
 
     plot_file = Path(output_path) / OutputFiles.MEAN_INSERT_QUALITY_PLOT.value
     plt.savefig(plot_file)
@@ -140,7 +155,7 @@ def plot_quality_per_position(h5_file: str, output_path: str) -> Path:
     plt.legend()
     plt.xlabel("Position")
     plt.ylabel("Quality")
-    plt.title("Quality per Position")
+    plt.title("Quality Per Position")
 
     plot_file = Path(output_path) / OutputFiles.QUALITY_PER_POSITION_PLOT.value
     plt.savefig(plot_file)
