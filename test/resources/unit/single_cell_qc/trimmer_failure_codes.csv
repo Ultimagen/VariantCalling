@@ -1,0 +1,12 @@
+read group,code,format,segment,reason,failed read count,total read count
+Z0007,4,10x V3 3' 9bp UMI,start,sequence was filtered,168233705,975231343 
+Z0007,103,10x V3 3' 9bp UMI,Illumina R1 adapter,no match,306506,975231343 
+Z0007,201,10x V3 3' 9bp UMI,CBC,sequence was too short,1525,975231343 
+Z0007,203,10x V3 3' 9bp UMI,CBC,no match,11504170,975231343 
+Z0007,207,10x V3 3' 9bp UMI,CBC,ambiguous match,11425114,975231343 
+Z0007,301,10x V3 3' 9bp UMI,UMI first 9bp,sequence was too short,1338,975231343 
+Z0007,401,10x V3 3' 9bp UMI,UMI last 3bp,sequence was too short,1124,975231343 
+Z0007,501,10x V3 3' 9bp UMI,polyT,sequence was too short,1366,975231343 
+Z0007,503,10x V3 3' 9bp UMI,polyT,no match,9443597,975231343 
+Z0007,601,10x V3 3' 9bp UMI,low quality bases,sequence was too short,52442,975231343 
+Z0007,701,10x V3 3' 9bp UMI,insert,sequence was too short,531025,975231343 
