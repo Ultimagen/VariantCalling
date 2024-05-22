@@ -2,6 +2,10 @@ import subprocess
 from argparse import ArgumentParser
 from pathlib import Path
 
+import nbformat
+import papermill
+from nbconvert import HTMLExporter
+
 from ugvc.pipelines.single_cell_qc.collect_statistics import (
     collect_statistics,
     extract_statistics_table,
@@ -13,6 +17,7 @@ from ugvc.pipelines.single_cell_qc.create_plots import (
     plot_quality_per_position,
 )
 from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import (
+    TEMPLATE_NOTEBOOK,
     Inputs,
     OutputFiles,
     Thresholds,
@@ -54,7 +59,6 @@ def prepare_parameters_for_report(
 
     :return: parameters for report, list of temporary files to be removed after report generation
     """
-
     # list of files to be removed after report generation
     tmp_files = []
 
@@ -101,22 +105,31 @@ def generate_report(
     :return: path to generated report
     """
     # define outputs
-    output_report_html = (
-        Path(output_path) / (sample_name + OutputFiles.HTML_REPORT.value)
+    output_report_html = Path(output_path) / (
+        sample_name + OutputFiles.HTML_REPORT.value
     )
     output_report_ipynb = Path(output_path) / (sample_name + OutputFiles.NOTEBOOK.value)
     tmp_files.append(output_report_ipynb)
-    template_notebook = Path.cwd() / "ugvc" / "reports" / OutputFiles.NOTEBOOK.value
 
     # inject parameters and run notebook
-    papermill_params = f"{' '.join([f'-p {k} {v}' for k, v in parameters.items()])}"
-    papermill_cmd = f"papermill {template_notebook} {output_report_ipynb} {papermill_params} -k python3"
-    subprocess.check_call(papermill_cmd.split())
+    parameters = {
+        k: str(v) if isinstance(v, Path) else v for k, v in parameters.items()
+    }
+    papermill.execute_notebook(
+        input_path=str(TEMPLATE_NOTEBOOK),
+        output_path=str(output_report_ipynb),
+        parameters=parameters,
+        kernel_name="python3",
+    )
 
     # convert to html
-    subprocess.check_call(
-        f"jupyter nbconvert {output_report_ipynb} --to html --no-input".split()
-    )
+    notebook = nbformat.read(str(output_report_ipynb), as_version=4)
+    html_exporter = HTMLExporter()
+    html_exporter.exclude_input = True
+    (body, resources) = html_exporter.from_notebook_node(notebook)
+
+    with open(output_report_html, "w") as f:
+        f.write(body)
 
     # edit html for readability
     modify_jupyter_notebook_html(output_report_html)

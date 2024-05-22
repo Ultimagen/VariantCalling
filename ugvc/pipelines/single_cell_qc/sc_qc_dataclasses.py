@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 
 class OutputFiles(Enum):
@@ -11,6 +12,8 @@ class OutputFiles(Enum):
     MEAN_INSERT_QUALITY_PLOT = "mean_insert_quality_plot.png"
     QUALITY_PER_POSITION_PLOT = "quality_per_position_plot.png"
     INSERT_LENGTH_HISTOGRAM = "insert_length_histogram.png"
+
+TEMPLATE_NOTEBOOK = Path.cwd() / "ugvc" / "reports" / OutputFiles.NOTEBOOK.value
 
 
 @dataclass
