@@ -70,15 +70,15 @@ def run(argv):
     header.add_line('##FILTER=<ID=LEN,Description="">')
 
     # Add INFO
-    header.add_line('##INFO=<ID=CONFIDENCE,Description="Confidence level for CNV call. 0-Low 1-High">')
-    header.add_line('##INFO=<ID=CopyNumber,Description="copy number of CNV call">')
-    header.add_line('##INFO=<ID=RoundedCopyNumber,Description="rounded copy number of CNV call">')
+    header.add_line('##INFO=<ID=CONFIDENCE,Number=1,Type=String,Description="Confidence level for CNV call. 0-Low 1-High">')
+    header.add_line('##INFO=<ID=CopyNumber,Number=1,Type=Float,Description="copy number of CNV call">')
+    header.add_line('##INFO=<ID=RoundedCopyNumber,Number=1,Type=Integer,Description="rounded copy number of CNV call">')
     #header.add_line('##INFO=<ID=END_POS,Description="end position of the CNV">')
-    header.add_line('##INFO=<ID=SVLEN,Description="CNV length">')
-    header.add_line('##INFO=<ID=SVTYPE,Description="CNV type. can be DUP or DEL">')
+    header.add_line('##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="CNV length">')
+    header.add_line('##INFO=<ID=SVTYPE,Number=1,Type=String,Description="CNV type. can be DUP or DEL">')
     
     # Add FORMAT
-    header.add_line('##FORMAT=<ID=GT,Description="Genotype">')
+    header.add_line('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">')
 
     # Open a VCF file for writing
     if args.out_directory: 
@@ -126,9 +126,9 @@ def run(argv):
                 record.filter.add('PASS')
           
             record.info['CONFIDENCE'] = CONFIDENCE
-            record.info['CopyNumber'] = str(CN)
-            record.info['RoundedCopyNumber'] = str(CN)
-            record.info['SVLEN'] = str(int(end)-int(start))
+            record.info['CopyNumber'] = CN
+            record.info['RoundedCopyNumber'] = int(CN)
+            record.info['SVLEN'] = int(end)-int(start)
             record.info['SVTYPE'] = cnv_type.replace("<","").replace(">","")
             #record.info['END_POS'] = str(end)
 
@@ -145,7 +145,12 @@ def run(argv):
             vcf_out.write(record)
         
         vcf_out.close()
-        logger.info(f"output file: {outfile}")
+        cmd = f"bgzip -c {outfile} > {outfile}.gz" 
+        os.system(cmd)
+        cmd = f"tabix -p vcf {outfile}.gz"
+        os.system(cmd)
+        logger.info(f"output file: {outfile}.gz")
+        logger.info(f"output file index: {outfile}.gz.tbi")
 
 if __name__ == "__main__":
     run(sys.argv)
