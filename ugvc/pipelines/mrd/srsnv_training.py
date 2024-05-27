@@ -83,7 +83,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--split_folds_randomly", 
-        type=bool,
         action="store_true",
         help="""by default the training data is split into folds by chromosomes, if the flag is provided it is split randomly."""
     )
