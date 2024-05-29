@@ -22,6 +22,9 @@ pysam = "^0.22.0"
 xgboost = "^2.0.3" #dependency for ugvc, not used in the scRNA qc pipeline
 
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
