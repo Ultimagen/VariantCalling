@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import os
 from collections import defaultdict
+from datetime import datetime
 from os.path import basename, isfile
 from os.path import join as pjoin
+from typing import Any
 
 import joblib
 import numpy as np
@@ -13,8 +15,6 @@ import pysam
 import sklearn
 import xgboost as xgb
 from simppl.simple_pipeline import SimplePipeline
-from datetime import datetime
-from typing import Any
 
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
@@ -57,123 +57,129 @@ default_categorical_features = [
 ]
 
 CHROM_SIZES = {
-    'chr1': 248956422,
-    'chr2': 242193529,
-    'chr3': 198295559,
-    'chr4': 190214555,
-    'chr5': 181538259,
-    'chr6': 170805979,
-    'chr7': 159345973,
-    'chr8': 145138636,
-    'chr9': 138394717,
-    'chr11': 135086622,
-    'chr10': 133797422,
-    'chr12': 133275309,
-    'chr13': 114364328,
-    'chr14': 107043718,
-    'chr15': 101991189,
-    'chr16': 90338345,
-    'chr17': 83257441,
-    'chr18': 80373285,
-    'chr20': 64444167,
-    'chr19': 58617616,
-    'chr22': 50818468,
-    'chr21': 46709983
+    "chr1": 248956422,
+    "chr2": 242193529,
+    "chr3": 198295559,
+    "chr4": 190214555,
+    "chr5": 181538259,
+    "chr6": 170805979,
+    "chr7": 159345973,
+    "chr8": 145138636,
+    "chr9": 138394717,
+    "chr11": 135086622,
+    "chr10": 133797422,
+    "chr12": 133275309,
+    "chr13": 114364328,
+    "chr14": 107043718,
+    "chr15": 101991189,
+    "chr16": 90338345,
+    "chr17": 83257441,
+    "chr18": 80373285,
+    "chr20": 64444167,
+    "chr19": 58617616,
+    "chr22": 50818468,
+    "chr21": 46709983,
 }
 
-def partition_into_folds(series_of_sizes, k_folds, alg='greedy'):
-    """Returns a partition of the indices of the series series_of_sizes 
+
+def partition_into_folds(series_of_sizes, k_folds, alg="greedy"):
+    """Returns a partition of the indices of the series series_of_sizes
     into k_fold groups whose total size is approximately the same.
     Returns a dictionary that maps the indices (keys) of series_of_sizes into
-    the corresponding fold number (partition). 
-    
+    the corresponding fold number (partition).
+
     If series_of_sizes is a series, then the list-of-lists partitions below satisfies that:
-    [series_of_sizes.loc[partitions[k]].sum() for k in range(k_folds)] 
-    are approximately equal. Conversely, 
+    [series_of_sizes.loc[partitions[k]].sum() for k in range(k_folds)]
+    are approximately equal. Conversely,
     series_of_sizes.groupby(indices_to_folds).sum()
-    are approximately equal. 
+    are approximately equal.
 
     Arguments:
-        - series_of_sizes [pd.Series]: a series of indices and their corresponding sizes. 
+        - series_of_sizes [pd.Series]: a series of indices and their corresponding sizes.
         - k_folds [int]: the number of folds into which series_of_sizes should be partitioned.
         - alg ['greedy']: the algorithm used. For the time being only the greedy algorithm
-            is implemented. 
-    Returns: 
-        - indices_to_folds [dict]: a dictionary that maps indices to the corresponding 
+            is implemented.
+    Returns:
+        - indices_to_folds [dict]: a dictionary that maps indices to the corresponding
             fold numbers.
     """
-    assert alg=='greedy', 'Only greedy algorithm implemented at this time'
+    assert alg == "greedy", "Only greedy algorithm implemented at this time"
     series_of_sizes = series_of_sizes.sort_values(ascending=False)
-    partitions = [[] for _ in range(k_folds)] # an empty partition
-    partition_sums = np.zeros(k_folds) # The running sum of partitions
+    partitions = [[] for _ in range(k_folds)]  # an empty partition
+    partition_sums = np.zeros(k_folds)  # The running sum of partitions
     for idx, s in series_of_sizes.items():
         min_fold = partition_sums.argmin()
         partitions[min_fold].append(idx)
         partition_sums[min_fold] += s
-        
-    #return partitions
+
+    # return partitions
     indices_to_folds = [[i for i, prtn in enumerate(partitions) if idx in prtn][0] for idx in series_of_sizes.index]
     return pd.Series(indices_to_folds, index=series_of_sizes.index).to_dict()
 
+
 def prob_to_phred(prob, eps=1e-8):
-    """Transform probabilities to phred scores. 
+    """Transform probabilities to phred scores.
     Arguments:
     - prob [np.ndarray]: array of probabilities
     - eps [float]: cutoff value (phred values can have maximum value of -10*np.log10(eps)
                    which for the default value 1e-8 means phred of 80)
     """
-    return (-10*np.log10(1-prob+eps))
+    return -10 * np.log10(1 - prob + eps)
+
 
 def phred_to_prob(phred):
-    """Transform phred scores to probabilities. 
+    """Transform phred scores to probabilities.
     Arguments:
     - phred [np.ndarray]: array of phred scores
     """
-    return 1.0 - 10.0**(-phred/10)
+    return 1.0 - 10.0 ** (-phred / 10)
 
-def k_fold_predict_proba(
-        models, df, columns_for_training, k_folds, 
-        kfold_col='fold_id', return_train=False, **kwargs
-    ):
+
+def k_fold_predict_proba(models, df, columns_for_training, k_folds, kfold_col="fold_id", return_train=False, **kwargs):
     """Predict k-folds CV.
     NOTE that on test set (datapoint that do not belong to any fold) and on train set
-    (if return_train) there are k_folds (or k_fold-1) models which can be used for 
+    (if return_train) there are k_folds (or k_fold-1) models which can be used for
     prediction. The function averages phred scores of the predictions of all theses
-    models. 
+    models.
 
     Arguments:
     - models: a list of k_folds models (one for each fold)
     - df: the data dataframe
+    - k_folds: number of folds
     - kfold_col [str]: name of folder that contains fold numbers. If nan/negative then not
-                        in any training fold (only test) 
-    - columns_for_training [list]: names of columns used for training the model. 
-    - return_train [bool]: If true, return also train values (probabilities when 
+                        in any training fold (only test)
+    - columns_for_training [list]: names of columns used for training the model.
+    - return_train [bool]: If true, return also train values (probabilities when
                            model is evaluated on the folds used for training it).
     """
     test_cond = df[kfold_col].isna()
-    preds = pd.Series(0, index=df.index, name='test')
-    all_val_cond = test_cond.copy() # for keeping track of all "test" indices
+    preds = pd.Series(0, index=df.index, name="test")
+    all_val_cond = test_cond.copy()  # for keeping track of all "test" indices
     if return_train:
-        preds_train = pd.Series(0, index=df.index, name='train')
-        preds_train_norm = (k_folds-1) if k_folds > 1 else 1
-        all_train_cond = pd.Series(False, index=df.index) # for keeping track of all "train" indices
+        preds_train = pd.Series(0, index=df.index, name="train")
+        preds_train_norm = (k_folds - 1) if k_folds > 1 else 1
+        all_train_cond = pd.Series(False, index=df.index)  # for keeping track of all "train" indices
     for k in range(k_folds):
-        val_cond = (df[kfold_col]==k)
+        val_cond = df[kfold_col] == k
         all_val_cond = np.logical_or(all_val_cond, val_cond)
         if val_cond.any():
-            preds[val_cond] = models[k].predict_proba(df.loc[val_cond, columns_for_training], **kwargs)[:,1]
+            preds[val_cond] = models[k].predict_proba(df.loc[val_cond, columns_for_training], **kwargs)[:, 1]
         if test_cond.any():
-            test_scores = prob_to_phred(models[k].predict_proba(df.loc[test_cond, columns_for_training], **kwargs)[:,1])
-            preds[test_cond] += test_scores/k_folds
+            test_scores = prob_to_phred(
+                models[k].predict_proba(df.loc[test_cond, columns_for_training], **kwargs)[:, 1]
+            )
+            preds[test_cond] += test_scores / k_folds
         if return_train:
             train_cond = np.logical_and(~val_cond, ~test_cond)
             all_train_cond = np.logical_or(all_train_cond, train_cond)
             if train_cond.any():
-                train_scores = prob_to_phred(models[k].predict_proba(df.loc[train_cond, columns_for_training], **kwargs)[:,1])
-                preds_train[train_cond] += train_scores/preds_train_norm
-    
+                train_scores = prob_to_phred(
+                    models[k].predict_proba(df.loc[train_cond, columns_for_training], **kwargs)[:, 1]
+                )
+                preds_train[train_cond] += train_scores / preds_train_norm
+
     preds[test_cond] = phred_to_prob(preds[test_cond])
-    preds[~all_val_cond] = np.nan 
+    preds[~all_val_cond] = np.nan
     if return_train:
         preds_train = phred_to_prob(preds_train)
         preds_train[~all_train_cond] = np.nan
@@ -181,13 +187,14 @@ def k_fold_predict_proba(
 
     return preds
 
+
 # pylint:disable=too-many-arguments
 def prepare_featuremap_for_model(
     workdir: str,
     input_featuremap_vcf: str,
     train_set_size: int,
     test_set_size: int = 0,
-    k_folds : int = 1, 
+    k_folds: int = 1,
     regions_file: str = None,
     balanced_sampling_info_fields: list[str] = None,
     sorter_json_stats_file: str = None,
@@ -321,7 +328,7 @@ def prepare_featuremap_for_model(
         train_set_size = np.floor(featuremap_entry_number * (train_set_size / train_and_test_size))
         test_set_size = featuremap_entry_number - train_set_size
         if k_folds > 1 and test_set_size > 0:
-            msg = f'test_set_size should be 0 when using CV ({k_folds=}). Got {test_set_size=} for downsampled size'
+            msg = f"test_set_size should be 0 when using CV ({k_folds=}). Got {test_set_size=} for downsampled size"
             logger.error(msg)
             raise ValueError(msg)
         logger.warning(f"Set train_set_size to {train_set_size} and test_set_size to {test_set_size}")
@@ -342,7 +349,7 @@ def prepare_featuremap_for_model(
     if rng is None:
         random_seed = int(datetime.now().timestamp())
         rng = np.random.default_rng(seed=random_seed)
-        logger.info(f'Initializing random numer generator with {random_seed=}')
+        logger.info(f"Initializing random numer generator with {random_seed=}")
     if do_motif_balancing_in_tp:
         # determine sampling rate per group (defined by a combination of info fields)
         number_of_groups = len(balanced_sampling_info_fields_counter)
@@ -475,7 +482,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         fp_featuremap: str,
         train_set_size: int = MIN_TRAIN_SIZE,
         test_set_size: int = MIN_TEST_SIZE,
-        k_folds: int = 1, 
+        k_folds: int = 1,
         split_folds_by_chrom: bool = True,
         numerical_features: list[str] = None,
         categorical_features: list[str] = None,
@@ -510,7 +517,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         test_set_size : int, optional
             Size of test set, by default 10000
         k_folds: int, optional
-            The number of cross-validation folds to use. By default 1 (no CV). 
+            The number of cross-validation folds to use. By default 1 (no CV).
             If k_folds != 1, ignores test_set_size (there's no test set).
         numerical_features : list[str], optional
             List of numerical features to use, default (None): [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
@@ -541,7 +548,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter'"
             before sampling, by default None
         random_seed : int, optional
-            Random seed to use for sampling, by default None, If None, use system time. 
+            Random seed to use for sampling, by default None, If None, use system time.
         simple_pipeline : SimplePipeline, optional
             SimplePipeline object to use for printing and running commands, by default None
 
@@ -557,7 +564,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         categorical_features = categorical_features or default_categorical_features
         numerical_features = numerical_features or default_numerical_features
 
-        # Check whether using cross validation: 
+        # Check whether using cross validation:
         assert k_folds > 0, f"k_folds should be > 0, got {k_folds=}"
         if k_folds == 1:
             self.use_CV = False
@@ -567,10 +574,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.k_folds = k_folds
         self.split_folds_by_chrom = bool(split_folds_by_chrom)
         if self.split_folds_by_chrom:
-            self.chroms_to_folds = partition_into_folds(
-                pd.Series(CHROM_SIZES), 
-                self.k_folds
-            )
+            self.chroms_to_folds = partition_into_folds(pd.Series(CHROM_SIZES), self.k_folds)
 
         # determine output paths
         os.makedirs(out_path, exist_ok=True)
@@ -581,7 +585,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         (
             self.model_save_path,
             self.featuremap_df_save_path,
-            self.qual_test_save_path,
             self.params_save_path,
             self.test_mrd_simulation_dataframe_file,
             self.train_mrd_simulation_dataframe_file,
@@ -614,7 +617,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.pre_filter = pre_filter
         if random_seed is None:
             random_seed = int(datetime.now().timestamp())
-            logger.info(f'Initializing random numer generator with {random_seed=}')
+            logger.info(f"Initializing random numer generator with {random_seed=}")
         self.random_seed = random_seed
         self.rng = np.random.default_rng(seed=self.random_seed)
 
@@ -653,7 +656,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.test_set_size = test_set_size
         if self.use_CV:
             if test_set_size is not None:
-                logger.info(f'Using cross-validation, Ignoring test_set_size (which was set to {test_set_size})')
+                logger.info(f"Using cross-validation, Ignoring test_set_size (which was set to {test_set_size})")
             self.test_set_size = 0
         elif self.test_set_size < SRSNVTrain.MIN_TEST_SIZE:
             msg = f"test_size must be >= {SRSNVTrain.MIN_TEST_SIZE}"
@@ -668,7 +671,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         return (
             pjoin(f"{self.out_path}", f"{self.out_basename}model.joblib"),
             pjoin(f"{self.out_path}", f"{self.out_basename}featuremap_df.parquet"),
-            pjoin(f"{self.out_path}", f"{self.out_basename}qual_test.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}params.json"),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.df_mrd_simulation.parquet"),
             pjoin(
@@ -707,16 +709,13 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "featuremap_df_save_path": self.featuremap_df_save_path,
             "pre_filter": self.pre_filter,
             "random_seed": self.random_seed,
-        }q
+        }
 
     def save_model_and_data(self):
         # save model
         joblib.dump(self.classifiers, self.model_save_path)
         # save data
-        for data, savename in (
-            (self.featuremap_df, self.featuremap_df_save_path),
-            (self.qual_test, self.qual_test_save_path),
-        ):
+        for data, savename in ((self.featuremap_df, self.featuremap_df_save_path),):
             data.to_parquet(savename)
         # save params
         params_to_save = self.get_params()
@@ -724,45 +723,38 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             json.dump(params_to_save, f)
 
     def add_predictions_to_featuremap_df(self, return_train=True):
-        """ Add model predictions to self.featuremap_df. Use only if models were trained!
-        """
+        """Add model predictions to self.featuremap_df. Use only if models were trained!"""
         all_predictions = k_fold_predict_proba(
-            self.classifiers, self.featuremap_df, self.columns, k_folds=self.k_folds, 
-            return_train=return_train
+            self.classifiers, self.featuremap_df, self.columns, k_folds=self.k_folds, return_train=return_train
         )
-        datasets = ['test', 'train'] if return_train else ['test']
+        datasets = ["test", "train"] if return_train else ["test"]
         for dataset in datasets:
-            self.featuremap_df[f'ML_prob_1_{dataset}'] = all_predictions[dataset]
-            self.featuremap_df[f'ML_prob_0_{dataset}'] = 1 - self.featuremap_df[f'ML_prob_1_{dataset}']
-            self.featuremap_df[f'ML_qual_1_{dataset}'] = prob_to_phred(self.featuremap_df[f'ML_prob_1_{dataset}'])
-            self.featuremap_df[f'ML_qual_0_{dataset}'] = prob_to_phred(self.featuremap_df[f'ML_prob_0_{dataset}'])
-            self.featuremap_df[f'ML_prediction_1_{dataset}'] = (self.featuremap_df[f'ML_prob_1_{dataset}']>0.5).astype(int)
-            self.featuremap_df[f'ML_prediction_0_{dataset}'] = (self.featuremap_df[f'ML_prob_0_{dataset}']>0.5).astype(int)
-    
+            self.featuremap_df[f"ML_prob_1_{dataset}"] = all_predictions[dataset]
+            self.featuremap_df[f"ML_prob_0_{dataset}"] = 1 - self.featuremap_df[f"ML_prob_1_{dataset}"]
+            self.featuremap_df[f"ML_qual_1_{dataset}"] = prob_to_phred(self.featuremap_df[f"ML_prob_1_{dataset}"])
+            self.featuremap_df[f"ML_qual_0_{dataset}"] = prob_to_phred(self.featuremap_df[f"ML_prob_0_{dataset}"])
+            self.featuremap_df[f"ML_prediction_1_{dataset}"] = (
+                self.featuremap_df[f"ML_prob_1_{dataset}"] > 0.5
+            ).astype(int)
+            self.featuremap_df[f"ML_prediction_0_{dataset}"] = (
+                self.featuremap_df[f"ML_prob_0_{dataset}"] > 0.5
+            ).astype(int)
+
     def create_report(self):
-        self.add_predictions_to_featuremap_df()
         # Create dataframes for test and train seperately
         pred_cols = (
-            [f'ML_prob_{i}' for i in [0,1]] + 
-            [f'ML_qual_{i}' for i in [0,1]] + 
-            [f'ML_prediction_{i}' for i in [0,1]]
+            [f"ML_prob_{i}" for i in [0, 1]] + [f"ML_qual_{i}" for i in [0, 1]] + [f"ML_prediction_{i}" for i in [0, 1]]
         )
         featuremap_df = {}
-        for dataset, other_dataset in zip(['test', 'train'], ['train','test']):
+        for dataset, other_dataset in zip(("test", "train"), ("train", "test")):
             featuremap_df[dataset] = self.featuremap_df.copy()
-            featuremap_df[dataset].drop(
-                columns=[f'{col}_{other_dataset}' for col in pred_cols], 
-                inplace=True
-            )
-            featuremap_df[dataset].rename(
-                columns={f'{col}_{dataset}': col for col in pred_cols}, 
-                inplace=True
-            )
+            featuremap_df[dataset].drop(columns=[f"{col}_{other_dataset}" for col in pred_cols], inplace=True)
+            featuremap_df[dataset].rename(columns={f"{col}_{dataset}": col for col in pred_cols}, inplace=True)
             # Make sure to take only reads that are indeed in the "train"/"test" sets:
-            featuremap_df[dataset] = featuremap_df[dataset].loc[~featuremap_df[dataset]['ML_prob_1'].isna(), :]
-        
+            featuremap_df[dataset] = featuremap_df[dataset].loc[~featuremap_df[dataset]["ML_prob_1"].isna(), :]
+
         for (df, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name,) in zip(
-            [featuremap_df['test'], featuremap_df['train']],
+            [featuremap_df["test"], featuremap_df["train"]],
             [
                 self.test_mrd_simulation_dataframe_file,
                 self.train_mrd_simulation_dataframe_file,
@@ -800,7 +792,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             train_set_size=self.train_set_size
             // 2,  # half the total training size because we want equal parts TP and FP
             test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
-            k_folds = self.k_folds, 
+            k_folds=self.k_folds,
             pre_filter_bcftools_include=self.pre_filter,
             regions_file=self.tp_regions_bed_file,
             balanced_sampling_info_fields=self.balanced_sampling_info_fields,
@@ -822,7 +814,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             train_set_size=self.train_set_size
             // 2,  # half the total training size because we want equal parts TP and FP
             test_set_size=self.test_set_size // 2,  # half the total training size because we want equal parts TP and FP
-            k_folds = self.k_folds, 
+            k_folds=self.k_folds,
             pre_filter_bcftools_include=self.pre_filter,
             regions_file=self.fp_regions_bed_file,
             sorter_json_stats_file=self.sorter_json_stats_file,
@@ -838,45 +830,46 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)
         df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)
         # create X and y
-        self.featuremap_df = pd.concat((df_tp_train, df_fp_train), ignore_index=True).astype({c: "category" for c in self.categorical_features})
+        self.featuremap_df = pd.concat((df_tp_train, df_fp_train), ignore_index=True).astype(
+            {c: "category" for c in self.categorical_features}
+        )
         if self.use_CV:
             if self.split_folds_by_chrom:
-                self.featuremap_df['fold_id'] = self.featuremap_df['chrom'].map(self.chroms_to_folds)
+                self.featuremap_df["fold_id"] = self.featuremap_df["chrom"].map(self.chroms_to_folds)
             else:
-                #rng = np.random.default_rng(seed=14)
+                # rng = np.random.default_rng(seed=14)
                 N_train = self.featuremap_df.shape[0]
-                self.featuremap_df['fold_id'] = self.rng.permutation(N_train) % self.k_folds 
-            self.featuremap_df['label'] = (
+                self.featuremap_df["fold_id"] = self.rng.permutation(N_train) % self.k_folds
+            self.featuremap_df["label"] = (
                 pd.concat(
                     [
                         pd.Series(np.ones(df_tp_train.shape[0])),
                         pd.Series(np.zeros(df_fp_train.shape[0])),
                     ],
-                    ignore_index=True
-                )
-                .astype(bool)
+                    ignore_index=True,
+                ).astype(bool)
                 # .to_frame(name="label") # TODO: remove this line
             )
         else:
-            self.featuremap_df['fold_id'] = -1 # X_train will contain all entries where self.featuremap_df['fold_id']!=0, so all of these
+            self.featuremap_df[
+                "fold_id"
+            ] = -1  # X_train will contain all entries where self.featuremap_df['fold_id']!=0, so all of these
             # Test data should have 0 in column 'fold_id' (TODO: Check whether we might need np.nan here)
             test_featuremap_df = pd.concat((df_tp_test, df_fp_test), ignore_index=True)
-            test_featuremap_df['fold_id'] = 0
-            self.featuremap_df = pd.concat(
-                (self.featuremap_df, test_featuremap_df), 
-                ignore_index=True
-            ).astype({c: "category" for c in self.categorical_features})
-            self.featuremap_df['label'] = (
+            test_featuremap_df["fold_id"] = 0
+            self.featuremap_df = pd.concat((self.featuremap_df, test_featuremap_df), ignore_index=True).astype(
+                {c: "category" for c in self.categorical_features}
+            )
+            self.featuremap_df["label"] = (
                 pd.concat(
                     [
                         pd.Series(np.ones(df_tp_train.shape[0])),
                         pd.Series(np.zeros(df_fp_train.shape[0])),
                         pd.Series(np.ones(df_tp_test.shape[0])),
                         pd.Series(np.zeros(df_fp_test.shape[0])),
-                    ], 
-                    ignore_index=True
-                )
-                .astype(bool)
+                    ],
+                    ignore_index=True,
+                ).astype(bool)
                 # .to_frame(name="label") # TODO: Remove this line
             )
 
@@ -891,29 +884,36 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         for k in range(self.k_folds):
             # datasets for k'th fold
             train_cond = np.logical_and(
-                self.featuremap_df['fold_id'] != k, # Reads that are not in current test fold
-                ~self.featuremap_df['fold_id'].isna() # Reads that are not in any fold.                
+                self.featuremap_df["fold_id"] != k,  # Reads that are not in current test fold
+                ~self.featuremap_df["fold_id"].isna(),  # Reads that are not in any fold.
             )
-            val_cond = (self.featuremap_df['fold_id'] == k) # Reads that are in current test fold
+            val_cond = self.featuremap_df["fold_id"] == k  # Reads that are in current test fold
             X_train = self.featuremap_df.loc[train_cond, self.columns]
-            y_train = self.featuremap_df.loc[train_cond, ['label']]
+            y_train = self.featuremap_df.loc[train_cond, ["label"]]
             X_val = self.featuremap_df.loc[val_cond, self.columns]
-            y_val = self.featuremap_df.loc[val_cond, ['label']]
+            y_val = self.featuremap_df.loc[val_cond, ["label"]]
             # fit classifier of k'th fold
             eval_set = [(X_train, y_train), (X_val, y_val)]
             self.classifiers[k].fit(X_train, y_train, eval_set=eval_set)
+
+        # add predictions to dataframe
+        self.add_predictions_to_featuremap_df()
 
         # create training and test reports
         self.create_report()
 
         # Calculate vector of quality scores for the test set
         quality_interpolation_function = get_quality_interpolation_function(self.test_mrd_simulation_dataframe_file)
-        # probabilities = self.classifier.predict_proba(self.X_test[self.columns])[:, 0]
-        self.qual_test = (
-            self.featuremap_df.loc[
-                ~self.featuremap_df['ML_prob_0_test'].isna(), # Make sure only "test" data is used
-                'ML_prob_0_test'
-            ].rename("qual").apply(quality_interpolation_function).to_frame()
+
+        # Add interpolated qualities
+        self.featuremap_df = self.featuremap_df.assign(
+            qual=(
+                self.featuremap_df.loc[
+                    ~self.featuremap_df["ML_prob_0_test"].isna(), "ML_prob_0_test"  # Make sure only "test" data is used
+                ]
+                .rename("qual")
+                .apply(quality_interpolation_function)
+            )
         )
 
         # save classifier and data, generate plots for report
