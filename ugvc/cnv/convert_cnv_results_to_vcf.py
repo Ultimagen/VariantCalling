@@ -18,20 +18,22 @@ def run(argv):
     """
     converts CNV calls in bed format to vcf. 
     input arguments:
-    --cnv_annotated_bed_file: nput bed file holding CNV calls.
-    --ref_genome_file: tab delimeted file holding reference genome chr ids with their lengths.
+    --cnv_annotated_bed_file: input bed file holding CNV calls.
+    --fasta_index_file: (.fai file) tab delimeted file holding reference genome chr ids with their lengths.
     --out_directory: output directory
     --sample_name: sample name    
     output files:
-    vcf file: <sample_name>.cnv.vcf
-        shows called CNVs in vcf format. 
+    vcf file: <sample_name>.cnv.vcf.gz
+        shows called CNVs in zipped vcf format. 
+    vcf index file: <sample_name>.cnv.vcf.gz.tbi
+        vcf corresponding index file. 
     """
     parser = argparse.ArgumentParser(
         prog="cnv_results_to_vcf.py", description="converts CNV calls in bed format to vcf."
     )
     
     parser.add_argument("--cnv_annotated_bed_file", help="input bed file holding CNV calls", required=True, type=str)
-    parser.add_argument("--ref_genome_file", help="tab delimeted file holding reference genome chr ids with their lengths", required=True, type=str)
+    parser.add_argument("--fasta_index_file", help="tab delimeted file holding reference genome chr ids with their lengths. (.fai file)", required=True, type=str)
     parser.add_argument("--out_directory", help="output directory", required=False, type=str)
     parser.add_argument("--sample_name", help="sample name", required=True, type=str)
     parser.add_argument("--verbosity",help="Verbosity: ERROR, WARNING, INFO, DEBUG",required=False,default="INFO",)
@@ -52,7 +54,7 @@ def run(argv):
     header.add_line('##GENOOX_VCF_TYPE=ULTIMA_CNV')
 
     # Add contigs info to the header
-    df_genome = pd.read_csv(args.ref_genome_file,sep='\t',header=None,usecols=[0,1])
+    df_genome = pd.read_csv(args.fasta_index_file,sep='\t',header=None,usecols=[0,1])
     df_genome.columns=['chr','length']
     for index, row in df_genome.iterrows():
        chrID=row['chr']
@@ -60,17 +62,17 @@ def run(argv):
        header.add_line(f"##contig=<ID={chrID},length={length}>")
     
     # Add ALT
-    header.add_line('##ALT=<ID=CNV,Description="Copy number variant region">')
+    header.add_line('##ALT=<ID=<CNV>,Description="Copy number variant region">')
     header.add_line('##ALT=<ID=<DEL>,Description="Deletion relative to the reference">')
     header.add_line('##ALT=<ID=<DUP>,Description="Region of elevated copy number relative to the reference">')
     
     # Add FILTER
     header.add_line('##FILTER=<ID=PASS,Description="high confidence CNV call">')
-    header.add_line('##FILTER=<ID=UG-CNV-LCR,Description="">')
-    header.add_line('##FILTER=<ID=LEN,Description="">')
+    header.add_line('##FILTER=<ID=UG-CNV-LCR,Description="CNV calls overlpping (>50% overlap) with UG-CNV-LCR">')
+    header.add_line('##FILTER=<ID=LEN,Description="CNV calls with length less then 10Kb">')
 
     # Add INFO
-    header.add_line('##INFO=<ID=CONFIDENCE,Number=1,Type=String,Description="Confidence level for CNV call. 0-Low 1-High">')
+    header.add_line('##INFO=<ID=CONFIDENCE,Number=1,Type=String,Description="Confidence level for CNV call.can be one of: LOW,MEDIUM,HIGH">')
     header.add_line('##INFO=<ID=CopyNumber,Number=1,Type=Float,Description="copy number of CNV call">')
     header.add_line('##INFO=<ID=RoundedCopyNumber,Number=1,Type=Integer,Description="rounded copy number of CNV call">')
     #header.add_line('##INFO=<ID=END_POS,Description="end position of the CNV">')
@@ -85,7 +87,7 @@ def run(argv):
         out_directory=args.out_directory
     else:
         out_directory=""
-    outfile=pjoin(out_directory,sample_name+'.cnv.vcf')
+    outfile=pjoin(out_directory,sample_name+'.cnv.vcf.gz')
     
     with pysam.VariantFile(outfile, mode='w', header=header) as vcf_out:
         df_cnvs = pd.read_csv(args.cnv_annotated_bed_file,sep="\t",header=None)
@@ -145,12 +147,11 @@ def run(argv):
             vcf_out.write(record)
         
         vcf_out.close()
-        cmd = f"bgzip -c {outfile} > {outfile}.gz" 
+        
+        cmd = f"tabix -p vcf {outfile}"
         os.system(cmd)
-        cmd = f"tabix -p vcf {outfile}.gz"
-        os.system(cmd)
-        logger.info(f"output file: {outfile}.gz")
-        logger.info(f"output file index: {outfile}.gz.tbi")
+        logger.info(f"output file: {outfile}")
+        logger.info(f"output file index: {outfile}.tbi")
 
 if __name__ == "__main__":
     run(sys.argv)
