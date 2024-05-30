@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import nbformat
+import pandas as pd
 import papermill
 from nbconvert import HTMLExporter
 
@@ -18,6 +19,7 @@ from ugvc.pipelines.single_cell_qc.create_plots import (
 )
 from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import (
     TEMPLATE_NOTEBOOK,
+    H5Keys,
     Inputs,
     OutputFiles,
     Thresholds,
@@ -36,15 +38,25 @@ def single_cell_qc(
     :param thresholds: Thresholds object with thresholds for qc
     :param sample_name: sample name to be include as a prefix in the output files
     """
-    if not sample_name.endswith("_"):
-        sample_name += "_"
+    if not sample_name.endswith("."):
+        sample_name += "."
 
     h5_file = collect_statistics(input_files, output_path, sample_name)
     extract_statistics_table(h5_file)
 
     params, tmp_files = prepare_parameters_for_report(h5_file, thresholds, output_path)
     output_report_html = generate_report(params, output_path, tmp_files, sample_name)
-    # TODO: export h5_file and report html to papyrus
+
+    # keep only STAR and short table data in h5 file
+    with pd.HDFStore(h5_file, "a") as store:
+        keys_to_keep = [
+            H5Keys.STATISTICS_SHORTLIST.value,
+            H5Keys.STAR_STATS.value,
+            H5Keys.STAR_READS_PER_GENE.value,
+        ]
+        for key in store.keys():
+            if key.strip('/') not in keys_to_keep:
+                store.remove(key)
 
 
 def prepare_parameters_for_report(
