@@ -2,6 +2,12 @@ FROM continuumio/anaconda3:2022.10
 
 SHELL ["/bin/bash", "-c"]
 
+# Install sysstat for io prints in the monitor log
+RUN apt-get update && \
+    apt-get install -y sysstat && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY setup/environment.yml /VariantCalling/setup/
 COPY setup/other_envs/cutadaptenv.yml /VariantCalling/setup/other_envs/
 COPY setup/other_envs/ucsc.yml /VariantCalling/setup/other_envs/
