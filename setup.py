@@ -27,6 +27,7 @@ setup(
         "ugvc/pipelines/sec/sec_training.py",
         "ugvc/scripts/convert_h5_to_json.py",
         "ugvc/cnv/filter_sample_cnvs.py",
+        "ugvc/cnv/convert_cnv_results_to_vcf.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
     ],
     package_data={
