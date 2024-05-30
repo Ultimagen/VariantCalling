@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 class OutputFiles(Enum):
-    H5 = "scrna_qc.applicationQC.h5"
-    HTML_REPORT = "scrna_qc_report.html"
+    H5 = "scRNA.applicationQC.h5"
+    HTML_REPORT = "scRNA_qc_report.html"
     NOTEBOOK = "single_cell_qc_report.ipynb"
     CBC_UMI_PLOT = "cbc_umi_plot.png"
     MEAN_INSERT_QUALITY_PLOT = "mean_insert_quality_plot.png"
