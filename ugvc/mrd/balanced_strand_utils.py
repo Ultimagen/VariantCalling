@@ -941,8 +941,6 @@ def read_trimmer_failure_codes_mrd(trimmer_failure_codes_csv: str):
         columns=["metric", "value"],
     ).set_index("metric")
 
-
-
     return df_trimmer_failure_codes, df_metrics
 
 
@@ -1788,7 +1786,8 @@ def balanced_strand_analysis(
     min_total_hmer_lengths_in_tags: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
     max_total_hmer_lengths_in_tags: int = MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     min_stem_end_matched_length: int = MIN_STEM_END_MATCHED_LENGTH,
-    legacy_histogram_column_names=False,
+    legacy_histogram_column_names: bool = False,
+    qc_filename_suffix: str = ".ppmSeq.applicationQC.h5",
 ):
     """
     Run the balanced strand analysis pipeline
@@ -1833,6 +1832,8 @@ def balanced_strand_analysis(
         minimum length of stem end matched to determine the read end was reached
     legacy_histogram_column_names : bool, optional
         use legacy column names without suffixes, by default False
+    qc_filename_suffix : str, optional
+        suffix for the output statistics file immediately after output_basename, by default ".ppmSeq.applicationQC.h5"
 
     """
     # Handle input and output files
@@ -1848,11 +1849,11 @@ def balanced_strand_analysis(
     if output_basename is None:
         output_basename = os.path.basename(trimmer_histogram_csv[0])
     # main outputs
-    output_statistics_h5 = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_stats.h5")
-    output_statistics_json = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_stats.json")
-    output_report_html = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.html")
+    output_statistics_h5 = os.path.join(output_path, f"{output_basename}{qc_filename_suffix}")
+    output_statistics_json = os.path.join(output_path, f"{output_basename}.ppmSeq.applicationQC.json")
+    output_report_html = os.path.join(output_path, f"{output_basename}.ppmSeq.applicationQC.html")
     # Temporary image files
-    output_report_ipynb = os.path.join(output_path, f"{output_basename}.ppmSeq_qc_report.ipynb")
+    output_report_ipynb = os.path.join(output_path, f"{output_basename}.ppmSeq.applicationQC.ipynb")
     output_trimmer_histogram_plot = os.path.join(output_path, f"{output_basename}.trimmer_histogram.png")
     output_strand_ratio_plot = os.path.join(output_path, f"{output_basename}.strand_ratio.png")
     output_strand_ratio_category_plot = os.path.join(output_path, f"{output_basename}.strand_ratio_category.png")
