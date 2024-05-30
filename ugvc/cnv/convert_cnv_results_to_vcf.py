@@ -129,7 +129,7 @@ def run(argv):
           
             record.info['CONFIDENCE'] = CONFIDENCE
             record.info['CopyNumber'] = CN
-            record.info['RoundedCopyNumber'] = int(CN)
+            record.info['RoundedCopyNumber'] = int(round(CN))
             record.info['SVLEN'] = int(end)-int(start)
             record.info['SVTYPE'] = cnv_type.replace("<","").replace(">","")
             #record.info['END_POS'] = str(end)
