@@ -178,6 +178,7 @@ def get_vcf_df(
         "SCL",
         "SCR",
         "NMC",
+        "AFR",
     ]
     for cf in custom_info_fields:
         if cf not in columns:
