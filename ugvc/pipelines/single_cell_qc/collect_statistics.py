@@ -17,11 +17,19 @@ def collect_statistics(input_files: Inputs, output_path: str, sample_name: str) 
     """
     Collect statistics from input files, parse and save them into h5 file
 
-    :param input_files: Inputs
-    :param output_path: path to output directory
-    :param sample_name: sample name to be include as a prefix in the output files
+    Parameters
+    ----------
+    input_files : Inputs
+        Input files containing the necessary data for statistics collection.
+    output_path : str
+        Path to the output directory.
+    sample_name : str
+        Sample name to be included as a prefix in the output files.
 
-    :return: path to h5 file with statistics
+    Returns
+    -------
+    Path
+        Path to the h5 file with statistics.
     """
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
@@ -70,9 +78,15 @@ def read_star_stats(star_stats_file: str) -> pd.DataFrame:
     """
     Read STAR stats file (Log.final.out) and return parsed DataFrame
 
-    :param star_stats_file: path to STAR stats file
+    Parameters
+    ----------
+    star_stats_file : str
+        Path to the STAR stats file.
 
-    :return: DataFrame with parsed STAR stats
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with parsed STAR stats.
     """
     df = pd.read_csv(star_stats_file, header=None, sep="\t")
     df.columns = ["metric", "value"]
@@ -104,10 +118,17 @@ def get_insert_properties(insert, max_reads=None) -> tuple[pd.DataFrame, list[in
     """
     Read insert subsample fastq.gz file and return quality scores per position and read lengths.
 
-    :param insert: path to insert .fastq.gz file
-    :param max_reads: maximum number of reads to process
+    Parameters
+    ----------
+    insert : str
+        Path to the insert .fastq.gz file.
+    max_reads : int, optional
+        Maximum number of reads to process, by default None.
 
-    :return: DataFrame with quality scores per position and list with read lengths
+    Returns
+    -------
+    tuple[pd.DataFrame, list[int]]
+        DataFrame with quality scores per position and list with read lengths.
     """
     insert_lengths = []
     counter = defaultdict(lambda: defaultdict(int))
@@ -137,7 +158,10 @@ def extract_statistics_table(h5_file: Path):
     """
     Create shortlist of statistics from h5 file and append it to h5 file.
 
-    :param h5_file: path to h5 file with statistics
+    Parameters
+    ----------
+    h5_file : Path
+        Path to the h5 file with statistics.
     """
     stats = {}
 

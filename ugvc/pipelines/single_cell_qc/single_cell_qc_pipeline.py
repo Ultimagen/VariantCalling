@@ -33,10 +33,16 @@ def single_cell_qc(
     """
     Run single cell qc pipeline that collects statistics, prepares parameters for report and generates report
 
-    :param input_files: Inputs object with paths to input files
-    :param output_path: path to output directory
-    :param thresholds: Thresholds object with thresholds for qc
-    :param sample_name: sample name to be include as a prefix in the output files
+    Parameters
+    ----------
+    input_files : Inputs
+        Inputs object with paths to input files
+    output_path : str
+        Path to output directory
+    thresholds : Thresholds
+        Thresholds object with thresholds for qc
+    sample_name : str
+        Sample name to be included as a prefix in the output files
     """
     if not sample_name.endswith("."):
         sample_name += "."
@@ -65,11 +71,19 @@ def prepare_parameters_for_report(
     """
     Prepare parameters for report generation (h5 file, thresholds, plots)
 
-    :param h5_file: path to h5 file with statistics
-    :param thresholds: Thresholds object with thresholds for qc
-    :param output_path: path to output directory
+    Parameters
+    ----------
+    h5_file : Path
+        Path to h5 file with statistics
+    thresholds : Thresholds
+        Thresholds object with thresholds for qc
+    output_path : str
+        Path to output directory
 
-    :return: parameters for report, list of temporary files to be removed after report generation
+    Returns
+    -------
+    tuple[dict, list[Path]]
+        Parameters for report, list of temporary files to be removed after report generation
     """
     # list of files to be removed after report generation
     tmp_files = []
@@ -109,12 +123,21 @@ def generate_report(
     """
     Generate report based on jupyter notebook template.
 
-    :param parameters: parameters for report
-    :param output_path: path to output directory
-    :param tmp_files: list of temporary files to be removed after report generation
-    :param sample_name: sample name to be include as a prefix in the output files
+    Parameters
+    ----------
+    parameters : dict
+        Parameters for report
+    output_path : str
+        Path to output directory
+    tmp_files : list[Path]
+        List of temporary files to be removed after report generation
+    sample_name : str
+        Sample name to be included as a prefix in the output files
 
-    :return: path to generated report
+    Returns
+    -------
+    Path
+        Path to generated report
     """
     # define outputs
     output_report_html = Path(output_path) / (
@@ -161,56 +184,56 @@ def main():
         "--sample-name",
         type=str,
         required=True,
-        help="sample name to be include in the output files",
+        help="Sample name to be included in the output files",
     )
     parser.add_argument(
         "--trimmer-stats",
         type=str,
         required=True,
-        help="path to Trimmer stats csv file",
+        help="Path to Trimmer stats csv file",
     )
     parser.add_argument(
         "--trimmer-histogram",
         type=str,
         required=True,
         nargs="+",
-        help="path to Trimmer histogram csv files. Multiple files are supported, pass them with space separated.",
+        help="Path to Trimmer histogram csv files. Multiple files are supported, pass them with space separated.",
     )
     parser.add_argument(
         "--trimmer-failure-codes",
         type=str,
         required=True,
-        help="path to Trimmer failure codes csv file",
+        help="Path to Trimmer failure codes csv file",
     )
     parser.add_argument(
         "--sorter-stats",
         type=str,
         required=True,
-        help="path to Sorter stats csv file",
+        help="Path to Sorter stats csv file",
     )
     parser.add_argument(
-        "--star-stats", type=str, required=True, help="path to STAR stats file"
+        "--star-stats", type=str, required=True, help="Path to STAR stats file"
     )
     parser.add_argument(
         "--insert",
         type=str,
         required=True,
-        help="path to insert .fastq.gz file",
+        help="Path to insert .fastq.gz file",
     )
     parser.add_argument(
         "--star-reads-per-gene",
         type=str,
         required=True,
-        help="path to STAR ReadsPerGene.out.tab file",
+        help="Path to STAR ReadsPerGene.out.tab file",
     )
     parser.add_argument(
-        "--output-path", type=str, required=True, help="path to output directory"
+        "--output-path", type=str, required=True, help="Path to output directory"
     )
     parser.add_argument(
-        "--pass-trim-rate", type=float, required=True, help="minimal %trimmed"
+        "--pass-trim-rate", type=float, required=True, help="Minimal %trimmed"
     )
     parser.add_argument(
-        "--read-length", type=int, required=True, help="expected read length"
+        "--read-length", type=int, required=True, help="Expected read length"
     )
     parser.add_argument(
         "--fraction-below-read-length",
@@ -222,7 +245,7 @@ def main():
         "--percent-aligned",
         type=float,
         required=True,
-        help="minimal % of reads aligned",
+        help="Minimal % of reads aligned",
     )
 
     args = parser.parse_args()
