@@ -46,6 +46,7 @@ jobs:
         run: |
             ppmseq_version=$($HOME/.local/bin/poetry version --short)
             echo "DOCKER_TAG=${ppmseq_version}" >> ${GITHUB_ENV}
+        working-directory : setup/ppmseq
 
       - name: Login to Amazon ECR
         id: ecr-login
