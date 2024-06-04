@@ -17,7 +17,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  AWS_ROLE: arn:aws:iam::525048827230:role/github-actions-aws-role
+  AWS_ROLE: arn:aws:iam::337532070941:role/google-aws-sync-aws-role
 
 jobs:
   build:
