@@ -29,10 +29,9 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
-          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
       # setup python and update the version in pyproject.toml
       - uses: actions/setup-python@v4
@@ -73,3 +72,10 @@ jobs:
             BUILD_VERSION=${{ env.BUILD_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Tag git repo
+        uses: rickstaa/action-create-tag@v1
+        with:
+          tag: "ppmSeq ${{ env.DOCKER_TAG }}"
+          message: "Built by ${{ github.workflow_ref }} workflow. Job ID: ${{ github.job }}"
+  
