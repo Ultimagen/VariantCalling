@@ -26,7 +26,7 @@ from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
 default_xgboost_model_params = {
-    "n_estimators": 100,
+    "n_estimators": 200,
     "objective": "multi:softprob",
     "tree_method": "hist",
     "eta": 0.15,
@@ -36,6 +36,8 @@ default_xgboost_model_params = {
     "num_class": 2,
     "enable_categorical": True,
     "colsample_bytree": 0.65,
+    "early_stopping_rounds": 15,
+    "eval_metric": ["auc", "mlogloss"],
 }
 default_numerical_features = [
     FeatureMapFields.X_SCORE.value,
@@ -752,7 +754,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     def create_report(self):
         # Create dataframes for test and train seperately
         pred_cols = (
-            [f"ML_prob_{i}" for i in [0, 1]] + [f"ML_qual_{i}" for i in [0, 1]] + [f"ML_prediction_{i}" for i in [0, 1]]
+            [f"ML_prob_{i}" for i in (0, 1)] + [f"ML_qual_{i}" for i in (0, 1)] + [f"ML_prediction_{i}" for i in (0, 1)]
         )
         featuremap_df = {}
         for dataset, other_dataset in zip(("test", "train"), ("train", "test")):
