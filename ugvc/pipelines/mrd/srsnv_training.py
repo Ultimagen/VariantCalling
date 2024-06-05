@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 
 from simppl.simple_pipeline import SimplePipeline
 
@@ -82,9 +83,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Number of cross-validation folds to use. Default=1 (no CV)""",
     )
     parser.add_argument(
-        "--split_folds_randomly", 
+        "--split_folds_randomly",
         action="store_true",
-        help="""by default the training data is split into folds by chromosomes, if the flag is provided it is split randomly."""
+        help="""by default the training data is split into folds by chromosomes,
+        if the flag is provided it is split randomly.""",
     )
     parser.add_argument(
         "--numerical_features",
@@ -96,7 +98,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--categorical_features",
         type=str,
         nargs="+",
-        help="""comma separated list of categorical features for ML classifier """,
+        help="""comma separated list of categorical features for ML classifier.
+        Each item is a dictionary, e.g.: '{"ref": [["T", "G", "C", "A"], false]}' """,
     )
     parser.add_argument(
         "--balanced_sampling_info_fields",
@@ -183,15 +186,15 @@ def run(argv: list[str]):
         tp_regions_bed_file=args.hom_snv_regions,
         fp_regions_bed_file=args.single_sub_regions,
         numerical_features=args.numerical_features,
-        categorical_features=args.categorical_features,
+        categorical_features={k: v for feat in args.categorical_features for k, v in json.loads(feat).items()},
         balanced_sampling_info_fields=args.balanced_sampling_info_fields
         if args.balanced_sampling_info_fields
         else None,
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=args.train_set_size,
         test_set_size=args.test_set_size,
-        k_folds=args.num_CV_folds, 
-        split_folds_by_chrom=not args.split_folds_randomly, 
+        k_folds=args.num_CV_folds,
+        split_folds_by_chrom=not args.split_folds_randomly,
         out_path=args.output,
         out_basename=args.basename,
         lod_filters=args.lod_filters,

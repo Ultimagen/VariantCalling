@@ -14,6 +14,7 @@ import pandas as pd
 import pysam
 import sklearn
 import xgboost as xgb
+from pandas.api.types import CategoricalDtype
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
@@ -46,17 +47,18 @@ default_numerical_features = [
     FeatureMapFields.X_INDEX.value,
     FeatureMapFields.MAX_SOFTCLIP_LENGTH.value,
 ]
-default_categorical_features = [
-    FeatureMapFields.IS_CYCLE_SKIP.value,
-    FeatureMapFields.ALT.value,
-    FeatureMapFields.REF.value,
-    FeatureMapFields.PREV_1.value,
-    FeatureMapFields.PREV_2.value,
-    FeatureMapFields.PREV_3.value,
-    FeatureMapFields.NEXT_1.value,
-    FeatureMapFields.NEXT_2.value,
-    FeatureMapFields.NEXT_3.value,
-]
+# pylint:disable=consider-using-namedtuple-or-dataclass
+default_categorical_features = {
+    FeatureMapFields.IS_CYCLE_SKIP.value: [[False, True], False],
+    FeatureMapFields.ALT.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.REF.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.PREV_1.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.PREV_2.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.PREV_3.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.NEXT_1.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.NEXT_2.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.NEXT_3.value: [["T", "G", "C", "A"], False],
+}
 
 CHROM_SIZES = {
     "chr1": 248956422,
@@ -82,6 +84,26 @@ CHROM_SIZES = {
     "chr22": 50818468,
     "chr21": 46709983,
 }
+
+
+def set_categorical_columns(df: pd.DataFrame, cat_dict: dict[str, list]):
+    """Set the categorical columns of a dataframe to have the right categories/order.
+    Arguments:
+    df [pd.DataFrame]: dataframe to set categories
+    cat_dict [dict[str, list]]: dictionary, where each key is the categorical column names,
+    and the corresponding value is a list with 2 elements: a list of categories, and a boolean indicating
+    whether the categories are ordered. So, for example, the dictionary could look like:
+        cat_dict = {
+            col_name1: [[cat1, cat2, cat3, ...], False],
+            col_name2: [[cat4, cat5, cat6, ...], True],
+            ...
+        }
+    """
+    df = df.copy()
+    for col in cat_dict.keys():
+        df[col] = df[col].astype(CategoricalDtype(*cat_dict[col]))
+        df[col] = df[col].cat.set_categories(*cat_dict[col])
+    return df
 
 
 def partition_into_folds(series_of_sizes, k_folds, alg="greedy"):
@@ -496,7 +518,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         k_folds: int = 1,
         split_folds_by_chrom: bool = True,
         numerical_features: list[str] = None,
-        categorical_features: list[str] = None,
+        categorical_features: dict[str, list] = None,
         sorter_json_stats_file: str = None,
         tp_regions_bed_file: str = None,
         fp_regions_bed_file: str = None,
@@ -532,8 +554,19 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             If k_folds != 1, ignores test_set_size (there's no test set).
         numerical_features : list[str], optional
             List of numerical features to use, default (None): [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
-        categorical_features : list[str], optional
-            List of categorical features to use, default (None): [IS_CYCLE_SKIP,TRINUC_CONTEXT_WITH_ALT]
+        categorical_features : dict[str, list], optional
+            Dictionary of categorical features and their values, default (None):
+                {
+                    'is_cycle_skip': [[False, True], False],
+                    'alt': [['T', 'G', 'C', 'A'], False],
+                    'ref': [['T', 'G', 'C', 'A'], False],
+                    'next_1': [['T', 'G', 'C', 'A'], False],
+                    'next_2': [['T', 'G', 'C', 'A'], False],
+                    'next_3': [['T', 'G', 'C', 'A'], False],
+                    'prev_1': [['T', 'G', 'C', 'A'], False],
+                    'prev_2': [['T', 'G', 'C', 'A'], False],
+                    'prev_3': [['T', 'G', 'C', 'A'], False],
+                }
         tp_regions_bed_file : str, optional
             Path to bed file of regions to use for true positives
         fp_regions_bed_file : str, optional
@@ -586,6 +619,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.split_folds_by_chrom = bool(split_folds_by_chrom)
         if self.split_folds_by_chrom:
             self.chroms_to_folds = partition_into_folds(pd.Series(CHROM_SIZES), self.k_folds)
+        else:
+            self.chroms_to_folds = None
 
         # determine output paths
         os.makedirs(out_path, exist_ok=True)
@@ -622,9 +657,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.model_parameters = model_params
         self.classifiers = [classifier_class(**self.model_parameters) for _ in range(k_folds)]
         self.numerical_features = numerical_features
-        self.categorical_features = categorical_features
+        self.categorical_features_dict = categorical_features
+        self.categorical_features_names = list(categorical_features.keys())
         self.balanced_sampling_info_fields = balanced_sampling_info_fields
-        self.columns = self.numerical_features + self.categorical_features
+        self.columns = self.numerical_features + self.categorical_features_names
         self.pre_filter = pre_filter
         if random_seed is None:
             random_seed = int(datetime.now().timestamp())
@@ -698,7 +734,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         return {
             "model_parameters": self.model_parameters,
             "numerical_features": self.numerical_features,
-            "categorical_features": self.categorical_features,
+            "categorical_features_dict": self.categorical_features_dict,
+            "categorical_features_names": self.categorical_features_names,
             "balanced_sampling_info_fields": self.balanced_sampling_info_fields,
             "hom_snv_featuremap": self.hom_snv_featuremap,
             "single_substitution_featuremap": self.single_substitution_featuremap,
@@ -720,6 +757,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "featuremap_df_save_path": self.featuremap_df_save_path,
             "pre_filter": self.pre_filter,
             "random_seed": self.random_seed,
+            "chroms_to_folds": self.chroms_to_folds,
         }
 
     def save_model_and_data(self):
@@ -841,8 +879,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         df_fp_train = featuremap_to_dataframe(self.fp_train_featuremap_vcf)
         df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)
         # create X and y
-        self.featuremap_df = pd.concat((df_tp_train, df_fp_train), ignore_index=True).astype(
-            {c: "category" for c in self.categorical_features}
+        self.featuremap_df = set_categorical_columns(
+            pd.concat((df_tp_train, df_fp_train), ignore_index=True), self.categorical_features_dict
         )
         if self.use_CV:
             if self.split_folds_by_chrom:
@@ -866,11 +904,12 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 "fold_id"
             ] = -1  # X_train will contain all entries where self.featuremap_df['fold_id']!=0, so all of these
             # Test data should have 0 in column 'fold_id' (TODO: Check whether we might need np.nan here)
-            test_featuremap_df = pd.concat((df_tp_test, df_fp_test), ignore_index=True)
-            test_featuremap_df["fold_id"] = 0
-            self.featuremap_df = pd.concat((self.featuremap_df, test_featuremap_df), ignore_index=True).astype(
-                {c: "category" for c in self.categorical_features}
+            test_featuremap_df = set_categorical_columns(
+                pd.concat((df_tp_test, df_fp_test), ignore_index=True),
+                self.categorical_features_dict,
             )
+            test_featuremap_df["fold_id"] = 0
+            self.featuremap_df = pd.concat((self.featuremap_df, test_featuremap_df), ignore_index=True)
             self.featuremap_df["label"] = (
                 pd.concat(
                     [
