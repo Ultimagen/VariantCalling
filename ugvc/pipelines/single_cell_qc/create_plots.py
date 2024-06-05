@@ -15,10 +15,17 @@ def cbc_umi_plot(h5_file: str, output_path: str) -> Path:
     """
     Count number of unique UMI per CBC, to get a rough estimate of the number of cells in the sample.
 
-    :param h5_file: path to h5 file with statistics
-    :param output_path: path to output directory
+    Parameters
+    ----------
+    h5_file : str
+        Path to h5 file with statistics.
+    output_path : str
+        Path to output directory.
 
-    :return: path to the plot
+    Returns
+    -------
+    Path
+        Path to the plot.
     """
     with pd.HDFStore(h5_file, "r") as store:
         histogram = store[H5Keys.TRIMMER_HISTOGRAM.value]
@@ -59,10 +66,17 @@ def plot_insert_length_histogram(h5_file: str, output_path: str) -> Path:
     """
     Plot histogram of insert lengths.
 
-    :param h5_file: path to h5 file with statistics
-    :param output_path: path to output directory
+    Parameters
+    ----------
+    h5_file : str
+        Path to h5 file with statistics.
+    output_path : str
+        Path to output directory.
 
-    :return: path to the plot
+    Returns
+    -------
+    Path
+        Path to the plot.
     """
     with pd.HDFStore(h5_file, "r") as store:
         insert_lengths = store[H5Keys.INSERT_LENGTHS.value]
@@ -95,10 +109,17 @@ def plot_mean_insert_quality_histogram(h5_file: str, output_path: str) -> Path:
     """
     Plot histogram of mean insert quality.
 
-    :param h5_file: path to h5 file with statistics
-    :param output_path: path to output directory
+    Parameters
+    ----------
+    h5_file : str
+        Path to h5 file with statistics.
+    output_path : str
+        Path to output directory.
 
-    :return: path to the plot
+    Returns
+    -------
+    Path
+        Path to the plot.
     """
     with pd.HDFStore(h5_file, "r") as store:
         insert_quality = store[H5Keys.INSERT_QUALITY.value]
@@ -121,10 +142,17 @@ def plot_quality_per_position(h5_file: str, output_path: str) -> Path:
     """
     Plot quality per position for the insert, with percentiles.
 
-    :param h5_file: path to h5 file with statistics
-    :param output_path: path to output directory
+    Parameters
+    ----------
+    h5_file : str
+        Path to h5 file with statistics.
+    output_path : str
+        Path to output directory.
 
-    :return: path to the plot
+    Returns
+    -------
+    Path
+        Path to the plot.
     """
     with pd.HDFStore(h5_file, "r") as store:
         insert_quality = store[H5Keys.INSERT_QUALITY.value]

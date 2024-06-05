@@ -1,0 +1,35 @@
+PF_Barcode_reads,9652
+PCT_PF_aligned,0.0
+PCT_PF_Reads_aligned,0.0
+PCT_PF_HQ_aligned,0.0
+PCT_PF_Q20_bases,86.79
+PCT_PF_Q30_bases,67.69
+Mean_quality,30.14
+Mismatch_Rate,0.0
+Indel_Rate,0.0
+Mean_Read_Length,145.48
+Median_Read_Length,155
+Mean_Aligned_Read_Length,0
+Failed_QC_reads,0
+PCT_Failed_QC_reads,0.0
+MAPQ >= 1,0
+MAPQ >= 10,0
+MAPQ >= 20,0
+MAPQ >= 30,0
+PCT_Chimeras,0.0
+Mean_cvg,0
+median_cvg,0
+%>=1x,0.0
+%>=10x,0.0
+%>=20x,0.0
+%>=50x,0.0
+%>=100x,0.0
+%>=500x,0.0
+%>=1000x,0.0
+% duplicates,0.0
+F80,0
+F90,0
+F95,0
+F80@30x,0
+F90@30x,0
+F95@30x,0
