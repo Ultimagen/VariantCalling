@@ -49,15 +49,15 @@ default_numerical_features = [
 ]
 # pylint:disable=consider-using-namedtuple-or-dataclass
 default_categorical_features = {
-    FeatureMapFields.IS_CYCLE_SKIP.value: [[False, True], False],
-    FeatureMapFields.ALT.value: [["T", "G", "C", "A"], False],
-    FeatureMapFields.REF.value: [["T", "G", "C", "A"], False],
-    FeatureMapFields.PREV_1.value: [["T", "G", "C", "A"], False],
-    FeatureMapFields.PREV_2.value: [["T", "G", "C", "A"], False],
-    FeatureMapFields.PREV_3.value: [["T", "G", "C", "A"], False],
-    FeatureMapFields.NEXT_1.value: [["T", "G", "C", "A"], False],
-    FeatureMapFields.NEXT_2.value: [["T", "G", "C", "A"], False],
-    FeatureMapFields.NEXT_3.value: [["T", "G", "C", "A"], False],
+    FeatureMapFields.IS_CYCLE_SKIP.value: [False, True],
+    FeatureMapFields.ALT.value: ["T", "G", "C", "A"],
+    FeatureMapFields.REF.value: ["T", "G", "C", "A"],
+    FeatureMapFields.PREV_1.value: ["T", "G", "C", "A"],
+    FeatureMapFields.PREV_2.value: ["T", "G", "C", "A"],
+    FeatureMapFields.PREV_3.value: ["T", "G", "C", "A"],
+    FeatureMapFields.NEXT_1.value: ["T", "G", "C", "A"],
+    FeatureMapFields.NEXT_2.value: ["T", "G", "C", "A"],
+    FeatureMapFields.NEXT_3.value: ["T", "G", "C", "A"],
 }
 
 CHROM_SIZES = {
@@ -101,8 +101,8 @@ def set_categorical_columns(df: pd.DataFrame, cat_dict: dict[str, list]):
     """
     df = df.copy()
     for col in cat_dict.keys():
-        df[col] = df[col].astype(CategoricalDtype(*cat_dict[col]))
-        df[col] = df[col].cat.set_categories(*cat_dict[col])
+        df[col] = df[col].astype(CategoricalDtype(cat_dict[col], ordered=False))
+        df[col] = df[col].cat.set_categories(cat_dict[col], ordered=False)
     return df
 
 
