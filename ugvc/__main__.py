@@ -14,7 +14,8 @@ if path not in sys.path:
 # import pipeline modules implementing run(argv) method
 from ugvc.cnv import (
     filter_sample_cnvs, 
-    convert_cnv_results_to_vcf
+    convert_cnv_results_to_vcf,
+    plot_cnv_results
 )
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
@@ -71,6 +72,7 @@ modules = [
     train_models_pipeline,
     filter_sample_cnvs,
     convert_cnv_results_to_vcf,
+    plot_cnv_results,
     convert_haploid_regions,
     correct_genotypes_by_imputation,
     vcfeval_flavors,
