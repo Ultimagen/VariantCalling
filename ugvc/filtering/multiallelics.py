@@ -12,7 +12,7 @@ from ugvc.filtering.tprep_constants import SPAN_DEL
 from ugvc.vcfbed import vcftools
 
 
-def select_overlapping_variants(df: pd.DataFrame) -> list:
+def select_overlapping_variants(df: pd.DataFrame, require_star_for_spandel: bool = True) -> list:
     """Selects lists of overlapping variants that need to be genotyped together. This
     can be multiallelic variants or variants with spanning deletion
 
@@ -20,6 +20,9 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
     ----------
     df : pd.DataFrame
         Training set dataframe
+    require_star_for_spandel: bool
+        Should "*" appear in the alleles of the row to be considered as a spanning deletion (true)
+        or just overlap with deletion is enough (false)
     Returns
     -------
     list
@@ -50,7 +53,7 @@ def select_overlapping_variants(df: pd.DataFrame) -> list:
         if len(cluster) == 0:
             cluster.append(i)
         # or if we are in a deletion and the variant contains SPAN_DEL
-        elif len(cluster) > 0 and SPAN_DEL in df.iloc[i]["alleles"]:
+        elif len(cluster) > 0 and ((SPAN_DEL in df.iloc[i]["alleles"]) or (not require_star_for_spandel)):
             cluster.append(i)
         # case when a deletion spans another deletion
         current_span = max(current_span, del_length[i] + df.iloc[i]["pos"])
@@ -235,7 +238,7 @@ def encode_gt_for_allele_subset(original_gt: tuple, allele_idcs: tuple) -> tuple
     raise RuntimeError("Neither allele found in the original genotype")
 
 
-def _get_pl_idx(tup: tuple) -> int:
+def get_pl_idx(tup: tuple) -> int:
     """Returns the index of the PL value in the tuple
 
     Parameters
@@ -250,6 +253,30 @@ def _get_pl_idx(tup: tuple) -> int:
     """
     offset: int = max(tup) * (max(tup) + 1) // 2
     return offset + int(min(tup))
+
+
+def get_gt_from_pl_idx(idx: int) -> tuple:
+    """Returns GT given index in PL
+
+    Parameters
+    ----------
+    idx : int
+        index of the PL value
+
+    Returns
+    -------
+    tuple
+        Genotype
+    """
+
+    count = 0
+    n_alleles = 0
+    while count < idx + 1:
+        count += n_alleles
+        n_alleles += 1
+    max_allele = n_alleles - 1
+    min_allele = idx - (count - n_alleles)
+    return (min_allele - 1, max_allele - 1)
 
 
 def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: bool = True) -> tuple:
@@ -271,7 +298,7 @@ def select_pl_for_allele_subset(original_pl: tuple, allele_idcs: tuple, normed: 
     """
     allele_idcs = tuple(allele_idcs)
     idcs = [
-        _get_pl_idx(x)
+        get_pl_idx(x)
         for x in ((allele_idcs[0], allele_idcs[0]), (allele_idcs[0], allele_idcs[1]), (allele_idcs[1], allele_idcs[1]))
     ]
     pltake = [original_pl[x] for x in idcs]
