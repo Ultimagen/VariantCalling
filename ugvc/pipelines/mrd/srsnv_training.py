@@ -19,8 +19,6 @@ from __future__ import annotations
 
 import argparse
 
-from simppl.simple_pipeline import SimplePipeline
-
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.srsnv_plotting_utils import srsnv_report
 from ugvc.mrd.srsnv_training_utils import SRSNVTrain
@@ -154,16 +152,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def run(argv: list[str]):
     """Train a model for single read SNV quality recalibration"""
     args = parse_args(argv)
-    simple_pipeline_args = (0, 10000, False)
-    sp = SimplePipeline(
-        simple_pipeline_args[0],
-        simple_pipeline_args[1],
-        debug=simple_pipeline_args[2],
-        print_timing=True,
-    )
-
-    # TODO add the option to read from a json file         model_parameters: dict | str = None,
-    # TODO add to args         classifier_class=xgb.XGBClassifier,
 
     s = SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
@@ -184,17 +172,14 @@ def run(argv: list[str]):
         balanced_strand_adapter_version=args.balanced_strand_adapter_version,
         pre_filter=args.pre_filter,
         random_seed=args.random_seed,
-        simple_pipeline=sp,
     ).process()
 
-    # TODO: merge the two reports so train and test set results are presented together
     srsnv_report(
         out_path=args.output,
         out_basename=args.basename,
         report_name="test",
         model_file=s.model_save_path,
         params_file=s.params_save_path,
-        simple_pipeline=None,
     )
 
     srsnv_report(
@@ -203,5 +188,4 @@ def run(argv: list[str]):
         report_name="train",
         model_file=s.model_save_path,
         params_file=s.params_save_path,
-        simple_pipeline=None,
     )
