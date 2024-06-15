@@ -132,10 +132,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""basename of output files""",
     )
     parser.add_argument(
+        "--save_model_jsons",
+        action="store_true",
+        help="""Save model(s) in json files. By default models are saved only
+        as a single joblib file.""",
+    )
+    parser.add_argument(
         "-r",
         "--reference_fasta",
         type=str,
         help="""reference fasta, only required for motif annotation""",
+    )
+    parser.add_argument(
+        "--reference_dict",
+        type=str,
+        help="""reference dict, required to know chromosome sizes""",
     )
     parser.add_argument(
         "--flow_order",
@@ -238,9 +249,11 @@ def run(argv: list[str]):
         test_set_size=dataset_params["test_set_size"],
         k_folds=args.num_CV_folds,
         split_folds_by_chrom=not args.split_folds_randomly,
+        reference_dict=args.reference_dict,
         out_path=args.output,
         out_basename=args.basename,
         lod_filters=args.lod_filters,
+        save_model_jsons=args.save_model_jsons,
         balanced_strand_adapter_version=args.balanced_strand_adapter_version,
         pre_filter=dataset_params["pre_filter"],
         random_seed=args.random_seed,
@@ -252,7 +265,7 @@ def run(argv: list[str]):
         out_path=args.output,
         out_basename=args.basename,
         report_name="test",
-        model_file=s.model_save_path,
+        model_file=s.model_joblib_save_path,
         params_file=s.params_save_path,
         simple_pipeline=None,
     )
@@ -261,7 +274,7 @@ def run(argv: list[str]):
         out_path=args.output,
         out_basename=args.basename,
         report_name="train",
-        model_file=s.model_save_path,
+        model_file=s.model_joblib_save_path,
         params_file=s.params_save_path,
         simple_pipeline=None,
     )

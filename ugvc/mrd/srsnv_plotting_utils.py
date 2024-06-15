@@ -1366,7 +1366,10 @@ def create_report(
     }
 
     sorter_json_stats_file = params["sorter_json_stats_file"]
-    data_size = params[f"{report_name}_set_size"]
+    if params["num_CV_folds"] == 1:
+        data_size = params[f"{report_name}_set_size"]
+    else:
+        data_size = params["train_set_size"]  # TODO: CORRECT HERE !!!! (what exactly do I need here???)
     total_n = params["fp_featuremap_entry_number"]
     sampling_rate = (
         data_size / total_n

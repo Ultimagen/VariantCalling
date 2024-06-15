@@ -50,14 +50,14 @@ default_numerical_features = [
 # pylint:disable=consider-using-namedtuple-or-dataclass
 default_categorical_features = {
     FeatureMapFields.IS_CYCLE_SKIP.value: [False, True],
-    FeatureMapFields.ALT.value: ["T", "G", "C", "A"],
-    FeatureMapFields.REF.value: ["T", "G", "C", "A"],
-    FeatureMapFields.PREV_1.value: ["T", "G", "C", "A"],
-    FeatureMapFields.PREV_2.value: ["T", "G", "C", "A"],
-    FeatureMapFields.PREV_3.value: ["T", "G", "C", "A"],
-    FeatureMapFields.NEXT_1.value: ["T", "G", "C", "A"],
-    FeatureMapFields.NEXT_2.value: ["T", "G", "C", "A"],
-    FeatureMapFields.NEXT_3.value: ["T", "G", "C", "A"],
+    FeatureMapFields.ALT.value: ["A", "C", "G", "T"],
+    FeatureMapFields.REF.value: ["A", "C", "G", "T"],
+    FeatureMapFields.PREV_1.value: ["A", "C", "G", "T"],
+    FeatureMapFields.PREV_2.value: ["A", "C", "G", "T"],
+    FeatureMapFields.PREV_3.value: ["A", "C", "G", "T"],
+    FeatureMapFields.NEXT_1.value: ["A", "C", "G", "T"],
+    FeatureMapFields.NEXT_2.value: ["A", "C", "G", "T"],
+    FeatureMapFields.NEXT_3.value: ["A", "C", "G", "T"],
 }
 
 CHROM_SIZES = {
@@ -84,6 +84,38 @@ CHROM_SIZES = {
     "chr22": 50818468,
     "chr21": 46709983,
 }
+
+
+def get_chrom_sizes(reference_dict: str, chr_nums: list = None):
+    """Read reference_dict file and get the lengths of all chromosomes listed in chr_nums.
+    Arguments:
+        - reference_dict [str]: the path to the reference .dict file containing contig lengths.
+        - chr_nums [str]: list of chromosome numbers to get. By default includes chromosomes 1-22.
+    Returns:
+        - chrom_sizes [dict]: dictionary of chr, length pairs, where chr is the contig name (e.g, 'chr1')
+                              and length is its length.
+                              If reference_dict is None, return None
+    """
+    if reference_dict is None:
+        return None
+    # List of contig names to include
+    if chr_nums is None:
+        chr_nums = np.arange(22) + 1
+    chr_to_include = [f"chr{n}" for n in chr_nums]
+
+    chrom_sizes = {}
+    with open(reference_dict, "r", encoding="utf-8") as file:
+        for line in file:
+            if line.startswith("@SQ"):
+                fields = line[3:].strip().split("\t")
+                row = {}  # Dict of all fields in the row
+                for field in fields:
+                    key, value = field.split(":", 1)
+                    row[key] = value
+                if row["SN"] in chr_to_include:  # Include only contigs in chr_to_include
+                    chrom_sizes[row["SN"]] = int(row["LN"])
+
+    return chrom_sizes
 
 
 def set_categorical_columns(df: pd.DataFrame, cat_dict: dict[str, list]):
@@ -511,12 +543,14 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self,
         out_path: str,
         out_basename: str,
+        save_model_jsons: bool,
         tp_featuremap: str,
         fp_featuremap: str,
         train_set_size: int = MIN_TRAIN_SIZE,
         test_set_size: int = MIN_TEST_SIZE,
         k_folds: int = 1,
         split_folds_by_chrom: bool = True,
+        reference_dict: str = None,
         numerical_features: list[str] = None,
         categorical_features: dict[str, list] = None,
         sorter_json_stats_file: str = None,
@@ -557,15 +591,15 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         categorical_features : dict[str, list], optional
             Dictionary of categorical features and their values, default (None):
                 {
-                    'is_cycle_skip': [[False, True], False],
-                    'alt': [['T', 'G', 'C', 'A'], False],
-                    'ref': [['T', 'G', 'C', 'A'], False],
-                    'next_1': [['T', 'G', 'C', 'A'], False],
-                    'next_2': [['T', 'G', 'C', 'A'], False],
-                    'next_3': [['T', 'G', 'C', 'A'], False],
-                    'prev_1': [['T', 'G', 'C', 'A'], False],
-                    'prev_2': [['T', 'G', 'C', 'A'], False],
-                    'prev_3': [['T', 'G', 'C', 'A'], False],
+                    'is_cycle_skip': [False, True],
+                    'alt': ['A', 'C', 'G', 'T'],
+                    'ref': ['A', 'C', 'G', 'T'],
+                    'next_1': ['A', 'C', 'G', 'T'],
+                    'next_2': ['A', 'C', 'G', 'T'],
+                    'next_3': ['A', 'C', 'G', 'T'],
+                    'prev_1': ['A', 'C', 'G', 'T'],
+                    'prev_2': ['A', 'C', 'G', 'T'],
+                    'prev_3': ['A', 'C', 'G', 'T'],
                 }
         tp_regions_bed_file : str, optional
             Path to bed file of regions to use for true positives
@@ -618,7 +652,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.k_folds = k_folds
         self.split_folds_by_chrom = bool(split_folds_by_chrom)
         if self.split_folds_by_chrom:
-            self.chroms_to_folds = partition_into_folds(pd.Series(CHROM_SIZES), self.k_folds)
+            chrom_sizes = get_chrom_sizes(reference_dict) or CHROM_SIZES
+            self.chroms_to_folds = partition_into_folds(pd.Series(chrom_sizes), self.k_folds)
         else:
             self.chroms_to_folds = None
 
@@ -629,6 +664,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.out_path = out_path
         self.out_basename = out_basename
         (
+            self.model_joblib_save_path,
             self.model_save_path,
             self.featuremap_df_save_path,
             self.params_save_path,
@@ -639,6 +675,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.test_statistics_json_file,
             self.train_statistics_json_file,
         ) = self._get_file_paths()
+        self.save_model_jsons = save_model_jsons
 
         # set up classifier
         assert sklearn.base.is_classifier(
@@ -717,6 +754,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     def _get_file_paths(self):
         return (
             pjoin(f"{self.out_path}", f"{self.out_basename}model.joblib"),
+            pjoin(f"{self.out_path}", f"{self.out_basename}model_{{k}}.json"),
             pjoin(f"{self.out_path}", f"{self.out_basename}featuremap_df.parquet"),
             pjoin(f"{self.out_path}", f"{self.out_basename}params.json"),
             pjoin(f"{self.out_path}", f"{self.out_basename}test.df_mrd_simulation.parquet"),
@@ -758,18 +796,30 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "pre_filter": self.pre_filter,
             "random_seed": self.random_seed,
             "chroms_to_folds": self.chroms_to_folds,
+            "num_CV_folds": self.k_folds,
         }
 
     def save_model_and_data(self):
         # save model
-        joblib.dump(self.classifiers, self.model_save_path)
-        # save data
-        for data, savename in ((self.featuremap_df, self.featuremap_df_save_path),):
-            data.to_parquet(savename)
+        if self.save_model_jsons:
+            for k, model in enumerate(self.classifiers):
+                model.save_model(self.model_save_path.format(k=k))
         # save params
         params_to_save = self.get_params()
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
+        # save model joblib (includes params and interpolation)
+        joblib.dump(
+            {
+                "models": self.classifiers,
+                "params": params_to_save,
+                "quality_interpolation_function": self.quality_interpolation_function,
+            },
+            self.model_joblib_save_path,
+        )
+        # save data
+        for data, savename in ((self.featuremap_df, self.featuremap_df_save_path),):
+            data.to_parquet(savename)
 
     def add_predictions_to_featuremap_df(self, return_train=True):
         """Add model predictions to self.featuremap_df. Use only if models were trained!"""
@@ -953,7 +1003,9 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.create_report()
 
         # Calculate vector of quality scores for the test set
-        quality_interpolation_function = get_quality_interpolation_function(self.test_mrd_simulation_dataframe_file)
+        self.quality_interpolation_function = get_quality_interpolation_function(
+            self.test_mrd_simulation_dataframe_file
+        )
 
         # Add interpolated qualities
         self.featuremap_df = self.featuremap_df.assign(
@@ -962,7 +1014,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                     ~self.featuremap_df["ML_prob_0_test"].isna(), "ML_prob_0_test"  # Make sure only "test" data is used
                 ]
                 .rename("qual")
-                .apply(quality_interpolation_function)
+                .apply(self.quality_interpolation_function)
             )
         )
 
