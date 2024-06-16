@@ -79,7 +79,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--num_CV_folds",
         type=int,
-        default=1,
+        default=None,
         help="""Number of cross-validation folds to use. Default=1 (no CV)""",
     )
     parser.add_argument(
@@ -180,12 +180,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--random_seed",
         type=int,
         required=False,
-        default=42,
+        default=None,
         help="""random seed for reproducibility""",
     )
     return parser.parse_args(argv[1:])
 
 
+# pylint:disable=missing-raises-doc
 def read_dataset_params(args):
     """Read the dataset params from json file. Any values provided in the command line
     overrides the json file.
@@ -193,6 +194,9 @@ def read_dataset_params(args):
         - args: the command line arguments.
     Returns:
         - dataset_params [dict]: dictionary with dataset params.
+
+    Raises:
+        - ValueError, if split_folds_by has value other than 'random' or 'chrom'
     """
     dataset_params = {
         "train_set_size": args.train_set_size,
@@ -201,6 +205,9 @@ def read_dataset_params(args):
         "categorical_features": args.categorical_features,
         "balanced_sampling_info_fields": args.balanced_sampling_info_fields,
         "pre_filter": args.pre_filter,
+        "balanced_strand_adapter_version": args.balanced_strand_adapter_version,
+        "random_seed": args.random_seed,
+        "num_CV_folds": args.num_CV_folds,
     }
     if args.categorical_features:
         # convert string to dictionary:
@@ -215,6 +222,28 @@ def read_dataset_params(args):
         params = {}
 
     dataset_params = {p: v or params.get(p, None) for p, v in dataset_params.items()}
+    # Add boolean features to categorical
+    if params.get("boolean_features", None) is not None:
+        for feat in params["boolean_features"]:
+            dataset_params["categorical_features"][feat] = [False, True]
+    # default value of num_CV_folds
+    dataset_params["num_CV_folds"] = dataset_params["num_CV_folds"] or 1
+    # default value of random_seed
+    dataset_params["random_seed"] = dataset_params["random_seed"] or 42
+    # check split_folds_by_chrom
+    dataset_params["split_folds_by_chrom"] = True
+    if params.get("split_folds_by", None) is not None:
+        if params["split_folds_by"] == "chrom":
+            dataset_params["split_folds_by_chrom"] = True
+        elif params["split_folds_by"] == "random":
+            dataset_params["split_folds_by_chrom"] = False
+        else:
+            raise ValueError(
+                f"split_folds_by can only have values 'chrome' and 'random'. Got {params['split_folds_by']}"
+            )
+    if args.split_folds_randomly:  # override json file
+        dataset_params["split_folds_by_chrom"] = False
+
     return dataset_params
 
 
@@ -247,16 +276,16 @@ def run(argv: list[str]):
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=dataset_params["train_set_size"],
         test_set_size=dataset_params["test_set_size"],
-        k_folds=args.num_CV_folds,
-        split_folds_by_chrom=not args.split_folds_randomly,
+        k_folds=dataset_params["num_CV_folds"],
+        split_folds_by_chrom=dataset_params["split_folds_by_chrom"],
         reference_dict=args.reference_dict,
         out_path=args.output,
         out_basename=args.basename,
         lod_filters=args.lod_filters,
         save_model_jsons=args.save_model_jsons,
-        balanced_strand_adapter_version=args.balanced_strand_adapter_version,
+        balanced_strand_adapter_version=dataset_params["balanced_strand_adapter_version"],
         pre_filter=dataset_params["pre_filter"],
-        random_seed=args.random_seed,
+        random_seed=dataset_params["random_seed"],
         simple_pipeline=sp,
     ).process()
 

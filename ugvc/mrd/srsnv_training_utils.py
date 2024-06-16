@@ -15,16 +15,18 @@ import pysam
 import sklearn
 import xgboost as xgb
 from pandas.api.types import CategoricalDtype
+from scipy.interpolate import interp1d
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
-from ugvc.mrd.srsnv_inference_utils import get_quality_interpolation_function
 from ugvc.mrd.srsnv_plotting_utils import create_report
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
+
+ML_QUAL = "ML_QUAL"
 
 default_xgboost_model_params = {
     "n_estimators": 200,
@@ -198,6 +200,16 @@ def k_fold_predict_proba(models, df, columns_for_training, k_folds, kfold_col="f
     prediction. The function averages phred scores of the predictions of all theses
     models.
 
+    Clarification about train/val/test:
+    val = all reads where kfold_col column is in [0, 1, ..., k_folds-1] and kfold_col == k (current fold)
+    test = all reads where kfold_col column is np.nan
+    train = all reads where kfold_col column is in [0, 1, ..., k_folds-1] and kfold_col != k (current fold)
+    NOTE: If kfold_col value is not np.nan and also not in [0, 1, ..., k_folds-1] (e.g., it is -1),
+          then the read will belong to train. However, only when k_folds==1 the prediction value
+          is normalized correctly in this case, becaues such a read will have k_folds prediction
+          values, but will be normalized by (k_folds-1). To get the right prediction for these
+          reads, need to take (prediction) ** ((k_folds-1)/k_folds)
+
     Arguments:
     - models: a list of k_folds models (one for each fold)
     - df: the data dataframe
@@ -208,7 +220,7 @@ def k_fold_predict_proba(models, df, columns_for_training, k_folds, kfold_col="f
     - return_train [bool]: If true, return also train values (probabilities when
                            model is evaluated on the folds used for training it).
     """
-    test_cond = df[kfold_col].isna()
+    test_cond = df[kfold_col].isna()  # For reads that do not belong to any fold (like chrX, chrY)
     preds = pd.Series(0, index=df.index, name="test")
     all_val_cond = test_cond.copy()  # for keeping track of all "test" indices
     if return_train:
@@ -242,6 +254,45 @@ def k_fold_predict_proba(models, df, columns_for_training, k_folds, kfold_col="f
         preds = pd.concat((preds, preds_train), axis=1)
 
     return preds
+
+
+def get_quality_interpolation_function(mrd_simulation_dataframe: str = None):
+    """
+    Create a function that interpolates between residual_snv_rate and ML_QUAL
+
+    Parameters
+    ----------
+    mrd_simulation_dataframe : str, None
+        Path to MRD simulation dataframe
+        If None then None is returned and nothing is done
+
+    Returns
+    -------
+    interp1d
+        Interpolation function
+    """
+    if not mrd_simulation_dataframe:
+        return None
+    # read data, filter for ML_QUAL filters only
+    df = pd.read_parquet(mrd_simulation_dataframe)
+    df.index = df.index.str.upper()
+    df = df[df.index.str.startswith(ML_QUAL)]
+    df.loc[:, ML_QUAL] = df.index.str.replace(ML_QUAL + "_", "").astype(float)
+    # Calculate Phred scores matching the residual SNV rate
+    df = df[df["residual_snv_rate"] > 0]  # Estimate using only residual SNV rates > 0 to avoid QUAL=Inf
+    phred_residual_snv_rate = -10 * np.log10(df["residual_snv_rate"])
+    # Create interpolation function
+    quality_interpolation_function = interp1d(
+        df[ML_QUAL] + 1e-10,  # add a small number so ML_QUAL=0 is outside the interpolation range
+        phred_residual_snv_rate,
+        kind="linear",
+        bounds_error=False,
+        fill_value=(
+            0,
+            phred_residual_snv_rate[-1],
+        ),  # below ML_QUAL=1E-10 assign 0, above max assign max
+    )
+    return quality_interpolation_function
 
 
 # pylint:disable=too-many-arguments
