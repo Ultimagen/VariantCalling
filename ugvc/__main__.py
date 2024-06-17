@@ -12,11 +12,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # import pipeline modules implementing run(argv) method
-from ugvc.cnv import (
-    filter_sample_cnvs, 
-    convert_cnv_results_to_vcf,
-    plot_cnv_results
-)
+from ugvc.cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -45,6 +41,7 @@ from ugvc.pipelines.mrd import (
     concat_dataframes,
     create_hom_snv_featuremap,
     featuremap_to_dataframe,
+    generate_featuremap_pileup,
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
     pileup_based_read_features,
@@ -97,6 +94,7 @@ mrd_modules = [
     srsnv_training,
     srsnv_inference,
     create_hom_snv_featuremap,
+    generate_featuremap_pileup,
 ]
 
 methylation_modules = [
