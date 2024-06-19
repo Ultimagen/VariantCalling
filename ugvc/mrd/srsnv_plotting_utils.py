@@ -264,7 +264,7 @@ def retention_noise_and_mrd_lod_simulation(
     df: pd.DataFrame,
     single_sub_regions: str,
     sorter_json_stats_file: str,
-    training_set_downsampling_rate: float,
+    fp_featuremap_entry_number: int,
     lod_filters: dict,
     sensitivity_at_lod: float = 0.90,
     specificity_at_lod: float = 0.99,
@@ -283,8 +283,8 @@ def retention_noise_and_mrd_lod_simulation(
         a path to the single substitutions (FP) regions bed file.
     sorter_json_stats_file : str
         a path to the cram statistics file.
-    training_set_downsampling_rate : float
-        the size of the dataset / # of reads in single sub featuremap after intersection with single_sub_regions.
+    fp_featuremap_entry_number : float
+        the # of reads in single sub featuremap after intersection with single_sub_regions.
     lod_filters : dict
         filters for LoD simulation.
     sensitivity_at_lod: float
@@ -354,12 +354,13 @@ def retention_noise_and_mrd_lod_simulation(
     effective_bases_covered = (
         mean_coverage
         * n_bases_in_region
-        * training_set_downsampling_rate
         * ratio_of_reads_over_mapq
         * ratio_of_bases_in_coverage_range
         * read_filter_correction_factor
     )
-    residual_snv_rate_no_filter = n_noise_reads / effective_bases_covered
+    residual_snv_rate_no_filter = (
+        fp_featuremap_entry_number / effective_bases_covered
+    )  # n_noise_reads / effective_bases_covered
     ratio_filtered_prior_to_featuremap = ratio_of_reads_over_mapq * read_filter_correction_factor
     logger.info(
         f"n_noise_reads {n_noise_reads}, n_signal_reads {n_signal_reads}"
@@ -1366,14 +1367,6 @@ def create_report(
     }
 
     sorter_json_stats_file = params["sorter_json_stats_file"]
-    if params["num_CV_folds"] == 1:
-        data_size = params[f"{report_name}_set_size"]
-    else:
-        data_size = params["train_set_size"]  # TODO: CORRECT HERE !!!! (what exactly do I need here???)
-    total_n = params["fp_featuremap_entry_number"]
-    sampling_rate = (
-        data_size / total_n
-    )  # N reads in test (test_size) / N reads in single sub featuremap intersected with single_sub_regions
 
     [
         output_roc_plot,
@@ -1400,7 +1393,7 @@ def create_report(
             df=df_X_with_pred_columns,
             single_sub_regions=params["fp_regions_bed_file"],
             sorter_json_stats_file=sorter_json_stats_file,
-            training_set_downsampling_rate=sampling_rate,
+            fp_featuremap_entry_number=params["fp_featuremap_entry_number"],
             lod_filters=lod_filters,
             sensitivity_at_lod=LoD_params["sensitivity_at_lod"],
             specificity_at_lod=LoD_params["specificity_at_lod"],
