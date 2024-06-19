@@ -120,6 +120,21 @@ def get_chrom_sizes(reference_dict: str, chr_nums: list = None):
     return chrom_sizes
 
 
+def get_intervals(tp_regions_bed_file: str):
+    """Read a bed file and return a list of contigs (chomosomes) used for training.
+    Arguments:
+        - tp_regions_bed_file [str]: path to the bed file. If None, return the default
+          value: ['chr1', ..., 'chr22']
+    Returns:
+        - intervals [list]: a list of (unique) chromosome names in the bed file. If
+          tp_regions_bed_file is None, return the default value: ['chr1', ..., 'chr22']
+    """
+    if tp_regions_bed_file is None:
+        return [f"chr{n}" for n in range(1, 23)]
+    bed_df = pd.read_csv(tp_regions_bed_file, sep="\t", header=None)
+    return list(bed_df[0].unique())
+
+
 def set_categorical_columns(df: pd.DataFrame, cat_dict: dict[str, list]):
     """Set the categorical columns of a dataframe to have the right categories/order.
     Arguments:
@@ -693,6 +708,21 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         categorical_features = categorical_features or default_categorical_features
         numerical_features = numerical_features or default_numerical_features
 
+        # save input data file paths
+        assert isfile(tp_featuremap), f"tp_featuremap {tp_featuremap} not found"
+        self.hom_snv_featuremap = tp_featuremap
+        assert isfile(fp_featuremap), f"fp_featuremap {fp_featuremap} not found"
+        self.single_substitution_featuremap = fp_featuremap
+        if tp_regions_bed_file:
+            assert isfile(tp_regions_bed_file), f"tp_regions_bed_file {tp_regions_bed_file} not found"
+        self.tp_regions_bed_file = tp_regions_bed_file
+        if fp_regions_bed_file:
+            assert isfile(fp_regions_bed_file), f"fp_regions_bed_file {fp_regions_bed_file} not found"
+        self.fp_regions_bed_file = fp_regions_bed_file
+        if sorter_json_stats_file:
+            assert isfile(sorter_json_stats_file), f"sorter_json_stats_file {sorter_json_stats_file} not found"
+        self.sorter_json_stats_file = sorter_json_stats_file
+
         # Check whether using cross validation:
         assert k_folds > 0, f"k_folds should be > 0, got {k_folds=}"
         if k_folds == 1:
@@ -704,6 +734,12 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.split_folds_by_chrom = bool(split_folds_by_chrom)
         if self.split_folds_by_chrom:
             chrom_sizes = get_chrom_sizes(reference_dict) or CHROM_SIZES
+            chrom_list = get_intervals(self.tp_regions_bed_file)
+            if len(chrom_list) < self.k_folds:
+                logger.warning(
+                    f"Number of chromosomes ({len(chrom_list)}) is less than the number of folds ({self.k_folds})!"
+                )
+            chrom_sizes = {chrom: size for chrom, size in chrom_sizes.items() if chrom in chrom_list}
             self.chroms_to_folds = partition_into_folds(pd.Series(chrom_sizes), self.k_folds)
         else:
             self.chroms_to_folds = None
@@ -755,21 +791,6 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             logger.info(f"Initializing random numer generator with {random_seed=}")
         self.random_seed = random_seed
         self.rng = np.random.default_rng(seed=self.random_seed)
-
-        # save input data file paths
-        assert isfile(tp_featuremap), f"tp_featuremap {tp_featuremap} not found"
-        self.hom_snv_featuremap = tp_featuremap
-        assert isfile(fp_featuremap), f"fp_featuremap {fp_featuremap} not found"
-        self.single_substitution_featuremap = fp_featuremap
-        if tp_regions_bed_file:
-            assert isfile(tp_regions_bed_file), f"tp_regions_bed_file {tp_regions_bed_file} not found"
-        self.tp_regions_bed_file = tp_regions_bed_file
-        if fp_regions_bed_file:
-            assert isfile(fp_regions_bed_file), f"fp_regions_bed_file {fp_regions_bed_file} not found"
-        self.fp_regions_bed_file = fp_regions_bed_file
-        if sorter_json_stats_file:
-            assert isfile(sorter_json_stats_file), f"sorter_json_stats_file {sorter_json_stats_file} not found"
-        self.sorter_json_stats_file = sorter_json_stats_file
 
         # misc
         if isinstance(lod_filters, str) and isfile(lod_filters) and lod_filters.endswith(".json"):
