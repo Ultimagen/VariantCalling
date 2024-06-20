@@ -1,74 +1,102 @@
 from __future__ import annotations
 
-import os
-import subprocess
-import tempfile
 from collections import defaultdict
 from os.path import basename
 from os.path import join as pjoin
 
 import numpy as np
-import pandas as pd
 import pysam
 
-from ugvc import logger
 
+def write_a_pileup_record(
+    record_dict: dict, rec_id: str, out_fh: pysam.VariantFile, header: pysam.VariantHeader, min_qual: int
+):
+    rec = header.new_record()
+    rec.chrom = rec_id.split("-")[0]
+    rec.pos = int(rec_id.split("-")[1])
+    rec.ref = rec_id.split("-")[2]
+    rec.alts = [rec_id.split("-")[3]]
+    rec.id = "."
+    rec.qual = np.mean(record_dict["X_QUAL"])
+    record_dict["X_RN"] = "|".join(record_dict["X_RN"])
+    curr_filter = "PASS" if rec.qual >= min_qual else "FAIL"
+    record_dict["X_AF"] = record_dict["FILTERED_COUNT"] / record_dict["X_READ_COUNT"]
+    rec.filter.add(curr_filter)
 
-def generate_featuremap_pileup(featuremap: str, output_dir: str, min_qual: int, vcf_header: str):
-    """
-    Pileup featuremap vcf to a reagular vcf, save the mean quality and read count
-    """
-    cons_dict = defaultdict(dict)
-
-    with pysam.VariantFile(featuremap) as f:
-        for rec in f.fetch():
-            rec_id = "-".join([str(x) for x in (rec.chrom, rec.pos, rec.ref, rec.alts[0])])
-            cons_dict[rec_id]["X_READ_COUNT"] = rec.info["X_READ_COUNT"]
-            if "FILTERED_COUNT" not in cons_dict[rec_id]:
-                cons_dict[rec_id]["FILTERED_COUNT"] = 0
-                cons_dict[rec_id]["X_QUAL"] = []
-                cons_dict[rec_id]["X_RN"] = []
-            cons_dict[rec_id]["FILTERED_COUNT"] += 1
-            cons_dict[rec_id]["X_QUAL"] += [rec.qual]
-            cons_dict[rec_id]["X_RN"] += [rec.info["X_RN"]]
-
-    df_af = pd.DataFrame(cons_dict).T
-    df_af["X_AF"] = df_af["FILTERED_COUNT"] / df_af["X_READ_COUNT"]
-    # Save mean quality
-    df_af["MEAN_QUAL"] = df_af["X_QUAL"].apply(np.mean)
-    # format as a vcf file
-    df_af.reset_index(inplace=True)
-    df_af["CHROM"] = df_af["index"].apply(lambda x: x.split("-")[0])
-    df_af["POS"] = df_af["index"].apply(lambda x: int(x.split("-")[1]))
-    df_af["REF"] = df_af["index"].apply(lambda x: x.split("-")[2])
-    df_af["ALT"] = df_af["index"].apply(lambda x: x.split("-")[3])
-    df_af["FILTER"] = df_af["MEAN_QUAL"].apply(lambda x: "PASS" if x >= min_qual else "FAIL")
-    columns_to_agg = [
+    info_fields = [
         "FILTERED_COUNT",
         "X_READ_COUNT",
         "X_QUAL",
         "X_RN",
         "X_AF",
     ]
-    ";".join(df_af[columns_to_agg].apply(lambda x: f"{x.name}={x.values}", axis=0))
-    df_af["INFO"] = ""
-    for i, row in df_af.iterrows():
-        df_af.loc[i, "INFO"] = ";".join([f"{k}={v}" for k, v in row[columns_to_agg].items()])
-    df_af["ID"] = "."
-    output_vcf = pjoin(output_dir, basename(featuremap).replace(".vcf.gz", ".pileup.vcf"))
-    with tempfile.TemporaryDirectory(dir=output_dir) as temp_dir:
-        output_tmp = os.path.join(temp_dir, "featuremap.vcf")
-        df_af[["CHROM", "POS", "ID", "REF", "ALT", "MEAN_QUAL", "FILTER", "INFO"]].to_csv(
-            output_tmp, sep="\t", index=False, header=False, float_format="%.2f"
-        )
-        # add the header
-        cmd = f"cat {vcf_header} {output_tmp} > {output_vcf}"
-        logger.debug(cmd)
-        subprocess.check_call(cmd, shell=True)
-        # gzip and index with bcftools
-        cmd = (
-            f"bcftools view {output_vcf} -Oz -o {output_vcf}.gz && bcftools index -t {output_vcf}.gz && rm {output_vcf}"
-        )
-        logger.debug(cmd)
-        subprocess.check_call(cmd, shell=True)
-    return output_vcf + ".gz"
+    for info_field in info_fields:
+        rec.info[info_field] = record_dict[info_field]
+
+    out_fh.write(rec)
+    return rec
+
+
+def pileup_featuremap(featuremap: str, output_dir: str, genomic_interval: str, min_qual: int):
+    """
+    Pileup featuremap vcf to a reagular vcf, save the mean quality and read count
+    """
+    cons_dict = defaultdict(dict)
+    # process genomic interval input
+    if genomic_interval == "":
+        chrom = None
+        start = None
+        end = None
+    if genomic_interval != "":
+        genomic_interval_list = genomic_interval.split(":")
+        chrom = genomic_interval_list[0]
+        start = int(genomic_interval_list[1].split("-")[0])
+        end = int(genomic_interval_list[1].split("-")[1])
+
+    # generate a new header
+    orig_header = pysam.VariantFile(featuremap).header
+    header = pysam.VariantHeader()
+    header.add_meta("fileformat", "VCFv4.2")
+    header.filters.add("FAIL", None, None, "Mean quality below threshold")
+    header.info.add(
+        "FILTERED_COUNT",
+        1,
+        "Integer",
+        "Number of reads containing this location that agree with alternative according to fitler",
+    )
+    header.info.add("X_READ_COUNT", 1, "Integer", "Number of reads containing this location")
+    header.info.add("X_QUAL", ".", "Float", "Quality of reads containing this location")
+    header.info.add("X_RN", 1, "String", "Read Name of reads containing this location, entries spearated by |")
+    header.info.add("X_AF", 1, "Float", "Allele frequency")
+    # copy contigs from original header
+    for contig in orig_header.contigs:
+        header.contigs.add(contig)
+
+    cons_dict = defaultdict(dict)
+
+    # open an output file
+    output_vcf = pjoin(
+        output_dir, basename(featuremap).replace(".vcf.gz", f".{genomic_interval.replace(':', '-')}.pileup.vcf.gz")
+    )
+    out_fh = pysam.VariantFile(output_vcf, "w", header=header)
+
+    with pysam.VariantFile(featuremap) as f:
+        for rec in f.fetch(chrom, start, end):
+            rec_id = "-".join([str(x) for x in (rec.chrom, rec.pos, rec.ref, rec.alts[0])])
+            if "FILTERED_COUNT" not in cons_dict[rec_id]:
+                if len(cons_dict.keys()) > 1:
+                    # write to file
+                    prev_key = list(cons_dict.keys())[0]
+                    write_a_pileup_record(cons_dict[prev_key], rec_id, out_fh, header, min_qual)
+                    cons_dict.pop(prev_key)
+                cons_dict[rec_id]["FILTERED_COUNT"] = 0
+                cons_dict[rec_id]["X_QUAL"] = []
+                cons_dict[rec_id]["X_RN"] = []
+            cons_dict[rec_id]["FILTERED_COUNT"] += 1
+            cons_dict[rec_id]["X_QUAL"] += [rec.qual]
+            cons_dict[rec_id]["X_RN"] += [rec.info["X_RN"]]
+            cons_dict[rec_id]["X_READ_COUNT"] = rec.info["X_READ_COUNT"]
+
+    out_fh.close()
+    pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
+    return output_vcf
