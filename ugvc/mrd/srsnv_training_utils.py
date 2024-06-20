@@ -199,7 +199,15 @@ def phred_to_prob(phred):
     return 1.0 - 10.0 ** (-phred / 10)
 
 
-def k_fold_predict_proba(models, df, columns_for_training, k_folds, kfold_col="fold_id", return_train=False, **kwargs):
+def k_fold_predict_proba(
+    models,
+    df,
+    columns_for_training,
+    k_folds,
+    kfold_col="fold_id",
+    return_train=False,
+    **kwargs,
+):
     """Predict k-folds CV.
     NOTE that on test set (datapoint that do not belong to any fold) and on train set
     (if return_train) there are k_folds (or k_fold-1) models which can be used for
@@ -905,7 +913,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
     def add_predictions_to_featuremap_df(self, return_train=True):
         """Add model predictions to self.featuremap_df. Use only if models were trained!"""
         all_predictions = k_fold_predict_proba(
-            self.classifiers, self.featuremap_df, self.columns, k_folds=self.k_folds, return_train=return_train
+            self.classifiers,
+            self.featuremap_df,
+            self.columns,
+            k_folds=self.k_folds,
+            return_train=return_train,
         )
         datasets = ["test", "train"] if return_train else ["test"]
         for dataset in datasets:
@@ -1011,7 +1023,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         df_fp_test = featuremap_to_dataframe(self.fp_test_featuremap_vcf)
         # create X and y
         self.featuremap_df = set_categorical_columns(
-            pd.concat((df_tp_train, df_fp_train), ignore_index=True), self.categorical_features_dict
+            pd.concat((df_tp_train, df_fp_train), ignore_index=True),
+            self.categorical_features_dict,
         )
         if self.use_CV:
             if self.split_folds_by_chrom:
@@ -1090,13 +1103,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         # Add interpolated qualities
         self.featuremap_df = self.featuremap_df.assign(
-            qual=(
-                self.featuremap_df.loc[
-                    ~self.featuremap_df["ML_prob_0_test"].isna(), "ML_prob_0_test"  # Make sure only "test" data is used
-                ]
-                .rename("qual")
-                .apply(self.quality_interpolation_function)
-            )
+            qual=self.featuremap_df["ML_qual_0_test"]
+            .fillna(0)
+            .apply(self.quality_interpolation_function)
+            .mask(self.featuremap_df["ML_qual_0_test"].isna())
         )
 
         # save classifier and data, generate plots for report
