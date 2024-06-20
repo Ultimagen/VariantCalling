@@ -49,9 +49,9 @@ default_numerical_features = [
     FeatureMapFields.X_INDEX.value,
     FeatureMapFields.MAX_SOFTCLIP_LENGTH.value,
 ]
-# pylint:disable=consider-using-namedtuple-or-dataclass
 default_categorical_features = {
     FeatureMapFields.IS_CYCLE_SKIP.value: [False, True],
+    FeatureMapFields.IS_FORWARD.value: [False, True],
     FeatureMapFields.ALT.value: ["A", "C", "G", "T"],
     FeatureMapFields.REF.value: ["A", "C", "G", "T"],
     FeatureMapFields.PREV_1.value: ["A", "C", "G", "T"],
@@ -62,7 +62,7 @@ default_categorical_features = {
     FeatureMapFields.NEXT_3.value: ["A", "C", "G", "T"],
 }
 
-CHROM_SIZES = {
+CHROM_SIZES_HG38 = {
     "chr1": 248956422,
     "chr2": 242193529,
     "chr3": 198295559,
@@ -88,22 +88,15 @@ CHROM_SIZES = {
 }
 
 
-def get_chrom_sizes(reference_dict: str, chr_nums: list = None):
-    """Read reference_dict file and get the lengths of all chromosomes listed in chr_nums.
+def get_chrom_sizes(reference_dict: str):
+    """Read reference_dict file and get the lengths of all contigs.
     Arguments:
         - reference_dict [str]: the path to the reference .dict file containing contig lengths.
-        - chr_nums [str]: list of chromosome numbers to get. By default includes chromosomes 1-22.
     Returns:
         - chrom_sizes [dict]: dictionary of chr, length pairs, where chr is the contig name (e.g, 'chr1')
                               and length is its length.
-                              If reference_dict is None, return None
     """
-    if reference_dict is None:
-        return None
-    # List of contig names to include
-    if chr_nums is None:
-        chr_nums = np.arange(22) + 1
-    chr_to_include = [f"chr{n}" for n in chr_nums]
+    assert isfile(reference_dict), f"reference_dict {reference_dict} not found"
 
     chrom_sizes = {}
     with open(reference_dict, "r", encoding="utf-8") as file:
@@ -114,8 +107,7 @@ def get_chrom_sizes(reference_dict: str, chr_nums: list = None):
                 for field in fields:
                     key, value = field.split(":", 1)
                     row[key] = value
-                if row["SN"] in chr_to_include:  # Include only contigs in chr_to_include
-                    chrom_sizes[row["SN"]] = int(row["LN"])
+                chrom_sizes[row["SN"]] = int(row["LN"])
 
     return chrom_sizes
 
@@ -129,8 +121,7 @@ def get_intervals(tp_regions_bed_file: str):
         - intervals [list]: a list of (unique) chromosome names in the bed file. If
           tp_regions_bed_file is None, return the default value: ['chr1', ..., 'chr22']
     """
-    if tp_regions_bed_file is None:
-        return [f"chr{n}" for n in range(1, 23)]
+    assert isfile(tp_regions_bed_file), f"tp_regions_bed_file {tp_regions_bed_file} not found"
     bed_df = pd.read_csv(tp_regions_bed_file, sep="\t", header=None)
     return list(bed_df[0].unique())
 
@@ -733,14 +724,32 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.k_folds = k_folds
         self.split_folds_by_chrom = bool(split_folds_by_chrom)
         if self.split_folds_by_chrom:
-            chrom_sizes = get_chrom_sizes(reference_dict) or CHROM_SIZES
-            chrom_list = get_intervals(self.tp_regions_bed_file)
+            # get chromosome sizes
+            if reference_dict:
+                chrom_sizes = get_chrom_sizes(reference_dict)
+            else:
+                logger.warning("No reference dictionary provided, using hg38 chromosome sizes")
+                chrom_sizes = CHROM_SIZES_HG38
+            # get list of chromosomes to use
+            if tp_regions_bed_file:
+                chrom_list = get_intervals(self.tp_regions_bed_file)
+            else:
+                chrom_list = list(chrom_sizes.keys())
+                logger.warning(
+                    "No TP regions bed file provided, using all contigs in the reference for training"
+                    f"({len(chrom_list)} contigs, head={chrom_list[:5]})"
+                )
+            # explicitly exclude X, Y, M chromosomes from training data set
+            for chrom_to_exclude in ("chrM", "chrY", "chrX", "X", "Y", "MT"):
+                if chrom_to_exclude in chrom_list:
+                    chrom_list.remove(chrom_to_exclude)
+                    logger.warning(f"Excluding {chrom_to_exclude} from the list of chromosomes")
             if len(chrom_list) < self.k_folds:
                 logger.warning(
                     f"Number of chromosomes ({len(chrom_list)}) is less than the number of folds ({self.k_folds})!"
                 )
-            chrom_sizes = {chrom: size for chrom, size in chrom_sizes.items() if chrom in chrom_list}
-            self.chroms_to_folds = partition_into_folds(pd.Series(chrom_sizes), self.k_folds)
+            chrom_sizes_filt = {chrom: size for chrom, size in chrom_sizes.items() if chrom in chrom_list}
+            self.chroms_to_folds = partition_into_folds(pd.Series(chrom_sizes_filt), self.k_folds)
         else:
             self.chroms_to_folds = None
 
