@@ -11,6 +11,13 @@ import pysam
 def write_a_pileup_record(
     record_dict: dict, rec_id: str, out_fh: pysam.VariantFile, header: pysam.VariantHeader, min_qual: int
 ):
+    info_fields = [
+        "X_QUAL",
+        "X_RN",
+    ]
+
+    format_fields = ["GT", "AD", "DP", "VAF"]
+
     rec = header.new_record()
     rec.chrom = rec_id.split("-")[0]
     rec.pos = int(rec_id.split("-")[1])
@@ -20,18 +27,16 @@ def write_a_pileup_record(
     rec.qual = np.mean(record_dict["X_QUAL"])
     record_dict["X_RN"] = "|".join(record_dict["X_RN"])
     curr_filter = "PASS" if rec.qual >= min_qual else "FAIL"
-    record_dict["X_AF"] = record_dict["FILTERED_COUNT"] / record_dict["X_READ_COUNT"]
+    record_dict["VAF"] = record_dict["FILTERED_COUNT"] / record_dict["DP"]
     rec.filter.add(curr_filter)
 
-    info_fields = [
-        "FILTERED_COUNT",
-        "X_READ_COUNT",
-        "X_QUAL",
-        "X_RN",
-        "X_AF",
-    ]
     for info_field in info_fields:
         rec.info[info_field] = record_dict[info_field]
+
+    record_dict["GT"] = (0, 1)
+    record_dict["AD"] = [record_dict["FILTERED_COUNT"], record_dict["DP"] - record_dict["FILTERED_COUNT"]]
+    for format_field in format_fields:
+        rec.samples["SAMPLE"][format_field] = record_dict[format_field]
 
     out_fh.write(rec)
     return rec
@@ -68,11 +73,14 @@ def pileup_featuremap(featuremap: str, output_dir: str, genomic_interval: str, m
     header.info.add("X_QUAL", ".", "Float", "Quality of reads containing this location")
     header.info.add("X_RN", 1, "String", "Read Name of reads containing this location, entries spearated by |")
     header.info.add("X_AF", 1, "Float", "Allele frequency")
+    header.formats.add("GT", 1, "String", "Genotype")
+    header.formats.add("DP", 1, "Integer", "Read depth")
+    header.formats.add("AD", "R", "Integer", "Allelic depths")
+    header.formats.add("VAF", 1, "Float", "Allele frequency")
     # copy contigs from original header
     for contig in orig_header.contigs:
         header.contigs.add(contig)
-
-    cons_dict = defaultdict(dict)
+    header.add_sample("SAMPLE")
 
     # open an output file
     output_vcf = pjoin(
@@ -80,6 +88,7 @@ def pileup_featuremap(featuremap: str, output_dir: str, genomic_interval: str, m
     )
     out_fh = pysam.VariantFile(output_vcf, "w", header=header)
 
+    cons_dict = defaultdict(dict)
     with pysam.VariantFile(featuremap) as f:
         for rec in f.fetch(chrom, start, end):
             rec_id = "-".join([str(x) for x in (rec.chrom, rec.pos, rec.ref, rec.alts[0])])
@@ -95,7 +104,7 @@ def pileup_featuremap(featuremap: str, output_dir: str, genomic_interval: str, m
             cons_dict[rec_id]["FILTERED_COUNT"] += 1
             cons_dict[rec_id]["X_QUAL"] += [rec.qual]
             cons_dict[rec_id]["X_RN"] += [rec.info["X_RN"]]
-            cons_dict[rec_id]["X_READ_COUNT"] = rec.info["X_READ_COUNT"]
+            cons_dict[rec_id]["DP"] = rec.info["X_READ_COUNT"]
 
     out_fh.close()
     pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
