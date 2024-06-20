@@ -41,10 +41,10 @@ from ugvc.pipelines.mrd import (
     concat_dataframes,
     create_hom_snv_featuremap,
     featuremap_to_dataframe,
-    generate_featuremap_pileup,
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
     pileup_based_read_features,
+    pileup_featuremap,
     positional_error_rate_profile,
     prepare_data_from_mrd_pipeline,
     sorter_stats_to_mean_coverage,
@@ -94,7 +94,7 @@ mrd_modules = [
     srsnv_training,
     srsnv_inference,
     create_hom_snv_featuremap,
-    generate_featuremap_pileup,
+    pileup_featuremap,
 ]
 
 methylation_modules = [

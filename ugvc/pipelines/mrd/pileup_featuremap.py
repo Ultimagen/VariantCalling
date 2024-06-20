@@ -20,11 +20,11 @@ from __future__ import annotations
 
 import argparse
 
-from ugvc.mrd.featuremap_consensus_utils import generate_featuremap_pileup
+from ugvc.mrd.featuremap_consensus_utils import pileup_featuremap
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="generate_featuremap_pileup", description=run.__doc__)
+    parser = argparse.ArgumentParser(prog="pileup_featuremap", description=run.__doc__)
     parser.add_argument(
         "-f",
         "--featuremap",
@@ -40,19 +40,20 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Output directory for the pileup vcf file""",
     )
     parser.add_argument(
+        "-i",
+        "--genomic_interval",
+        type=str,
+        required=False,
+        default="",
+        help="""Genomic interval to pileup, format: chr:start-end""",
+    )
+    parser.add_argument(
         "-q",
         "--min_qual",
         type=int,
         required=False,
         default=40,
         help="""Quality filter threshold""",
-    )
-    parser.add_argument(
-        "--vcf_header",
-        type=str,
-        required=False,
-        default="/data/rare_variants/giab_mixes/featuremap_consensus_test.header.txt",
-        help="""Txt file of the vcf header""",
     )
     return parser.parse_args(argv[1:])
 
@@ -61,9 +62,9 @@ def run(argv: list[str]):
     """Generates multiple synthetic signatures from a database,
     with the same trinucleotide substitution context as the input signature"""
     args_in = __parse_args(argv)
-    generate_featuremap_pileup(
+    pileup_featuremap(
         featuremap=args_in.featuremap,
         output_dir=args_in.output_dir,
+        genomic_interval=args_in.genomic_interval,
         min_qual=args_in.min_qual,
-        vcf_header=args_in.vcf_header,
     )
