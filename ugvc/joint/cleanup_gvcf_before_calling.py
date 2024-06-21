@@ -8,7 +8,7 @@ from pysam import VariantFile
 import ugvc.vcfbed.pysam_utils as pu
 
 
-def filterOverlappingNoneGVCFs(input_gvcf: str, output_gvcf: str) -> tuple(int, int):
+def filterOverlappingNoneGVCFs(input_gvcf: str, output_gvcf: str) -> tuple[int, int]:
     """Filters non-called variants that overlap other variants from DeepVariant gVCFs.
     In the context of GLNexus joint calling, non-called deletion variants (./.) that
     overlap called variants can generate missed variant calls in joint calling.
