@@ -53,6 +53,7 @@ jobs:
           collect_existing_metrics.py -h
           convert_h5_to_json.py -h
           correct_genotypes_by_imputation.py -h
+          denovo_recalibrated_qualities -h
       - name: Test with pytest
         run: |
           source activate genomics.py3

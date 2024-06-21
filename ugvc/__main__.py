@@ -12,11 +12,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # import pipeline modules implementing run(argv) method
-from ugvc.cnv import (
-    filter_sample_cnvs, 
-    convert_cnv_results_to_vcf,
-    plot_cnv_results
-)
+from ugvc.cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -29,6 +25,7 @@ from ugvc.pipelines import (
     convert_haploid_regions,
     correct_genotypes_by_imputation,
     coverage_analysis,
+    denovo_recalibrated_qualities,
     evaluate_concordance,
     filter_variants_pipeline,
     run_comparison_pipeline,
@@ -107,7 +104,7 @@ methylation_modules = [
     process_perRead,
 ]
 
-joint_modules = [compress_gvcf]
+joint_modules = [compress_gvcf, denovo_recalibrated_qualities]
 
 
 misc_modules = [
