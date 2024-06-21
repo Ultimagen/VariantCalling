@@ -25,6 +25,7 @@ setup(
         "ugvc/pipelines/run_no_gt_report.py",
         "ugvc/pipelines/sec/correct_systematic_errors.py",
         "ugvc/pipelines/sec/sec_training.py",
+        "ugvc/pipelines/denovo_recalibrated_qualities.py",
         "ugvc/scripts/convert_h5_to_json.py",
         "ugvc/cnv/filter_sample_cnvs.py",
         "ugvc/cnv/convert_cnv_results_to_vcf.py",
