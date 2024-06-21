@@ -1102,12 +1102,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         )
 
         # Add interpolated qualities
-        self.featuremap_df = self.featuremap_df.assign(
-            qual=self.featuremap_df["ML_qual_0_test"]
-            .fillna(0)
+        self.featuremap_df["qual"] = (
+            self.featuremap_df["ML_qual_1_test"]
             .apply(self.quality_interpolation_function)
             .mask(self.featuremap_df["ML_qual_0_test"].isna())
-        )
+        )  # nan values in ML_qual_0_test (for reads not in test set) will be nan in qual
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()
