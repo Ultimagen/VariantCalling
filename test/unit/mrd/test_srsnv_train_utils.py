@@ -27,13 +27,14 @@ def test_prepare_featuremap_for_model(tmpdir):
         inputs_dir,
         "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
     )
+    rng = np.random.default_rng(0)
     downsampled_training_featuremap_vcf, _, _, _, _ = prepare_featuremap_for_model(
         workdir=tmpdir,
         input_featuremap_vcf=input_featuremap_vcf,
         train_set_size=12,
         test_set_size=3,
         balanced_sampling_info_fields=None,
-        random_seed=0,
+        rng=rng,
     )
 
     # Since we use random downsampling the train_set_size might differ slightly from expected
@@ -48,6 +49,7 @@ def test_prepare_featuremap_for_model_with_prefilter(tmpdir):
         inputs_dir,
         "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
     )
+    rng = np.random.default_rng(0)
     pre_filter_bcftools_include = "(X_SCORE>4) && (X_EDIST<10)"
     (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf, _, _, _) = prepare_featuremap_for_model(
         workdir=tmpdir,
@@ -56,7 +58,7 @@ def test_prepare_featuremap_for_model_with_prefilter(tmpdir):
         test_set_size=100,
         balanced_sampling_info_fields=None,
         pre_filter_bcftools_include=pre_filter_bcftools_include,
-        random_seed=0,
+        rng=rng,
     )
     # In this scenario we are pre-filtering the test data so that only 4 FeatureMap entries pass:
     total_variants = int(
@@ -85,13 +87,14 @@ def test_prepare_featuremap_for_model_with_motif_balancing(tmpdir):
     balanced_sampling_info_fields = ["trinuc_context", "is_forward"]
     train_set_size = (4**3) * 10  # 10 variants per context
     for random_seed in range(2):
+        rng = np.random.default_rng(random_seed)
         downsampled_training_featuremap_vcf, _, _, _, _ = prepare_featuremap_for_model(
             workdir=tmpdir,
             input_featuremap_vcf=input_featuremap_vcf,
             train_set_size=train_set_size,
             test_set_size=train_set_size,
             balanced_sampling_info_fields=balanced_sampling_info_fields,
-            random_seed=random_seed,
+            rng=rng,
         )
         assert __count_variants(downsampled_training_featuremap_vcf) == train_set_size
 
@@ -118,13 +121,14 @@ def test_prepare_featuremap_for_model_training_and_test_sets(tmpdir):
         inputs_dir,
         "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
     )
+    rng = np.random.default_rng(0)
     (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf, _, _, _) = prepare_featuremap_for_model(
         workdir=tmpdir,
         input_featuremap_vcf=input_featuremap_vcf,
         train_set_size=12,
         test_set_size=3,
         balanced_sampling_info_fields=None,
-        random_seed=0,
+        rng=rng,
     )
     assert __count_variants(downsampled_training_featuremap_vcf) == 12
     assert __count_variants(downsampled_test_featuremap_vcf) == 3
