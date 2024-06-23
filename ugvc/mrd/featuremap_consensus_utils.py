@@ -96,7 +96,7 @@ def pileup_featuremap(featuremap: str, output_dir: str, genomic_interval: str, m
                 if len(cons_dict.keys()) > 1:
                     # write to file
                     prev_key = list(cons_dict.keys())[0]
-                    write_a_pileup_record(cons_dict[prev_key], rec_id, out_fh, header, min_qual)
+                    write_a_pileup_record(cons_dict[prev_key], prev_key, out_fh, header, min_qual)
                     cons_dict.pop(prev_key)
                 cons_dict[rec_id]["FILTERED_COUNT"] = 0
                 cons_dict[rec_id]["X_QUAL"] = []
