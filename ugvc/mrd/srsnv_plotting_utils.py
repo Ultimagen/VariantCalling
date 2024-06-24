@@ -338,8 +338,8 @@ def retention_noise_and_mrd_lod_simulation(
 
     # calculate the read filter correction factor (TP reads pre-filtered from the FeatureMap)
     read_filter_correction_factor = 1
-    if (f"{FeatureMapFields.FILTERED_COUNT.value}" in df_tp) and (f"{FeatureMapFields.READ_COUNT.value}" in df_tp):
-        read_filter_correction_factor = (df_tp[f"{FeatureMapFields.FILTERED_COUNT.value}"]).sum() / df_tp[
+    if (f"{FeatureMapFields.FILTERED_COUNT.value}" in df_fp) and (f"{FeatureMapFields.READ_COUNT.value}" in df_fp):
+        read_filter_correction_factor = (df_fp[f"{FeatureMapFields.FILTERED_COUNT.value}"] + 1).sum() / df_fp[
             f"{FeatureMapFields.READ_COUNT.value}"
         ].sum()
     else:
@@ -362,10 +362,13 @@ def retention_noise_and_mrd_lod_simulation(
         fp_featuremap_entry_number / effective_bases_covered
     )  # n_noise_reads / effective_bases_covered
     ratio_filtered_prior_to_featuremap = ratio_of_reads_over_mapq * read_filter_correction_factor
+    logger.info(f"{n_noise_reads=}, {n_signal_reads=}, {effective_bases_covered=}, {residual_snv_rate_no_filter=}")
     logger.info(
-        f"n_noise_reads {n_noise_reads}, n_signal_reads {n_signal_reads}"
-        f", effective_bases_covered {effective_bases_covered}, "
-        f"residual_snv_rate_no_filter {residual_snv_rate_no_filter}"
+        f"Normalizaion factors: {mean_coverage=:.1f}, "
+        f"{ratio_of_reads_over_mapq=:.3f}, "
+        f"{ratio_of_bases_in_coverage_range=:.3f}, "
+        f"{read_filter_correction_factor=:.3f}"
+        f"{n_bases_in_region=:.0f}"
     )
 
     # Calculate simulated LoD definitions and correction factors
