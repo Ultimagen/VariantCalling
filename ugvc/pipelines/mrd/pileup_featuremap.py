@@ -34,26 +34,34 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "-o",
-        "--output_dir",
+        "--output_vcf",
         type=str,
         required=True,
-        help="""Output directory for the pileup vcf file""",
+        help="""Output pileup vcf file""",
     )
     parser.add_argument(
         "-i",
         "--genomic_interval",
         type=str,
         required=False,
-        default="",
-        help="""Genomic interval to pileup, format: chr:start-end""",
+        default=None,
+        help="""Genomic interval to pileup, format: chr:start-end (default: None)""",
     )
     parser.add_argument(
         "-q",
         "--min_qual",
         type=int,
         required=False,
-        default=40,
-        help="""Quality filter threshold""",
+        default=0,
+        help="""Quality filter threshold (default: 0)""",
+    )
+    parser.add_argument(
+        "-s",
+        "--sample_name",
+        type=str,
+        required=False,
+        default="SAMPLE",
+        help="""Sample name (default: SAMPLE)""",
     )
     return parser.parse_args(argv[1:])
 
@@ -64,7 +72,8 @@ def run(argv: list[str]):
     args_in = __parse_args(argv)
     pileup_featuremap(
         featuremap=args_in.featuremap,
-        output_dir=args_in.output_dir,
+        output_vcf=args_in.output_vcf,
         genomic_interval=args_in.genomic_interval,
         min_qual=args_in.min_qual,
+        sample_name=args_in.sample_name,
     )
