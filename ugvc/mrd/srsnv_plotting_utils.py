@@ -79,17 +79,7 @@ def create_data_for_report(
 
     cls_features = list(classifiers[0].feature_names_in_)
 
-    # probs = classifier.predict_proba(X[cls_features])
-    # predictions = classifier.predict(X[cls_features])
-    # quals = -10 * np.log10(1 - probs)
-    # predictions_df = pd.DataFrame(y)
     labels = np.unique(df["label"].astype(int))
-    # for label in labels:
-    #     predictions_df[f"ML_prob_{label}"] = probs[:, label]
-    #     predictions_df[f"ML_qual_{label}"] = quals[:, label]
-    #     predictions_df[f"ML_prediction_{label}"] = predictions[:, label]
-    # # TODO: write the code below with .assign rather than concat
-    # df = pd.concat([X, predictions_df], axis=1)
     # TODO: use the information from adapter_version instead of this patch
     if "strand_ratio_category_end" in df and "strand_ratio_category_start" in df:
         df = df.assign(
@@ -114,7 +104,7 @@ def create_data_for_report(
         fprs[label].append(fprs_)
         recalls[label].append(recalls_)
 
-    return df_tp, df_fp, max_score, cls_features, fprs, recalls
+    return df, df_tp, df_fp, max_score, cls_features, fprs, recalls
 
 
 def srsnv_report(
@@ -364,10 +354,10 @@ def retention_noise_and_mrd_lod_simulation(
     ratio_filtered_prior_to_featuremap = ratio_of_reads_over_mapq * read_filter_correction_factor
     logger.info(f"{n_noise_reads=}, {n_signal_reads=}, {effective_bases_covered=}, {residual_snv_rate_no_filter=}")
     logger.info(
-        f"Normalizaion factors: {mean_coverage=:.1f}, "
+        f"Normalization factors: {mean_coverage=:.1f}, "
         f"{ratio_of_reads_over_mapq=:.3f}, "
         f"{ratio_of_bases_in_coverage_range=:.3f}, "
-        f"{read_filter_correction_factor=:.3f}"
+        f"{read_filter_correction_factor=:.3f}, "
         f"{n_bases_in_region=:.0f}"
     )
 
@@ -1350,6 +1340,7 @@ def create_report(
         params["data_name"] = ""
 
     (
+        df,
         df_tp,
         df_fp,
         max_score,

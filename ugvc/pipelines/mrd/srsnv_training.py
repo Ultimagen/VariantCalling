@@ -278,6 +278,7 @@ def run(argv: list[str]):
         test_set_size=dataset_params["test_set_size"],
         k_folds=dataset_params["num_CV_folds"],
         split_folds_by_chrom=dataset_params["split_folds_by_chrom"],
+        model_params=args.model_params,
         reference_dict=args.reference_dict,
         out_path=args.output,
         out_basename=args.basename,
