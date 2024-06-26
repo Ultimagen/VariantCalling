@@ -22,7 +22,7 @@ from ugvc.utils.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import convert_h5_to_json, read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import filter_valid_queries
 from ugvc.utils.plotting_utils import set_default_plt_rc_params
-from ugvc.vcfbed.filter_bed import count_bases_in_bed_file
+from ugbio_core.filter_bed import count_bases_in_bed_file
 
 edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
 HQ_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 7.9"
