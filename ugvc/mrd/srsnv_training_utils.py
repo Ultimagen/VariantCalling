@@ -27,6 +27,8 @@ from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
 ML_QUAL = "ML_QUAL"
+FOLD_ID = "fold_id"
+
 
 default_xgboost_model_params = {
     "n_estimators": 200,
@@ -204,7 +206,7 @@ def k_fold_predict_proba(
     df,
     columns_for_training,
     k_folds,
-    kfold_col="fold_id",
+    kfold_col=FOLD_ID,
     return_train=False,
     **kwargs,
 ):
@@ -1028,11 +1030,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         )
         if self.use_CV:
             if self.split_folds_by_chrom:
-                self.featuremap_df["fold_id"] = self.featuremap_df["chrom"].map(self.chroms_to_folds)
+                self.featuremap_df[FOLD_ID] = self.featuremap_df["chrom"].map(self.chroms_to_folds)
             else:
                 # rng = np.random.default_rng(seed=14)
                 N_train = self.featuremap_df.shape[0]
-                self.featuremap_df["fold_id"] = self.rng.permutation(N_train) % self.k_folds
+                self.featuremap_df[FOLD_ID] = self.rng.permutation(N_train) % self.k_folds
             self.featuremap_df["label"] = (
                 pd.concat(
                     [
@@ -1045,14 +1047,14 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             )
         else:
             self.featuremap_df[
-                "fold_id"
+                FOLD_ID
             ] = -1  # X_train will contain all entries where self.featuremap_df['fold_id']!=0, so all of these
             # Test data should have 0 in column 'fold_id' (TODO: Check whether we might need np.nan here)
             test_featuremap_df = set_categorical_columns(
                 pd.concat((df_tp_test, df_fp_test), ignore_index=True),
                 self.categorical_features_dict,
             )
-            test_featuremap_df["fold_id"] = 0
+            test_featuremap_df[FOLD_ID] = 0
             self.featuremap_df = pd.concat((self.featuremap_df, test_featuremap_df), ignore_index=True)
             self.featuremap_df["label"] = (
                 pd.concat(
@@ -1078,10 +1080,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         for k in range(self.k_folds):
             # datasets for k'th fold
             train_cond = np.logical_and(
-                self.featuremap_df["fold_id"] != k,  # Reads that are not in current test fold
-                ~self.featuremap_df["fold_id"].isna(),  # Reads that are not in any fold.
+                self.featuremap_df[FOLD_ID] != k,  # Reads that are not in current test fold
+                ~self.featuremap_df[FOLD_ID].isna(),  # Reads that are not in any fold.
             )
-            val_cond = self.featuremap_df["fold_id"] == k  # Reads that are in current test fold
+            val_cond = self.featuremap_df[FOLD_ID] == k  # Reads that are in current test fold
             X_train = self.featuremap_df.loc[train_cond, self.columns]
             y_train = self.featuremap_df.loc[train_cond, ["label"]]
             X_val = self.featuremap_df.loc[val_cond, self.columns]

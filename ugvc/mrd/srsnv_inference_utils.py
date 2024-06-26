@@ -13,6 +13,7 @@ import xgboost as xgb
 from ugvc import logger
 from ugvc.dna.format import ALT, CHROM, FILTER, POS, QUAL, REF
 from ugvc.mrd.srsnv_training_utils import (
+    FOLD_ID,
     get_quality_interpolation_function,
     k_fold_predict_proba,
     set_categorical_columns,
@@ -88,7 +89,6 @@ class MLQualAnnotator(VcfAnnotator):
         quality_interpolation_function: Callable,
         pre_filter: str = None,
         low_qual_threshold: float = LOW_QUAL_THRESHOLD,
-        # new_categorical_features: list[str] = None, # <- HERE, make sure these are not used!
         chrom_folds: dict = None,
     ):
         self.models = models
@@ -185,29 +185,14 @@ class MLQualAnnotator(VcfAnnotator):
         # Apply the provided model to assign a new quality value
         features_for_model = self.numerical_features + self.categorical_features_names
         if self.num_folds == 1:
-            df["fold_id"] = 0
+            df[FOLD_ID] = 0
         elif self.chrom_folds is None:
-            df["fold_id"] = np.nan  # For the case where fold-splitting was done randomly
+            df[FOLD_ID] = np.nan  # For the case where fold-splitting was done randomly
         else:
-            df["fold_id"] = df["chrom"].map(self.chrom_folds, na_action="ignore")
+            df[FOLD_ID] = df["chrom"].map(self.chrom_folds, na_action="ignore")
         predicted_probability = k_fold_predict_proba(
-            self.models, df, features_for_model, self.num_folds, kfold_col="fold_id"
+            self.models, df, features_for_model, self.num_folds, kfold_col=FOLD_ID
         ).values
-        # if self.num_folds == 1:
-        #     # No CV
-        #     predicted_probability = self.models[0].predict_proba(df[features_for_model])
-        # else:
-        #     predicted_probability = np.zeros((df.shape[0], 2))
-        #     df["fold"] = df["chrom"].map(self.chrom_folds, na_action="ignore")
-        #     for k, model in enumerate(self.models):
-        #         if (df["fold"] == k).any():
-        #             predicted_probability[(df["fold"] == k).index, :] = model.predict_proba(
-        #                 df.loc[df["fold"] == k, features_for_model]
-        #             )  # predict on chromosomes of fold k
-        #         if df["fold"].isna().any():
-        #             predicted_probability[df["fold"].isna().index, :] += (
-        #                 model.predict_proba(df.loc[df["fold"].isna(), features_for_model]) / self.num_folds
-        #             )  # chromosomes not in any fold, predict with all models and take mean
 
         if self.pre_filter:
             try:
@@ -310,8 +295,6 @@ def single_read_snv_inference(
     out_path: str,
     low_qual_threshold: float = LOW_QUAL_THRESHOLD,
     process_number: int = 0,
-    # num_folds: int = 0,
-    # chrom_folds_path: str = None,
 ) -> None:
     """
     Annotate a featuremap with single-read-SNV model ML_QUAL scores
