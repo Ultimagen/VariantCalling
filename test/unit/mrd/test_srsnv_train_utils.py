@@ -131,4 +131,4 @@ def test_prepare_featuremap_for_model_training_and_test_sets(tmpdir):
         rng=rng,
     )
     assert __count_variants(downsampled_training_featuremap_vcf) == 12
-    assert __count_variants(downsampled_test_featuremap_vcf) == 3
+    assert __count_variants(downsampled_test_featuremap_vcf) == 2

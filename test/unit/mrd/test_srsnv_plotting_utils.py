@@ -43,6 +43,7 @@ def test_create_report(tmpdir):
         f"{base_name}json",
     )
     params["fp_test_set_size"] = 30000
+    params["num_CV_folds"] = 2
 
     statistics_h5_file = pjoin(
         tmpdir,
@@ -56,8 +57,8 @@ def test_create_report(tmpdir):
 
     report_name = "test"
 
-    model_dict = joblib.load(model_joblib_file)
-    models = model_dict["models"]
+    model = joblib.load(model_joblib_file)
+    models = [model, model]
     df = pd.read_parquet(df_file)
 
     create_report(
