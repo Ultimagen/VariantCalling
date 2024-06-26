@@ -13,8 +13,6 @@ if path not in sys.path:
 
 # import pipeline modules implementing run(argv) method
 from ugvc.cnv import (
-    filter_sample_cnvs, 
-    convert_cnv_results_to_vcf,
     plot_cnv_results
 )
 from ugvc.joint import compress_gvcf
