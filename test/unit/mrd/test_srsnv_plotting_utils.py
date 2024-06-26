@@ -18,17 +18,13 @@ def test_create_report(tmpdir):
 
     base_name = "balanced_ePCR_LA5_LA6_333_LuNgs_08."
 
-    model_file = pjoin(
+    model_joblib_file = pjoin(
         inputs_dir,
         f"{base_name}model.joblib",
     )
-    y_file = pjoin(
+    df_file = pjoin(
         inputs_dir,
-        f"{base_name}y_test.parquet",
-    )
-    X_file = pjoin(
-        inputs_dir,
-        f"{base_name}X_test.parquet",
+        f"{base_name}featuremap_df.parquet",
     )
     params_file = pjoin(
         inputs_dir,
@@ -47,6 +43,7 @@ def test_create_report(tmpdir):
         f"{base_name}json",
     )
     params["fp_test_set_size"] = 30000
+    params["num_CV_folds"] = 2
 
     statistics_h5_file = pjoin(
         tmpdir,
@@ -60,14 +57,13 @@ def test_create_report(tmpdir):
 
     report_name = "test"
 
-    model = joblib.load(model_file)
-    X = pd.read_parquet(X_file)
-    y = pd.read_parquet(y_file)
+    model = joblib.load(model_joblib_file)
+    models = [model, model]
+    df = pd.read_parquet(df_file)
 
     create_report(
-        model=model,
-        X=X,
-        y=y,
+        models=models,
+        df=df,
         params=params,
         report_name=report_name,
         out_path=tmpdir,
@@ -87,12 +83,12 @@ def test_create_report(tmpdir):
         f"{base_name}{report_name}.ML_qual_hist.png",
     ]
 
-    for f in model.feature_names_in_:
+    for f in models[0].feature_names_in_:
         report_plots.append(f"{base_name}{report_name}.qual_per_{f}.png")
 
     if (
-        "strand_ratio_category_end" in model.feature_names_in_
-        and "strand_ratio_category_start" in model.feature_names_in_
+        "strand_ratio_category_end" in models[0].feature_names_in_
+        and "strand_ratio_category_start" in models[0].feature_names_in_
     ):
         report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cycle_skip.png")
         report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_non_cycle_skip.png")

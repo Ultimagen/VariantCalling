@@ -49,25 +49,20 @@ RESIDUAL_SNV_RATE = "residual_snv_rate"
 
 
 def create_data_for_report(
-    classifier: xgb.XGBClassifier,
-    X: pd.DataFrame,
-    y: pd.DataFrame,
+    classifiers: list[xgb.XGBClassifier],
+    df: pd.DataFrame,
 ):
     """create the data needed for the report plots
 
     Parameters
     ----------
-    classifier : xgb.XGBClassifier
-        the trained ML model
-    X : pd.DataFrame
-        input data with features for the classifier
-    y : pd.DataFrame
-        labels
+    classifiers : list[xgb.XGBClassifier]
+        A list of the trained ML models
+    df : pd.DataFrame
+        data dataframe data with predictions
 
     Returns
     -------
-    df : pd.DataFrame
-        dataset with input features, model predicions and probabilities
     df_tp : pd.DataFrame
         TP subset of df
     df_fp : pd.DataFrame
@@ -82,18 +77,9 @@ def create_data_for_report(
         list of false positive rates per ML score per label
     """
 
-    cls_features = list(classifier.feature_names_in_)
-    probs = classifier.predict_proba(X[cls_features])
-    predictions = classifier.predict(X[cls_features])
-    quals = -10 * np.log10(1 - probs)
-    predictions_df = pd.DataFrame(y)
-    labels = np.unique(y["label"].astype(int))
-    for label in labels:
-        predictions_df[f"ML_prob_{label}"] = probs[:, label]
-        predictions_df[f"ML_qual_{label}"] = quals[:, label]
-        predictions_df[f"ML_prediction_{label}"] = predictions[:, label]
-    # TODO: write the code below with .assign rather than concat
-    df = pd.concat([X, predictions_df], axis=1)
+    cls_features = list(classifiers[0].feature_names_in_)
+
+    labels = np.unique(df["label"].astype(int))
     # TODO: use the information from adapter_version instead of this patch
     if "strand_ratio_category_end" in df and "strand_ratio_category_start" in df:
         df = df.assign(
@@ -268,7 +254,7 @@ def retention_noise_and_mrd_lod_simulation(
     df: pd.DataFrame,
     single_sub_regions: str,
     sorter_json_stats_file: str,
-    training_set_downsampling_rate: float,
+    fp_featuremap_entry_number: int,
     lod_filters: dict,
     sensitivity_at_lod: float = 0.90,
     specificity_at_lod: float = 0.99,
@@ -287,8 +273,8 @@ def retention_noise_and_mrd_lod_simulation(
         a path to the single substitutions (FP) regions bed file.
     sorter_json_stats_file : str
         a path to the cram statistics file.
-    training_set_downsampling_rate : float
-        the size of the dataset / # of reads in single sub featuremap after intersection with single_sub_regions.
+    fp_featuremap_entry_number : float
+        the # of reads in single sub featuremap after intersection with single_sub_regions.
     lod_filters : dict
         filters for LoD simulation.
     sensitivity_at_lod: float
@@ -342,8 +328,8 @@ def retention_noise_and_mrd_lod_simulation(
 
     # calculate the read filter correction factor (TP reads pre-filtered from the FeatureMap)
     read_filter_correction_factor = 1
-    if (f"{FeatureMapFields.FILTERED_COUNT.value}" in df_tp) and (f"{FeatureMapFields.READ_COUNT.value}" in df_tp):
-        read_filter_correction_factor = (df_tp[f"{FeatureMapFields.FILTERED_COUNT.value}"]).sum() / df_tp[
+    if (f"{FeatureMapFields.FILTERED_COUNT.value}" in df_fp) and (f"{FeatureMapFields.READ_COUNT.value}" in df_fp):
+        read_filter_correction_factor = (df_fp[f"{FeatureMapFields.FILTERED_COUNT.value}"] + 1).sum() / df_fp[
             f"{FeatureMapFields.READ_COUNT.value}"
         ].sum()
     else:
@@ -358,17 +344,21 @@ def retention_noise_and_mrd_lod_simulation(
     effective_bases_covered = (
         mean_coverage
         * n_bases_in_region
-        * training_set_downsampling_rate
         * ratio_of_reads_over_mapq
         * ratio_of_bases_in_coverage_range
         * read_filter_correction_factor
     )
-    residual_snv_rate_no_filter = n_noise_reads / effective_bases_covered
+    residual_snv_rate_no_filter = (
+        fp_featuremap_entry_number / effective_bases_covered
+    )  # n_noise_reads / effective_bases_covered
     ratio_filtered_prior_to_featuremap = ratio_of_reads_over_mapq * read_filter_correction_factor
+    logger.info(f"{n_noise_reads=}, {n_signal_reads=}, {effective_bases_covered=}, {residual_snv_rate_no_filter=}")
     logger.info(
-        f"n_noise_reads {n_noise_reads}, n_signal_reads {n_signal_reads}"
-        f", effective_bases_covered {effective_bases_covered}, "
-        f"residual_snv_rate_no_filter {residual_snv_rate_no_filter}"
+        f"Normalization factors: {mean_coverage=:.1f}, "
+        f"{ratio_of_reads_over_mapq=:.3f}, "
+        f"{ratio_of_bases_in_coverage_range=:.3f}, "
+        f"{read_filter_correction_factor=:.3f}, "
+        f"{n_bases_in_region=:.0f}"
     )
 
     # Calculate simulated LoD definitions and correction factors
@@ -1285,9 +1275,8 @@ def calculate_lod_stats(
 
 
 def create_report(
-    model: sklearn.base.BaseEstimator,
-    X: pd.DataFrame,
-    y: pd.DataFrame,
+    models: list[sklearn.base.BaseEstimator],
+    df: pd.DataFrame,
     params: dict,
     report_name: str,
     out_path: str,
@@ -1301,12 +1290,10 @@ def create_report(
 
     Parameters
     ----------
-    model : sklearn.base.BaseEstimator
-        SKlearn model
-    X : str
-        X data set
-    y : str
-        y data set
+    models : list[sklearn.base.BaseEstimator]
+        A list of SKlearn models (for all folds)
+    df : pd.DataFrame
+        Dataframe of all fold data, including labels
     params : str
         params dict
     report_name : str
@@ -1328,11 +1315,12 @@ def create_report(
         assert statistics_h5_file, "statistics_h5_file is required when statistics_json_file is provided"
 
     # check model, data and params
-    assert sklearn.base.is_classifier(model), f"model {model} is not a classifier, please provide a classifier model"
-    assert isinstance(X, pd.DataFrame), "X is not a DataFrame, please provide a DataFrame"
-    assert isinstance(
-        y, (pd.Series, pd.DataFrame)
-    ), "y is not a Series or DataFrame, please provide a Series or DataFrame"
+    assert isinstance(models, list), f"models should be a list of models, got {type(models)=}"
+    for k, model in enumerate(models):
+        assert sklearn.base.is_classifier(
+            model
+        ), f"model {model} (fold {k}) is not a classifier, please provide a classifier model"
+    assert isinstance(df, pd.DataFrame), "df is not a DataFrame, please provide a DataFrame"
     expected_keys_in_params = [
         "fp_featuremap_entry_number",
         f"fp_{report_name}_set_size",
@@ -1352,14 +1340,15 @@ def create_report(
         params["data_name"] = ""
 
     (
-        df_X_with_pred_columns,
+        df,
         df_tp,
         df_fp,
         max_score,
         cls_features,
         fprs,
         _,
-    ) = create_data_for_report(model, X, y)
+    ) = create_data_for_report(models, df)
+    df_X_with_pred_columns = df
 
     labels_dict = {1: "TP", 0: "FP"}
 
@@ -1372,11 +1361,6 @@ def create_report(
     }
 
     sorter_json_stats_file = params["sorter_json_stats_file"]
-    data_size = params[f"{report_name}_set_size"]
-    total_n = params["fp_featuremap_entry_number"]
-    sampling_rate = (
-        data_size / total_n
-    )  # N reads in test (test_size) / N reads in single sub featuremap intersected with single_sub_regions
 
     [
         output_roc_plot,
@@ -1403,7 +1387,7 @@ def create_report(
             df=df_X_with_pred_columns,
             single_sub_regions=params["fp_regions_bed_file"],
             sorter_json_stats_file=sorter_json_stats_file,
-            training_set_downsampling_rate=sampling_rate,
+            fp_featuremap_entry_number=params["fp_featuremap_entry_number"],
             lod_filters=lod_filters,
             sensitivity_at_lod=LoD_params["sensitivity_at_lod"],
             specificity_at_lod=LoD_params["specificity_at_lod"],
