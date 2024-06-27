@@ -23,7 +23,6 @@ import pandas as pd
 import warnings
 
 from ugvc import logger
-from ugvc.vcfbed import filter_bed
 
 warnings.filterwarnings("ignore")
 
