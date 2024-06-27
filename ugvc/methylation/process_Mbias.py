@@ -62,8 +62,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return ap_var.parse_args(argv[1:])
 
 
-def run(argv: list[str]):
+def run(argv: list[str] | None = None):
     """POST-MethylDackel Mbias processing"""
+    if argv is None:
+        argv: list[str] = sys.argv
+
     args = parse_args(argv)
     # print(f"Processing file {args}")
 
@@ -102,7 +105,7 @@ def run(argv: list[str]):
         metric_title = "Mbias"
         if args.noCpG:
             metric_title = "MbiasNoCpG"
-        
+
         out_json = {"metrics": {}}
         out_json["metrics"] = {metric_title : dict_json_output}
         out_file_name = args.output + ".json"
@@ -121,4 +124,4 @@ def run(argv: list[str]):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run()
