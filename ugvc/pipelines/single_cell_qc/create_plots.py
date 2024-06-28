@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -35,10 +37,7 @@ def cbc_umi_plot(h5_file: str, output_path: str) -> Path:
 
     # Counting how many distinct UMIs there are per cell barcode
     cbc_num_umi_df = (
-        histogram.drop(columns=[umi_col, "count"])
-        .groupby(cbc_columns)
-        .size()
-        .reset_index(name="Num Unique UMI")
+        histogram.drop(columns=[umi_col, "count"]).groupby(cbc_columns).size().reset_index(name="Num Unique UMI")
     )
 
     # Sorting by Num UMI and setting a column that will be the CBC index
@@ -87,12 +86,12 @@ def plot_insert_length_histogram(h5_file: str, output_path: str) -> Path:
     IQR = Q3 - Q1
 
     # Calculate bin width using Freedman-Diaconis rule
-    bin_width = 2 * IQR * len(insert_lengths) ** (-1/3)
-    if bin_width == 0: # if all values are the same or if the data is extremely skewed the bin width will be 0
+    bin_width = 2 * IQR * len(insert_lengths) ** (-1 / 3)
+    if bin_width == 0:  # if all values are the same or if the data is extremely skewed the bin width will be 0
         bins = 10  # Default value to avoid division by zero
     else:
         bins = int((max(insert_lengths) - min(insert_lengths)) / bin_width)
-    
+
     pd.Series(insert_lengths).hist(bins=bins, density=True)
 
     plt.xlabel("Read Length")
@@ -159,7 +158,7 @@ def plot_quality_per_position(h5_file: str, output_path: str) -> Path:
 
     # quality percentiles per position
     df_cdf = insert_quality.cumsum() / insert_quality.sum()
-    percentiles = {q: (df_cdf >= q).idxmax() for q in [0.05, 0.25, 0.5, 0.75, 0.95]}
+    percentiles = {q: (df_cdf >= q).idxmax() for q in (0.05, 0.25, 0.5, 0.75, 0.95)}
     plt.figure()
     plt.fill_between(
         percentiles[0.05].index,
@@ -177,9 +176,7 @@ def plot_quality_per_position(h5_file: str, output_path: str) -> Path:
         alpha=0.5,
         label="25-75%",
     )
-    plt.plot(
-        percentiles[0.5].index, percentiles[0.5], color="k", label="median", linewidth=2
-    )
+    plt.plot(percentiles[0.5].index, percentiles[0.5], color="k", label="median", linewidth=2)
     plt.legend()
     plt.xlabel("Position")
     plt.ylabel("Quality")
