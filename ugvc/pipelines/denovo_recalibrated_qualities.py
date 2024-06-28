@@ -21,10 +21,11 @@ import sys
 
 from ugvc.joint import denovo_refinement
 
-if __file__ == "__main__":
-    denovo_refinement.main(sys.argv[1:])
-
 
 def run(argv: list):
     "Add recalibrated through somatic calling qualities to the annotated de novo VCF"
     denovo_refinement.main(argv[1:])
+
+
+if __name__ == "__main__":
+    run(sys.argv)
