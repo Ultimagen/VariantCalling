@@ -97,7 +97,7 @@ class MLQualAnnotator(VcfAnnotator):
         self.categorical_features_dict = categorical_features_dict
         self.categorical_features_names = list(self.categorical_features_dict.keys())
         if pre_filter:
-            self.pre_filter = pre_filter.replace("INFO/", "").replace("&&", "&").replace("=", "==")
+            self.pre_filter = pre_filter.replace("INFO/", "").replace("&&", "&")
             logger.debug(f"Using pre-filter query: {self.pre_filter} (original: {pre_filter})")
         else:
             self.pre_filter = None
