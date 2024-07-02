@@ -108,8 +108,7 @@ def write_a_pileup_record(
     # FORMAT fields to aggregate
     record_dict[DP] = rec.info[FeatureMapFields.FILTERED_COUNT.value]
     record_dict[VAF] = record_dict["rec_counter"] / record_dict[DP]
-    # record_dict[GT] = (0, 1)
-    record_dict[GT] = (".", ".")
+    record_dict[GT] = (0, 1)
     record_dict[AD] = [
         record_dict[DP] - record_dict["rec_counter"],
         record_dict["rec_counter"],
