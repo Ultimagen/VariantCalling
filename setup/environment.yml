@@ -1,4 +1,4 @@
-name: genomics.py3.1
+name: genomics.py3
 channels:
   - conda-forge
   - bioconda
@@ -474,5 +474,3 @@ dependencies:
       - sigprofilermatrixgenerator==1.2.26
       - sigprofilerplotting==1.3.23
       - simppl==1.0.7
-      - ugvc==0.21
-prefix: /home/ilyas/anaconda3/envs/genomics.py3.1
