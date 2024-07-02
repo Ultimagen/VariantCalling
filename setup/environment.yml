@@ -74,15 +74,14 @@ dependencies:
   - curl=8.8.0=he654da7_1
   - cycler=0.12.1=pyhd8ed1ab_0
   - cytoolz=0.12.3=py310h2372a71_0
-  - dask=2024.6.2=pyhd8ed1ab_0
-  - dask-core=2024.6.2=pyhd8ed1ab_0
-  - dask-expr=1.1.6=pyhd8ed1ab_0
+  - dask=2024.2.1=pyhd8ed1ab_0
+  - dask-core=2024.2.1=pyhd8ed1ab_1
   - dbus=1.13.6=h5008d03_3
   - debugpy=1.8.2=py310h76e45a6_0
   - decorator=5.1.1=pyhd8ed1ab_0
   - defusedxml=0.7.1=pyhd8ed1ab_0
   - dill=0.3.8=pyhd8ed1ab_0
-  - distributed=2024.6.2=pyhd8ed1ab_0
+  - distributed=2024.2.1=pyhd8ed1ab_0
   - dnspython=2.6.1=pyhd8ed1ab_1
   - entrypoints=0.4=pyhd8ed1ab_0
   - exceptiongroup=1.2.0=pyhd8ed1ab_2
@@ -264,7 +263,7 @@ dependencies:
   - matplotlib-base=3.8.4=py310hef631a5_2
   - matplotlib-inline=0.1.7=pyhd8ed1ab_0
   - mistune=3.0.2=pyhd8ed1ab_0
-  - mizani=0.11.4=pyhd8ed1ab_0
+  - mizani=0.10.0=pyhd8ed1ab_0
   - mock=5.1.0=pyhd8ed1ab_0
   - mpg123=1.32.6=h59595ed_0
   - msgpack-python=1.0.8=py310h25c7140_0
@@ -311,7 +310,7 @@ dependencies:
   - pixman=0.43.2=h59595ed_0
   - pkgutil-resolve-name=1.3.10=pyhd8ed1ab_1
   - platformdirs=4.2.2=pyhd8ed1ab_0
-  - plotnine=0.13.6=pyhd8ed1ab_0
+  - plotnine=0.12.2=pyhd8ed1ab_0
   - pluggy=1.5.0=pyhd8ed1ab_0
   - ply=3.11=pyhd8ed1ab_2
   - prometheus_client=0.20.0=pyhd8ed1ab_0
@@ -474,3 +473,4 @@ dependencies:
       - sigprofilermatrixgenerator==1.2.26
       - sigprofilerplotting==1.3.23
       - simppl==1.0.7
+prefix: /home/ilyas/anaconda3/envs/genomics.py3
