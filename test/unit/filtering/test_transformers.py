@@ -15,6 +15,7 @@ from ugvc.filtering.transformers import (
 
 
 class TestTransformers:
+    @pytest.fixture(autouse=True)
     def setup(self):
         self.sample_tuple = (1, 2, 3)
         self.sample_motif = "ATGC"

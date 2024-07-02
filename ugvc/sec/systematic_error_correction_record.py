@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.stats import binom_test
+from scipy.stats import binomtest
 
 from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution, get_allele_counts_list
@@ -116,12 +116,12 @@ class SECRecord:
         else:
             p_alt = self.noise_ratio_for_unobserved_indels
 
-        self.__alt_enrichment_pval = binom_test(
+        self.__alt_enrichment_pval = binomtest(
             actual_alt,
             n=self.num_of_observations_actual,
             p=p_alt,
             alternative="greater",
-        )
+        ).pvalue
 
     def __scale_expected_distribution_list(self):
         return scale_contingency_table(self.expected_distribution_list, self.num_of_observations_actual)
@@ -158,7 +158,7 @@ class SECRecord:
         else:
             p_alt_f = self.noise_ratio_for_unobserved_indels
 
-        return binom_test(actual_alt, n=actual_total, p=p_alt_f, alternative="greater")
+        return binomtest(actual_alt, n=actual_total, p=p_alt_f, alternative="greater").pvalue
 
     def __str__(self):
         fields = [
