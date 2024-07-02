@@ -64,6 +64,7 @@ dependencies:
   - cairo=1.18.0=h3faef2a_0
   - certifi=2024.6.2=pyhd8ed1ab_0
   - cffi=1.16.0=py310h2fee648_0
+  - cfgv=3.3.1=pyhd8ed1ab_0
   - charset-normalizer=3.3.2=pyhd8ed1ab_0
   - click=8.1.7=unix_pyh707e725_0
   - cloudpickle=3.0.0=pyhd8ed1ab_0
@@ -81,12 +82,14 @@ dependencies:
   - decorator=5.1.1=pyhd8ed1ab_0
   - defusedxml=0.7.1=pyhd8ed1ab_0
   - dill=0.3.8=pyhd8ed1ab_0
+  - distlib=0.3.8=pyhd8ed1ab_0
   - distributed=2024.2.1=pyhd8ed1ab_0
   - dnspython=2.6.1=pyhd8ed1ab_1
   - entrypoints=0.4=pyhd8ed1ab_0
   - exceptiongroup=1.2.0=pyhd8ed1ab_2
   - executing=2.0.1=pyhd8ed1ab_0
   - expat=2.6.2=h59595ed_0
+  - filelock=3.15.4=pyhd8ed1ab_0
   - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - font-ttf-inconsolata=3.000=h77eed37_0
   - font-ttf-source-code-pro=2.038=h77eed37_0
@@ -139,6 +142,7 @@ dependencies:
   - httpx=0.27.0=pyhd8ed1ab_0
   - hyperframe=6.0.1=pyhd8ed1ab_0
   - icu=73.2=h59595ed_0
+  - identify=2.5.36=pyhd8ed1ab_0
   - idna=3.7=pyhd8ed1ab_0
   - importlib-metadata=8.0.0=pyha770c72_0
   - importlib_metadata=8.0.0=hd8ed1ab_0
@@ -278,6 +282,7 @@ dependencies:
   - nbformat=5.10.4=pyhd8ed1ab_0
   - ncurses=6.5=h59595ed_0
   - nest-asyncio=1.6.0=pyhd8ed1ab_0
+  - nodeenv=1.9.1=pyhd8ed1ab_0
   - nomkl=1.0=h5ca1d4c_0
   - notebook=7.2.1=pyhd8ed1ab_0
   - notebook-shim=0.2.4=pyhd8ed1ab_0
@@ -313,6 +318,7 @@ dependencies:
   - plotnine=0.12.2=pyhd8ed1ab_0
   - pluggy=1.5.0=pyhd8ed1ab_0
   - ply=3.11=pyhd8ed1ab_2
+  - pre-commit=3.7.1=pyha770c72_0
   - prometheus_client=0.20.0=pyhd8ed1ab_0
   - prompt-toolkit=3.0.47=pyha770c72_0
   - prompt_toolkit=3.0.47=hd8ed1ab_0
@@ -411,10 +417,12 @@ dependencies:
   - typing_utils=0.1.0=pyhd8ed1ab_0
   - tzdata=2024a=h0c530f3_0
   - tzlocal=5.2=py310hff52083_0
+  - ukkonen=1.0.1=py310hd41b1e2_4
   - unicodedata2=15.1.0=py310h2372a71_0
   - uri-template=1.3.0=pyhd8ed1ab_0
   - uritemplate=4.1.1=pyhd8ed1ab_0
   - urllib3=2.2.2=pyhd8ed1ab_1
+  - virtualenv=20.26.3=pyhd8ed1ab_0
   - wcwidth=0.2.13=pyhd8ed1ab_0
   - webcolors=24.6.0=pyhd8ed1ab_0
   - webencodings=0.5.1=pyhd8ed1ab_2
