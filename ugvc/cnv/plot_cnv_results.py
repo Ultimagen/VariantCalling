@@ -249,6 +249,7 @@ def run(argv):
                               'start_fig':df_germline_cov_norm_100K.groupby(['chr'])['start_fig'].max().values})
     df_chr_graphic['chr_num']=df_chr_graphic['chr'].str.replace('chr', '', regex=True)
     df_chr_graphic['chr_num'] = df_chr_graphic['chr_num'].str.replace('X', '23', regex=True)
+    df_chr_graphic['chr_num'] = df_chr_graphic['chr_num'].str.replace('Y', '24', regex=True)
     df_chr_graphic['chr_num'] = df_chr_graphic['chr_num'].astype(int)
     df_chr_graphic = df_chr_graphic.sort_values(by=['chr_num'])
 
@@ -268,29 +269,49 @@ def run(argv):
     ##########################
     #load UG calls
     if args.duplication_cnv_calls:
-        df_DUP = pd.read_csv(args.duplication_cnv_calls,sep='\t',header=None)
-        df_DUP.columns=['chr','start','end','copy-number']
-        df_DUP = get_x_location_for_fig(df_DUP,df_germline_cov_norm_100K)
+        if os.path.getsize(args.duplication_cnv_calls) > 0 : 
+            df_DUP = pd.read_csv(args.duplication_cnv_calls,sep='\t',header=None)
+            df_DUP.columns=['chr','start','end','copy-number']
+            df_DUP = get_x_location_for_fig(df_DUP,df_germline_cov_norm_100K)
+        else:
+            logger.warn("duplication_cnv_calls file is empty")
+            df_DUP = None
     else:
         df_DUP = None
+    
     if args.deletion_cnv_calls:
-        df_DEL = pd.read_csv(args.deletion_cnv_calls,sep='\t',header=None)
-        df_DEL.columns=['chr','start','end','copy-number']
-        df_DEL = get_x_location_for_fig(df_DEL,df_germline_cov_norm_100K)
+        if os.path.getsize(args.deletion_cnv_calls) > 0 : 
+            df_DEL = pd.read_csv(args.deletion_cnv_calls,sep='\t',header=None)
+            df_DEL.columns=['chr','start','end','copy-number']
+            df_DEL = get_x_location_for_fig(df_DEL,df_germline_cov_norm_100K)
+        else:
+            logger.warn("deletion_cnv_calls file is empty")
+            df_DEL = None
     else:
         df_DEL = None
+    
     if args.gt_duplication_cnv_calls:
-        df_gt_DUP = pd.read_csv(args.gt_duplication_cnv_calls,sep='\t',header=None)
-        df_gt_DUP.columns=['chr','start','end','copy-number']
-        df_gt_DUP = get_x_location_for_fig(df_gt_DUP,df_germline_cov_norm_100K)
+        if os.path.getsize(args.gt_duplication_cnv_calls) > 0 : 
+            df_gt_DUP = pd.read_csv(args.gt_duplication_cnv_calls,sep='\t',header=None)
+            df_gt_DUP.columns=['chr','start','end','copy-number']
+            df_gt_DUP = get_x_location_for_fig(df_gt_DUP,df_germline_cov_norm_100K)
+        else:
+            logger.warn("gt_duplication_cnv_calls file is empty")
+            df_gt_DUP = None        
     else:
         df_gt_DUP = None
+    
     if args.gt_deletion_cnv_calls:
-        df_gt_DEL = pd.read_csv(args.gt_deletion_cnv_calls,sep='\t',header=None)
-        df_gt_DEL.columns=['chr','start','end','copy-number']
-        df_gt_DEL = get_x_location_for_fig(df_gt_DEL,df_germline_cov_norm_100K)
+        if os.path.getsize(args.gt_deletion_cnv_calls) > 0 : 
+            df_gt_DEL = pd.read_csv(args.gt_deletion_cnv_calls,sep='\t',header=None)
+            df_gt_DEL.columns=['chr','start','end','copy-number']
+            df_gt_DEL = get_x_location_for_fig(df_gt_DEL,df_germline_cov_norm_100K)
+        else:
+            logger.warn("gt_deletion_cnv_calls file is empty")
+            df_gt_DEL = None
     else:
         df_gt_DEL = None
+    
     out_dup_del_calls_figure = plot_amp_del_cnv_calls(df_chr_graphic,args.out_directory,args.sample_name,df_DUP,df_DEL,df_gt_DUP,df_gt_DEL)
     out_cnv_calls_figure = plot_cnv_calls(args.sample_name,args.out_directory,df_chr_graphic,df_germline_cov_norm_100K,df_DUP,df_DEL)
 
@@ -299,7 +320,5 @@ def run(argv):
     logger.info(out_dup_del_calls_figure)
     logger.info(out_cnv_calls_figure)
     
-
-
 if __name__ == "__main__":
     run(sys.argv)
