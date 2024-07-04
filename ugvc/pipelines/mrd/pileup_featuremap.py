@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import argparse
 
-from ugvc.mrd.featuremap_consensus_utils import pileup_featuremap
+import numpy as np
+
+from ugvc.mrd.featuremap_consensus_utils import pileup_featuremap, pileup_featuremap_on_an_interval_list
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:
@@ -39,13 +41,24 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="""Output pileup vcf file""",
     )
-    parser.add_argument(
+    interval_group = parser.add_mutually_exclusive_group()
+    interval_group.add_argument(
         "-i",
         "--genomic_interval",
         type=str,
         required=False,
         default=None,
-        help="""Genomic interval to pileup, format: chr:start-end (default: None)""",
+        help="""Genomic interval to pileup, format: chr:start-end (default: None).\
+            Mutually exclusive with --interval_list""",
+    )
+    interval_group.add_argument(
+        "-il",
+        "--interval_list",
+        type=str,
+        required=False,
+        default=None,
+        help="""Interval list file (default: None).\
+            Mutually exclusive with --genomic_interval""",
     )
     parser.add_argument(
         "-q",
@@ -63,17 +76,47 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         default="SAMPLE",
         help="""Sample name (default: SAMPLE)""",
     )
+    parser.add_argument(
+        "-qf",
+        "--qual_agg_func",
+        type=callable,
+        required=False,
+        default=np.max,
+        help="""Function to aggregate quality scores (default: np.max)""",
+    )
     return parser.parse_args(argv[1:])
 
 
 def run(argv: list[str]):
-    """Generates multiple synthetic signatures from a database,
-    with the same trinucleotide substitution context as the input signature"""
+    """Collapses a featuremap vcf file into a pileup vcf file"""
     args_in = __parse_args(argv)
-    pileup_featuremap(
-        featuremap=args_in.featuremap,
-        output_vcf=args_in.output_vcf,
-        genomic_interval=args_in.genomic_interval,
-        min_qual=args_in.min_qual,
-        sample_name=args_in.sample_name,
-    )
+    if args_in.genomic_interval is not None and args_in.interval_list is None:
+        # run pileup_featuremap on the whole file
+        pileup_featuremap(
+            featuremap=args_in.featuremap,
+            output_vcf=args_in.output_vcf,
+            genomic_interval=args_in.genomic_interval,
+            min_qual=args_in.min_qual,
+            sample_name=args_in.sample_name,
+            qual_agg_func=args_in.qual_agg_func,
+        )
+    elif args_in.genomic_interval is not None and args_in.interval_list is None:
+        # run pileup_featuremap on the interval list
+        pileup_featuremap(
+            featuremap=args_in.featuremap,
+            output_vcf=args_in.output_vcf,
+            genomic_interval=args_in.genomic_interval,
+            min_qual=args_in.min_qual,
+            sample_name=args_in.sample_name,
+            qual_agg_func=args_in.qual_agg_func,
+        )
+    elif args_in.genomic_interval is None and args_in.interval_list is not None:
+        # run pileup_featuremap on the interval list
+        pileup_featuremap_on_an_interval_list(
+            featuremap=args_in.featuremap,
+            output_vcf=args_in.output_vcf,
+            interval_list=args_in.interval_list,
+            min_qual=args_in.min_qual,
+            sample_name=args_in.sample_name,
+            qual_agg_func=args_in.qual_agg_func,
+        )

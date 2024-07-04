@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import os
 import re
+import subprocess
+import tempfile
 from collections import defaultdict
 from enum import Enum
+from os.path import basename, dirname
+from os.path import join as pjoin
 
 import numpy as np
 import pysam
 
+from ugvc import logger
 from ugvc.dna.format import AD, DP, GT, VAF
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 
@@ -58,8 +64,8 @@ def write_a_pileup_record(
     out_fh: pysam.VariantFile,
     header: pysam.VariantHeader,
     min_qual: int,
-    qual_agg_func: callable = np.max,
     sample_name: str = "SAMPLE",
+    qual_agg_func: callable = np.max,
 ):
     """
     Write a pileup record to a vcf file
@@ -70,8 +76,8 @@ def write_a_pileup_record(
         out_fh (pysam.VariantFile): A pysam file handle of the output vcf file
         header (pysam.VariantHeader): A pysam VarianyHeader pbject of the output vcf file
         min_qual (int): The minimum quality threshold
-        qual_agg_func (function): The function to aggregate the quality scores (default: np.max)
         sample_name (str): The name of the sample (default: "SAMPLE")
+        qual_agg_func (function): The function to aggregate the quality scores (default: np.max)
     Output:
         rec (pysam.VariantRecord): A pysam VariantRecord object
 
@@ -129,7 +135,12 @@ def write_a_pileup_record(
 
 
 def pileup_featuremap(
-    featuremap: str, output_vcf: str, genomic_interval: str = None, min_qual: int = 0, sample_name: str = "SAMPLE"
+    featuremap: str,
+    output_vcf: str,
+    genomic_interval: str = None,
+    min_qual: int = 0,
+    sample_name: str = "SAMPLE",
+    qual_agg_func: callable = np.max,
 ):
     """
     Pileup featuremap vcf to a regular vcf, save the aggregated quality and read count
@@ -155,6 +166,7 @@ def pileup_featuremap(
         chrom = genomic_interval_list[0]
         start = int(genomic_interval_list[1].split("-")[0])
         end = int(genomic_interval_list[1].split("-")[1])
+    # print(chrom, start, end)
 
     # generate a new header
     orig_header = pysam.VariantFile(featuremap).header
@@ -201,7 +213,9 @@ def pileup_featuremap(
             if "rec_counter" not in cons_dict[rec_id]:
                 if len(cons_dict.keys()) > 1:
                     # write to file
-                    write_a_pileup_record(cons_dict[prev_key], prev_key, out_fh, header, min_qual)
+                    write_a_pileup_record(
+                        cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func
+                    )
                     cons_dict.pop(prev_key)
                 # initialize rec_counter
                 cons_dict[rec_id]["rec_counter"] = 0
@@ -237,8 +251,64 @@ def pileup_featuremap(
             prev_key = rec_id
 
         # write last record
-        write_a_pileup_record(cons_dict[prev_key], prev_key, out_fh, header, min_qual)
+        if len(cons_dict.keys()) > 0:
+            write_a_pileup_record(cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func)
 
     out_fh.close()
     pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
+    return output_vcf
+
+
+def pileup_featuremap_on_an_interval_list(
+    featuremap: str,
+    output_vcf: str,
+    interval_list: str,
+    min_qual: int = 0,
+    sample_name: str = "SAMPLE",
+    qual_agg_func: callable = np.max,
+):
+    """
+    Apply pileup featuremap on an interval list
+
+    Inputs:
+        featuremap (str): The input featuremap vcf file
+        output_vcf (str): The output pileup vcf file
+        interval_list (str): The interval list file
+        min_qual (int): The minimum quality threshold
+        sample_name (str): The name of the sample (default: "SAMPLE")
+    Output:
+        output_vcf (str): The output vcf file
+    """
+    with tempfile.TemporaryDirectory(dir=dirname(output_vcf)) as temp_dir:
+        with open(interval_list, "r", encoding="utf-8") as f:
+            for line in f:
+                # ignore header lines
+                if line.startswith("@"):
+                    continue
+                # read genomic ineterval
+                genomic_interval = line.strip()
+                genomic_interval_list = genomic_interval.split("\t")
+                chrom = genomic_interval_list[0]
+                start = genomic_interval_list[1]
+                end = genomic_interval_list[2]
+                genomic_interval = chrom + ":" + str(start) + "-" + str(end)
+                # run pileup_featuremap on the interval
+                curr_output_vcf = pjoin(
+                    temp_dir,
+                    basename(output_vcf).replace(".vcf.gz", "")
+                    + "."
+                    + chrom
+                    + "_"
+                    + str(start)
+                    + "_"
+                    + str(end)
+                    + ".int_list.vcf.gz",
+                )
+                pileup_featuremap(featuremap, curr_output_vcf, genomic_interval, min_qual, sample_name, qual_agg_func)
+        # merge the output vcfs
+        vcfs = [pjoin(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith(".vcf.gz")]
+        vcf_str = " ".join(vcfs)
+        cmd = f"bcftools concat {vcf_str} | bcftools sort - -Oz -o {output_vcf} && bcftools index {output_vcf}"
+        logger.debug(cmd)
+        subprocess.check_call(cmd, shell=True)
     return output_vcf
