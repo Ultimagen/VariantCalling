@@ -151,6 +151,7 @@ def pileup_featuremap(
         genomic_interval (str): The genomic interval to pileup, format: chr:start-end
         min_qual (int): The minimum quality threshold
         sample_name (str): The name of the sample (default: "SAMPLE")
+        qual_agg_func (callable): The function to aggregate the quality scores (default: np.max)
     Output:
         output_vcf (str): The output vcf file
     """
@@ -276,6 +277,7 @@ def pileup_featuremap_on_an_interval_list(
         interval_list (str): The interval list file
         min_qual (int): The minimum quality threshold
         sample_name (str): The name of the sample (default: "SAMPLE")
+        qual_agg_func (callable): The function to aggregate the quality scores (default: np.max)
     Output:
         output_vcf (str): The output vcf file
     """
