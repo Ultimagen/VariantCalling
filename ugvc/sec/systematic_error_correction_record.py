@@ -88,16 +88,16 @@ class SECRecord:
             self.strand_enrichment_pval = 1
             self.lesser_strand_enrichment_pval = 1
             # represent NA as -1 in logs
-            self.forward_enrichment_pval = -1
-            self.reverse_enrichment_pval = -1
+            self.forward_enrichment_pval = -1.0
+            self.reverse_enrichment_pval = -1.0
         elif self.forward_enrichment_pval is None:
             self.strand_enrichment_pval = self.reverse_enrichment_pval
             self.lesser_strand_enrichment_pval = self.reverse_enrichment_pval
-            self.forward_enrichment_pval = -1  # represent NA as -1 in logs
+            self.forward_enrichment_pval = -1.0  # represent NA as -1 in logs
         elif self.reverse_enrichment_pval is None:
             self.strand_enrichment_pval = self.forward_enrichment_pval
             self.lesser_strand_enrichment_pval = self.forward_enrichment_pval
-            self.reverse_enrichment_pval = -1  # represent NA as -1 in logs
+            self.reverse_enrichment_pval = -1.0  # represent NA as -1 in logs
         else:
             # each strand is tested independently
             self.strand_enrichment_pval = self.forward_enrichment_pval * self.reverse_enrichment_pval
@@ -117,6 +117,7 @@ class SECRecord:
             p_alt = self.noise_ratio_for_unobserved_indels
         if self.num_of_observations_actual == 0:
             self.__alt_enrichment_pval = None
+            return
         self.__alt_enrichment_pval = binomtest(
             actual_alt,
             n=self.num_of_observations_actual,
@@ -159,7 +160,7 @@ class SECRecord:
         else:
             p_alt_f = self.noise_ratio_for_unobserved_indels
 
-        return binomtest(actual_alt, n=actual_total, p=p_alt_f, alternative="greater").pvalue
+        return float(binomtest(actual_alt, n=actual_total, p=p_alt_f, alternative="greater").pvalue)
 
     def __str__(self):
         fields = [
