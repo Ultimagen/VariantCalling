@@ -176,7 +176,7 @@ class SECRecord:
             f'f_pval={"%.2g" % self.forward_enrichment_pval}',
             f'r_pval={"%.2g" % self.reverse_enrichment_pval}',
             f'strand_pval={"%.2g" % self.strand_enrichment_pval}',
-            f'alt_pval={"%.2g" % self.__alt_enrichment_pval}',
+            f'alt_pval={"%.2g" % (self.__alt_enrichment_pval if self.__alt_enrichment_pval is not None else 1)}',
             f'LR={"%.2g" % self.likelihood_ratio}',
             f"actual_allele_counts={self.actual_allele_counts}",
         ]
