@@ -115,7 +115,8 @@ class SECRecord:
             p_alt = self.noise_ratio_for_unobserved_snps
         else:
             p_alt = self.noise_ratio_for_unobserved_indels
-
+        if self.num_of_observations_actual == 0:
+            self.__alt_enrichment_pval = None
         self.__alt_enrichment_pval = binomtest(
             actual_alt,
             n=self.num_of_observations_actual,
