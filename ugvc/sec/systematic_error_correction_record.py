@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.stats import binom_test
+from scipy.stats import binomtest
 
 from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution, get_allele_counts_list
@@ -88,16 +88,16 @@ class SECRecord:
             self.strand_enrichment_pval = 1
             self.lesser_strand_enrichment_pval = 1
             # represent NA as -1 in logs
-            self.forward_enrichment_pval = -1
-            self.reverse_enrichment_pval = -1
+            self.forward_enrichment_pval = -1.0
+            self.reverse_enrichment_pval = -1.0
         elif self.forward_enrichment_pval is None:
             self.strand_enrichment_pval = self.reverse_enrichment_pval
             self.lesser_strand_enrichment_pval = self.reverse_enrichment_pval
-            self.forward_enrichment_pval = -1  # represent NA as -1 in logs
+            self.forward_enrichment_pval = -1.0  # represent NA as -1 in logs
         elif self.reverse_enrichment_pval is None:
             self.strand_enrichment_pval = self.forward_enrichment_pval
             self.lesser_strand_enrichment_pval = self.forward_enrichment_pval
-            self.reverse_enrichment_pval = -1  # represent NA as -1 in logs
+            self.reverse_enrichment_pval = -1.0  # represent NA as -1 in logs
         else:
             # each strand is tested independently
             self.strand_enrichment_pval = self.forward_enrichment_pval * self.reverse_enrichment_pval
@@ -115,13 +115,15 @@ class SECRecord:
             p_alt = self.noise_ratio_for_unobserved_snps
         else:
             p_alt = self.noise_ratio_for_unobserved_indels
-
-        self.__alt_enrichment_pval = binom_test(
+        if self.num_of_observations_actual == 0:
+            self.__alt_enrichment_pval = None
+            return
+        self.__alt_enrichment_pval = binomtest(
             actual_alt,
             n=self.num_of_observations_actual,
             p=p_alt,
             alternative="greater",
-        )
+        ).pvalue
 
     def __scale_expected_distribution_list(self):
         return scale_contingency_table(self.expected_distribution_list, self.num_of_observations_actual)
@@ -158,7 +160,7 @@ class SECRecord:
         else:
             p_alt_f = self.noise_ratio_for_unobserved_indels
 
-        return binom_test(actual_alt, n=actual_total, p=p_alt_f, alternative="greater")
+        return float(binomtest(actual_alt, n=actual_total, p=p_alt_f, alternative="greater").pvalue)
 
     def __str__(self):
         fields = [
@@ -174,7 +176,7 @@ class SECRecord:
             f'f_pval={"%.2g" % self.forward_enrichment_pval}',
             f'r_pval={"%.2g" % self.reverse_enrichment_pval}',
             f'strand_pval={"%.2g" % self.strand_enrichment_pval}',
-            f'alt_pval={"%.2g" % self.__alt_enrichment_pval}',
+            f'alt_pval={"%.2g" % (self.__alt_enrichment_pval if self.__alt_enrichment_pval is not None else 1)}',
             f'LR={"%.2g" % self.likelihood_ratio}',
             f"actual_allele_counts={self.actual_allele_counts}",
         ]

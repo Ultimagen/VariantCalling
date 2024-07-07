@@ -25,7 +25,7 @@ class TestFilterVariantPipeline:
         )
 
         df = vcftools.get_vcf_df(output_file)
-        assert {"LOW_SCORE": 2408, "PASS": 10270} == dict(df["filter"].value_counts())
+        assert {"LOW_SCORE": 2412, "PASS": 10266} == dict(df["filter"].value_counts())
 
     def test_filter_variants_pipeline_blacklist_only(self, tmpdir):
         output_file = f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.blacklist_only.vcf.gz"
