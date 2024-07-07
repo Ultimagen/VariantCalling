@@ -310,7 +310,7 @@ def pileup_featuremap_on_an_interval_list(
         # merge the output vcfs
         vcfs = [pjoin(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith(".vcf.gz")]
         vcf_str = " ".join(vcfs)
-        cmd = f"bcftools concat {vcf_str} | bcftools sort - -Oz -o {output_vcf} && bcftools index {output_vcf}"
+        cmd = f"bcftools concat {vcf_str} | bcftools sort - -Oz -o {output_vcf} && bcftools index -t {output_vcf}"
         logger.debug(cmd)
         subprocess.check_call(cmd, shell=True)
     return output_vcf
