@@ -16,7 +16,7 @@ def test_create_report(tmpdir):
 
     # TODO: add train with a small model (low tree num)
 
-    base_name = "balanced_ePCR_LA5_LA6_333_LuNgs_08."
+    base_name = "ppmSeq_legacy_v5_333_LuNgs_08."
 
     model_joblib_file = pjoin(
         inputs_dir,
@@ -90,15 +90,15 @@ def test_create_report(tmpdir):
         "strand_ratio_category_end" in models[0].feature_names_in_
         and "strand_ratio_category_start" in models[0].feature_names_in_
     ):
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cycle_skip.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_non_cycle_skip.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_mixed_cycle_skip.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_non_mixed_non_cycle_skip.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_fpr.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_recalls.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_mixed_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_mixed_non_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_mixed_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_non_mixed_non_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_fpr.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_recalls.png")
     else:
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_cycle_skip.png")
-        report_plots.append(f"{base_name}{report_name}.balanced_strand_non_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_cycle_skip.png")
+        report_plots.append(f"{base_name}{report_name}.ppmSeq_non_cycle_skip.png")
 
     for pname in report_plots:
         assert os.path.isfile(pjoin(tmpdir, f"{pname}")), f"Missing report plot: {pname}"

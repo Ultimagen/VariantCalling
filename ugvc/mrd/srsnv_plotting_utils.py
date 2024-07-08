@@ -16,8 +16,8 @@ from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from tqdm import tqdm
 
 from ugvc import logger
-from ugvc.mrd.balanced_strand_utils import BalancedStrandAdapterVersions
 from ugvc.mrd.featuremap_utils import FeatureMapFields
+from ugvc.mrd.ppmSeq_utils import ppmSeqAdapterVersions
 from ugvc.utils.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import convert_h5_to_json, read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import filter_valid_queries
@@ -128,9 +128,9 @@ def srsnv_report(
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_balanced_strand_hists,
-        output_balanced_strand_fpr,
-        output_balanced_strand_recalls,
+        output_ppmSeq_hists,
+        output_ppmSeq_fpr,
+        output_ppmSeq_recalls,
     ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
 
     template_notebook = os.path.join(
@@ -148,9 +148,9 @@ def srsnv_report(
 -p output_obsereved_qual_plot {output_obsereved_qual_plot} \
 -p output_ML_qual_hist {output_ML_qual_hist} \
 -p output_qual_per_feature {output_qual_per_feature} \
--p output_bepcr_hists {output_balanced_strand_hists} \
--p output_bepcr_fpr {output_balanced_strand_fpr} \
--p output_bepcr_recalls {output_balanced_strand_recalls} \
+-p output_bepcr_hists {output_ppmSeq_hists} \
+-p output_bepcr_fpr {output_ppmSeq_fpr} \
+-p output_bepcr_recalls {output_ppmSeq_recalls} \
 -k python3"
     jupyter_nbconvert_command = f"jupyter nbconvert {reportfile} --output {reporthtml} --to html --no-input"
 
@@ -206,7 +206,7 @@ def plot_ROC_curve(
     recall = {}
     precision = {}
 
-    if adapter_version in [av.value for av in BalancedStrandAdapterVersions]:
+    if adapter_version in [av.value for av in ppmSeqAdapterVersions]:
         xvars.append(f"{FeatureMapFields.X_SCORE.value}")
         querystrs.append("is_mixed == True & X_SCORE>-1")
         namestrs.append(f"{FeatureMapFields.X_SCORE.value}_mixed")
@@ -489,7 +489,7 @@ def plot_LoD(
     ]
     edgecolors_list = ["r", "r", "r"]
     msize_list = [150, 150, 150]
-    if adapter_version in [av.value for av in BalancedStrandAdapterVersions]:
+    if adapter_version in [av.value for av in ppmSeqAdapterVersions]:
         filters_list.append(["HQ_SNV_mixed_only"])
         markers_list.append(">")
         labels_list.append("HQ_SNV and Edit Dist <= 5 (mixed only)")
@@ -1193,9 +1193,9 @@ def _get_plot_paths(report_name, out_path, out_basename):
     output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
     output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
     output_qual_per_feature = os.path.join(outdir, f"{basename}{report_name}.qual_per_")
-    output_balanced_strand_hists = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_")
-    output_balanced_strand_fpr = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_fpr")
-    output_balanced_strand_recalls = os.path.join(outdir, f"{basename}{report_name}.balanced_strand_recalls")
+    output_ppmSeq_hists = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_")
+    output_ppmSeq_fpr = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_fpr")
+    output_ppmSeq_recalls = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_recalls")
 
     return [
         output_roc_plot,
@@ -1205,9 +1205,9 @@ def _get_plot_paths(report_name, out_path, out_basename):
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_balanced_strand_hists,
-        output_balanced_strand_fpr,
-        output_balanced_strand_recalls,
+        output_ppmSeq_hists,
+        output_ppmSeq_fpr,
+        output_ppmSeq_recalls,
     ]
 
 
@@ -1370,9 +1370,9 @@ def create_report(
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
-        output_balanced_strand_hists,
-        output_balanced_strand_fpr,
-        output_balanced_strand_recalls,
+        output_ppmSeq_hists,
+        output_ppmSeq_fpr,
+        output_ppmSeq_recalls,
     ] = _get_plot_paths(report_name, out_path=params["workdir"], out_basename=params["data_name"])
 
     LoD_params = {}
@@ -1458,18 +1458,18 @@ def create_report(
         labels_dict,
         df_dict,
         max_score,
-        output_filename=output_balanced_strand_hists,
+        output_filename=output_ppmSeq_hists,
     )
 
     plot_mixed_fpr(
         fpr_dict,
         max_score,
-        output_filename=output_balanced_strand_fpr,
+        output_filename=output_ppmSeq_fpr,
     )
     plot_mixed_recall(
         recall_dict,
         max_score,
-        output_filename=output_balanced_strand_recalls,
+        output_filename=output_ppmSeq_recalls,
     )
 
     # convert statistics to json

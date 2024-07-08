@@ -1,10 +1,10 @@
 from os.path import join as pjoin
 from test import get_resource_dir
 
-from ugvc.pipelines.mrd import balanced_strand_analysis
+from ugvc.pipelines.mrd import ppmSeq_qc_analysis
 
 
-def test_balanced_strand_analysis_ppmSeq_v1(tmpdir):
+def test_ppmSeq_analysis_ppmSeq_v1(tmpdir):
     resource_dir = get_resource_dir(__file__)
     trimmer_histogram = pjoin(
         resource_dir,
@@ -12,16 +12,16 @@ def test_balanced_strand_analysis_ppmSeq_v1(tmpdir):
     )
     trimmer_failure_codes = pjoin(
         resource_dir,
-        "balanced_strand.healthy.022782-Lb_2146-UGAv3-168.failure_codes.csv",
+        "ppmSeq.healthy.022782-Lb_2146-UGAv3-168.failure_codes.csv",
     )
-    sorter_csv = pjoin(resource_dir, "balanced_strand.healthy.022782-Lb_2146-UGAv3-168.csv")
-    sorter_json = pjoin(resource_dir, "balanced_strand.healthy.022782-Lb_2146-UGAv3-168.json")
+    sorter_csv = pjoin(resource_dir, "ppmSeq.healthy.022782-Lb_2146-UGAv3-168.csv")
+    sorter_json = pjoin(resource_dir, "ppmSeq.healthy.022782-Lb_2146-UGAv3-168.json")
 
-    balanced_strand_analysis.run(
+    ppmSeq_qc_analysis.run(
         [
-            "balanced_strand_analysis",
+            "ppmSeq_qc_analysis",
             "--adapter-version",
-            "LA_v5and6",
+            "legacy_v5",
             "--trimmer-histogram-csv",
             trimmer_histogram,
             "--trimmer-failure-codes-csv",
@@ -33,13 +33,13 @@ def test_balanced_strand_analysis_ppmSeq_v1(tmpdir):
             "--output-path",
             tmpdir.dirname,
             "--output-basename",
-            "balanced_strand.healthy.022782-Lb_2146-UGAv3-168",
+            "ppmSeq.healthy.022782-Lb_2146-UGAv3-168",
             "--legacy-histogram-column-names",
         ]
     )
 
 
-def test_balanced_strand_analysis_ppmSeq_v2(tmpdir):
+def test_ppmSeq_analysis_ppmSeq_v2(tmpdir):
     resource_dir = get_resource_dir(__file__)
     trimmer_histogram = pjoin(
         resource_dir,
@@ -53,11 +53,11 @@ def test_balanced_strand_analysis_ppmSeq_v2(tmpdir):
     sorter_csv = pjoin(resource_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.csv")
     sorter_json = pjoin(resource_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.json")
 
-    balanced_strand_analysis.run(
+    ppmSeq_qc_analysis.run(
         [
-            "balanced_strand_analysis",
+            "ppmSeq_qc_analysis",
             "--adapter-version",
-            "LA_v7",
+            "v1",
             "--trimmer-histogram-csv",
             trimmer_histogram,
             "--trimmer-failure-codes-csv",

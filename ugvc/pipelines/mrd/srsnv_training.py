@@ -163,7 +163,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""json file with a dict of format 'filter name':'query' for LoD simulation """,
     )
     parser.add_argument(
-        "--balanced_strand_adapter_version",
+        "--ppmSeq_adapter_version",
         type=str,
         required=False,
         default=None,
@@ -205,7 +205,7 @@ def read_dataset_params(args):
         "categorical_features": args.categorical_features,
         "balanced_sampling_info_fields": args.balanced_sampling_info_fields,
         "pre_filter": args.pre_filter,
-        "balanced_strand_adapter_version": args.balanced_strand_adapter_version,
+        "ppmSeq_adapter_version": args.ppmSeq_adapter_version,
         "random_seed": args.random_seed,
         "num_CV_folds": args.num_CV_folds,
     }
@@ -284,7 +284,7 @@ def run(argv: list[str]):
         out_basename=args.basename,
         lod_filters=args.lod_filters,
         save_model_jsons=args.save_model_jsons,
-        balanced_strand_adapter_version=dataset_params["balanced_strand_adapter_version"],
+        ppmSeq_adapter_version=dataset_params["ppmSeq_adapter_version"],
         pre_filter=dataset_params["pre_filter"],
         random_seed=dataset_params["random_seed"],
         simple_pipeline=sp,
