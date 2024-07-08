@@ -62,8 +62,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return ap_var.parse_args(argv[1:])
 
 
-def run(argv: list[str]):
+def run(argv: list[str] | None = None):
     "POST-MethylDackel perRead processing"
+    if argv is None:
+        argv: list[str] = sys.argv
+
     args = parse_args(argv)
 
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
@@ -118,4 +121,4 @@ def run(argv: list[str]):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run()
