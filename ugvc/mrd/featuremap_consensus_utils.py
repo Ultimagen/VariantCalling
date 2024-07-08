@@ -5,7 +5,6 @@ import re
 import subprocess
 import tempfile
 from collections import defaultdict
-from enum import Enum
 from os.path import basename, dirname
 from os.path import join as pjoin
 
@@ -14,7 +13,7 @@ import pysam
 
 from ugvc import logger
 from ugvc.dna.format import AD, DP, GT, VAF
-from ugvc.mrd.featuremap_utils import FeatureMapFields
+from ugvc.mrd.featuremap_utils import FeatureMapFields, FeatureMapFilters
 
 fields_to_collect = {
     "numeric_array_fields": [
@@ -50,12 +49,6 @@ fields_to_collect = {
         FeatureMapFields.IS_CYCLE_SKIP.value,
     ],
 }
-
-
-class FeatureMapFilters(Enum):
-    LOW_QUAL = "LowQual"
-    SINGLE_READ = "SingleRead"
-    PASS = "PASS"
 
 
 def write_a_pileup_record(
@@ -104,11 +97,11 @@ def write_a_pileup_record(
             rec.info[field] = "|".join(["T" if f else "F" for f in record_dict[field]])
     for field in fields_to_collect["fields_to_write_once"]:
         if field in record_dict:
-            if [f == record_dict[field][0] for f in record_dict[field]].count(False) == 0:
+            if all(f == record_dict[field][0] for f in record_dict[field]):
                 rec.info[field] = record_dict[field][0]
     for field in fields_to_collect["boolean_fields_to_write_once"]:
         if field in record_dict:
-            if [f == record_dict[field][0] for f in record_dict[field]].count(False) == 0:
+            if all(f == record_dict[field][0] for f in record_dict[field]):
                 rec.info[field] = record_dict[field][0]
 
     # FORMAT fields to aggregate
@@ -167,7 +160,6 @@ def pileup_featuremap(
         chrom = genomic_interval_list[0]
         start = int(genomic_interval_list[1].split("-")[0])
         end = int(genomic_interval_list[1].split("-")[1])
-    # print(chrom, start, end)
 
     # generate a new header
     orig_header = pysam.VariantFile(featuremap).header

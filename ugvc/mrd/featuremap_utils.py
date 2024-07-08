@@ -52,6 +52,13 @@ class FeatureMapFields(Enum):
     NEXT_3 = "next_3"
 
 
+class FeatureMapFilters(Enum):
+    LOW_QUAL = "LowQual"
+    SINGLE_READ = "SingleRead"
+    PASS = "PASS"
+    PRE_FILTERED = "PreFiltered"
+
+
 def get_hmer_of_central_base(sequence: str) -> int:
     """
     Get the length of the homopolymer spanning the central base in the given sequence.
