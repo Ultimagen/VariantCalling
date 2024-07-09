@@ -13,10 +13,10 @@ inputs_dir = get_resource_dir(__file__)
 @pytest.mark.parametrize(
     "genomic_interval, interval_list, expected_num_variants",
     [
-        ("chr19:1-808924", None, 160),
-        (None, None, 297),
+        ("chr19:1-400000", None, 74),
+        (None, None, 556),
         ("chr2:1-1000", None, 0),
-        (None, pjoin(inputs_dir, "scattered.interval_list"), 297),
+        (None, pjoin(inputs_dir, "scattered.interval_list"), 556),
     ],
 )
 def test_pileup_featuremap(
@@ -26,9 +26,7 @@ def test_pileup_featuremap(
     expected_num_variants,
 ):
     # create input featuremap vcf file
-    input_featuremap_vcf = pjoin(
-        inputs_dir, "HG001_HG002_tumor_tumor_in_normal_31977.with_ml_qual.snps_in_hcr.chr19-1-1000000.vcf.gz"
-    )
+    input_featuremap_vcf = pjoin(inputs_dir, "HG001_HG002_tumor_tumor_in_normal_31977.gtr.hcr.chr19_1-1000000.vcf.gz")
 
     # call the function with different arguments
     pileup_featuremap_vcf = pjoin(tmpdir, "pileup_featuremap.vcf.gz")

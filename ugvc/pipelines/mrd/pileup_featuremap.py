@@ -90,7 +90,8 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
 def run(argv: list[str]):
     """Collapses a featuremap vcf file into a pileup vcf file"""
     args_in = __parse_args(argv)
-    if args_in.genomic_interval is not None and args_in.interval_list is None:
+    if args_in.genomic_interval is None and args_in.interval_list is None:
+        # no genomic interval or interval list provided
         # run pileup_featuremap on the whole file
         pileup_featuremap(
             featuremap=args_in.featuremap,
@@ -101,7 +102,8 @@ def run(argv: list[str]):
             qual_agg_func=args_in.qual_agg_func,
         )
     elif args_in.genomic_interval is not None and args_in.interval_list is None:
-        # run pileup_featuremap on the interval list
+        # only genomic_interval provided
+        # run pileup_featuremap on the genomic_interval
         pileup_featuremap(
             featuremap=args_in.featuremap,
             output_vcf=args_in.output_vcf,
@@ -111,6 +113,7 @@ def run(argv: list[str]):
             qual_agg_func=args_in.qual_agg_func,
         )
     elif args_in.genomic_interval is None and args_in.interval_list is not None:
+        # only interval_list provided
         # run pileup_featuremap on the interval list
         pileup_featuremap_on_an_interval_list(
             featuremap=args_in.featuremap,

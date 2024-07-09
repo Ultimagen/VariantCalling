@@ -97,12 +97,18 @@ def write_a_pileup_record(
             rec.info[field] = "|".join(["T" if f else "F" for f in record_dict[field]])
     for field in fields_to_collect["fields_to_write_once"]:
         if field in record_dict:
-            if all(f == record_dict[field][0] for f in record_dict[field]):
-                rec.info[field] = record_dict[field][0]
+            rec.info[field] = record_dict[field][0]
+            if not all(f == record_dict[field][0] for f in record_dict[field]):
+                raise ValueError(
+                    f"Field {field} has multiple values, but expected to have only a single value. rec: {record_dict}"
+                )
     for field in fields_to_collect["boolean_fields_to_write_once"]:
         if field in record_dict:
-            if all(f == record_dict[field][0] for f in record_dict[field]):
-                rec.info[field] = record_dict[field][0]
+            rec.info[field] = record_dict[field][0]
+            if not all(f == record_dict[field][0] for f in record_dict[field]):
+                raise ValueError(
+                    f"Field {field} has multiple values, but expected to have only a single value. rec: {record_dict}"
+                )
 
     # FORMAT fields to aggregate
     record_dict[DP] = rec.info[FeatureMapFields.FILTERED_COUNT.value]
