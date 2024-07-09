@@ -26,9 +26,6 @@ boto3 = "1.34.49"
 pandas = {version = "^2.1.4", extras = ["hdf5"]}
 papermill = "^2.5.0"
 jupyter = "^1.0.0"
-_py-xgboost-mutex = "^2.0"
-libxgboost = "^2.0.3"
-py-xgboost = "^2.0.3"
 xgboost = "^2.0.3"
 
 [build-system]
