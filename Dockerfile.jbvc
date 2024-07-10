@@ -29,6 +29,11 @@ RUN source ~/.bashrc && \
     conda activate genomics.py3 && \
     pip install mpld3==0.5.1
 
+RUN source ~/.bashrc && \
+    conda activate genomics.py3 && \
+    SigProfilerMatrixGenerator install GRCh37 &&  \
+    SigProfilerMatrixGenerator install GRCh38
+
 COPY . /VariantCalling
 
 RUN source ~/.bashrc && \
