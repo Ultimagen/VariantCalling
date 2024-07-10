@@ -205,65 +205,65 @@ def pileup_featuremap(
     out_fh = pysam.VariantFile(output_vcf, "w", header=header)
 
     # sort the vcf file prior to reading
-    sorted_featuremap = featuremap.replace(".vcf.gz", ".sorted.vcf.gz")
-    sort_cmd = f"bcftools sort {featuremap} -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
-    logger.debug(sort_cmd)
-    subprocess.check_call(sort_cmd, shell=True)
+    with tempfile.TemporaryDirectory(dir=dirname(output_vcf)) as temp_dir:
+        sorted_featuremap = pjoin(temp_dir, basename(featuremap).replace(".vcf.gz", ".sorted.vcf.gz"))
+        sort_cmd = f"bcftools sort {featuremap} -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
+        logger.debug(sort_cmd)
+        subprocess.check_call(sort_cmd, shell=True)
 
-    cons_dict = defaultdict(dict)
-    with pysam.VariantFile(sorted_featuremap) as f:
-        prev_key = tuple()
-        for rec in f.fetch(chrom, start, end):
-            rec_id = (rec.chrom, rec.pos, rec.ref, rec.alts[0])
-            if "rec_counter" not in cons_dict[rec_id]:
-                if len(cons_dict.keys()) > 1:
-                    # write to file
-                    write_a_pileup_record(
-                        cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func
-                    )
-                    cons_dict.pop(prev_key)
-                # initialize rec_counter
-                cons_dict[rec_id]["rec_counter"] = 0
+        cons_dict = defaultdict(dict)
+        with pysam.VariantFile(sorted_featuremap) as f:
+            prev_key = tuple()
+            for rec in f.fetch(chrom, start, end):
+                rec_id = (rec.chrom, rec.pos, rec.ref, rec.alts[0])
+                if "rec_counter" not in cons_dict[rec_id]:
+                    if len(cons_dict.keys()) > 1:
+                        # write to file
+                        write_a_pileup_record(
+                            cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func
+                        )
+                        cons_dict.pop(prev_key)
+                    # initialize rec_counter
+                    cons_dict[rec_id]["rec_counter"] = 0
+                    # exceptions: X_QUAL
+                    cons_dict[rec_id][FeatureMapFields.X_QUAL.value] = np.array([])
+                    for field in fields_to_collect["numeric_array_fields"]:
+                        cons_dict[rec_id][field] = np.array([])
+                    for field in fields_to_collect["string_list_fields"]:
+                        cons_dict[rec_id][field] = []
+                    for field in fields_to_collect["boolean_fields"]:
+                        cons_dict[rec_id][field] = []
+                    for field in fields_to_collect["fields_to_write_once"]:
+                        cons_dict[rec_id][field] = []
+                    for field in fields_to_collect["boolean_fields_to_write_once"]:
+                        cons_dict[rec_id][field] = []
+
+                # update the record
+                cons_dict[rec_id]["rec_counter"] += 1
                 # exceptions: X_QUAL
-                cons_dict[rec_id][FeatureMapFields.X_QUAL.value] = np.array([])
+                cons_dict[rec_id][FeatureMapFields.X_QUAL.value] = np.append(
+                    cons_dict[rec_id][FeatureMapFields.X_QUAL.value], rec.qual
+                )
                 for field in fields_to_collect["numeric_array_fields"]:
-                    cons_dict[rec_id][field] = np.array([])
+                    cons_dict[rec_id][field] = np.append(cons_dict[rec_id][field], rec.info[field])
                 for field in fields_to_collect["string_list_fields"]:
-                    cons_dict[rec_id][field] = []
+                    cons_dict[rec_id][field] += [rec.info.get(field, ".")]
                 for field in fields_to_collect["boolean_fields"]:
-                    cons_dict[rec_id][field] = []
+                    cons_dict[rec_id][field] += [rec.info.get(field, False)]
                 for field in fields_to_collect["fields_to_write_once"]:
-                    cons_dict[rec_id][field] = []
+                    cons_dict[rec_id][field] += [rec.info[field]]
                 for field in fields_to_collect["boolean_fields_to_write_once"]:
-                    cons_dict[rec_id][field] = []
+                    cons_dict[rec_id][field] += [rec.info.get(field, False)]
+                prev_key = rec_id
 
-            # update the record
-            cons_dict[rec_id]["rec_counter"] += 1
-            # exceptions: X_QUAL
-            cons_dict[rec_id][FeatureMapFields.X_QUAL.value] = np.append(
-                cons_dict[rec_id][FeatureMapFields.X_QUAL.value], rec.qual
-            )
-            for field in fields_to_collect["numeric_array_fields"]:
-                cons_dict[rec_id][field] = np.append(cons_dict[rec_id][field], rec.info[field])
-            for field in fields_to_collect["string_list_fields"]:
-                cons_dict[rec_id][field] += [rec.info.get(field, ".")]
-            for field in fields_to_collect["boolean_fields"]:
-                cons_dict[rec_id][field] += [rec.info.get(field, False)]
-            for field in fields_to_collect["fields_to_write_once"]:
-                cons_dict[rec_id][field] += [rec.info[field]]
-            for field in fields_to_collect["boolean_fields_to_write_once"]:
-                cons_dict[rec_id][field] += [rec.info.get(field, False)]
-            prev_key = rec_id
+            # write last record
+            if len(cons_dict.keys()) > 0:
+                write_a_pileup_record(
+                    cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func
+                )
 
-        # write last record
-        if len(cons_dict.keys()) > 0:
-            write_a_pileup_record(cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func)
-
-    out_fh.close()
-    pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
-    # remove sorted featuremap
-    os.remove(sorted_featuremap)
-    os.remove(sorted_featuremap + ".tbi")
+        out_fh.close()
+        pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
     return output_vcf
 
 
