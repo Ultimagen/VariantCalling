@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from os.path import join as pjoin
 from test import get_resource_dir
 
@@ -13,10 +14,10 @@ inputs_dir = get_resource_dir(__file__)
 @pytest.mark.parametrize(
     "genomic_interval, interval_list, expected_num_variants",
     [
-        ("chr19:1-400000", None, 74),
-        (None, None, 556),
+        ("chr19:1-400000", None, 66),
+        (None, None, 477),
         ("chr2:1-1000", None, 0),
-        (None, pjoin(inputs_dir, "scattered.interval_list"), 556),
+        (None, pjoin(inputs_dir, "scattered.interval_list"), 477),
     ],
 )
 def test_pileup_featuremap(
@@ -46,7 +47,14 @@ def test_pileup_featuremap(
     # check that the output file exists and has the expected content
     assert os.path.isfile(pileup_featuremap_vcf)
     # count the number of variants (excluding the header)
-    num_variants = 0
-    for _ in pysam.VariantFile(pileup_featuremap_vcf):
-        num_variants += 1
+    cons_dict = defaultdict(dict)
+    for rec in pysam.VariantFile(pileup_featuremap_vcf):
+        rec_id = (rec.chrom, rec.pos, rec.ref, rec.alts[0])
+        if rec_id not in cons_dict:
+            cons_dict[rec_id]["count"] = 0
+        cons_dict[rec_id]["count"] += 1
+    # check the number of variants
+    num_variants = len(cons_dict)
     assert num_variants == expected_num_variants
+    # assert a single entry per variant
+    assert all(cons["count"] == 1 for cons in cons_dict.values())

@@ -204,8 +204,14 @@ def pileup_featuremap(
     # open an output file
     out_fh = pysam.VariantFile(output_vcf, "w", header=header)
 
+    # sort the vcf file prior to reading
+    sorted_featuremap = featuremap.replace(".vcf.gz", ".sorted.vcf.gz")
+    sort_cmd = f"bcftools sort {featuremap} -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
+    logger.debug(sort_cmd)
+    subprocess.check_call(sort_cmd, shell=True)
+
     cons_dict = defaultdict(dict)
-    with pysam.VariantFile(featuremap) as f:
+    with pysam.VariantFile(sorted_featuremap) as f:
         prev_key = tuple()
         for rec in f.fetch(chrom, start, end):
             rec_id = (rec.chrom, rec.pos, rec.ref, rec.alts[0])
@@ -255,6 +261,9 @@ def pileup_featuremap(
 
     out_fh.close()
     pysam.tabix_index(output_vcf, preset="vcf", min_shift=0, force=True)
+    # remove sorted featuremap
+    os.remove(sorted_featuremap)
+    os.remove(sorted_featuremap + ".tbi")
     return output_vcf
 
 
