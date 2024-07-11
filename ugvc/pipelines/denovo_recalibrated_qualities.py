@@ -23,7 +23,7 @@ from ugvc.joint import denovo_refinement
 
 
 def run(argv: list):
-    "Add recalibrated through somatic calling qualities to the annotated de novo VCF"
+    "Add qualities recalibrated through somatic calling to the annotated de novo VCF"
     denovo_refinement.main(argv[1:])
 
 

@@ -36,7 +36,7 @@ def get_parental_vcf_df(maternal_vcfs: dict, paternal_vcfs: dict) -> pd.DataFram
     return parent_df
 
 
-def add_paternal_qualities_to_denovo_vcf(denovo_vcf: str, parental_vcf_df: pd.DataFrame) -> pd.DataFrame:
+def add_parental_qualities_to_denovo_vcf(denovo_vcf: str, parental_vcf_df: pd.DataFrame) -> pd.DataFrame:
     """Add recalibrated quality (from child/parent calling to the denovo VCF
 
     Parameters
@@ -57,7 +57,10 @@ def add_paternal_qualities_to_denovo_vcf(denovo_vcf: str, parental_vcf_df: pd.Da
     df_denovo_exp["denovosample"] = np.where(
         pd.isnull(df_denovo_exp["hiconfdenovo"]), df_denovo_exp["loconfdenovo"], df_denovo_exp["hiconfdenovo"]
     )
-    called_samples = set(x[:-7] for x in df_denovo_exp.columns if x.endswith("mother"))
+    called_samples_mother = set(x[:-7] for x in df_denovo_exp.columns if x.endswith("mother"))
+    called_samples_father = set(x[:-7] for x in df_denovo_exp.columns if x.endswith("father"))
+    assert called_samples_mother == called_samples_father, "Mismatch between maternal and paternal samples"
+    called_samples = called_samples_mother
     incalled = df_denovo_exp["denovosample"].apply(lambda x: x in called_samples)
     df_denovo_exp = df_denovo_exp.loc[incalled]
     assert (
@@ -117,5 +120,5 @@ def main(argv: list[str]):
         paternal_vcfs = json.load(f)
 
     parent_df = get_parental_vcf_df(maternal_vcfs, paternal_vcfs)
-    recalibrated_denovo = add_paternal_qualities_to_denovo_vcf(args.denovo_vcf, parent_df)
+    recalibrated_denovo = add_parental_qualities_to_denovo_vcf(args.denovo_vcf, parent_df)
     write_recalibrated_vcf(args.denovo_vcf, args.recalibrated_vcf, recalibrated_denovo.sort_index())
