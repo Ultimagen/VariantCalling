@@ -16,6 +16,7 @@ from simppl.simple_pipeline import SimplePipeline
 import ugvc.dna.utils as dnautils
 import ugvc.flow_format.flow_based_read as flowBasedRead
 import ugvc.utils.misc_utils as utils
+from ugvc import logger
 from ugvc.dna.format import (
     CYCLE_SKIP,
     CYCLE_SKIP_DTYPE,
@@ -133,20 +134,26 @@ class VcfAnnotator(ABC):
         process_number : int, optional
             Number of processes to use. If N < 1, use all-available - abs(N) cores. Defaults to 1.
         """
+        logger.info(f"Processing VCF file {input_path} with {len(annotators)} annotators")
         # pickle the annotators
+        logger.info(f"Pickling annotators to {output_path}.annotators.pickle")
         annotators_pickle = output_path + ".annotators.pickle"
         with open(annotators_pickle, "wb") as f:
             pickle.dump(annotators, f)
 
         out_dir = os.path.dirname(output_path)
         # Open the input VCF file
+        logger.info(f"Reading input VCF file {input_path}")
         with pysam.VariantFile(input_path) as input_variant_file:
+            logger.info(f"Reading and modifying header of {input_path}")
             new_header = input_variant_file.header
             for annotator in annotators:
                 new_header = annotator.edit_vcf_header(new_header)
 
             # Get the contigs
+            logger.info("Getting contigs")
             contigs = list(input_variant_file.header.contigs)
+            logger.info(f"Total number of contigs: {len(contigs)}")
             tmp_output_paths = []
             sp = SimplePipeline(0, 100, debug=False)
             commands = []
@@ -162,18 +169,24 @@ class VcfAnnotator(ABC):
                     tmp_output_paths.append(out_per_contig)
                 except StopIteration:
                     pass
+            logger.info(f"Total number of contigs with variants: {len(tmp_output_paths)}")
+            logger.info(f"Processing {len(tmp_output_paths)} contigs using {process_number} processes")
             # process_number<1 it is interpreted as all the CPUs except -process_number
             if process_number < 1:
                 process_number = multiprocessing.cpu_count() + process_number
 
             if process_number > 1:  # multiprocessing
+                logger.info(f"The following commands will run:\n{os.linesep.join(commands)}")
                 sp.run_parallel(commands, process_number)
             else:
                 for command in commands:
+                    logger.info(f"Running command: {command}")
                     sp.print_and_run(command)
             # Merge the temporary output files into the final output file and remove them
+            logger.info(f"Merging temporary output files into the final output file {output_path}")
             VcfAnnotator.merge_temp_files(tmp_output_paths, output_path, new_header)
             # Create a tabix index for the final output file
+            logger.info(f"Creating tabix index for the final output file {output_path}")
             pysam.tabix_index(output_path, preset="vcf", force=True)
 
     @staticmethod
