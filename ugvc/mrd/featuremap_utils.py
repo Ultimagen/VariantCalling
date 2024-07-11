@@ -32,6 +32,9 @@ class FeatureMapFields(Enum):
     X_MAPQ = "X_MAPQ"
     X_INDEX = "X_INDEX"
     X_FC1 = "X_FC1"
+    X_FC2 = "X_FC2"
+    X_QUAL = "X_QUAL"
+    X_RN = "X_RN"
     TRINUC_CONTEXT_WITH_ALT = "trinuc_context_with_alt"
     HMER_CONTEXT_REF = "hmer_context_ref"
     HMER_CONTEXT_ALT = "hmer_context_alt"
@@ -47,6 +50,13 @@ class FeatureMapFields(Enum):
     NEXT_1 = "next_1"
     NEXT_2 = "next_2"
     NEXT_3 = "next_3"
+
+
+class FeatureMapFilters(Enum):
+    LOW_QUAL = "LowQual"
+    SINGLE_READ = "SingleRead"
+    PASS = "PASS"
+    PRE_FILTERED = "PreFiltered"
 
 
 def get_hmer_of_central_base(sequence: str) -> int:

@@ -18,15 +18,12 @@ from ugvc.mrd.srsnv_training_utils import (
     k_fold_predict_proba,
     set_categorical_columns,
 )
+from ugvc.mrd.featuremap_utils import FeatureMapFilters
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # TODO add tests for the inference module
 
 ML_QUAL = "ML_QUAL"
-PASS = "PASS"
-LOW_QUAL = "LowQual"
-PRE_FILTERED = "PreFiltered"
-
 LOW_QUAL_THRESHOLD = 40
 
 
@@ -130,7 +127,7 @@ class MLQualAnnotator(VcfAnnotator):
             ],
         )
         header.filters.add(
-            id=LOW_QUAL,
+            id=FeatureMapFilters.LOW_QUAL.value,
             number=None,
             type=None,
             description=f"SNV quality is below {self.low_qual_threshold}",
@@ -138,7 +135,7 @@ class MLQualAnnotator(VcfAnnotator):
         if self.pre_filter:
             sanitized_pre_filter = sanitize_for_vcf_general(self.pre_filter)
             header.filters.add(
-                id=PRE_FILTERED,
+                id=FeatureMapFilters.PRE_FILTERED.value,
                 number=None,
                 type=None,
                 description=f"Variant failed SRSNV pre-filter: {sanitized_pre_filter}",
@@ -220,11 +217,11 @@ class MLQualAnnotator(VcfAnnotator):
 
                 # Add a filter
                 if qual >= self.low_qual_threshold:
-                    variant.filter.add(PASS)
+                    variant.filter.add(FeatureMapFilters.PASS.value)
                 elif qual > 0 or not self.pre_filter:
-                    variant.filter.add(LOW_QUAL)
+                    variant.filter.add(FeatureMapFilters.LOW_QUAL.value)
                 else:
-                    variant.filter.add(PRE_FILTERED)
+                    variant.filter.add(FeatureMapFilters.PRE_FILTERED.value)
         return records
 
 
