@@ -25,6 +25,7 @@ from ugvc.pipelines import (
     convert_haploid_regions,
     correct_genotypes_by_imputation,
     coverage_analysis,
+    denovo_recalibrated_qualities,
     evaluate_concordance,
     filter_variants_pipeline,
     run_comparison_pipeline,
@@ -105,7 +106,7 @@ methylation_modules = [
     process_perRead,
 ]
 
-joint_modules = [compress_gvcf]
+joint_modules = [compress_gvcf, denovo_recalibrated_qualities]
 
 
 misc_modules = [
