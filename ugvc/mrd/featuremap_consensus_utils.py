@@ -154,7 +154,7 @@ def pileup_featuremap(
     Output:
         output_vcf (str): The output vcf file
     """
-    cons_dict = defaultdict(dict)
+
     # process genomic interval input
     if genomic_interval is None:
         chrom = None
@@ -207,7 +207,13 @@ def pileup_featuremap(
     # sort the vcf file prior to reading
     with tempfile.TemporaryDirectory(dir=dirname(output_vcf)) as temp_dir:
         sorted_featuremap = pjoin(temp_dir, basename(featuremap).replace(".vcf.gz", ".sorted.vcf.gz"))
-        sort_cmd = f"bcftools sort {featuremap} -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
+        if genomic_interval is None:
+            # sort all featuremap
+            sort_cmd = f"bcftools sort {featuremap} -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
+        else:
+            # sort only the genomic interval of interest
+            sort_cmd = f"bcftools view {featuremap} {genomic_interval} |\
+                  bcftools sort - -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
         logger.debug(sort_cmd)
         subprocess.check_call(sort_cmd, shell=True)
 
