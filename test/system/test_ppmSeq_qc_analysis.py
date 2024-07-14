@@ -4,7 +4,7 @@ from test import get_resource_dir
 from ugvc.pipelines.mrd import ppmSeq_qc_analysis
 
 
-def test_ppmSeq_analysis_ppmSeq_v1(tmpdir):
+def test_ppmSeq_analysis_ppmSeq_legacy_v5(tmpdir):
     resource_dir = get_resource_dir(__file__)
     trimmer_histogram = pjoin(
         resource_dir,
@@ -39,7 +39,7 @@ def test_ppmSeq_analysis_ppmSeq_v1(tmpdir):
     )
 
 
-def test_ppmSeq_analysis_ppmSeq_v2(tmpdir):
+def test_ppmSeq_analysis_ppmSeq_v1(tmpdir):
     resource_dir = get_resource_dir(__file__)
     trimmer_histogram = pjoin(
         resource_dir,
