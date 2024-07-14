@@ -84,6 +84,14 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         default=np.max,
         help="""Function to aggregate quality scores (default: np.max)""",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        type=bool,
+        required=False,
+        default=True,
+        help="""Whether to print debug messages (default: True)""",
+    )
     return parser.parse_args(argv[1:])
 
 
@@ -100,6 +108,7 @@ def run(argv: list[str]):
             min_qual=args_in.min_qual,
             sample_name=args_in.sample_name,
             qual_agg_func=args_in.qual_agg_func,
+            verbose=args_in.verbose,
         )
     elif args_in.genomic_interval is not None and args_in.interval_list is None:
         # only genomic_interval provided
@@ -111,6 +120,7 @@ def run(argv: list[str]):
             min_qual=args_in.min_qual,
             sample_name=args_in.sample_name,
             qual_agg_func=args_in.qual_agg_func,
+            verbose=args_in.verbose,
         )
     elif args_in.genomic_interval is None and args_in.interval_list is not None:
         # only interval_list provided
@@ -122,4 +132,5 @@ def run(argv: list[str]):
             min_qual=args_in.min_qual,
             sample_name=args_in.sample_name,
             qual_agg_func=args_in.qual_agg_func,
+            verbose=args_in.verbose,
         )
