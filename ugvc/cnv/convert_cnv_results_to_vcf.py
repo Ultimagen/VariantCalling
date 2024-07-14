@@ -121,9 +121,9 @@ def run(argv):
             if len(filters)>0 :
                 for f in filters:
                     record.filter.add(f)
-                CONFIDENCE='MEDIUM'
+                CONFIDENCE='FAIL'
                 if len(filters)>1 :
-                    CONFIDENCE='LOW'
+                    CONFIDENCE='FAIL'
             else:
                 record.filter.add('PASS')
           
