@@ -1946,14 +1946,14 @@ def ppmSeq_qc_analysis(
         )
         illustration_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/ppm_seq/ppmSeq_v1_illustration.png"
+            "reports/ppm_seq/ppmSeq_legacy_v5_illustration.png"
             if adapter_version
             in (
                 ppmSeqAdapterVersions.LEGACY_V5_START.value,
                 ppmSeqAdapterVersions.LEGACY_V5.value,
                 ppmSeqAdapterVersions.LEGACY_V5_END.value,
             )
-            else "reports/ppm_seq/ppmSeq_v2_illustration.png",
+            else "reports/ppm_seq/ppmSeq_v1_illustration.png",
         )
         parameters = dict(
             adapter_version=(adapter_version if isinstance(adapter_version, str) else adapter_version.value),

@@ -35,41 +35,41 @@ expected_output_featuremap_legacy_v5 = pjoin(
     inputs_dir,
     "333_CRCs_39_legacy_v5.featuremap.single_substitutions.subsample.with_strand_ratios.vcf.gz",
 )
-sorter_stats_csv_ppmSeq_v2 = pjoin(inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.csv")
-sorter_stats_json_ppmSeq_v2 = pjoin(inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.json")
-trimmer_failure_codes_csv_ppmSeq_v2 = pjoin(
+sorter_stats_csv_ppmSeq_v1 = pjoin(inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.csv")
+sorter_stats_json_ppmSeq_v1 = pjoin(inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.json")
+trimmer_failure_codes_csv_ppmSeq_v1 = pjoin(
     inputs_dir, "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.failure_codes.csv"
 )
-trimmer_histogram_ppmSeq_v2_csv = pjoin(
+trimmer_histogram_ppmSeq_v1_csv = pjoin(
     inputs_dir,
     "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT."
     "Start_loop.Start_loop.End_loop.End_loop.native_adapter.histogram.csv",
 )
-parsed_histogram_parquet_ppmSeq_v2 = pjoin(
+parsed_histogram_parquet_ppmSeq_v1 = pjoin(
     inputs_dir,
     "037239-CgD1502_Cord_Blood-Z0032-CTCTGTATTGCAGAT.parsed_histogram.parquet",
 )
 
-sorter_stats_csv_ppmSeq_v2_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.csv")
-sorter_stats_json_ppmSeq_v2_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.json")
-trimmer_failure_codes_csv_ppmSeq_v2_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.failure_codes.csv")
-trimmer_histogram_ppmSeq_v2_amp = pjoin(
+sorter_stats_csv_ppmSeq_v1_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.csv")
+sorter_stats_json_ppmSeq_v1_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.json")
+trimmer_failure_codes_csv_ppmSeq_v1_amp = pjoin(inputs_dir, "400808-Lb_2768-Z0035-CTGAATGATCTCGAT.failure_codes.csv")
+trimmer_histogram_ppmSeq_v1_amp = pjoin(
     inputs_dir,
     "400808-Lb_2768-Z0035-CTGAATGATCTCGAT."
     "Start_loop_name.Start_loop_pattern_fw.End_loop_name.End_loop_pattern_fw.Stem_end_length.histogram.csv",
 )
-trimmer_histogram_extra_ppmSeq_v2_amp = pjoin(
+trimmer_histogram_extra_ppmSeq_v1_amp = pjoin(
     inputs_dir,
     "400762-Lb_2752-Z0123-CAGATCGCCACAGAT.subsample.Dumbbell_leftover_start_match.hist.csv",
 )  # it's not the same file but the right format
 
 subdir = pjoin(inputs_dir, "401057001")
-sorter_stats_csv_ppmSeq_v2_401057001 = pjoin(subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT.csv")
-sorter_stats_json_ppmSeq_v2_401057001 = pjoin(subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT.json")
-trimmer_failure_codes_csv_ppmSeq_v2_401057001 = pjoin(
+sorter_stats_csv_ppmSeq_v1_401057001 = pjoin(subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT.csv")
+sorter_stats_json_ppmSeq_v1_401057001 = pjoin(subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT.json")
+trimmer_failure_codes_csv_ppmSeq_v1_401057001 = pjoin(
     subdir, "401057001-Lb_2772-Z0016-CATCCTGTGCGCATGAT_trimmer-failure_codes.csv"
 )
-trimmer_histogram_ppmSeq_v2_401057001 = pjoin(
+trimmer_histogram_ppmSeq_v1_401057001 = pjoin(
     subdir,
     "Z0016-Start_loop_name.Start_loop_pattern_fw.End_loop_name.End_loop_pattern_fw.native_adapter_length.histogram.csv",
 )
@@ -80,16 +80,16 @@ def _assert_files_are_identical(file1, file2):
         assert f1.read() == f2.read()
 
 
-def test_read_ppmSeq_v2_trimmer_histogram(tmpdir):
+def test_read_ppmSeq_v1_trimmer_histogram(tmpdir):
     tmp_out_path = pjoin(tmpdir, "tmp_out.parquet")
     df_trimmer_histogram = read_ppmSeq_trimmer_histogram(
         ppmSeqAdapterVersions.V1,
-        trimmer_histogram_ppmSeq_v2_csv,
+        trimmer_histogram_ppmSeq_v1_csv,
         output_filename=tmp_out_path,
         legacy_histogram_column_names=True,
     )
     df_trimmer_histogram_from_parquet = pd.read_parquet(tmp_out_path)
-    df_trimmer_histogram_expected = pd.read_parquet(parsed_histogram_parquet_ppmSeq_v2)
+    df_trimmer_histogram_expected = pd.read_parquet(parsed_histogram_parquet_ppmSeq_v1)
     assert_frame_equal(
         df_trimmer_histogram,
         df_trimmer_histogram_expected,
@@ -100,7 +100,7 @@ def test_read_ppmSeq_v2_trimmer_histogram(tmpdir):
     )
 
 
-def test_read_ppmSeq_v1_trimmer_histogram(tmpdir):
+def test_read_ppmSeq_legacy_v5_trimmer_histogram(tmpdir):
     tmp_out_path = pjoin(tmpdir, "tmp_out.parquet")
     df_trimmer_histogram = read_ppmSeq_trimmer_histogram(
         ppmSeqAdapterVersions.LEGACY_V5,
@@ -120,7 +120,7 @@ def test_read_ppmSeq_v1_trimmer_histogram(tmpdir):
     )
 
 
-def test_read_ppmSeq_legacy_v5_trimmer_histogram(tmpdir):
+def test_read_ppmSeq_legacy_v5_start_trimmer_histogram(tmpdir):
     tmp_out_path = pjoin(tmpdir, "tmp_out.parquet")
 
     df_trimmer_histogram = read_ppmSeq_trimmer_histogram(
@@ -313,10 +313,10 @@ def test_ppmSeq_analysis_legacy_v5(tmpdir):
 def test_ppmSeq_analysis_dmbl(tmpdir):
     ppmSeq_qc_analysis(
         ppmSeqAdapterVersions.DMBL,
-        trimmer_histogram_csv=[trimmer_histogram_ppmSeq_v2_amp],
-        trimmer_histogram_extra_csv=[trimmer_histogram_extra_ppmSeq_v2_amp],
-        sorter_stats_csv=sorter_stats_csv_ppmSeq_v2_amp,
-        trimmer_failure_codes_csv=trimmer_failure_codes_csv_ppmSeq_v2_amp,
+        trimmer_histogram_csv=[trimmer_histogram_ppmSeq_v1_amp],
+        trimmer_histogram_extra_csv=[trimmer_histogram_extra_ppmSeq_v1_amp],
+        sorter_stats_csv=sorter_stats_csv_ppmSeq_v1_amp,
+        trimmer_failure_codes_csv=trimmer_failure_codes_csv_ppmSeq_v1_amp,
         output_path=tmpdir,
         output_basename="TEST_DMBL",
     )
@@ -325,9 +325,9 @@ def test_ppmSeq_analysis_dmbl(tmpdir):
 def test_ppmSeq_analysis_v1(tmpdir):
     ppmSeq_qc_analysis(
         ppmSeqAdapterVersions.V1,
-        trimmer_histogram_csv=[trimmer_histogram_ppmSeq_v2_401057001],
-        sorter_stats_csv=sorter_stats_csv_ppmSeq_v2_401057001,
-        trimmer_failure_codes_csv=trimmer_failure_codes_csv_ppmSeq_v2_401057001,
+        trimmer_histogram_csv=[trimmer_histogram_ppmSeq_v1_401057001],
+        sorter_stats_csv=sorter_stats_csv_ppmSeq_v1_401057001,
+        trimmer_failure_codes_csv=trimmer_failure_codes_csv_ppmSeq_v1_401057001,
         output_path=tmpdir,
         output_basename="TEST_v1",
     )
