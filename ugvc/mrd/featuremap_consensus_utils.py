@@ -14,8 +14,8 @@ import pysam
 
 from ugvc import logger
 from ugvc.dna.format import AD, DP, GT, VAF
-from ugvc.mrd.balanced_strand_utils import HistogramColumnNames  # update to ppmSeq_utils
 from ugvc.mrd.featuremap_utils import FeatureMapFields, FeatureMapFilters
+from ugvc.mrd.ppmSeq_utils import HistogramColumnNames
 
 fields_to_collect_all_options = {
     "numeric_array_fields": [
