@@ -46,4 +46,4 @@ COPY --from=build /opt/venv /opt/venv
 COPY . .
 COPY ./setup/ppmseq/pyproject.toml ./pyproject.toml
 
-ENTRYPOINT [ "/opt/venv/bin/python", "/app/VariantCalling/ugvc/pipelines/mrd/balanced_strand_analysis.py" ]
+ENTRYPOINT [ "/opt/venv/bin/python", "/app/VariantCalling/ugvc/pipelines/mrd/ppmSeq_qc_analysis.py" ]

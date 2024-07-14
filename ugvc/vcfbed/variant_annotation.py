@@ -16,6 +16,7 @@ from simppl.simple_pipeline import SimplePipeline
 import ugvc.dna.utils as dnautils
 import ugvc.flow_format.flow_based_read as flowBasedRead
 import ugvc.utils.misc_utils as utils
+from ugvc import logger
 from ugvc.dna.format import (
     CYCLE_SKIP,
     CYCLE_SKIP_DTYPE,
@@ -133,22 +134,27 @@ class VcfAnnotator(ABC):
         process_number : int, optional
             Number of processes to use. If N < 1, use all-available - abs(N) cores. Defaults to 1.
         """
+        logger.info(f"Starting VCF annotation with {len(annotators)} annotators")
         # pickle the annotators
+        logger.info(f"Pickling annotators to {output_path}.annotators.pickle")
         annotators_pickle = output_path + ".annotators.pickle"
         with open(annotators_pickle, "wb") as f:
             pickle.dump(annotators, f)
 
         out_dir = os.path.dirname(output_path)
         # Open the input VCF file
+        logger.info(f"Reading input VCF file {input_path}")
         with pysam.VariantFile(input_path) as input_variant_file:
+            logger.info("Reading and editing input VCF header")
             new_header = input_variant_file.header
             for annotator in annotators:
                 new_header = annotator.edit_vcf_header(new_header)
 
             # Get the contigs
+            logger.info("Getting contigs")
             contigs = list(input_variant_file.header.contigs)
             tmp_output_paths = []
-            sp = SimplePipeline(0, 100, debug=False)
+            sp = SimplePipeline(0, 100)
             commands = []
             ugvc_path = os.path.dirname(os.path.dirname(__file__))
             for contig in contigs:

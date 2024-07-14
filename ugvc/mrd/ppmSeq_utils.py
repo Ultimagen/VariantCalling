@@ -24,12 +24,12 @@ STRAND_RATIO_AXIS_LABEL = "MINUS strand ratio"
 
 
 # Supported adapter versions
-class BalancedStrandAdapterVersions(Enum):
-    LA_v5 = "LA_v5"
-    LA_v5and6 = "LA_v5and6"
-    LA_v6 = "LA_v6"
-    LA_v7 = "LA_v7"
-    LA_v7_amp_dumbbell = "LA_v7_amp_dumbbell"
+class ppmSeqAdapterVersions(Enum):
+    LEGACY_V5_START = "legacy_v5_start"
+    LEGACY_V5 = "legacy_v5"
+    LEGACY_V5_END = "legacy_v5_end"
+    V1 = "v1"
+    DMBL = "dmbl"
 
 
 # Trimmer segment labels and tags
@@ -61,7 +61,7 @@ class TrimmerHistogramSuffixes(Enum):
     MATCH = "_match"
 
 
-class BalancedCategories(Enum):
+class ppmSeqCategories(Enum):
     # Category names
     MIXED = "MIXED"
     MINUS = "MINUS"
@@ -70,7 +70,7 @@ class BalancedCategories(Enum):
     UNDETERMINED = "UNDETERMINED"
 
 
-class BalancedCategoriesConsensus(Enum):
+class ppmSeqCategoriesConsensus(Enum):
     # Category names
     MIXED = "MIXED"
     MINUS = "MINUS"
@@ -93,7 +93,7 @@ class HistogramColumnNames(Enum):
     LOOP_SEQUENCE_END = "loop_sequence_end"
 
 
-# Input parameter defaults for LAv5+6, LAv5 and LAv6
+# Input parameter defaults for legacy_v5
 STRAND_RATIO_LOWER_THRESH = 0.27
 STRAND_RATIO_UPPER_THRESH = 0.73
 MIN_TOTAL_HMER_LENGTHS_IN_LOOPS = 4
@@ -101,10 +101,10 @@ MAX_TOTAL_HMER_LENGTHS_IN_LOOPS = 8
 MIN_STEM_END_MATCHED_LENGTH = 11  # the stem is 12bp, 1 indel allowed as tolerance
 
 
-class BalancedStrandVcfAnnotator(VcfAnnotator):
+class ppmSeqStrandVcfAnnotator(VcfAnnotator):
     def __init__(
         self,
-        adapter_version: str | BalancedStrandAdapterVersions,
+        adapter_version: str | ppmSeqAdapterVersions,
         sr_lower: float = STRAND_RATIO_LOWER_THRESH,
         sr_upper: float = STRAND_RATIO_UPPER_THRESH,
         min_total_hmer_lengths_in_loops: int = MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
@@ -113,7 +113,7 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
     ):
         _assert_adapter_version_supported(adapter_version)
         self.adapter_version = (
-            adapter_version.value if isinstance(adapter_version, BalancedStrandAdapterVersions) else adapter_version
+            adapter_version.value if isinstance(adapter_version, ppmSeqAdapterVersions) else adapter_version
         )
         self.sr_lower = sr_lower
         self.sr_upper = sr_upper
@@ -136,7 +136,7 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
             VCF header with strand ratio and strand ratio category INFO fields
 
         """
-        header.add_line(f"##balanced_strand_adapter_version={self.adapter_version}")
+        header.add_line(f"##ppmSeq_adapter_version={self.adapter_version}")
         header.add_line(
             f"##python_cmd:add_strand_ratios_and_categories_to_featuremap=MIXED is {self.sr_lower}-{self.sr_upper}"
         )
@@ -156,17 +156,17 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
             id=HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
             type="String",
             number=1,
-            description="Balanced read category derived from the ratio of MINUS and PLUS strands "
+            description="ppmSeq read category derived from the ratio of MINUS and PLUS strands "
             "measured from the tag in the start of the read, options: "
-            f'{", ".join(balanced_category_list)}',
+            f'{", ".join(ppmSeq_category_list)}',
         )
         header.info.add(
             id=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
             type="String",
             number=1,
-            description="Balanced read category derived from the ratio of MINUS and PLUS strands "
+            description="ppmSeq read category derived from the ratio of MINUS and PLUS strands "
             "measured from the tag in the end of the read, options: "
-            f'{", ".join(balanced_category_list)}',
+            f'{", ".join(ppmSeq_category_list)}',
         )
         return header
 
@@ -186,19 +186,19 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
         """
         records_out = [None] * len(records)
         for j, record in enumerate(records):
-            # get the balanced tags from the VCF record
-            balanced_tags = defaultdict(int)
+            # get the ppmSeq tags from the VCF record
+            ppmSeq_tags = defaultdict(int)
             for x in [v.value for v in TrimmerSegmentTags.__members__.values()]:
                 if x in record.info:
-                    balanced_tags[x] = int(record.info.get(x))
+                    ppmSeq_tags[x] = int(record.info.get(x))
             # add the start strand ratio and strand ratio category columns to the VCF record
             if self.adapter_version in (
-                BalancedStrandAdapterVersions.LA_v5and6.value,
-                BalancedStrandAdapterVersions.LA_v5.value,
-            ):  # LA_v5 has start tags
+                ppmSeqAdapterVersions.LEGACY_V5.value,
+                ppmSeqAdapterVersions.LEGACY_V5_START.value,
+            ):  # legacy_v5_start has start tags only
                 # assign to simple variables for readability
-                T_hmer_start = balanced_tags[TrimmerSegmentTags.T_HMER_START.value]
-                A_hmer_start = balanced_tags[TrimmerSegmentTags.A_HMER_START.value]
+                T_hmer_start = ppmSeq_tags[TrimmerSegmentTags.T_HMER_START.value]
+                A_hmer_start = ppmSeq_tags[TrimmerSegmentTags.A_HMER_START.value]
                 # determine ratio and category
                 tags_sum_start = T_hmer_start + A_hmer_start
                 if self.min_total_hmer_lengths_in_loops <= tags_sum_start <= self.max_total_hmer_lengths_in_loops:
@@ -213,24 +213,24 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
                     self.sr_upper,
                 )
             if self.adapter_version in (
-                BalancedStrandAdapterVersions.LA_v5and6.value,
-                BalancedStrandAdapterVersions.LA_v6.value,
-            ):  # LA_v6 has end tags
+                ppmSeqAdapterVersions.LEGACY_V5.value,
+                ppmSeqAdapterVersions.LEGACY_V5_END.value,
+            ):  # legacy_v5_end has end tags only
                 # assign to simple variables for readability
-                T_hmer_end = balanced_tags[TrimmerSegmentTags.T_HMER_END.value]
-                A_hmer_end = balanced_tags[TrimmerSegmentTags.A_HMER_END.value]
+                T_hmer_end = ppmSeq_tags[TrimmerSegmentTags.T_HMER_END.value]
+                A_hmer_end = ppmSeq_tags[TrimmerSegmentTags.A_HMER_END.value]
                 # determine ratio and category
                 tags_sum_end = T_hmer_end + A_hmer_end
                 # determine if read end was reached
                 is_end_reached = (
-                    balanced_tags[TrimmerSegmentTags.NATIVE_ADAPTER.value] >= 1
-                    or balanced_tags[TrimmerSegmentTags.STEM_END.value] >= self.min_stem_end_matched_length
+                    ppmSeq_tags[TrimmerSegmentTags.NATIVE_ADAPTER.value] >= 1
+                    or ppmSeq_tags[TrimmerSegmentTags.STEM_END.value] >= self.min_stem_end_matched_length
                 )
                 record.info[HistogramColumnNames.STRAND_RATIO_END.value] = np.nan
                 if not is_end_reached:
                     record.info[
                         HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value
-                    ] = BalancedCategories.END_UNREACHED.value
+                    ] = ppmSeqCategories.END_UNREACHED.value
                 else:
                     if self.min_total_hmer_lengths_in_loops <= tags_sum_end <= self.max_total_hmer_lengths_in_loops:
                         record.info[HistogramColumnNames.STRAND_RATIO_END.value] = T_hmer_end / (
@@ -247,20 +247,20 @@ class BalancedStrandVcfAnnotator(VcfAnnotator):
 
 
 # Misc
-balanced_category_list = [v.value for v in BalancedCategories.__members__.values()]
-supported_adapter_versions = [e.value for e in BalancedStrandAdapterVersions]
+ppmSeq_category_list = [v.value for v in ppmSeqCategories.__members__.values()]
+supported_adapter_versions = [e.value for e in ppmSeqAdapterVersions]
 
 
 # pylint: disable=missing-param-doc
 def _assert_adapter_version_supported(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
 ):
     """
     Assert that the adapter version is supported
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
 
     Raises
@@ -268,7 +268,7 @@ def _assert_adapter_version_supported(
     AssertionError
         If the adapter version is not supported
     """
-    if isinstance(adapter_version, BalancedStrandAdapterVersions):
+    if isinstance(adapter_version, ppmSeqAdapterVersions):
         assert adapter_version.value in supported_adapter_versions, (
             f"Unsupported adapter version {adapter_version.value}, "
             + f"supprted values are {', '.join(supported_adapter_versions)}"
@@ -299,16 +299,16 @@ def get_strand_ratio_category(strand_ratio, sr_lower, sr_upper) -> str:
         strand ratio category
     """
     if strand_ratio == 0:
-        return BalancedCategories.PLUS.value
+        return ppmSeqCategories.PLUS.value
     if strand_ratio == 1:
-        return BalancedCategories.MINUS.value
+        return ppmSeqCategories.MINUS.value
     if sr_lower <= strand_ratio <= sr_upper:
-        return BalancedCategories.MIXED.value
-    return BalancedCategories.UNDETERMINED.value
+        return ppmSeqCategories.MIXED.value
+    return ppmSeqCategories.UNDETERMINED.value
 
 
-def read_balanced_strand_trimmer_histogram(
-    adapter_version: str | BalancedStrandAdapterVersions,
+def read_ppmSeq_trimmer_histogram(
+    adapter_version: str | ppmSeqAdapterVersions,
     trimmer_histogram_csv: str,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
     sr_upper: float = STRAND_RATIO_UPPER_THRESH,
@@ -320,14 +320,14 @@ def read_balanced_strand_trimmer_histogram(
     legacy_histogram_column_names: bool = False,
 ) -> pd.DataFrame:
     """
-    Read a balanced ePCR trimmer histogram file and add columns for strand ratio and strand ratio category
+    Read a ppmSeq trimmer histogram file and add columns for strand ratio and strand ratio category
 
     Parameters
     ----------
-    adapter_version : [str, BalancedStrandAdapterVersions]
+    adapter_version : [str, ppmSeqAdapterVersions]
         adapter version to check
     trimmer_histogram_csv : str
-        path to a balanced ePCR trimmer histogram file
+        path to a ppmSeq trimmer histogram file
     sr_lower : float, optional
         lower strand ratio threshold for determining strand ratio category
         default 0.27
@@ -409,14 +409,14 @@ def read_balanced_strand_trimmer_histogram(
 
     # determine if end was reached - at least 1bp native adapter or all of the end stem were found
     if adapter_version in [
-        BalancedStrandAdapterVersions.LA_v6,
-        BalancedStrandAdapterVersions.LA_v6.value,
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
-        BalancedStrandAdapterVersions.LA_v7,
-        BalancedStrandAdapterVersions.LA_v7.value,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+        ppmSeqAdapterVersions.LEGACY_V5_END,
+        ppmSeqAdapterVersions.LEGACY_V5_END.value,
+        ppmSeqAdapterVersions.LEGACY_V5,
+        ppmSeqAdapterVersions.LEGACY_V5.value,
+        ppmSeqAdapterVersions.V1,
+        ppmSeqAdapterVersions.V1.value,
+        ppmSeqAdapterVersions.DMBL,
+        ppmSeqAdapterVersions.DMBL.value,
     ]:
         is_end_reached = (
             df_trimmer_histogram[TrimmerSegmentLabels.NATIVE_ADAPTER.value + length_suffix] >= 1
@@ -427,12 +427,12 @@ def read_balanced_strand_trimmer_histogram(
 
     # Handle v5 and v6 loops
     if adapter_version in [
-        BalancedStrandAdapterVersions.LA_v5,
-        BalancedStrandAdapterVersions.LA_v6,
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5.value,
-        BalancedStrandAdapterVersions.LA_v6.value,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
+        ppmSeqAdapterVersions.LEGACY_V5_START,
+        ppmSeqAdapterVersions.LEGACY_V5_END,
+        ppmSeqAdapterVersions.LEGACY_V5,
+        ppmSeqAdapterVersions.LEGACY_V5_START.value,
+        ppmSeqAdapterVersions.LEGACY_V5_END.value,
+        ppmSeqAdapterVersions.LEGACY_V5.value,
     ]:
 
         # make sure expected columns exist
@@ -513,25 +513,25 @@ def read_balanced_strand_trimmer_histogram(
             df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = (
                 df_trimmer_histogram[HistogramColumnNames.STRAND_RATIO_END.value]
                 .apply(lambda x: get_strand_ratio_category(x, sr_lower, sr_upper))
-                .where(is_end_reached, BalancedCategories.END_UNREACHED.value)
+                .where(is_end_reached, ppmSeqCategories.END_UNREACHED.value)
             )
     # Handle v7 loops
     elif adapter_version in [
-        BalancedStrandAdapterVersions.LA_v7,
-        BalancedStrandAdapterVersions.LA_v7.value,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+        ppmSeqAdapterVersions.V1,
+        ppmSeqAdapterVersions.V1.value,
+        ppmSeqAdapterVersions.DMBL,
+        ppmSeqAdapterVersions.DMBL.value,
     ]:
         # In LA-v7 the tags are explicitly detected from the loop sequences
         # an unmatched start tag indicates an undetermined call
         df_trimmer_histogram = df_trimmer_histogram.fillna(
-            {HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value: BalancedCategories.UNDETERMINED.value}
+            {HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value: ppmSeqCategories.UNDETERMINED.value}
         )
         # determine strand ratio category
         df_trimmer_histogram.loc[:, HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value] = (
             df_trimmer_histogram[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
-            .fillna(BalancedCategories.UNDETERMINED.value)
-            .where(is_end_reached, BalancedCategories.END_UNREACHED.value)
+            .fillna(ppmSeqCategories.UNDETERMINED.value)
+            .where(is_end_reached, ppmSeqCategories.END_UNREACHED.value)
         )
     else:
         raise ValueError(
@@ -554,7 +554,7 @@ def read_balanced_strand_trimmer_histogram(
 
 
 def group_trimmer_histogram_by_strand_ratio_category(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
 ) -> pd.DataFrame:
     """
@@ -562,10 +562,10 @@ def group_trimmer_histogram_by_strand_ratio_category(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
-        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+        dataframe with strand ratio and strand ratio category columns, from read_ppmSeq_strand_trimmer_histogram
 
     Returns
     -------
@@ -589,12 +589,12 @@ def group_trimmer_histogram_by_strand_ratio_category(
                 .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value}),
                 df_trimmer_histogram.groupby(HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value)
                 .agg({count: "sum"})
-                .drop(BalancedCategories.END_UNREACHED.value, errors="ignore")
+                .drop(ppmSeqCategories.END_UNREACHED.value, errors="ignore")
                 .rename(columns={count: HistogramColumnNames.STRAND_RATIO_CATEGORY_END_NO_UNREACHED.value}),
             ),
             axis=1,
         )
-        .reindex(balanced_category_list)
+        .reindex(ppmSeq_category_list)
         .dropna(how="all", axis=1)
         .fillna(0)
         .astype(int)
@@ -612,7 +612,7 @@ def group_trimmer_histogram_by_strand_ratio_category(
 
 
 def get_strand_ratio_category_concordance(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
 ) -> pd.DataFrame:
     """
@@ -620,10 +620,10 @@ def get_strand_ratio_category_concordance(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
-        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+        dataframe with strand ratio and strand ratio category columns, from read_ppmSeq_trimmer_histogram
 
     Returns
     -------
@@ -637,15 +637,15 @@ def get_strand_ratio_category_concordance(
     Raises
     ------
     ValueError
-        If the adapter version is LA_v5 or LA_v6 and the end tag is missing
+        If the adapter version is not legacy_v5_start and the end tag is missing
 
     """
     _assert_adapter_version_supported(adapter_version)
     if adapter_version in (
-        BalancedStrandAdapterVersions.LA_v5,
-        BalancedStrandAdapterVersions.LA_v5.value,
-        BalancedStrandAdapterVersions.LA_v6,
-        BalancedStrandAdapterVersions.LA_v6.value,
+        ppmSeqAdapterVersions.LEGACY_V5_START,
+        ppmSeqAdapterVersions.LEGACY_V5_START.value,
+        ppmSeqAdapterVersions.LEGACY_V5_END,
+        ppmSeqAdapterVersions.LEGACY_V5_END.value,
     ):
         raise ValueError(
             f"Adapter version {adapter_version} does not have tags on both ends. "
@@ -662,8 +662,8 @@ def get_strand_ratio_category_concordance(
         .agg({HistogramColumnNames.COUNT.value: "sum"})
         .reindex(
             itertools.product(
-                [v for v in balanced_category_list if v != BalancedCategories.END_UNREACHED.value],
-                balanced_category_list,
+                [v for v in ppmSeq_category_list if v != ppmSeqCategories.END_UNREACHED.value],
+                ppmSeq_category_list,
             )
         )
         .fillna(0)
@@ -671,7 +671,7 @@ def get_strand_ratio_category_concordance(
     df_category_concordance = df_category_concordance / df_category_concordance.sum().sum()
     # create concordance dataframe excluding end unreached reads
     df_category_concordance_no_end_unreached = df_category_concordance.drop(
-        BalancedCategories.END_UNREACHED.value,
+        ppmSeqCategories.END_UNREACHED.value,
         level=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
         errors="ignore",
     )
@@ -693,11 +693,11 @@ def get_strand_ratio_category_concordance(
             )
             & (
                 df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
-                != BalancedCategories.UNDETERMINED.value
+                != ppmSeqCategories.UNDETERMINED.value
             )
             & (
                 df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
-                != BalancedCategories.UNDETERMINED.value
+                != ppmSeqCategories.UNDETERMINED.value
             )
         ]
         .drop(columns=[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value])
@@ -706,23 +706,23 @@ def get_strand_ratio_category_concordance(
     )
     #   Set UNDETERMINED where at least one is
     df_category_consensus.loc[
-        BalancedCategoriesConsensus.UNDETERMINED.value,
+        ppmSeqCategoriesConsensus.UNDETERMINED.value,
         HistogramColumnNames.COUNT_NORM.value,
     ] = df_category_concordance_no_end_unreached[
         (
             df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
-            == BalancedCategories.UNDETERMINED.value
+            == ppmSeqCategories.UNDETERMINED.value
         )
         | (
             df_category_concordance_no_end_unreached[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]
-            == BalancedCategories.UNDETERMINED.value
+            == ppmSeqCategories.UNDETERMINED.value
         )
     ][
         HistogramColumnNames.COUNT_NORM.value
     ].sum()
     #   the remainder is DISCORDANT - both not UNDETERMINED but do not match
     count = HistogramColumnNames.COUNT_NORM.value  # workaround flake8 contradicts Black and fails on line length
-    df_category_consensus.loc[BalancedCategoriesConsensus.DISCORDANT.value, count] = (
+    df_category_consensus.loc[ppmSeqCategoriesConsensus.DISCORDANT.value, count] = (
         1 - df_category_consensus[HistogramColumnNames.COUNT_NORM.value].sum()
     )
 
@@ -734,7 +734,7 @@ def get_strand_ratio_category_concordance(
 
 
 def read_trimmer_tags_dataframe(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     df_strand_ratio_category: str,
     df_category_consensus: str,
     df_sorter_stats: str,
@@ -745,7 +745,7 @@ def read_trimmer_tags_dataframe(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     df_strand_ratio_category : str
 
@@ -763,55 +763,55 @@ def read_trimmer_tags_dataframe(
     Raises
     ------
     ValueError
-        If the adapter version is LA_v5 or LA_v6 and the end tag is missing
+        If the adapter version is not legacy_v5_end and the end tag is missing
 
     """
     if adapter_version in (
-        BalancedStrandAdapterVersions.LA_v5,
-        BalancedStrandAdapterVersions.LA_v5.value,
+        ppmSeqAdapterVersions.LEGACY_V5_START,
+        ppmSeqAdapterVersions.LEGACY_V5_START.value,
     ):
-        df_tags = df_strand_ratio_category.drop(BalancedCategories.END_UNREACHED.value, errors="ignore")[
+        df_tags = df_strand_ratio_category.drop(ppmSeqCategories.END_UNREACHED.value, errors="ignore")[
             [HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
         ]
         df_tags.index = [f"% {x} reads" for x in df_tags.index]
         df_tags.columns = ["value"]
         df_tags = df_tags * 100 / df_tags.sum()
     elif adapter_version in (
-        BalancedStrandAdapterVersions.LA_v6,
-        BalancedStrandAdapterVersions.LA_v6.value,
+        ppmSeqAdapterVersions.LEGACY_V5_END,
+        ppmSeqAdapterVersions.LEGACY_V5_END.value,
     ):
         df_tags = df_strand_ratio_category[[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]]
         df_tags.index = [f"% {x} reads" for x in df_tags.index]
         df_tags.columns = ["value"]
         df_tags = df_tags * 100 / df_tags.sum()
     elif adapter_version in (
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
-        BalancedStrandAdapterVersions.LA_v7,
-        BalancedStrandAdapterVersions.LA_v7.value,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+        ppmSeqAdapterVersions.LEGACY_V5,
+        ppmSeqAdapterVersions.LEGACY_V5.value,
+        ppmSeqAdapterVersions.V1,
+        ppmSeqAdapterVersions.V1.value,
+        ppmSeqAdapterVersions.DMBL,
+        ppmSeqAdapterVersions.DMBL.value,
     ):
         df_tags = df_category_consensus * 100
-        undetermined = BalancedCategoriesConsensus.UNDETERMINED.value
+        undetermined = ppmSeqCategoriesConsensus.UNDETERMINED.value
         df_tags = df_tags.rename(
             {
                 **{
                     x: f"% {x} reads (both tags) where end was reached"
                     for x in (
-                        BalancedCategories.MIXED.value,
-                        BalancedCategories.MINUS.value,
-                        BalancedCategories.PLUS.value,
+                        ppmSeqCategories.MIXED.value,
+                        ppmSeqCategories.MINUS.value,
+                        ppmSeqCategories.PLUS.value,
                     )
                 },
                 undetermined: f"% {undetermined} (either tag)",
-                BalancedCategoriesConsensus.DISCORDANT.value: f"% {BalancedCategoriesConsensus.DISCORDANT.value}",
+                ppmSeqCategoriesConsensus.DISCORDANT.value: f"% {ppmSeqCategoriesConsensus.DISCORDANT.value}",
             }
         )
         df_tags.columns = ["value"]
         df_strand_ratio_category_norm = (
             df_strand_ratio_category.loc[
-                [BalancedCategories.END_UNREACHED.value],
+                [ppmSeqCategories.END_UNREACHED.value],
                 HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
             ]
             * 100
@@ -826,7 +826,7 @@ def read_trimmer_tags_dataframe(
         )
         # Calculate mixed reads of total (including end unreached) and mixed read coverage
         mixed_tot = df_category_concordance.loc[
-            (BalancedCategories.MIXED.value, BalancedCategories.MIXED.value),
+            (ppmSeqCategories.MIXED.value, ppmSeqCategories.MIXED.value),
             HistogramColumnNames.COUNT.value,
         ]
         df_mixed_cov = pd.DataFrame(
@@ -846,7 +846,7 @@ def read_trimmer_tags_dataframe(
     return df_tags
 
 
-def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str, input_material_ng: float = None):
+def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str):
     """
     Read and parse a sorter statistics csv file
 
@@ -854,8 +854,6 @@ def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str, input_material_n
     ----------
     sorter_stats_csv : str
         path to a Sorter stats file
-    input_material_ng : float, optional
-        input material in ng, by default None
 
     Returns
     -------
@@ -863,15 +861,6 @@ def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str, input_material_n
         dataframe with sorter statistics
     """
     df_sorter_stats = read_sorter_statistics_csv(sorter_stats_csv)
-    if input_material_ng is not None:
-        if "Mean_cvg" in df_sorter_stats.index:
-            df_sorter_stats.loc["coverage_GE/ng", "value"] = (
-                df_sorter_stats.loc["Mean_cvg", "value"] / input_material_ng
-            )
-        if "PF_Barcode_reads" in df_sorter_stats.index:
-            df_sorter_stats.loc["PF_reads/ng", "value"] = (
-                df_sorter_stats.loc["PF_Barcode_reads", "value"] / input_material_ng
-            )
 
     # create statistics shortlist
     df_stats_shortlist = df_sorter_stats.reindex(
@@ -991,31 +980,28 @@ def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv, le
 
 
 def collect_statistics(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     trimmer_histogram_csv: str,
     sorter_stats_csv: str,
     output_filename: str,
     trimmer_histogram_extra_csv: str = None,
     trimmer_failure_codes_csv: str = None,
-    input_material_ng: float = None,
     legacy_histogram_column_names: bool = False,
     **trimmer_histogram_kwargs,
 ):
     """
-    Collect statistics from a balanced ePCR trimmer histogram file and a sorter stats file
+    Collect statistics from a ppmSeq trimmer histogram file and a sorter stats file
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqStrandAdapterVersions
         adapter version to check
     trimmer_histogram_csv : str
-        path to a balanced strand Trimmer histogram file
+        path to a ppmSeq Trimmer histogram file
     sorter_stats_csv : str
         path to a Sorter stats file
     output_filename : str
         path to save dataframe to in hdf format (should end with .h5)
-    input_material_ng : float, optional
-        input material in ng, by default None
     trimmer_histogram_extra_csv : str, optional
         path to a Trimmer histogram extra file, by default None
     trimmer_failure_codes_csv : str, optional
@@ -1023,7 +1009,7 @@ def collect_statistics(
     legacy_histogram_column_names : bool, optional
         use legacy column names without suffixes, by default False
     trimmer_histogram_kwargs : dict
-        additional keyword arguments to pass to read_balanced_strand_trimmer_histogram
+        additional keyword arguments to pass to read_ppmSeq_strand_trimmer_histogram
 
     Raises
     ------
@@ -1032,7 +1018,7 @@ def collect_statistics(
     """
     _assert_adapter_version_supported(adapter_version)
     # read Trimmer histogram
-    df_trimmer_histogram = read_balanced_strand_trimmer_histogram(
+    df_trimmer_histogram = read_ppmSeq_trimmer_histogram(
         adapter_version,
         trimmer_histogram_csv,
         legacy_histogram_column_names=legacy_histogram_column_names,
@@ -1040,12 +1026,12 @@ def collect_statistics(
     )
     df_strand_ratio_category = group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram)
     adapter_in_both_ends = adapter_version in (
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
-        BalancedStrandAdapterVersions.LA_v7,
-        BalancedStrandAdapterVersions.LA_v7.value,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+        ppmSeqAdapterVersions.LEGACY_V5,
+        ppmSeqAdapterVersions.LEGACY_V5.value,
+        ppmSeqAdapterVersions.V1,
+        ppmSeqAdapterVersions.V1.value,
+        ppmSeqAdapterVersions.DMBL,
+        ppmSeqAdapterVersions.DMBL.value,
     )
     if adapter_in_both_ends:
         df_category_concordance, _, df_category_consensus = get_strand_ratio_category_concordance(
@@ -1056,7 +1042,7 @@ def collect_statistics(
         df_category_consensus = None
 
     # read Sorter stats
-    df_sorter_stats = read_and_parse_sorter_statistics_csv(sorter_stats_csv, input_material_ng=input_material_ng)
+    df_sorter_stats = read_and_parse_sorter_statistics_csv(sorter_stats_csv)
 
     # read Trimmer tag stats
     df_tags = read_trimmer_tags_dataframe(
@@ -1078,8 +1064,8 @@ def collect_statistics(
     is_v7_dumbell = (
         adapter_version
         in (
-            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+            ppmSeqAdapterVersions.DMBL,
+            ppmSeqAdapterVersions.DMBL.value,
         )
         and trimmer_histogram_extra_csv
     )
@@ -1108,7 +1094,7 @@ def collect_statistics(
 
 
 def add_strand_ratios_and_categories_to_featuremap(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     input_featuremap_vcf: str,
     output_featuremap_vcf: str,
     sr_lower: float = STRAND_RATIO_LOWER_THRESH,
@@ -1124,7 +1110,7 @@ def add_strand_ratios_and_categories_to_featuremap(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     input_featuremap_vcf : str
         path to input featuremap VCF file
@@ -1150,7 +1136,7 @@ def add_strand_ratios_and_categories_to_featuremap(
         The number of processes to use. Defaults to 1.
     """
     _assert_adapter_version_supported(adapter_version)
-    balanced_strand_variant_annotator = BalancedStrandVcfAnnotator(
+    ppmSeq_variant_annotator = ppmSeqStrandVcfAnnotator(
         adapter_version=adapter_version,
         sr_lower=sr_lower,
         sr_upper=sr_upper,
@@ -1158,8 +1144,8 @@ def add_strand_ratios_and_categories_to_featuremap(
         max_total_hmer_lengths_in_loops=max_total_hmer_lengths_in_tags,
         min_stem_end_matched_length=min_stem_end_matched_length,
     )
-    BalancedStrandVcfAnnotator.process_vcf(
-        annotators=[balanced_strand_variant_annotator],
+    ppmSeqStrandVcfAnnotator.process_vcf(
+        annotators=[ppmSeq_variant_annotator],
         input_path=input_featuremap_vcf,
         output_path=output_featuremap_vcf,
         chunk_size=chunk_size,
@@ -1167,8 +1153,8 @@ def add_strand_ratios_and_categories_to_featuremap(
     )
 
 
-def plot_balanced_strand_ratio(
-    adapter_version: str | BalancedStrandAdapterVersions,
+def plot_ppmSeq_strand_ratio(
+    adapter_version: str | ppmSeqAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -1179,10 +1165,10 @@ def plot_balanced_strand_ratio(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
-        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+        dataframe with strand ratio and strand ratio category columns, from read_ppmSeq_strand_trimmer_histogram
     title : str, optional
         plot title, by default ""
     output_filename : str, optional
@@ -1236,8 +1222,8 @@ def plot_balanced_strand_ratio(
             )
             # normalize by the total number of reads where the end was reached
             total_reads_norm_count_with_end_reached = df_plot.query(
-                f"({sr_category} != '{BalancedCategories.END_UNREACHED}') and "
-                f"({sr_category} != '{BalancedCategories.UNDETERMINED}')"
+                f"({sr_category} != '{ppmSeqCategories.END_UNREACHED}') and "
+                f"({sr_category} != '{ppmSeqCategories.UNDETERMINED}')"
             )[HistogramColumnNames.COUNT_NORM.value].sum()
             y = df_plot[HistogramColumnNames.COUNT_NORM.value] / total_reads_norm_count_with_end_reached
             # get category counts
@@ -1245,7 +1231,7 @@ def plot_balanced_strand_ratio(
                 adapter_version, df_trimmer_histogram
             )
             mixed_reads_ratio = (
-                df_trimmer_histogram_by_strand_ratio_category.loc[BalancedCategories.MIXED.value, sr_category_hist]
+                df_trimmer_histogram_by_strand_ratio_category.loc[ppmSeqCategories.MIXED.value, sr_category_hist]
                 / df_trimmer_histogram_by_strand_ratio_category[sr_category_hist].sum()
             )
             # plot
@@ -1278,7 +1264,7 @@ def plot_balanced_strand_ratio(
 
 
 def plot_strand_ratio_category(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -1289,10 +1275,10 @@ def plot_strand_ratio_category(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
-        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+        dataframe with strand ratio and strand ratio category columns, from read_ppmSeq_trimmer_histogram
     title : str, optional
         plot title, by default ""
     output_filename : str, optional
@@ -1318,7 +1304,7 @@ def plot_strand_ratio_category(
 
     df_trimmer_histogram_by_strand_ratio_category = (
         (group_trimmer_histogram_by_strand_ratio_category(adapter_version, df_trimmer_histogram))
-        .drop(BalancedCategories.END_UNREACHED.value, errors="ignore")
+        .drop(ppmSeqCategories.END_UNREACHED.value, errors="ignore")
         .drop(
             columns=[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value],
             errors="ignore",
@@ -1366,7 +1352,7 @@ def plot_strand_ratio_category(
 
 
 def plot_strand_ratio_category_concordnace(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -1377,10 +1363,10 @@ def plot_strand_ratio_category_concordnace(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
-        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+        dataframe with strand ratio and strand ratio category columns, from read_ppmSeq_trimmer_histogram
     title : str, optional
         plot title, by default ""
     output_filename : str, optional
@@ -1413,8 +1399,8 @@ def plot_strand_ratio_category_concordnace(
     ):
         df_plot = df_plot.unstack().droplevel(0, axis=1)
         df_plot = df_plot.loc[
-            [v for v in balanced_category_list if v != BalancedCategories.END_UNREACHED.value],
-            [v for v in balanced_category_list if v in df_plot.columns],
+            [v for v in ppmSeq_category_list if v != ppmSeqCategories.END_UNREACHED.value],
+            [v for v in ppmSeq_category_list if v in df_plot.columns],
         ].fillna(0)
         df_plot.index.name = "Start tag category"
         df_plot.columns.name = "End tag category"
@@ -1454,7 +1440,7 @@ def plot_strand_ratio_category_concordnace(
 # pylint: disable=differing-type-doc
 # pylint: disable=cell-var-from-loop
 def plot_trimmer_histogram(
-    adapter_version: str | BalancedStrandAdapterVersions,
+    adapter_version: str | ppmSeqAdapterVersions,
     df_trimmer_histogram: pd.DataFrame,
     title: str = "",
     output_filename: str = None,
@@ -1467,10 +1453,10 @@ def plot_trimmer_histogram(
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     df_trimmer_histogram : pd.DataFrame
-        dataframe with strand ratio and strand ratio category columns, from read_balanced_strand_trimmer_histogram
+        dataframe with strand ratio and strand ratio category columns, from read_ppmSeq_trimmer_histogram
     title : str, optional
         plot title, by default ""
     output_filename : str, optional
@@ -1505,17 +1491,17 @@ def plot_trimmer_histogram(
     length_suffix = TrimmerHistogramSuffixes.LENGTH.value if not legacy_histogram_column_names else ""
 
     if adapter_version in (
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
-        BalancedStrandAdapterVersions.LA_v5,
-        BalancedStrandAdapterVersions.LA_v5.value,
-        BalancedStrandAdapterVersions.LA_v6,
-        BalancedStrandAdapterVersions.LA_v6.value,
+        ppmSeqAdapterVersions.LEGACY_V5,
+        ppmSeqAdapterVersions.LEGACY_V5.value,
+        ppmSeqAdapterVersions.LEGACY_V5_START,
+        ppmSeqAdapterVersions.LEGACY_V5_START.value,
+        ppmSeqAdapterVersions.LEGACY_V5_END,
+        ppmSeqAdapterVersions.LEGACY_V5_END.value,
     ):
         # generate axs
         if adapter_version in (
-            BalancedStrandAdapterVersions.LA_v5and6,
-            BalancedStrandAdapterVersions.LA_v5and6.value,
+            ppmSeqAdapterVersions.LEGACY_V5,
+            ppmSeqAdapterVersions.LEGACY_V5.value,
         ):
             fig, axs = plt.subplots(1, 2, figsize=(14, 6), sharey=True, sharex=True)
             fig.subplots_adjust(wspace=0.3)
@@ -1537,8 +1523,8 @@ def plot_trimmer_histogram(
             fig, axs = plt.subplots(1, 1, figsize=(8, 6))
             axs = [axs]
             if adapter_version in (
-                BalancedStrandAdapterVersions.LA_v5,
-                BalancedStrandAdapterVersions.LA_v5.value,
+                ppmSeqAdapterVersions.LEGACY_V5_START,
+                ppmSeqAdapterVersions.LEGACY_V5_START.value,
             ):
                 plot_iter = (
                     (
@@ -1549,8 +1535,8 @@ def plot_trimmer_histogram(
                     ),
                 )
             elif adapter_version in (
-                BalancedStrandAdapterVersions.LA_v6,
-                BalancedStrandAdapterVersions.LA_v6.value,
+                ppmSeqAdapterVersions.LEGACY_V5_END,
+                ppmSeqAdapterVersions.LEGACY_V5_END.value,
             ):
                 plot_iter = (
                     (
@@ -1581,10 +1567,10 @@ def plot_trimmer_histogram(
             plt.ylabel(ycol.replace("_", " "))
             plt.title(subtitle, fontsize=22)
     elif adapter_version in (
-        BalancedStrandAdapterVersions.LA_v7,
-        BalancedStrandAdapterVersions.LA_v7.value,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+        ppmSeqAdapterVersions.V1,
+        ppmSeqAdapterVersions.V1.value,
+        ppmSeqAdapterVersions.DMBL,
+        ppmSeqAdapterVersions.DMBL.value,
     ):
 
         fig, axs_all_both = plt.subplots(3, 10, figsize=(18, 5), sharex=False, sharey=True)
@@ -1630,9 +1616,9 @@ def plot_trimmer_histogram(
             for k, (cat, expected_signal) in enumerate(
                 zip(
                     (
-                        BalancedCategories.MIXED.value,
-                        BalancedCategories.MINUS.value,
-                        BalancedCategories.PLUS.value,
+                        ppmSeqCategories.MIXED.value,
+                        ppmSeqCategories.MINUS.value,
+                        ppmSeqCategories.PLUS.value,
                     ),
                     (
                         [1, 1, 1, 1],
@@ -1769,8 +1755,8 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
 
 
 # pylint: disable=too-many-arguments
-def balanced_strand_analysis(
-    adapter_version: str | BalancedStrandAdapterVersions,
+def ppmSeq_qc_analysis(
+    adapter_version: str | ppmSeqAdapterVersions,
     trimmer_histogram_csv: list[str],
     sorter_stats_csv: str,
     output_path: str,
@@ -1790,14 +1776,14 @@ def balanced_strand_analysis(
     qc_filename_suffix: str = ".ppmSeq.applicationQC",
 ):
     """
-    Run the balanced strand analysis pipeline
+    Run the ppmSeq QC analysis pipeline
 
     Parameters
     ----------
-    adapter_version : str | BalancedStrandAdapterVersions
+    adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
     trimmer_histogram_csv : list[str]
-        path to a balanced strand Trimmer histogram file
+        path to a ppmSeq Trimmer histogram file
     sorter_stats_csv : str
         path to a Sorter stats file
     output_path : str
@@ -1807,9 +1793,9 @@ def balanced_strand_analysis(
     sorter_stats_json : str, optional
         path to a Sorter stats JSON file, by default None
     trimmer_histogram_extra_csv : str, optional
-        path to a balanced strand Trimmer histogram extra file, by default None
+        path to a ppmSeq Trimmer histogram extra file, by default None
     trimmer_failure_codes_csv : str, optional
-        path to a balanced strand Trimmer failure codes file, by default None
+        path to a ppmSeq Trimmer failure codes file, by default None
     collect_statistics_kwargs : dict, optional
         kwargs for collect_statistics, by default None
     generate_report
@@ -1911,14 +1897,14 @@ def balanced_strand_analysis(
         legacy_histogram_column_names=legacy_histogram_column_names,
     )
     if adapter_version in [
-        BalancedStrandAdapterVersions.LA_v5,
-        BalancedStrandAdapterVersions.LA_v6,
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5.value,
-        BalancedStrandAdapterVersions.LA_v6.value,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
+        ppmSeqAdapterVersions.LEGACY_V5_START,
+        ppmSeqAdapterVersions.LEGACY_V5_END,
+        ppmSeqAdapterVersions.LEGACY_V5,
+        ppmSeqAdapterVersions.LEGACY_V5_START.value,
+        ppmSeqAdapterVersions.LEGACY_V5_END.value,
+        ppmSeqAdapterVersions.LEGACY_V5.value,
     ]:  # not possible in v7
-        plot_balanced_strand_ratio(
+        plot_ppmSeq_strand_ratio(
             adapter_version,
             df_trimmer_histogram,
             title=f"{output_basename} strand ratio",
@@ -1931,12 +1917,12 @@ def balanced_strand_analysis(
         output_filename=output_strand_ratio_category_plot,
     )
     if adapter_version in (
-        BalancedStrandAdapterVersions.LA_v5and6,
-        BalancedStrandAdapterVersions.LA_v5and6.value,
-        BalancedStrandAdapterVersions.LA_v7,
-        BalancedStrandAdapterVersions.LA_v7.value,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-        BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+        ppmSeqAdapterVersions.LEGACY_V5,
+        ppmSeqAdapterVersions.LEGACY_V5.value,
+        ppmSeqAdapterVersions.V1,
+        ppmSeqAdapterVersions.V1.value,
+        ppmSeqAdapterVersions.DMBL,
+        ppmSeqAdapterVersions.DMBL.value,
     ):
         plot_strand_ratio_category_concordnace(
             adapter_version,
@@ -1960,14 +1946,14 @@ def balanced_strand_analysis(
         )
         illustration_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/ppm_seq/ppmSeq_v1_illustration.png"
+            "reports/ppm_seq/ppmSeq_legacy_v5_illustration.png"
             if adapter_version
             in (
-                BalancedStrandAdapterVersions.LA_v5.value,
-                BalancedStrandAdapterVersions.LA_v5and6.value,
-                BalancedStrandAdapterVersions.LA_v6.value,
+                ppmSeqAdapterVersions.LEGACY_V5_START.value,
+                ppmSeqAdapterVersions.LEGACY_V5.value,
+                ppmSeqAdapterVersions.LEGACY_V5_END.value,
             )
-            else "reports/ppm_seq/ppmSeq_v2_illustration.png",
+            else "reports/ppm_seq/ppmSeq_v1_illustration.png",
         )
         parameters = dict(
             adapter_version=(adapter_version if isinstance(adapter_version, str) else adapter_version.value),
@@ -1983,21 +1969,21 @@ def balanced_strand_analysis(
             trimmer_failure_codes_csv=trimmer_failure_codes_csv,
         )
         if adapter_version in (
-            BalancedStrandAdapterVersions.LA_v5and6,
-            BalancedStrandAdapterVersions.LA_v5and6.value,
-            BalancedStrandAdapterVersions.LA_v5,
-            BalancedStrandAdapterVersions.LA_v5.value,
-            BalancedStrandAdapterVersions.LA_v6,
-            BalancedStrandAdapterVersions.LA_v6.value,
+            ppmSeqAdapterVersions.LEGACY_V5,
+            ppmSeqAdapterVersions.LEGACY_V5.value,
+            ppmSeqAdapterVersions.LEGACY_V5_START,
+            ppmSeqAdapterVersions.LEGACY_V5_START.value,
+            ppmSeqAdapterVersions.LEGACY_V5_END,
+            ppmSeqAdapterVersions.LEGACY_V5_END.value,
         ):  # not available in v7
             parameters["strand_ratio_png"] = output_strand_ratio_plot
         if adapter_version in (
-            BalancedStrandAdapterVersions.LA_v5and6,
-            BalancedStrandAdapterVersions.LA_v5and6.value,
-            BalancedStrandAdapterVersions.LA_v7,
-            BalancedStrandAdapterVersions.LA_v7.value,
-            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell,
-            BalancedStrandAdapterVersions.LA_v7_amp_dumbbell.value,
+            ppmSeqAdapterVersions.LEGACY_V5,
+            ppmSeqAdapterVersions.LEGACY_V5.value,
+            ppmSeqAdapterVersions.V1,
+            ppmSeqAdapterVersions.V1.value,
+            ppmSeqAdapterVersions.DMBL,
+            ppmSeqAdapterVersions.DMBL.value,
         ):
             parameters["strand_ratio_category_concordance_png"] = output_strand_ratio_category_concordance_plot
         if sorter_stats_json:

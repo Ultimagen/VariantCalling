@@ -20,19 +20,19 @@ from __future__ import annotations
 import argparse
 import sys
 
-from ugvc.mrd.balanced_strand_utils import (
+from ugvc.mrd.ppmSeq_utils import (
     MAX_TOTAL_HMER_LENGTHS_IN_LOOPS,
     MIN_STEM_END_MATCHED_LENGTH,
     MIN_TOTAL_HMER_LENGTHS_IN_LOOPS,
     STRAND_RATIO_LOWER_THRESH,
     STRAND_RATIO_UPPER_THRESH,
-    balanced_strand_analysis,
+    ppmSeq_qc_analysis,
     supported_adapter_versions,
 )
 
 
 def __parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="balanced_strand_analysis", description=run.__doc__)
+    parser = argparse.ArgumentParser(prog="ppmSeq_qc_analysis", description=run.__doc__)
     parser.add_argument(
         "--adapter-version",
         choices=supported_adapter_versions,
@@ -43,14 +43,14 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
         type=str,
         required=True,
         nargs="+",
-        help="path to a balanced strand Trimmer histogram file",
+        help="path to a ppmSeq Trimmer histogram file",
     )
     parser.add_argument(
         "--trimmer-histogram-extra-csv",
         type=str,
         required=False,
         nargs="+",
-        help="path to a an extra balanced strand Trimmer histogram file that is used in some cases",
+        help="path to a an extra ppmSeq Trimmer histogram file that is used in some cases",
     )
     parser.add_argument(
         "--trimmer-failure-codes-csv",
@@ -139,7 +139,7 @@ def run(argv: list[str]):
     """Convert featuremap to pandas dataframe"""
     args_in = __parse_args(argv)
 
-    balanced_strand_analysis(
+    ppmSeq_qc_analysis(
         adapter_version=args_in.adapter_version,
         trimmer_histogram_csv=args_in.trimmer_histogram_csv,
         trimmer_histogram_extra_csv=args_in.trimmer_histogram_extra_csv,
@@ -148,9 +148,6 @@ def run(argv: list[str]):
         sorter_stats_json=args_in.sorter_stats_json,
         output_path=args_in.output_path,
         output_basename=args_in.output_basename,
-        collect_statistics_kwargs=dict(input_material_ng=args_in.input_material_ng)
-        if args_in.input_material_ng
-        else None,
         generate_report=args_in.generate_report,
         sr_lower=args_in.sr_lower,
         sr_upper=args_in.sr_upper,

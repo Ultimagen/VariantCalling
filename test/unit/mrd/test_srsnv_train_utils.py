@@ -25,7 +25,7 @@ def test_prepare_featuremap_for_model(tmpdir):
 
     input_featuremap_vcf = pjoin(
         inputs_dir,
-        "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
+        "333_CRCs_39_legacy_v5.featuremap.single_substitutions.subsample.vcf.gz",
     )
     rng = np.random.default_rng(0)
     downsampled_training_featuremap_vcf, _, _, _, _ = prepare_featuremap_for_model(
@@ -47,7 +47,7 @@ def test_prepare_featuremap_for_model_with_prefilter(tmpdir):
 
     input_featuremap_vcf = pjoin(
         inputs_dir,
-        "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
+        "333_CRCs_39_legacy_v5.featuremap.single_substitutions.subsample.vcf.gz",
     )
     rng = np.random.default_rng(0)
     pre_filter_bcftools_include = "(X_SCORE>4) && (X_EDIST<10)"
@@ -119,7 +119,7 @@ def test_prepare_featuremap_for_model_training_and_test_sets(tmpdir):
     """Test that downsampling of training and test sets works as expected"""
     input_featuremap_vcf = pjoin(
         inputs_dir,
-        "333_CRCs_39_LAv5and6.featuremap.single_substitutions.subsample.vcf.gz",
+        "333_CRCs_39_legacy_v5.featuremap.single_substitutions.subsample.vcf.gz",
     )
     rng = np.random.default_rng(0)
     (downsampled_training_featuremap_vcf, downsampled_test_featuremap_vcf, _, _, _) = prepare_featuremap_for_model(

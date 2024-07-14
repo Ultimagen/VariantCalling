@@ -628,7 +628,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         classifier_class=xgb.XGBClassifier,
         balanced_sampling_info_fields: list[str] = None,
         lod_filters: str = None,
-        balanced_strand_adapter_version: str = None,
+        ppmSeq_adapter_version: str = None,
         pre_filter: str = None,
         random_seed: int = None,
         simple_pipeline: SimplePipeline = None,
@@ -687,7 +687,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             Recommended in order to avoid the motif distribution of germline variants being learned (data leak)
         lod_filters : str, optional
             json file with a dict of format 'filter name':'query' for LoD simulation, by default None
-        balanced_strand_adapter_version : str, optional
+        ppmSeq_adapter_version : str, optional
             adapter version, indicates if input featuremap is from balanced ePCR data, by default None
         pre_filter : str, optional
             bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter'"
@@ -823,7 +823,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             raise ValueError("lod_filters should be json_file | dictionary | None")
 
         self.flow_order = flow_order
-        self.balanced_strand_adapter_version = balanced_strand_adapter_version
+        self.ppmSeq_adapter_version = ppmSeq_adapter_version
         self.sp = simple_pipeline
 
         # set and check train and test sizes
@@ -881,7 +881,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "tp_test_set_size": self.tp_test_set_size,
             "tp_train_set_size": self.tp_train_set_size,
             "lod_filters": self.lod_filters,
-            "adapter_version": self.balanced_strand_adapter_version,
+            "adapter_version": self.ppmSeq_adapter_version,
             "columns": self.columns,
             "featuremap_df_save_path": self.featuremap_df_save_path,
             "pre_filter": self.pre_filter,

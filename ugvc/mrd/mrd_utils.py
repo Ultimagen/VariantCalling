@@ -22,8 +22,8 @@ from tqdm import tqdm
 from ugvc import logger
 from ugvc.dna.format import ALT, CHROM, DEFAULT_FLOW_ORDER, FILTER, POS, QUAL, REF
 from ugvc.dna.utils import revcomp
-from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
 from ugvc.mrd.featuremap_utils import FeaturemapAnnotator, RefContextVcfAnnotator, VcfAnnotator
+from ugvc.mrd.ppmSeq_utils import ppmSeqStrandVcfAnnotator
 from ugvc.utils.consts import FileExtension
 from ugvc.vcfbed.variant_annotation import get_trinuc_substitution_dist, parse_trinuc_sub
 
@@ -1039,10 +1039,10 @@ def annotate_featuremap(
     motif_length_to_annotate: int,
     max_hmer_length: int,
     flow_order: str = DEFAULT_FLOW_ORDER,
-    balanced_strand_adapter_version: str = None,
+    ppmSeq_adapter_version: str = None,
 ):
     """
-    Annotate featuremap with ref context, hmer length and balanced strand features
+    Annotate featuremap with ref context, hmer length and ppmSeq features
 
     Parameters
     ----------
@@ -1058,8 +1058,8 @@ def annotate_featuremap(
         Max hmer length
     flow_order: str, optional
         Flow order, default TGCA
-    balanced_strand_adapter_version: str, optional
-        Balanced strand adapter version, if None no balanced strand annotation is performed
+    ppmSeq_adapter_version: str, optional
+        ppmSeq adapter version, if None no ppmSeq annotation is performed
     """
     featuremap_annotator = FeaturemapAnnotator()
     ref_context_annotator = RefContextVcfAnnotator(
@@ -1069,9 +1069,9 @@ def annotate_featuremap(
         max_hmer_length=max_hmer_length,
     )
     annotators = [featuremap_annotator, ref_context_annotator]
-    if balanced_strand_adapter_version:
-        balanced_strand_annotator = BalancedStrandVcfAnnotator(adapter_version=balanced_strand_adapter_version)
-        annotators.append(balanced_strand_annotator)
+    if ppmSeq_adapter_version:
+        ppmSeq_annotator = ppmSeqStrandVcfAnnotator(adapter_version=ppmSeq_adapter_version)
+        annotators.append(ppmSeq_annotator)
     VcfAnnotator.process_vcf(
         annotators=annotators,
         input_path=input_featuremap,

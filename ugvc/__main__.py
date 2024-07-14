@@ -37,7 +37,6 @@ from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugvc.pipelines.mrd import (
     annotate_featuremap,
-    balanced_strand_analysis,
     collect_coverage_per_motif,
     concat_dataframes,
     create_hom_snv_featuremap,
@@ -46,7 +45,7 @@ from ugvc.pipelines.mrd import (
     intersect_featuremap_with_signature,
     pileup_based_read_features,
     pileup_featuremap,
-    positional_error_rate_profile,
+    ppmSeq_qc_analysis,
     prepare_data_from_mrd_pipeline,
     sorter_stats_to_mean_coverage,
     srsnv_inference,
@@ -80,9 +79,8 @@ modules = [
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
 
 mrd_modules = [
-    balanced_strand_analysis,
+    ppmSeq_qc_analysis,
     substitution_error_rate,
-    positional_error_rate_profile,
     collect_coverage_per_motif,
     concat_dataframes,
     sorter_stats_to_mean_coverage,
