@@ -30,6 +30,7 @@ class ppmSeqAdapterVersions(Enum):
     LEGACY_V5_END = "legacy_v5_end"
     V1 = "v1"
     DMBL = "dmbl"
+    HYRPA_v4 = "hyRPA_v4"
 
 
 # Trimmer segment labels and tags
