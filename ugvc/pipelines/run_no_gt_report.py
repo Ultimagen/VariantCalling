@@ -20,22 +20,21 @@
 import argparse
 import itertools
 import logging
+import os
+import shutil
 import subprocess
 
 import numpy as np
 import pandas as pd
-import os
+import sigProfilerPlotting as sigPlt
+from SigProfilerAssignment import Analyzer as Analyze
+from SigProfilerMatrixGenerator import install as genInstall
+from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
 
 import ugvc.vcfbed.variant_annotation as annotation
 from ugvc.comparison import vcf_pipeline_utils
 from ugvc.dna.utils import revcomp
 from ugvc.vcfbed import vcftools
-
-from SigProfilerMatrixGenerator import install as genInstall
-from SigProfilerAssignment import Analyzer as Analyze
-import sigProfilerPlotting as sigPlt
-from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
-import shutil
 
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")
@@ -76,7 +75,7 @@ def allele_freq_hist(df, nbins=100):
     """
     bins = np.linspace(0, 1, nbins + 1)
     if "vaf" in df.columns:
-        df["af"]=df["vaf"]
+        df["af"] = df["vaf"]
     result = {}
     for group in df["variant_type"].unique():
         histogram_data, _ = np.histogram(
@@ -308,9 +307,7 @@ def run_full_analysis(arg_values):
         eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
 
 
-
-def run_somatic_analysis(arg_values):
-
+def run_somatic_analysis(arg_values):  # pylint: disable=too-many-branches, too-many-statements
     def _get_signatures_from_sig_log(log_file):
         line = log_file.readline()
         while line and "Composition After Add-Remove" not in line:
@@ -321,8 +318,7 @@ def run_somatic_analysis(arg_values):
             activity_values = log_file.readline().strip("\n").split()[1:]
             # parse the signatures names
             return signatures, activity_values
-        else:
-            return [], []
+        return [], []
 
     def _check_number_of_variants(input_file, variant_type):
         cmd = f"bcftools view -i 'INFO/VARIANT_TYPE=\"{variant_type}\"' -H {input_file} | wc -l"
@@ -336,7 +332,7 @@ def run_somatic_analysis(arg_values):
 
     logger.info("Run SigProfilerAssignment for getting the signatures of the sample")
     vcf_dirname = os.path.dirname(arg_values.input_file)
-    output_dir = arg_values.output_prefix + '/'
+    output_dir = arg_values.output_prefix + "/"
 
     # In case there are no such variants at all, it fails, so we put it in try-catch statement
     plot_snps = True
@@ -344,53 +340,57 @@ def run_somatic_analysis(arg_values):
     plot_dinuc = True
     try:
         logger.info("Run SigProfilerAssignment for snps")
-        Analyze.cosmic_fit(samples=vcf_dirname,
-                           output=os.path.join(output_dir,'sbs'),
-                           input_type="vcf",
-                           context_type="96",
-                           genome_build=arg_values.reference_name,
-                           cosmic_version=arg_values.cosmic_version)
+        Analyze.cosmic_fit(
+            samples=vcf_dirname,
+            output=os.path.join(output_dir, "sbs"),
+            input_type="vcf",
+            context_type="96",
+            genome_build=arg_values.reference_name,
+            cosmic_version=arg_values.cosmic_version,
+        )
     except (ValueError, KeyError) as e:
         # check if the exception was caused because there are no snp variants at all
         variant_count = _check_number_of_variants(arg_values.input_file, "snp")
         logger.info(f"Number of snps in vcf: {variant_count}")
         if variant_count > 0:
             raise e
-        else:
-            logger.info("No snps in vcf file")
-            plot_snps = False
+        logger.info("No snps in vcf file")
+        plot_snps = False
 
     try:
         logger.info("Run SigProfilerAssignment for indels")
-        Analyze.cosmic_fit(samples=vcf_dirname,
-                           output=os.path.join(output_dir,'id'),
-                           input_type="vcf",
-                           context_type="ID",
-                           genome_build=arg_values.reference_name,
-                           collapse_to_SBS96=False,
-                           cosmic_version=arg_values.cosmic_version)
+        Analyze.cosmic_fit(
+            samples=vcf_dirname,
+            output=os.path.join(output_dir, "id"),
+            input_type="vcf",
+            context_type="ID",
+            genome_build=arg_values.reference_name,
+            collapse_to_SBS96=False,
+            cosmic_version=arg_values.cosmic_version,
+        )
     except (ValueError, KeyError) as e:
         # check if the exception was caused because there are no indel variants at all
         variant_count = _check_number_of_variants(arg_values.input_file, "h-indel")
         logger.info(f"Number of indels in vcf: {variant_count}")
         if variant_count > 0:
             raise e
-        else:
-            logger.info("No indels in vcf file")
-            plot_indels = False
+        logger.info("No indels in vcf file")
+        plot_indels = False
 
     try:
         logger.info("Run SigProfilerAssignment for dinuc")
-        Analyze.cosmic_fit(samples=vcf_dirname,
-                           output=os.path.join(output_dir,'dinuc'),
-                           input_type="vcf",
-                           context_type="DINUC",
-                           genome_build=arg_values.reference_name,
-                           collapse_to_SBS96=False,
-                           cosmic_version=arg_values.cosmic_version)
-    except (ValueError, KeyError) as e:
+        Analyze.cosmic_fit(
+            samples=vcf_dirname,
+            output=os.path.join(output_dir, "dinuc"),
+            input_type="vcf",
+            context_type="DINUC",
+            genome_build=arg_values.reference_name,
+            collapse_to_SBS96=False,
+            cosmic_version=arg_values.cosmic_version,
+        )
+    except (ValueError, KeyError):
         # check if the exception was caused because there are no snp variants at all
-        variant_count = _check_number_of_variants(arg_values.input_file,"snp")
+        variant_count = _check_number_of_variants(arg_values.input_file, "snp")
         logger.info(f"Number of snps in vcf: {variant_count}")
         if variant_count > 0:
             logger.info("No dinuc in vcf file, only snps")
@@ -401,77 +401,138 @@ def run_somatic_analysis(arg_values):
     logger.info("Plotting the signatures profiles")
     if plot_snps:
         sigPlt.plotSBS(
-            os.path.join(output_dir, 'sbs', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+            os.path.join(output_dir, "sbs", "Assignment_Solution", "Signatures", "Assignment_Solution_Signatures.txt"),
             output_dir,
-            "somatic_sig", "96", percentage=True, savefig_format="png")
+            "somatic_sig",
+            "96",
+            percentage=True,
+            savefig_format="png",
+        )
     if plot_indels:
         sigPlt.plotID(
-            os.path.join(output_dir, 'id', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+            os.path.join(output_dir, "id", "Assignment_Solution", "Signatures", "Assignment_Solution_Signatures.txt"),
             output_dir,
-            "somatic_sig", "83", percentage=True, savefig_format="png")
+            "somatic_sig",
+            "83",
+            percentage=True,
+            savefig_format="png",
+        )
     if plot_dinuc:
         sigPlt.plotDBS(
-            os.path.join(output_dir, 'dinuc', 'Assignment_Solution', 'Signatures', 'Assignment_Solution_Signatures.txt'),
+            os.path.join(
+                output_dir, "dinuc", "Assignment_Solution", "Signatures", "Assignment_Solution_Signatures.txt"
+            ),
             output_dir,
-            "somatic_sig", "78", percentage=True, savefig_format="png")
-
+            "somatic_sig",
+            "78",
+            percentage=True,
+            savefig_format="png",
+        )
 
     logger.info("Plotting the sample profile")
-    matGen.SigProfilerMatrixGeneratorFunc("sample", arg_values.reference_name,
-                                          vcf_dirname, plot=True,
-                                          exome=False, bed_file=None, chrom_based=False, tsb_stat=False,
-                                          seqInfo=False, cushion=100)
+    matGen.SigProfilerMatrixGeneratorFunc(
+        "sample",
+        arg_values.reference_name,
+        vcf_dirname,
+        plot=True,
+        exome=False,
+        bed_file=None,
+        chrom_based=False,
+        tsb_stat=False,
+        seqInfo=False,
+        cushion=100,
+    )
     if plot_snps:
-        sigPlt.plotSBS(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"),
-                       output_dir,
-                       'sample',
-                       "96", percentage=False, savefig_format="png")
+        sigPlt.plotSBS(
+            os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"),
+            output_dir,
+            "sample",
+            "96",
+            percentage=False,
+            savefig_format="png",
+        )
 
     if plot_indels:
-        sigPlt.plotID(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"),
-                      output_dir,
-                      'sample',
-                      "83", percentage=False, savefig_format="png")
+        sigPlt.plotID(
+            os.path.join(vcf_dirname, "output/ID/sample.ID83.all"),
+            output_dir,
+            "sample",
+            "83",
+            percentage=False,
+            savefig_format="png",
+        )
 
     if plot_dinuc:
-        sigPlt.plotDBS(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"),
-                       output_dir,
-                       'sample',
-                       "78", percentage=False, savefig_format="png")
+        sigPlt.plotDBS(
+            os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"),
+            output_dir,
+            "sample",
+            "78",
+            percentage=False,
+            savefig_format="png",
+        )
 
     logger.info("Parse what are the relevant signatures")
     if plot_snps:
-        with open(os.path.join(output_dir, 'sbs', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-            sig_sbs,activity_values_sbs = _get_signatures_from_sig_log(log_file)
+        with open(
+            os.path.join(
+                output_dir,
+                "sbs",
+                "Assignment_Solution",
+                "Solution_Stats",
+                "Assignment_Solution_Signature_Assignment_log.txt",
+            ),
+            "r",
+            encoding="latin-1",
+        ) as log_file:
+            sig_sbs, activity_values_sbs = _get_signatures_from_sig_log(log_file)
             print(sig_sbs)
 
     if plot_indels:
-        with open(os.path.join(output_dir, 'id', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-            sig_id,activity_values_id = _get_signatures_from_sig_log(log_file)
+        with open(
+            os.path.join(
+                output_dir,
+                "id",
+                "Assignment_Solution",
+                "Solution_Stats",
+                "Assignment_Solution_Signature_Assignment_log.txt",
+            ),
+            "r",
+            encoding="latin-1",
+        ) as log_file:
+            sig_id, activity_values_id = _get_signatures_from_sig_log(log_file)
             print(sig_id)
 
     if plot_dinuc:
-        with open(os.path.join(output_dir, 'dinuc', 'Assignment_Solution', 'Solution_Stats', 'Assignment_Solution_Signature_Assignment_log.txt'), "r", encoding="latin-1") as log_file:
-            sig_dinuc,activity_values_dinuc = _get_signatures_from_sig_log(log_file)
+        with open(
+            os.path.join(
+                output_dir,
+                "dinuc",
+                "Assignment_Solution",
+                "Solution_Stats",
+                "Assignment_Solution_Signature_Assignment_log.txt",
+            ),
+            "r",
+            encoding="latin-1",
+        ) as log_file:
+            sig_dinuc, activity_values_dinuc = _get_signatures_from_sig_log(log_file)
             print(sig_dinuc)
 
-    final_results_folder = os.path.join(output_dir, 'final_results')
+    final_results_folder = os.path.join(output_dir, "final_results")
     os.mkdir(final_results_folder)
-
 
     logger.info("Copy the signatures pngs")
     if plot_snps:
         for sig in sig_sbs:
-            shutil.copy(os.path.join(output_dir,f'SBS_96_plots_{sig}.png'), final_results_folder)
+            shutil.copy(os.path.join(output_dir, f"SBS_96_plots_{sig}.png"), final_results_folder)
 
     if plot_indels:
         for sig in sig_id:
-            shutil.copy(os.path.join(output_dir,f'ID_83_plots_{sig}.png'), final_results_folder)
+            shutil.copy(os.path.join(output_dir, f"ID_83_plots_{sig}.png"), final_results_folder)
 
     if plot_dinuc:
         for sig in sig_dinuc:
-            shutil.copy(os.path.join(output_dir,f'DBS_78_plots_{sig}.png'), final_results_folder)
-
+            shutil.copy(os.path.join(output_dir, f"DBS_78_plots_{sig}.png"), final_results_folder)
 
     logger.info("Create signatures activity files")
     if plot_snps:
@@ -486,30 +547,29 @@ def run_somatic_analysis(arg_values):
         activities_dinuc = pd.Series(activity_values_dinuc, index=sig_dinuc)
         activities_dinuc.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_activity")
 
-
-    vcf_prefix = os.path.basename(arg_values.input_file).split('.')[0]
+    vcf_prefix = os.path.basename(arg_values.input_file).split(".")[0]
     if plot_snps:
-        shutil.copy(os.path.join(output_dir, f'SBS_96_plots_{vcf_prefix}.png'), final_results_folder)
+        shutil.copy(os.path.join(output_dir, f"SBS_96_plots_{vcf_prefix}.png"), final_results_folder)
 
     if plot_indels:
-        shutil.copy(os.path.join(output_dir, f'ID_83_plots_{vcf_prefix}.png'), final_results_folder)
+        shutil.copy(os.path.join(output_dir, f"ID_83_plots_{vcf_prefix}.png"), final_results_folder)
 
     if plot_dinuc:
-        shutil.copy(os.path.join(output_dir, f'DBS_78_plots_{vcf_prefix}.png'), final_results_folder)
-
+        shutil.copy(os.path.join(output_dir, f"DBS_78_plots_{vcf_prefix}.png"), final_results_folder)
 
     logger.info("Save the sample profile to h5")
     if plot_snps:
-        sig_profile_sbs = pd.read_csv(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"), sep='\t')
+        sig_profile_sbs = pd.read_csv(os.path.join(vcf_dirname, "output/SBS/sample.SBS96.all"), sep="\t")
         sig_profile_sbs.to_hdf(f"{arg_values.output_prefix}.h5", key="SBS96_profile")
 
     if plot_indels:
-        sig_profile_id = pd.read_csv(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"), sep='\t')
+        sig_profile_id = pd.read_csv(os.path.join(vcf_dirname, "output/ID/sample.ID83.all"), sep="\t")
         sig_profile_id.to_hdf(f"{arg_values.output_prefix}.h5", key="ID83_profile")
 
     if plot_dinuc:
-        sig_profile_dbs = pd.read_csv(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"), sep='\t')
+        sig_profile_dbs = pd.read_csv(os.path.join(vcf_dirname, "output/DBS/sample.DBS78.all"), sep="\t")
         sig_profile_dbs.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_profile")
+
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(
@@ -550,16 +610,20 @@ if __name__ == "__main__":
     )
     parser_eval_tables.set_defaults(func=run_eval_tables_only)
 
-
     # Run somatic analysis on somatic data
-    somatic_analysis = subparsers.add_parser(name="somatic_analysis", description="Run mutation signatures and motif graphs")
+    somatic_analysis = subparsers.add_parser(
+        name="somatic_analysis", description="Run mutation signatures and motif graphs"
+    )
 
     somatic_analysis.add_argument("--input_file", help="Input unzipped vcf file", required=True, type=str)
-    somatic_analysis.add_argument("--reference_name", help="Reference genome name", required=False, type=str, default="GRCh38")
+    somatic_analysis.add_argument(
+        "--reference_name", help="Reference genome name", required=False, type=str, default="GRCh38"
+    )
     somatic_analysis.add_argument("--output_prefix", help="output file and directory", required=True, type=str)
-    somatic_analysis.add_argument("--cosmic_version", help="Signatures cosmic version", required=False, type=str, default=3.3)
+    somatic_analysis.add_argument(
+        "--cosmic_version", help="Signatures cosmic version", required=False, type=str, default="3.3"
+    )
     somatic_analysis.set_defaults(func=run_somatic_analysis)
-
 
     args = ap.parse_args()
     args.func(args)
