@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 import subprocess
@@ -14,8 +15,9 @@ import pysam
 from ugvc import logger
 from ugvc.dna.format import AD, DP, GT, VAF
 from ugvc.mrd.featuremap_utils import FeatureMapFields, FeatureMapFilters
+from ugvc.mrd.ppmSeq_utils import HistogramColumnNames
 
-fields_to_collect = {
+fields_to_collect_all_options = {
     "numeric_array_fields": [
         FeatureMapFields.X_SCORE.value,
         FeatureMapFields.X_EDIST.value,
@@ -26,8 +28,20 @@ fields_to_collect = {
         FeatureMapFields.X_FC2.value,
         FeatureMapFields.MAX_SOFTCLIP_LENGTH.value,
         FeatureMapFields.X_FLAGS.value,
+        HistogramColumnNames.STRAND_RATIO_START.value,
+        HistogramColumnNames.STRAND_RATIO_END.value,
+        "ML_QUAL",
     ],
-    "string_list_fields": [FeatureMapFields.X_RN.value, FeatureMapFields.X_CIGAR.value, "rq", "tm"],
+    "string_list_fields": [
+        FeatureMapFields.X_RN.value,
+        FeatureMapFields.X_CIGAR.value,
+        "rq",
+        "tm",
+        HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+        HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+        "st",
+        "et",
+    ],
     "boolean_fields": [
         FeatureMapFields.IS_FORWARD.value,
         FeatureMapFields.IS_DUPLICATE.value,
@@ -56,6 +70,7 @@ def write_a_pileup_record(
     rec_id: tuple,
     out_fh: pysam.VariantFile,
     header: pysam.VariantHeader,
+    fields_to_collect: dict,
     min_qual: int,
     sample_name: str = "SAMPLE",
     qual_agg_func: callable = np.max,
@@ -68,6 +83,7 @@ def write_a_pileup_record(
         rec_id (str): The record id
         out_fh (pysam.VariantFile): A pysam file handle of the output vcf file
         header (pysam.VariantHeader): A pysam VarianyHeader pbject of the output vcf file
+        fields_to_collect (dict): A dictionary containing the fields to collect
         min_qual (int): The minimum quality threshold
         sample_name (str): The name of the sample (default: "SAMPLE")
         qual_agg_func (function): The function to aggregate the quality scores (default: np.max)
@@ -133,13 +149,14 @@ def write_a_pileup_record(
     return rec
 
 
-def pileup_featuremap(
+def pileup_featuremap(  # pylint: disable=too-many-branches
     featuremap: str,
     output_vcf: str,
     genomic_interval: str = None,
     min_qual: int = 0,
     sample_name: str = "SAMPLE",
     qual_agg_func: callable = np.max,
+    verbose: bool = True,
 ):
     """
     Pileup featuremap vcf to a regular vcf, save the aggregated quality and read count
@@ -151,10 +168,14 @@ def pileup_featuremap(
         min_qual (int): The minimum quality threshold
         sample_name (str): The name of the sample (default: "SAMPLE")
         qual_agg_func (callable): The function to aggregate the quality scores (default: np.max)
+        verbose (bool): The verbosity level (default: True)
     Output:
         output_vcf (str): The output vcf file
     """
-    cons_dict = defaultdict(dict)
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+        for handler in logger.handlers:
+            handler.setLevel(logging.DEBUG)
     # process genomic interval input
     if genomic_interval is None:
         chrom = None
@@ -168,6 +189,8 @@ def pileup_featuremap(
         end = int(genomic_interval_list[1].split("-")[1])
 
     # generate a new header
+    # filter out the fields that are not present in the input featuremap vcf
+    fields_to_collect = defaultdict(list)
     orig_header = pysam.VariantFile(featuremap).header
     header = pysam.VariantHeader()
     header.add_meta("fileformat", "VCFv4.2")
@@ -175,21 +198,42 @@ def pileup_featuremap(
         "SingleRead", None, None, "Aggregated quality above threshold, Only a single read agrees with alternative"
     )
     header.filters.add("LowQual", None, None, "Aggregated quality below threshold")
-    for field in fields_to_collect["numeric_array_fields"]:
-        assert field in orig_header.info, f"Field {field} not found in the input featuremap vcf"
-        header.info.add(field, ".", orig_header.info[field].type, orig_header.info[field].description)
-    for field in fields_to_collect["string_list_fields"]:
-        assert field in orig_header.info, f"Field {field} not found in the input featuremap vcf"
-        header.info.add(field, "1", orig_header.info[field].type, orig_header.info[field].description)
-    for field in fields_to_collect["boolean_fields"]:
-        assert field in orig_header.info, f"Field {field} not found in the input featuremap vcf"
-        header.info.add(field, "1", "String", orig_header.info[field].description)
-    for field in fields_to_collect["fields_to_write_once"]:
-        assert field in orig_header.info, f"Field {field} not found in the input featuremap vcf"
-        header.info.add(field, "1", orig_header.info[field].type, orig_header.info[field].description)
-    for field in fields_to_collect["boolean_fields_to_write_once"]:
-        assert field in orig_header.info, f"Field {field} not found in the input featuremap vcf"
-        header.info.add(field, "0", "Flag", orig_header.info[field].description)
+
+    for field in fields_to_collect_all_options["numeric_array_fields"]:
+        if field in orig_header.info:
+            header.info.add(field, ".", orig_header.info[field].type, orig_header.info[field].description)
+            fields_to_collect["numeric_array_fields"] += [field]
+        else:
+            logger.debug(f"Field {field} not found in the input featuremap vcf")
+
+    for field in fields_to_collect_all_options["string_list_fields"]:
+        if field in orig_header.info:
+            header.info.add(field, "1", orig_header.info[field].type, orig_header.info[field].description)
+            fields_to_collect["string_list_fields"] += [field]
+        else:
+            logger.debug(f"Field {field} not found in the input featuremap vcf")
+
+    for field in fields_to_collect_all_options["boolean_fields"]:
+        if field in orig_header.info:
+            header.info.add(field, "1", "String", orig_header.info[field].description)
+            fields_to_collect["boolean_fields"] += [field]
+        else:
+            logger.debug(f"Field {field} not found in the input featuremap vcf")
+
+    for field in fields_to_collect_all_options["fields_to_write_once"]:
+        if field in orig_header.info:
+            header.info.add(field, "1", orig_header.info[field].type, orig_header.info[field].description)
+            fields_to_collect["fields_to_write_once"] += [field]
+        else:
+            logger.debug(f"Field {field} not found in the input featuremap vcf")
+
+    for field in fields_to_collect_all_options["boolean_fields_to_write_once"]:
+        if field in orig_header.info:
+            header.info.add(field, "0", "Flag", orig_header.info[field].description)
+            fields_to_collect["boolean_fields_to_write_once"] += [field]
+        else:
+            logger.debug(f"Field {field} not found in the input featuremap vcf")
+
     # exceptions: X_QUAL
     header.info.add(FeatureMapFields.X_QUAL.value, ".", "Float", "Quality of reads containing this location")
     header.formats.add(GT, 1, "String", "Genotype")
@@ -207,7 +251,13 @@ def pileup_featuremap(
     # sort the vcf file prior to reading
     with tempfile.TemporaryDirectory(dir=dirname(output_vcf)) as temp_dir:
         sorted_featuremap = pjoin(temp_dir, basename(featuremap).replace(".vcf.gz", ".sorted.vcf.gz"))
-        sort_cmd = f"bcftools sort {featuremap} -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
+        if genomic_interval is None:
+            # sort all featuremap
+            sort_cmd = f"bcftools sort {featuremap} -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
+        else:
+            # sort only the genomic interval of interest
+            sort_cmd = f"bcftools view {featuremap} {genomic_interval} |\
+                  bcftools sort - -Oz -o {sorted_featuremap} && bcftools index -t {sorted_featuremap}"
         logger.debug(sort_cmd)
         subprocess.check_call(sort_cmd, shell=True)
 
@@ -220,7 +270,14 @@ def pileup_featuremap(
                     if len(cons_dict.keys()) > 1:
                         # write to file
                         write_a_pileup_record(
-                            cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func
+                            cons_dict[prev_key],
+                            prev_key,
+                            out_fh,
+                            header,
+                            fields_to_collect,
+                            min_qual,
+                            sample_name,
+                            qual_agg_func,
                         )
                         cons_dict.pop(prev_key)
                     # initialize rec_counter
@@ -259,7 +316,14 @@ def pileup_featuremap(
             # write last record
             if len(cons_dict.keys()) > 0:
                 write_a_pileup_record(
-                    cons_dict[prev_key], prev_key, out_fh, header, min_qual, sample_name, qual_agg_func
+                    cons_dict[prev_key],
+                    prev_key,
+                    out_fh,
+                    header,
+                    fields_to_collect,
+                    min_qual,
+                    sample_name,
+                    qual_agg_func,
                 )
 
         out_fh.close()
@@ -274,6 +338,7 @@ def pileup_featuremap_on_an_interval_list(
     min_qual: int = 0,
     sample_name: str = "SAMPLE",
     qual_agg_func: callable = np.max,
+    verbose: bool = True,
 ):
     """
     Apply pileup featuremap on an interval list
@@ -285,6 +350,7 @@ def pileup_featuremap_on_an_interval_list(
         min_qual (int): The minimum quality threshold
         sample_name (str): The name of the sample (default: "SAMPLE")
         qual_agg_func (callable): The function to aggregate the quality scores (default: np.max)
+        verbose (bool): The verbosity level (default: True)
     Output:
         output_vcf (str): The output vcf file
     """
@@ -313,7 +379,9 @@ def pileup_featuremap_on_an_interval_list(
                     + str(end)
                     + ".int_list.vcf.gz",
                 )
-                pileup_featuremap(featuremap, curr_output_vcf, genomic_interval, min_qual, sample_name, qual_agg_func)
+                pileup_featuremap(
+                    featuremap, curr_output_vcf, genomic_interval, min_qual, sample_name, qual_agg_func, verbose
+                )
         # merge the output vcfs
         vcfs = [pjoin(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith(".vcf.gz")]
         vcf_str = " ".join(vcfs)
