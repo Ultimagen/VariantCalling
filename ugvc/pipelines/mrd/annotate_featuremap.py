@@ -21,6 +21,7 @@ import argparse
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.mrd_utils import annotate_featuremap
+from ugvc.mrd.ppmSeq_utils import supported_adapter_versions
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -32,7 +33,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="input featuremap file",
     )
-    parser.add_argument("--ppmSeq_adapter_version", type=str, default=None, help="ppmSeq adapter version")
+    parser.add_argument(
+        "--ppmSeq_adapter_version",
+        choices=supported_adapter_versions,
+        required=False,
+        help="ppmSeq adapter version",
+    )
     parser.add_argument(
         "-o",
         "--output_featuremap",

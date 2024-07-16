@@ -31,13 +31,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=True,
         help="""input featuremap file""",
     )
-    # parser.add_argument(
-    #     "-X",
-    #     "--X_train_path",
-    #     type=str,
-    #     required=True,
-    #     help="""X train file path""",
-    # )
     parser.add_argument(
         "--model_joblib_path",
         type=str,
@@ -86,27 +79,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Number of processes to use for parallelization.
              If N < 1, use all-available - abs(N) cores. Default 0""",
     )
-    # parser.add_argument(
-    #     "-n",
-    #     "--num_folds",
-    #     type=int,
-    #     default=0,
-    #     help="""Number of cross-validation folds. If 0, do not use CV. Default 0""",
-    # )
-    # parser.add_argument(
-    #     "-c",
-    #     "--chrom_folds_path",
-    #     type=int,
-    #     default=None,
-    #     help="""The path to a csv file with information about which chromosomes belong to which CV fold.
-    #     By default, use the following grouping into folds:
-    #     {'chr2': 0, 'chr6': 0, 'chr22': 0, 'chr14': 0,
-    #     'chr3': 1, 'chr4': 1, 'chr5': 1,
-    #     'chr7': 2, 'chr8': 2, 'chr9': 2, 'chr11': 2,
-    #     'chr1': 3, 'chr20': 3, 'chr10': 3, 'chr12': 3,
-    #     'chr15': 4, 'chr16': 4, 'chr17': 4, 'chr18': 4, 'chr19': 4, 'chr13': 4, 'chr21': 4}
-    #     """,
-    # )
 
     return parser.parse_args(argv[1:])
 

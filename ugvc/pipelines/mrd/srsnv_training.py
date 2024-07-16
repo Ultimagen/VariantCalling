@@ -23,6 +23,7 @@ import json
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.mrd.ppmSeq_utils import supported_adapter_versions
 from ugvc.mrd.srsnv_plotting_utils import srsnv_report
 from ugvc.mrd.srsnv_training_utils import SRSNVTrain
 
@@ -164,10 +165,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--ppmSeq_adapter_version",
-        type=str,
+        choices=supported_adapter_versions,
         required=False,
-        default=None,
-        help="""adapter version, indicates if input featuremap is from balanced ePCR data """,
+        help="ppmSeq adapter version",
     )
     parser.add_argument(
         "--pre_filter",
@@ -270,9 +270,9 @@ def run(argv: list[str]):
         fp_regions_bed_file=args.single_sub_regions,
         numerical_features=dataset_params["numerical_features"],
         categorical_features=dataset_params["categorical_features"],
-        balanced_sampling_info_fields=dataset_params["balanced_sampling_info_fields"]
-        if dataset_params["balanced_sampling_info_fields"]
-        else None,
+        balanced_sampling_info_fields=(
+            dataset_params["balanced_sampling_info_fields"] if dataset_params["balanced_sampling_info_fields"] else None
+        ),
         sorter_json_stats_file=args.cram_stats_file,
         train_set_size=dataset_params["train_set_size"],
         test_set_size=dataset_params["test_set_size"],

@@ -418,6 +418,8 @@ def read_ppmSeq_trimmer_histogram(
         ppmSeqAdapterVersions.V1.value,
         ppmSeqAdapterVersions.DMBL,
         ppmSeqAdapterVersions.DMBL.value,
+        ppmSeqAdapterVersions.HYRPA_v4,
+        ppmSeqAdapterVersions.HYRPA_v4.value,
     ]:
         is_end_reached = (
             df_trimmer_histogram[TrimmerSegmentLabels.NATIVE_ADAPTER.value + length_suffix] >= 1
@@ -522,6 +524,8 @@ def read_ppmSeq_trimmer_histogram(
         ppmSeqAdapterVersions.V1.value,
         ppmSeqAdapterVersions.DMBL,
         ppmSeqAdapterVersions.DMBL.value,
+        ppmSeqAdapterVersions.HYRPA_v4,
+        ppmSeqAdapterVersions.HYRPA_v4.value,
     ]:
         # In LA-v7 the tags are explicitly detected from the loop sequences
         # an unmatched start tag indicates an undetermined call
@@ -792,6 +796,8 @@ def read_trimmer_tags_dataframe(
         ppmSeqAdapterVersions.V1.value,
         ppmSeqAdapterVersions.DMBL,
         ppmSeqAdapterVersions.DMBL.value,
+        ppmSeqAdapterVersions.HYRPA_v4,
+        ppmSeqAdapterVersions.HYRPA_v4.value,
     ):
         df_tags = df_category_consensus * 100
         undetermined = ppmSeqCategoriesConsensus.UNDETERMINED.value
@@ -1033,6 +1039,8 @@ def collect_statistics(
         ppmSeqAdapterVersions.V1.value,
         ppmSeqAdapterVersions.DMBL,
         ppmSeqAdapterVersions.DMBL.value,
+        ppmSeqAdapterVersions.HYRPA_v4,
+        ppmSeqAdapterVersions.HYRPA_v4.value,
     )
     if adapter_in_both_ends:
         df_category_concordance, _, df_category_consensus = get_strand_ratio_category_concordance(
@@ -1572,6 +1580,8 @@ def plot_trimmer_histogram(
         ppmSeqAdapterVersions.V1.value,
         ppmSeqAdapterVersions.DMBL,
         ppmSeqAdapterVersions.DMBL.value,
+        ppmSeqAdapterVersions.HYRPA_v4,
+        ppmSeqAdapterVersions.HYRPA_v4.value,
     ):
 
         fig, axs_all_both = plt.subplots(3, 10, figsize=(18, 5), sharex=False, sharey=True)
@@ -1924,6 +1934,8 @@ def ppmSeq_qc_analysis(
         ppmSeqAdapterVersions.V1.value,
         ppmSeqAdapterVersions.DMBL,
         ppmSeqAdapterVersions.DMBL.value,
+        ppmSeqAdapterVersions.HYRPA_v4,
+        ppmSeqAdapterVersions.HYRPA_v4.value,
     ):
         plot_strand_ratio_category_concordnace(
             adapter_version,
@@ -1985,6 +1997,8 @@ def ppmSeq_qc_analysis(
             ppmSeqAdapterVersions.V1.value,
             ppmSeqAdapterVersions.DMBL,
             ppmSeqAdapterVersions.DMBL.value,
+            ppmSeqAdapterVersions.HYRPA_v4,
+            ppmSeqAdapterVersions.HYRPA_v4.value,
         ):
             parameters["strand_ratio_category_concordance_png"] = output_strand_ratio_category_concordance_plot
         if sorter_stats_json:

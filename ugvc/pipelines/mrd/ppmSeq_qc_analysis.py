@@ -36,7 +36,7 @@ def __parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--adapter-version",
         choices=supported_adapter_versions,
-        help="Library adapter version",
+        help="ppmSeq adapter version",
     )
     parser.add_argument(
         "--trimmer-histogram-csv",
