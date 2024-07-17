@@ -1,0 +1,2 @@
+sample1,sample2,sample1_specific,sample2_specific,sample1_common,sample2_common,sample1_specific_10K,sample2_specific_10K,sample1_common_10K,sample2_common_10K,sample1_specific_10K_lcr,sample2_specific_10K_lcr,sample1_common_10K_lcr,sample2_common_10K_lcr,percision,recall
+COLO829,GT,3,0,27,7,2,0,22,7,1,0,14,5,0.93333334,1.0
