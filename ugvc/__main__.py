@@ -6,6 +6,8 @@ from os.path import dirname
 
 from simppl import cli
 
+from ugvc.pipelines.cnv import annotate_FREEC_segments
+
 # add package under repo-root to PYTHONPATH
 path = f"{dirname(dirname(__file__))}"
 if path not in sys.path:
@@ -55,7 +57,9 @@ from ugvc.pipelines.mrd import (
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
-from ugvc.somatic_cnv import bicseq2_post_processing
+from ugvc.cnv import (
+    bicseq2_post_processing
+    )
 from ugvc.utils import cloud_sync
 
 # create a list of imported pipeline modules
@@ -74,6 +78,7 @@ modules = [
     correct_genotypes_by_imputation,
     vcfeval_flavors,
     bicseq2_post_processing,
+    annotate_FREEC_segments
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
