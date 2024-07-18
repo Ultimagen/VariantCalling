@@ -12,6 +12,7 @@ jobs:
         with:
           lfs: true
           submodules: true
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
       - uses: s-weigand/setup-conda@v1.1.1
         with:
