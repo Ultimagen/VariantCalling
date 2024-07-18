@@ -1,7 +1,7 @@
 import pytest
 from simppl.simple_pipeline import SimplePipeline
 
-from ugbio_core.filter_bed import intersect_bed_regions
+from ugvc.ugbio_utils.src.core.ugbio_core.filter_bed import intersect_bed_regions
 
 
 @pytest.mark.parametrize(

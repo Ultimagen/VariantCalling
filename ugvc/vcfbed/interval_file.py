@@ -5,7 +5,7 @@ import os
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
-from ugbio_core.exec_utils import print_and_execute
+from ugvc.ugbio_utils.src.core.ugbio_core.exec_utils import print_and_execute
 
 
 class IntervalFile:

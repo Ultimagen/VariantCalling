@@ -16,7 +16,7 @@ import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.vcfbed.variant_annotation as annotation
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugbio_core.exec_utils import print_and_execute
+from ugvc.ugbio_utils.src.core.ugbio_core.exec_utils import print_and_execute
 from ugvc.vcfbed import vcftools
 
 
