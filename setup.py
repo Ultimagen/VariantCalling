@@ -27,7 +27,9 @@ setup(
         "ugvc/pipelines/sec/sec_training.py",
         "ugvc/pipelines/denovo_recalibrated_qualities.py",
         "ugvc/scripts/convert_h5_to_json.py",
-        "ugvc/cnv/plot_cnv_results.py",
+        "ugvc/ugbio_utils/src/cnv/ugbio_cnv/filter_sample_cnvs.py",
+        "ugvc/ugbio_utils/src/cnv/ugbio_cnv/convert_cnv_results_to_vcf.py",
+        "ugvc/ugbio_utils/src/cnv/ugbio_cnv/plot_cnv_results.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
     ],
     package_data={
