@@ -40,13 +40,17 @@ LABEL com.ultimagenomics.build-timestamp=${BUILD_TIMESTAMP}
 LABEL com.ultimagenomics.build-version=${BUILD_VERSION}
 LABEL com.ultimagenomics.version=${VERSION}
 
-# Install STAR and samtools
+# Install apt-get dependencies
 RUN apt-get update && apt-get install --no-install-recommends -y \
     wget \
     libgomp1 \
+    unzip \
+    procps `# for monitoring script memory usage` \
+    sysstat `# for monitoring script IO metrics` \
     ; \
     apt-get autoclean && rm -rf /var/lib/apt/lists/*
 
+# Install STAR
 RUN wget -O- https://github.com/alexdobin/STAR/archive/2.7.10a.tar.gz \
     | tar xfz - STAR-2.7.10a/bin/Linux_x86_64/STAR \
     && mv STAR-2.7.10a/bin/Linux_x86_64/STAR /usr/local/bin \

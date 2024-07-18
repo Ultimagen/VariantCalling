@@ -3,9 +3,9 @@ from test import get_resource_dir, test_dir
 
 import pysam
 
-from ugvc.mrd.balanced_strand_utils import HistogramColumnNames
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.mrd.mrd_utils import annotate_featuremap
+from ugvc.mrd.ppmSeq_utils import HistogramColumnNames
 
 __general_inputs_dir = f"{test_dir}/resources/general/"
 
@@ -19,7 +19,7 @@ def test_annotate_featuremap(tmpdir):
         input_featuremap,
         output_featuremap,
         ref_fasta=ref_fasta,
-        balanced_strand_adapter_version="LA_v5and6",
+        ppmSeq_adapter_version="legacy_v5",
         flow_order="TGCA",
         motif_length_to_annotate=3,
         max_hmer_length=20,

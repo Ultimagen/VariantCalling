@@ -249,8 +249,8 @@ class TestVariantAnnotation:
     def test_pickle_an_annotator(self, tmpdir):
         import pickle
 
-        from ugvc.mrd.balanced_strand_utils import BalancedStrandVcfAnnotator
+        from ugvc.mrd.ppmSeq_utils import ppmSeqStrandVcfAnnotator
 
-        annotator = BalancedStrandVcfAnnotator(adapter_version="LA_v5")
+        annotator = ppmSeqStrandVcfAnnotator(adapter_version="legacy_v5_start")
         with open(pjoin(tmpdir, "annotators_pickle"), "wb") as f:
             pickle.dump(annotator, f)

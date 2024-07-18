@@ -227,6 +227,7 @@ class FlowBasedRead:
         min_call_prob: float = MINIMAL_CALL_PROB,
         _fmt: str = "cram",
         spread_edge_probs=True,
+        validate=False,
     ):
         # pylint: disable=pointless-statement
         """Constructor from BAM record and error model. Sets `seq`, `r_seq`, `key`,
@@ -254,14 +255,18 @@ class FlowBasedRead:
             The minimal probability to be placed on the call (default: %f)
         _fmt: str
             Can be 'matt', 'ilya' or 'cram' (the current BARC output format)
-        spread_edge_probs:
+        spread_edge_probs: bool
+            Should the error probabilities of the edge flows be smoothed (e.g. after trimming). Default - true
+        validate: bool
+            Will print number of illegal flows (in the tp). Default - false
+
         Returns
         -------
         Object
         """ % (
             DEFAULT_FILLER,
             MINIMAL_CALL_PROB,
-        )
+        )  # type: ignore
         dct = {}
         dct["record"] = sam_record
         dct["read_name"] = sam_record.query_name
@@ -316,6 +321,8 @@ class FlowBasedRead:
                 t0 = sam_record.get_tag("t0")
             else:
                 t0 = None
+            if validate:
+                print(str(sam_record.query_name) + ":", end=" ")
             flow_matrix = cls._matrix_from_qual_tp(
                 dct["key"],
                 np.array(sam_record.query_qualities, dtype=int),
@@ -325,6 +332,7 @@ class FlowBasedRead:
                 min_call_prob=min_call_prob,
                 max_hmer_size=max_hmer_size,
                 spread_edge_probs=spread_edge_probs,
+                validate=validate,
             )
             dct["_flow_matrix"] = flow_matrix
 
@@ -348,6 +356,7 @@ class FlowBasedRead:
         min_call_prob: float = MINIMAL_CALL_PROB,
         max_hmer_size: int = 12,
         spread_edge_probs: bool = True,
+        validate: bool = False,
     ) -> np.ndarray:
         """Fill flow matrix from the CRAM format data. Here is the description
 
@@ -394,8 +403,10 @@ class FlowBasedRead:
             Maximum hmer size that has a reported probability
         spread_edge_probs: bool, optional
             Should the error probabilities of the edge bases be smoothed (e.g. after trimming). Default - true
+        validate: bool, optional
+            Should the function validate the input. Default - false
 
-                    Returns
+        Returns
         -------
         np.ndarray
             max_hmer+1 x n_flows flow matrix
@@ -454,7 +465,17 @@ class FlowBasedRead:
             flow_matrix[:, first_call] = 1 / (max_hmer_size + 1)
             last_call = np.nonzero(key)[0][-1]
             flow_matrix[:, last_call] = 1 / (max_hmer_size + 1)
+        if validate:
+            violations_tp = 0
+            violations_qual = 0
+            start_locations = np.cumsum(key)
+            for i in start_locations[1:-2]:
+                tp_take = tp_tag[i : i + hmer_sizes[i]]
+                violations_tp += (tp_take != tp_take[::-1]).any()
+                qual_take = qual[i : i + hmer_sizes[i]]
+                violations_qual += (qual_take != qual_take[::-1]).any()
 
+            print(f"Number of tp symmetry violations: {violations_tp}, qual symmetry violations: {violations_qual}")
         return flow_matrix
 
     @classmethod
