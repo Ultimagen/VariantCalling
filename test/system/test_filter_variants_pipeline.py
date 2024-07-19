@@ -27,6 +27,63 @@ class TestFilterVariantPipeline:
         df = vcftools.get_vcf_df(output_file)
         assert {"LOW_SCORE": 2412, "PASS": 10266} == dict(df["filter"].value_counts())
 
+    def test_filter_variants_pipeline_exact_model(self, tmpdir):
+        output_file = f"{tmpdir}/036269-NA24143-Z0016.frd_chr1_1_5000000_filtered.vcf.gz"
+        filter_variants_pipeline.run(
+            [
+                "--input_file",
+                f"{self.inputs_dir}/036269-NA24143-Z0016.frd_chr1_1_5000000_unfiltered.vcf.gz",
+                "--model_file",
+                f"{self.inputs_dir}/exact_gt.model.pkl",
+                "--output_file",
+                output_file,
+                "--custom_annotations",
+                "LCR",
+                "--custom_annotations",
+                "MAP_UNIQUE",
+                "--custom_annotations",
+                "LONG_HMER",
+                "--custom_annotations",
+                "UG_HCR",
+                "--ref_fasta",
+                f"{self.general_inputs_dir}/Homo_sapiens_assembly38.fasta",
+                "--treat_multiallelics",
+                "--recalibrate_genotype",
+            ]
+        )
+
+        df = vcftools.get_vcf_df(output_file)
+        assert {(0, 1): 5226, (0, 0): 5189, (1, 1): 2986, (1, 2): 63, (2, 2): 4} == dict(df["gt"].value_counts())
+        assert {"PASS": 8317, "LOW_SCORE": 5151} == dict(df["filter"].value_counts())
+
+    def test_filter_variants_pipeline_exact_model_no_gt_recal(self, tmpdir):
+        output_file = f"{tmpdir}/036269-NA24143-Z0016.frd_chr1_1_5000000_filtered.vcf.gz"
+        filter_variants_pipeline.run(
+            [
+                "--input_file",
+                f"{self.inputs_dir}/036269-NA24143-Z0016.frd_chr1_1_5000000_unfiltered.vcf.gz",
+                "--model_file",
+                f"{self.inputs_dir}/exact_gt.model.pkl",
+                "--output_file",
+                output_file,
+                "--custom_annotations",
+                "LCR",
+                "--custom_annotations",
+                "MAP_UNIQUE",
+                "--custom_annotations",
+                "LONG_HMER",
+                "--custom_annotations",
+                "UG_HCR",
+                "--ref_fasta",
+                f"{self.general_inputs_dir}/Homo_sapiens_assembly38.fasta",
+                "--treat_multiallelics",
+            ]
+        )
+
+        df = vcftools.get_vcf_df(output_file)
+        assert {(0, 1): 10086, (1, 1): 3306, (1, 2): 76} == dict(df["gt"].value_counts())
+        assert {"PASS": 8317, "LOW_SCORE": 5151} == dict(df["filter"].value_counts())
+
     def test_filter_variants_pipeline_blacklist_only(self, tmpdir):
         output_file = f"{tmpdir}/004777-X0024.annotated.AF_chr1_1_1000000_filtered.blacklist_only.vcf.gz"
         filter_variants_pipeline.run(
