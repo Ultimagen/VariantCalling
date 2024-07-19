@@ -143,22 +143,18 @@ def run(argv: list[str]):  # pylint: disable=too-many-branches, disable=too-many
                             df = df_original.copy()
                         else:
                             df["ml_lik"] = pd.Series([list(x) for x in scores], index=df.index)
-                        if args.recalibrate_genotype:
-                            likelihoods = np.zeros((df.shape[0], max(df["ml_lik"].apply(len))))
-                            for i, r in enumerate(df["ml_lik"]):
-                                likelihoods[i, : len(r)] = r
 
-                            phreds = math_utils.phred(likelihoods + 1e-10)
-                            quals = np.clip(30 + phreds[:, 0] - np.min(phreds[:, 1:], axis=1), 0, None)
-                            tmp = np.argsort(phreds, axis=1)
-                            gq = (
-                                phreds[np.arange(phreds.shape[0]), tmp[:, 1]]
-                                - phreds[np.arange(phreds.shape[0]), tmp[:, 0]]
-                            )
-                        else:
-                            phreds = math_utils.phred(np.vstack(tuple(df["ml_lik"].values)))
-                            quals = -phreds[:, 1] + phreds[:, 0]
-                            quals = np.clip(quals + 30, 0, 100)
+                        likelihoods = np.zeros((df.shape[0], max(df["ml_lik"].apply(len))))
+                        for i, r in enumerate(df["ml_lik"]):
+                            likelihoods[i, : len(r)] = r
+
+                        phreds = math_utils.phred(likelihoods + 1e-10)
+                        quals = np.clip(30 + phreds[:, 0] - np.min(phreds[:, 1:], axis=1), 0, None)
+                        tmp = np.argsort(phreds, axis=1)
+                        gq = (
+                            phreds[np.arange(phreds.shape[0]), tmp[:, 1]]
+                            - phreds[np.arange(phreds.shape[0]), tmp[:, 0]]
+                        )
 
                     logger.info("Writing records")
                     for i, rec in tqdm.tqdm(enumerate(chunk)):
