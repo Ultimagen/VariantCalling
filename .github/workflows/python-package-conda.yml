@@ -30,7 +30,7 @@ jobs:
         uses: eifinger/setup-rye@v3
         with:
           version: ${{ env.RYE_VERSION }}
-      - name: Build ugbio_utils modules
+      - name: Build ugbio-utils modules
         run: |
           mkdir /tmp/ugbio_utils
           cd ugvc/ugbio_utils
