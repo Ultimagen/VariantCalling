@@ -74,6 +74,7 @@ jobs:
           source activate genomics.py3
           python -m pytest --ignore test/unit/utils/test_db_access.py --ignore test/unit/single_cell_qc test/unit
           python -m pytest test/system
+          python -m pytest ugvc/ugbio_utils/src/*/tests
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11
