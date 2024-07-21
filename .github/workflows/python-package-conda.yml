@@ -34,6 +34,7 @@ jobs:
         run: |
           cd ugvc/ugbio_utils
           rye sync
+          rye build --all --wheel -o ../../
       - name: Setup environment variables
         run: |
           export PAPYRUS_ACCESS_STRING=mongodb+srv://inigo-montoya:1aBc5678910@testcluster.jm2x3.mongodb.net/test
