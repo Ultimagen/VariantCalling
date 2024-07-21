@@ -50,7 +50,7 @@ jobs:
       - name: Install as a package
         run: |
           source activate genomics.py3
-          pip install /tmp/ugbio_utils/
+          pip install /tmp/ugbio_utils/*.whl
           pip install .
 #      - name: Lint with flake8
 #        run: |
