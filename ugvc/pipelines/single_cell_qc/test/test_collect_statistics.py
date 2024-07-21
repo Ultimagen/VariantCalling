@@ -1,7 +1,6 @@
 import shutil
 from gzip import BadGzipFile
 from pathlib import Path
-from test import get_resource_dir
 
 import pandas as pd
 import pytest
@@ -17,10 +16,7 @@ from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import H5Keys, Inputs, Thre
 
 @pytest.fixture
 def inputs_dir():
-    # returns VariantCalling/test/resources/unit/single_cell_qc + the current file name: test_single_cell_qc_pipeline
-    inputs_dir = Path(get_resource_dir(__file__))
-    # the resources are in the directory: VariantCalling/test/resources/unit/single_cell_qc so need to drop the last part of the path
-    inputs_dir = inputs_dir.parent
+    inputs_dir = Path(__file__).parent / "resources" 
     return inputs_dir
 
 

@@ -57,7 +57,7 @@ jobs:
       - name: Test with pytest
         run: |
           source activate genomics.py3
-          python -m pytest --ignore test/unit/utils/test_db_access.py --ignore test/unit/single_cell_qc test/unit
+          python -m pytest --ignore test/unit/utils/test_db_access.py --ignore ugvc/pipelines/single_cell_qc/test
           python -m pytest test/system
       - uses: actions/setup-python@v4
         with:
@@ -74,4 +74,4 @@ jobs:
           poetry install
       - name: Run scrna_qc tests
         run: |
-          poetry run pytest test/unit/single_cell_qc
+          poetry run pytest ugvc/pipelines/single_cell_qc/test
