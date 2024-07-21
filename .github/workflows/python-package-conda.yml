@@ -26,6 +26,14 @@ jobs:
         run: |
           sudo mkdir -p /data && \
           sudo chmod 777 /data
+      - name: Install rye
+        uses: eifinger/setup-rye@v3
+        with:
+          version: ${{ env.RYE_VERSION }}
+      - name: Run rye sync
+        run: |
+          cd ugvc/ugbio_utils
+          rye sync
       - name: Setup environment variables
         run: |
           export PAPYRUS_ACCESS_STRING=mongodb+srv://inigo-montoya:1aBc5678910@testcluster.jm2x3.mongodb.net/test
@@ -40,16 +48,6 @@ jobs:
         run: |
           source activate genomics.py3
           pip install .
-      - name: Install rye
-        uses: eifinger/setup-rye@v3
-        with:
-          version: ${{ env.RYE_VERSION }}
-
-      - name: Run rye sync
-        run: |
-          cd ugvc/ugbio_utils
-          rye sync
-
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
