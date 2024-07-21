@@ -30,7 +30,7 @@ jobs:
         uses: eifinger/setup-rye@v3
         with:
           version: ${{ env.RYE_VERSION }}
-      - name: Run rye sync
+      - name: Build ugbio_utils modules
         run: |
           mkdir /tmp/ugbio_utils
           cd ugvc/ugbio_utils
@@ -52,12 +52,12 @@ jobs:
           source activate genomics.py3
           pip install /tmp/ugbio_utils/*.whl
           pip install .
-#      - name: Lint with flake8
-#        run: |
-#          # stop the build if there are Python syntax errors or undefined names
-#          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-#          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Import integrity tests
         run: |
           source activate genomics.py3
