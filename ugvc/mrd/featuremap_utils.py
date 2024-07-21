@@ -12,7 +12,7 @@ from simppl.simple_pipeline import SimplePipeline
 from ugvc import logger
 from ugvc.dna.format import ALT, CHROM, DEFAULT_FLOW_ORDER, FILTER, IS_CYCLE_SKIP, POS, QUAL, REF
 from ugvc.dna.utils import get_max_softclip_len
-from ugvc.ugbio_utils.src.core.ugbio_core.exec_utils import print_and_execute
+from ugbio_core.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 from ugvc.vcfbed.variant_annotation import VcfAnnotator, get_cycle_skip_dataframe, get_motif_around_snv
 
