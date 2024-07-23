@@ -1,6 +1,9 @@
 import argparse
 import pickle
 
+import sys
+sys.path.append("/workspaces/VariantCalling")
+sys.path.append("/Users/gavrie/source/ultimagen/VariantCalling")
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # Helper script to annotate a single contig of a VCF file
@@ -37,3 +40,6 @@ def run(argv):
         contig=args.contig,
         chunk_size=args.chunk_size,
     )
+
+if __name__ == "__main__":
+    run(sys.argv)

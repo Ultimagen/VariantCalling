@@ -12,8 +12,8 @@ __general_inputs_dir = f"{test_dir}/resources/general/"
 
 def test_annotate_featuremap(tmpdir):
     resource_dir = get_resource_dir(__file__)
-    input_featuremap = pjoin(resource_dir, "tp_featuremap_chr20.vcf.gz")
-    output_featuremap = pjoin(tmpdir, "tp_featuremap_chr20.annotated.vcf.gz")
+    input_featuremap = pjoin(resource_dir, "tp_featuremap_chr20_dup.vcf.gz")
+    output_featuremap = pjoin(tmpdir, "tp_featuremap_chr20_dup.annotated.vcf.gz")
     ref_fasta = pjoin(__general_inputs_dir, "sample.fasta")
     annotate_featuremap(
         input_featuremap,
