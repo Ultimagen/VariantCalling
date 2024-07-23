@@ -1,3 +1,3 @@
 [submodule "ugbio-utils"]
 	path = ugvc/ugbio_utils
-	url = git@github.com:Ultimagen/ugbio-utils.git
+	url = https://github.com/Ultimagen/ugbio-utils.git
