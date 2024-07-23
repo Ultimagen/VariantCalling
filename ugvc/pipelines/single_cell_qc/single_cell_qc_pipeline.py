@@ -23,6 +23,7 @@ from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import (
     OutputFiles,
     Thresholds,
 )
+from ugvc.utils.metrics_utils import convert_h5_to_json
 from ugvc.utils.misc_utils import modify_jupyter_notebook_html
 
 
@@ -62,7 +63,10 @@ def single_cell_qc(
         for key in store.keys():
             if key.strip('/') not in keys_to_keep:
                 store.remove(key)
-
+    
+    # convert h5 file to json
+    statistics_json_file = Path(output_path) / (sample_name + OutputFiles.STATISTICS_JSON.value)
+    convert_h5_to_json(input_h5_filename=h5_file, root_element="metrics", output_json=statistics_json_file)
 
 def prepare_parameters_for_report(
     h5_file: Path, thresholds: Thresholds, output_path: str
