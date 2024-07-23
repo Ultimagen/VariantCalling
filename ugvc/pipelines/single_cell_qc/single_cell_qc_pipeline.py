@@ -66,7 +66,12 @@ def single_cell_qc(
     
     # convert h5 file to json
     statistics_json_file = Path(output_path) / (sample_name + OutputFiles.STATISTICS_JSON.value)
-    convert_h5_to_json(input_h5_filename=h5_file, root_element="metrics", output_json=statistics_json_file)
+    convert_h5_to_json(
+        input_h5_filename=h5_file,
+        root_element="metrics",
+        ignored_h5_key_substring=H5Keys.STAR_READS_PER_GENE.value,
+        output_json=statistics_json_file
+    )
 
 def prepare_parameters_for_report(
     h5_file: Path, thresholds: Thresholds, output_path: str
