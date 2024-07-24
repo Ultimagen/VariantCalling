@@ -27,34 +27,60 @@ def cbc_umi_plot(h5_file: str, output_path: str) -> Path:
     Path
         Path to the plot.
     """
+    print("Plotting CBC UMI plot")
     with pd.HDFStore(h5_file, "r") as store:
         histogram = store[H5Keys.TRIMMER_HISTOGRAM.value]
 
-    umi_col = histogram.columns[histogram.columns.str.contains("UMI")][0]
-    cbc_columns = list(set(histogram) - set([umi_col, "count"]))
+    umi_col = histogram.columns[histogram.columns.str.contains("UMI")]
 
-    # Counting how many distinct UMIs there are per cell barcode
-    cbc_num_umi_df = (
-        histogram.drop(columns=[umi_col, "count"])
-        .groupby(cbc_columns)
-        .size()
-        .reset_index(name="Num Unique UMI")
-    )
+    if len(umi_col) > 1:
+        raise ValueError(f"Multiple UMI columns found in histogram. Histogram columns: {histogram.columns}")
 
-    # Sorting by Num UMI and setting a column that will be the CBC index
-    plot_df = (
-        cbc_num_umi_df.sort_values("Num Unique UMI", ascending=False)
-        .reset_index(drop=True)
-        .reset_index()
-        .rename(columns={"index": "CBC"})
-    )
+    elif len(umi_col) == 0:
+        print(f"No UMI column found in histogram. Plotting cell-barcode count.")
+        cbc_columns = list(set(histogram.columns) - set(["count"]))
+        
+        plot_df = (
+            histogram.groupby(cbc_columns)
+            .sum()
+            .sort_values("count", ascending=False)
+            .reset_index()
+            .reset_index()
+            .rename(columns={"count": "CBC count"})
+        )
 
-    # Plotting
-    plt.figure()
-    ax = plt.gca()
+        # Plotting
+        plt.figure()
+        ax = plt.gca()
+        ax = sns.scatterplot(data=plot_df, x="index", y="CBC count", linewidth=0)
+        ax.set(yscale="log", xscale="log", title="Barcode Count")
 
-    ax = sns.scatterplot(data=plot_df, x="CBC", y="Num Unique UMI", linewidth=0)
-    ax.set(yscale="log", xscale="log", title="Barcode Rank")
+    else:
+        umi_col = histogram.columns[histogram.columns.str.contains("UMI")][0]
+        cbc_columns = list(set(histogram) - set([umi_col, "count"]))
+
+        # Counting how many distinct UMIs there are per cell barcode
+        cbc_num_umi_df = (
+            histogram.drop(columns=[umi_col, "count"])
+            .groupby(cbc_columns)
+            .size()
+            .reset_index(name="Num Unique UMI")
+        )
+
+        # Sorting by Num UMI and setting a column that will be the CBC index
+        plot_df = (
+            cbc_num_umi_df.sort_values("Num Unique UMI", ascending=False)
+            .reset_index(drop=True)
+            .reset_index()
+            .rename(columns={"index": "CBC"})
+        )
+
+        # Plotting
+        plt.figure()
+        ax = plt.gca()
+
+        ax = sns.scatterplot(data=plot_df, x="CBC", y="Num Unique UMI", linewidth=0)
+        ax.set(yscale="log", xscale="log", title="Barcode Rank")
 
     plot_file = Path(output_path) / OutputFiles.CBC_UMI_PLOT.value
     plt.savefig(plot_file)
