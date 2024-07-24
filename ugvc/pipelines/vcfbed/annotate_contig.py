@@ -1,9 +1,9 @@
 import argparse
 import pickle
 
+import os
 import sys
-sys.path.append("/workspaces/VariantCalling")
-sys.path.append("/Users/gavrie/source/ultimagen/VariantCalling")
+sys.path.append(os.getcwd())
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # Helper script to annotate a single contig of a VCF file
