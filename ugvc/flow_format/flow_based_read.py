@@ -151,6 +151,7 @@ class FlowBasedRead:
     flow2base: np.ndarray
     _motif_size: int
     _regressed_signal: np.ndarray
+    base_to_flow_mapping: np.ndarray
 
     def __init__(self, dct: dict):
         """Generic constructor
@@ -1027,6 +1028,24 @@ class FlowBasedRead:
             if fetch > best_alignment:
                 best_alignment = fetch
         return best_alignment
+
+    def base2flow(self, base: int) -> int:
+        """Returns the flow at which the read base base is sequenced
+
+        Parameters
+        ----------
+        base: int
+            Number of the read base
+
+        Returns
+        -------
+        int
+            Flow of the base
+        """
+        if hasattr(self, "base_to_flow_mapping"):
+            return self.base_to_flow_mapping[base]
+        self.base_to_flow_mapping = np.repeat(np.arange(len(self.key)), self.key.astype(int))
+        return self.base_to_flow_mapping[base]
 
 
 def get_haplotype_by_read_matrix(haplotypes: list, reads: list) -> np.ndarray:
