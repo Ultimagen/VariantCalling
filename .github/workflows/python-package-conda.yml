@@ -30,13 +30,13 @@ jobs:
         uses: eifinger/setup-rye@v3
         with:
           version: ${{ env.RYE_VERSION }}
-      - name: Build ugbio-utils modules
-        run: |
-          mkdir /tmp/ugbio_utils
-          cd ugvc/ugbio_utils
-          rye sync
-          rye build --all --wheel -o /tmp/ugbio_utils/
-          ls -ltr /tmp/ugbio_utils/
+#      - name: Build ugbio-utils modules
+#        run: |
+#          mkdir /tmp/ugbio_utils
+#          cd ugvc/ugbio_utils
+#          rye sync
+#          rye build --all --wheel -o /tmp/ugbio_utils/
+#          ls -ltr /tmp/ugbio_utils/
       - name: Setup environment variables
         run: |
           export PAPYRUS_ACCESS_STRING=mongodb+srv://inigo-montoya:1aBc5678910@testcluster.jm2x3.mongodb.net/test
@@ -50,10 +50,10 @@ jobs:
       - name: Install as a package
         run: |
           source activate genomics.py3
-          pip install /tmp/ugbio_utils/*.whl
+#          pip install /tmp/ugbio_utils/*.whl
           pip install .
-     - name: Lint with flake8
-       run: |
+      - name: Lint with flake8
+        run: |
          # stop the build if there are Python syntax errors or undefined names
          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide

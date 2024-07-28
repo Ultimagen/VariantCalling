@@ -4,6 +4,7 @@ setup(
     name="ugvc",
     version="0.22",
     packages=find_packages(),
+    package_dir={"": "src"},
     install_requires=[],
     scripts=[
         "ugvc/__main__.py",
