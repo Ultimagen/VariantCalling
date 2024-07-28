@@ -51,7 +51,7 @@ jobs:
         run: |
           source activate genomics.py3
           pip install .
-          pip freeze | grep ugbio
+          pip install ugvc/ugbio_utils
       - name: Lint with flake8
         run: |
          # stop the build if there are Python syntax errors or undefined names
