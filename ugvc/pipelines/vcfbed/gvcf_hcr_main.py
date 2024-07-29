@@ -30,6 +30,6 @@ def run(argc: list) -> None:
         pybedtools.BedTool(step1_file).merge().saveas(step2_file)  # type: ignore - issues in pybedtools in vscode
         logger.info("Step 3: Create intervals of high confidence")
         step3_file = args.bed
-        pybedtools.BedTool(args.step2_file).complement(genome=args.genome_file).saveas(
+        pybedtools.BedTool(args.step2_file).complement(genome=args.genome_file).saveas(  # type: ignore
             step3_file
         )  # type: ignore - issues in pybedtools in vscode
