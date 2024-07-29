@@ -4,7 +4,10 @@ setup(
     name="ugvc",
     version="0.22",
     packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"],
-    package_dir={"ugbio_core": "ugvc/ugbio_utils/src/core/", "ugbio_cnv": "ugvc/ugbio_utils/src/cnv/"},
+    package_dir={
+        "ugbio_core": "ugvc/ugbio_utils/src/core/ugbio_core",
+        "ugbio_cnv": "ugvc/ugbio_utils/src/cnv/ugbio_cnv",
+    },
     install_requires=[],
     scripts=[
         "ugvc/__main__.py",

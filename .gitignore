@@ -40,3 +40,4 @@ test/test_outputs
 work/
 *.code-workspace
 .history/
+build/
