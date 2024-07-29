@@ -69,11 +69,11 @@ def filter_by_length(bed_file, length_cutoff, prefix):
 
 def intersect_bed_regions(
     include_regions: list[str],
-    exclude_regions: list[str] = None,
+    exclude_regions: list[str] | None = None,
     output_bed: str = "output.bed",
     assume_input_sorted: bool = False,
-    max_mem: int = None,
-    sp: SimplePipeline = None,
+    max_mem: int | None = None,
+    sp: SimplePipeline | None = None,
 ):
     """
     Intersect BED regions with the option to subtract exclude regions,
