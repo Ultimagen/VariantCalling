@@ -62,4 +62,5 @@ COPY . .
 COPY ./setup/scRNA_qc/pyproject.toml ./pyproject.toml
 
 # Include licenses
+COPY ["Ultima UGVC - EULA.pdf", "./"]
 COPY ["Third Party Licenses/star LICENSE.txt", "."]
