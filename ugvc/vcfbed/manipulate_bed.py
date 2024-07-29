@@ -6,7 +6,8 @@ import subprocess
 import tempfile
 import warnings
 
-import pybedtools
+import pysam
+import tqdm.auto as tqdm
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
@@ -64,30 +65,6 @@ def filter_by_length(bed_file, length_cutoff, prefix):
     os.system(cmd)
 
     return out_len_annotate_file
-
-
-def merge_bed(input_bed_file: str, output_bed_file: str) -> None:
-    """
-    Merge overlapping regions in a BED file.
-
-    Parameters
-    ----------
-    input_bed_file : str
-        Path to the input BED file.
-    output_bed_file : str
-        Path to the output BED file.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the input file does not exist.
-
-    """
-
-    if not os.path.exists(input_bed_file):
-        raise FileNotFoundError(f"File '{input_bed_file}' does not exist.")
-
-    pybedtools.BedTool(input_bed_file).merge().saveas(output_bed_file)
 
 
 def intersect_bed_regions(
@@ -270,3 +247,28 @@ def count_bases_in_bed_file(file_path: str) -> int:
                 n_bases_in_region += int(spl[2]) - int(spl[1])
 
     return n_bases_in_region
+
+
+def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool = True) -> None:
+    """Select records with GQ >= (or <) gq_threshold and write them to a bed file.
+    If gt is True, select records with GQ >= gq_threshold. If gt is False, select records with GQ < gq_threshold.
+    The output is written to a bed file.
+    Parameters
+    ----------
+    gvcf_file : str
+        Path to the gvcf file.
+    bed_file : str
+        Path to the bed file.
+    gq_threshold : int
+        GQ threshold.
+    gt : bool
+        If True, select records with GQ >= gq_threshold. If False, select records with GQ < gq_threshold.
+    """
+    with pysam.VariantFile(gvcf_file) as vcf, open(bed_file, "w", encoding="utf-8") as bed:
+        for record in tqdm.tqdm(vcf.fetch()):
+            if gt:
+                if record.samples[0]["GQ"] >= gq_threshold:
+                    bed.write(f"{record.chrom}\t{record.start}\t{record.stop}\n")
+            elif not gt:
+                if record.samples[0]["GQ"] < gq_threshold:
+                    bed.write(f"{record.chrom}\t{record.start}\t{record.stop}\n")
