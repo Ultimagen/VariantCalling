@@ -26,7 +26,8 @@ class IntervalFile:
         elif interval.endswith(".interval_list"):
             self._interval_list_file_name = interval
             # create the interval bed file
-            self.__execute(f"picard IntervalListToBed I={interval} O={os.path.splitext(interval)[0]}.bed")
+            if not os.path.exists(f"{os.path.splitext(interval)[0]}.bed"):
+                self.__execute(f"picard IntervalListToBed I={interval} O={os.path.splitext(interval)[0]}.bed")
 
             self._bed_file_name = f"{os.path.splitext(interval)[0]}.bed"
             self._is_none = False
@@ -40,10 +41,11 @@ class IntervalFile:
                 logger.error(f"dict file does not exist: {ref_dict}")
 
             # create the interval list file
-            self.__execute(
-                f"picard BedToIntervalList I={interval} "
-                f"O={os.path.splitext(interval)[0]}.interval_list SD={ref_dict}"
-            )
+            if not os.path.exists(f"{os.path.splitext(interval)[0]}.interval_list"):
+                self.__execute(
+                    f"picard BedToIntervalList I={interval} "
+                    f"O={os.path.splitext(interval)[0]}.interval_list SD={ref_dict}"
+                )
 
             self._interval_list_file_name = f"{os.path.splitext(interval)[0]}.interval_list"
             self._is_none = False
