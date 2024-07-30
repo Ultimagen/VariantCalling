@@ -178,6 +178,7 @@ def get_vcf_df(
         "SCL",
         "SCR",
         "NMC",
+        "AFR",
     ]
     for cf in custom_info_fields:
         if cf not in columns:
@@ -204,7 +205,7 @@ def get_vcf_df(
     df["indel"] = df["alleles"].apply(lambda x: len({len(y) for y in x}) > 1)
 
     df.index = pd.Index([(x[1]["chrom"], x[1]["pos"]) for x in df.iterrows()])
-    assert df.columns.is_unique, "Columns are not unique"
+    assert df.columns.is_unique, "VCF columns are not unique"
     return df
 
 
