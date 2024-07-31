@@ -12,7 +12,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # import pipeline modules implementing run(argv) method
-from ugvc.ugbio_utils.src.cnv.ugbio_cnv import (
+from ugbio_cnv import (
     filter_sample_cnvs, 
     convert_cnv_results_to_vcf,
     plot_cnv_results
