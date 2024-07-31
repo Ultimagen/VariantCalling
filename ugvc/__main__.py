@@ -12,11 +12,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # import pipeline modules implementing run(argv) method
-from ugbio_cnv import (
-    filter_sample_cnvs, 
-    convert_cnv_results_to_vcf,
-    plot_cnv_results
-)
+from ugbio_cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -29,6 +25,7 @@ from ugvc.pipelines import (
     convert_haploid_regions,
     correct_genotypes_by_imputation,
     coverage_analysis,
+    denovo_recalibrated_qualities,
     evaluate_concordance,
     filter_variants_pipeline,
     run_comparison_pipeline,
@@ -47,7 +44,8 @@ from ugvc.pipelines.mrd import (
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
     pileup_based_read_features,
-    positional_error_rate_profile,
+    pileup_featuremap,
+    ppmSeq_qc_analysis,
     prepare_data_from_mrd_pipeline,
     sorter_stats_to_mean_coverage,
     srsnv_inference,
@@ -81,8 +79,8 @@ modules = [
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
 
 mrd_modules = [
+    ppmSeq_qc_analysis,
     substitution_error_rate,
-    positional_error_rate_profile,
     collect_coverage_per_motif,
     concat_dataframes,
     sorter_stats_to_mean_coverage,
@@ -95,6 +93,7 @@ mrd_modules = [
     srsnv_training,
     srsnv_inference,
     create_hom_snv_featuremap,
+    pileup_featuremap,
 ]
 
 methylation_modules = [
@@ -105,7 +104,7 @@ methylation_modules = [
     process_perRead,
 ]
 
-joint_modules = [compress_gvcf]
+joint_modules = [compress_gvcf, denovo_recalibrated_qualities]
 
 
 misc_modules = [
