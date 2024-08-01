@@ -126,7 +126,7 @@ class QuickFingerprinting:
                     if sample_id == ground_truth_id and hit_fraction < self.min_hit_fraction_target:
                         match_to_expected_truth = hit_fraction
                         errors.append(
-                            f"{cram} - {sample_id} does not match ground truth"
+                            f"{cram} - {sample_id} does not match ground truth "
                             f"hit_fraction={hit_fraction}, hit_count={hit_count}"
                         )
                     elif sample_id != ground_truth_id and hit_fraction > self.min_hit_fraction_target:
