@@ -1,11 +1,4 @@
-import json
-import os
-from collections import defaultdict
-from os.path import join as pjoin
-
 import pandas as pd
-
-from ugvc.pipelines.coverage_analysis import generate_stats_from_histogram
 
 
 def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = True) -> pd.DataFrame:
