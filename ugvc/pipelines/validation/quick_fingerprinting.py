@@ -55,13 +55,14 @@ class QuickFingerprinting:
         self.min_af_germline_snps = min_af_germline_snps
         self.min_hit_fraction_target = min_hit_fraction_target
         self.sp = sp
+        self.vc = VariantHitFractionCaller(self.ref, self.out_dir, self.sp, self.min_af_snps)
+
         os.makedirs(out_dir, exist_ok=True)
 
         self.ground_truth_to_check_beds = self.prepare_ground_truth()
-        self.vc = VariantHitFractionCaller(self.ref, self.out_dir, self.sp, self.min_af_snps)
 
     def prepare_ground_truth(self):
-
+        ground_truth_to_check_beds = {}
         self.sp.print_and_run(f"echo {self.region} | sed 's/:/\t/' | sed 's/-/\t/' > {self.out_dir}/region.bed")
 
         for sample_id in self.ground_truth_vcfs:
@@ -92,7 +93,8 @@ class QuickFingerprinting:
             else:
                 self.sp.print_and_run(f"cp {hcr} {hcr_in_region}")
 
-            return ground_truth_to_check_bed
+            ground_truth_to_check_beds[sample_id] = ground_truth_to_check_bed
+        return ground_truth_to_check_beds
 
     def check(self):
         errors = []
@@ -115,8 +117,7 @@ class QuickFingerprinting:
                 cram_base_name = os.path.basename(cram)
                 local_cram = f"{self.out_dir}/{cram_base_name}"
                 self.sp.print_and_run(f"samtools view {cram} {self.region} -C -o {local_cram}")
-                for ground_truth_id in self.ground_truth_to_check_beds:
-                    ground_truth_to_check_bed = self.ground_truth_to_check_beds[ground_truth_id]
+                for ground_truth_id, ground_truth_to_check_bed in self.ground_truth_to_check_beds.items():
                     hit_fraction, hit_count, _ = self.vc.calc_hit_fraction(local_cram, ground_truth_to_check_bed)
                     if hit_fraction > max_hit_fraction:
                         max_hit_fraction = hit_fraction
