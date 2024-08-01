@@ -6,24 +6,15 @@ import pandas as pd
 import papermill
 from nbconvert import HTMLExporter
 
-from ugvc.pipelines.single_cell_qc.collect_statistics import (
-    collect_statistics,
-    extract_statistics_table,
-)
+from ugvc.pipelines.single_cell_qc.collect_statistics import collect_statistics, extract_statistics_table
 from ugvc.pipelines.single_cell_qc.create_plots import (
     cbc_umi_plot,
     plot_insert_length_histogram,
     plot_mean_insert_quality_histogram,
     plot_quality_per_position,
 )
-from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import (
-    TEMPLATE_NOTEBOOK,
-    H5Keys,
-    Inputs,
-    OutputFiles,
-    Thresholds,
-)
-from ugvc.utils.misc_utils import modify_jupyter_notebook_html
+from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import TEMPLATE_NOTEBOOK, H5Keys, Inputs, OutputFiles, Thresholds
+from ugvc.utils.report_utils import modify_jupyter_notebook_html
 
 
 def single_cell_qc(
