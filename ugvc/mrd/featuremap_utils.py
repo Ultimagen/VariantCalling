@@ -174,7 +174,6 @@ class FeaturemapAnnotator(VcfAnnotator):
         return records_out
 
 
-# pylint: disable=too-many-instance-attributes
 class RefContextVcfAnnotator(VcfAnnotator):
     def __init__(
         self,
@@ -423,6 +422,7 @@ def create_hom_snv_featuremap(
             _,
             _,
             min_coverage,
+            _,
             _,
         ) = read_effective_coverage_from_sorter_json(sorter_stats_json, min_coverage_for_fp=requested_min_coverage)
     else:

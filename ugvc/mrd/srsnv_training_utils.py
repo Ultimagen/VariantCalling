@@ -423,7 +423,7 @@ def prepare_featuremap_for_model(
     # filter featuremap - intersect with bed file, require coverage in range, apply pre_filter
     # get min and max coverage from cram stats file
     if sorter_json_stats_file:
-        (_, _, _, min_coverage, max_coverage,) = read_effective_coverage_from_sorter_json(
+        (_, _, _, min_coverage, max_coverage, _,) = read_effective_coverage_from_sorter_json(
             sorter_json_stats_file, **read_effective_coverage_from_sorter_json_kwargs
         )
     else:

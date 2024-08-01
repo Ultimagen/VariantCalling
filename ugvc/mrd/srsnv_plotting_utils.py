@@ -324,6 +324,7 @@ def retention_noise_and_mrd_lod_simulation(
         ratio_of_bases_in_coverage_range,
         _,
         _,
+        _,
     ) = read_effective_coverage_from_sorter_json(sorter_json_stats_file)
 
     # calculate the read filter correction factor (TP reads pre-filtered from the FeatureMap)

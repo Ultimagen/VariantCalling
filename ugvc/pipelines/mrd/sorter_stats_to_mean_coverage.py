@@ -38,7 +38,8 @@ def sorter_stats_to_mean_coverage(sorter_stats_json: str, output_file: str):
         Path to output file.
 
     """
-    mean_cvg = np.ceil(read_effective_coverage_from_sorter_json(sorter_stats_json)[0])
+    (_, _, _, _, _, mean_coverage_with_dups) = read_effective_coverage_from_sorter_json(sorter_stats_json)
+    mean_cvg = np.ceil(mean_coverage_with_dups)
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(f"{mean_cvg:.0f} ")
 

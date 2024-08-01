@@ -222,6 +222,9 @@ def read_effective_coverage_from_sorter_json(
 
     # Calculate ratio_of_bases_in_coverage_range
     cvg = pd.Series(sorter_stats["cvg"])
+    cvg = (
+        cvg.reindex(range(max(cvg.index.max(), min_coverage_for_fp) + 1)).fillna(0).astype(int)
+    )  # fill missing values with 0
     cvg_cdf = cvg.cumsum() / cvg.sum()
     ratio_below_min_coverage = cvg_cdf.loc[min_coverage_for_fp]
 
@@ -238,6 +241,9 @@ def read_effective_coverage_from_sorter_json(
     # Calculate mean coverage
     cvg = pd.Series(sorter_stats["base_coverage"].get("Genome", sorter_stats["cvg"]))
     mean_coverage = (cvg.index.values * cvg.values).sum() / cvg.sum()
+    mean_coverage_with_dups = (sorter_stats["nr_duplicate_reads"] + sorter_stats["total_reads"]) / sorter_stats[
+        "nr_duplicate_reads"
+    ]
 
     return (
         mean_coverage,
@@ -245,6 +251,7 @@ def read_effective_coverage_from_sorter_json(
         ratio_of_bases_in_coverage_range,
         min_coverage_for_fp,
         coverage_of_max_percentile,
+        mean_coverage_with_dups,
     )
 
 
@@ -332,6 +339,7 @@ def merge_trimmer_histograms(trimmer_histograms: list[str], output_path: str):
     df_merged.to_csv(output_filename, index=False)
     return output_filename
 
+
 def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool = False) -> pd.DataFrame:
     """
     Read a trimmer failure codes csv file
@@ -340,6 +348,8 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     ----------
     trimmer_failure_codes_csv : str
         path to a Trimmer failure codes file
+    add_total : bool
+        if True, add a row with total failed reads to the output (defalt False)
 
     Returns
     -------
@@ -348,7 +358,7 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
 
     Raises
     ------
-    AssertionError
+    ValueError
         If the columns are not as expected
     """
     df_trimmer_failure_codes = pd.read_csv(trimmer_failure_codes_csv)
@@ -363,7 +373,8 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     ]
     if list(df_trimmer_failure_codes.columns) != expected_columns:
         raise ValueError(
-            f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}, got {list(df_trimmer_failure_codes.columns)}"
+            f"Unexpected columns in {trimmer_failure_codes_csv},"
+            f"expected {expected_columns}, got {list(df_trimmer_failure_codes.columns)}"
         )
 
     df_trimmer_failure_codes = (
@@ -373,13 +384,16 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     )
 
     if add_total:
-        total_row = pd.DataFrame({
-            'failed read count': df_trimmer_failure_codes['failed read count'].sum(),
-            'total read count': df_trimmer_failure_codes['total read count'].iloc[0],
-            '% failure': df_trimmer_failure_codes['% failure'].sum()
-        }, index=pd.MultiIndex.from_tuples([('total', 'total')]))
+        total_row = pd.DataFrame(
+            {
+                "failed read count": df_trimmer_failure_codes["failed read count"].sum(),
+                "total read count": df_trimmer_failure_codes["total read count"].iloc[0],
+                "% failure": df_trimmer_failure_codes["% failure"].sum(),
+            },
+            index=pd.MultiIndex.from_tuples([("total", "total")]),
+        )
 
         df_trimmer_failure_codes = pd.concat([df_trimmer_failure_codes, total_row])
         df_trimmer_failure_codes.index = df_trimmer_failure_codes.index.set_names(["segment", "reason"])
-        
+
     return df_trimmer_failure_codes
