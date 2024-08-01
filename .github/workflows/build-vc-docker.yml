@@ -37,8 +37,11 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           df -h
 
-      - name: Git Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
+          token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
 
       - uses: benjlevesque/short-sha@v2.2
         id: short-sha
