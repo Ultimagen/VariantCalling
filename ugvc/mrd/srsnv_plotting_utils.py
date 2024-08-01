@@ -21,7 +21,7 @@ from ugvc.mrd.ppmSeq_utils import ppmSeqAdapterVersions
 from ugbio_core.exec_utils import print_and_execute
 from ugvc.utils.metrics_utils import convert_h5_to_json, read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import filter_valid_queries
-from ugvc.utils.plotting_utils import set_default_plt_rc_params
+from ugvc.utils.plotting_utils import set_pyplot_defaults
 from ugbio_core.filter_bed import count_bases_in_bed_file
 
 edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
@@ -189,7 +189,7 @@ def plot_ROC_curve(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     label_dict = {
         f"{FeatureMapFields.X_SCORE.value}": "FeatureMap",
@@ -469,7 +469,7 @@ def plot_LoD(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     # TODO: a less patchy solution, perhaps accept ml_filters as a separate input
     ML_filters = {i: filters[i] for i in filters if i[:2] == "ML" and i in df_mrd_sim.index}
@@ -584,7 +584,7 @@ def plot_confusion_matrix(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     cm = confusion_matrix(y_true=df["label"], y_pred=df[prediction_column_name])
     cm_norm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]  # normalize by rows - true labels
@@ -644,7 +644,7 @@ def plot_observed_vs_measured_qual(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     plt.figure(figsize=(8, 6))
     for label in labels_dict:
@@ -697,7 +697,7 @@ def plot_qual_density(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     plt.figure(figsize=(8, 6))
 
@@ -751,7 +751,7 @@ def plot_precision_recall_vs_qual_thresh(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     plt.figure(figsize=(8, 6))
     for label in labels_dict:
@@ -817,7 +817,7 @@ def plot_ML_qual_hist(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     score = "ML_qual_1"
 
@@ -877,7 +877,7 @@ def plot_qual_per_feature(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     # if "is_mixed" in df:
     #     df["is_mixed"] = df["is_mixed"].astype(int)
@@ -1039,7 +1039,7 @@ def plot_subsets_hists(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     score = "ML_qual_1"
     bins = np.arange(0, max_score + 1)
@@ -1107,7 +1107,7 @@ def plot_mixed_fpr(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     plt.figure(figsize=(8, 6))
     plot_precision_recall(
@@ -1156,7 +1156,7 @@ def plot_mixed_recall(
     font_size : int, optional
         font size for the plot, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     plt.figure(figsize=(8, 6))
     plot_precision_recall(
@@ -1590,7 +1590,7 @@ def plot_precision_recall(lists, labels, max_score, log_scale=False, font_size=1
     font_size : int, optional
         font size, by default 18
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     for lst, label in zip(lists, labels):
         plt.plot(lst[0:max_score], ".-", label=label)
@@ -1622,7 +1622,7 @@ def plot_LoD_vs_qual(
         font size, by default 18
     """
 
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
 
     x = np.array(
         [

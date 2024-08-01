@@ -15,13 +15,6 @@ from pandas import DataFrame
 
 from ugvc import logger
 
-SMALL_SIZE = 12
-MEDIUM_SIZE = 18
-BIGGER_SIZE = 26
-TITLE_SIZE = 36
-FIGSIZE = (16, 8)
-GRID = True
-
 
 def runs_of_one(array, axis=None):
     """
@@ -212,24 +205,6 @@ def catch(
     except exception_type as e:  # pylint: disable=broad-except
         return handle(e)
 
-
-def set_pyplot_defaults(
-    title_size=TITLE_SIZE,
-    small_size=SMALL_SIZE,
-    medium_size=MEDIUM_SIZE,
-    bigger_size=BIGGER_SIZE,
-    grid=GRID,
-    figsize=FIGSIZE,
-):
-    plt.rc("font", size=small_size)  # controls default text sizes
-    plt.rc("axes", titlesize=title_size)  # fontsize of the axes title
-    plt.rc("axes", labelsize=bigger_size)  # fontsize of the x and y labels
-    plt.rc("axes", grid=grid)  # is grid on
-    plt.rc("xtick", labelsize=medium_size)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=medium_size)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=medium_size)  # legend fontsize
-    plt.rc("figure", titlesize=title_size)  # fontsize of the figure title
-    plt.rc("figure", figsize=figsize)  # size of the figure
 
 
 def idx_last_nz(inp: np.ndarray | list) -> np.ndarray:
