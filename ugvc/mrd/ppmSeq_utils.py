@@ -15,10 +15,10 @@ import seaborn as sns
 
 from ugvc.flow_format.flow_based_read import generate_key_from_sequence
 from ugvc.reports.report_utils import plot_read_length_histogram
-from ugvc.utils.metrics_utils import read_sorter_statistics_csv
-from ugvc.utils.trimmer_utils import merge_trimmer_histograms, read_trimmer_failure_codes
 from ugvc.utils.plotting_utils import set_pyplot_defaults
+from ugvc.utils.sorter_utils import read_sorter_statistics_csv
 from ugvc.utils.report_utils import modify_jupyter_notebook_html
+from ugvc.utils.trimmer_utils import merge_trimmer_histograms, read_trimmer_failure_codes
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # Display defaults

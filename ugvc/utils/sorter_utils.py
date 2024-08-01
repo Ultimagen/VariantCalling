@@ -1,0 +1,49 @@
+import json
+import os
+from collections import defaultdict
+from os.path import join as pjoin
+
+import pandas as pd
+
+from ugvc.pipelines.coverage_analysis import generate_stats_from_histogram
+
+
+def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = True) -> pd.DataFrame:
+    """
+    Collect sorter statistics from csv
+
+    Parameters
+    ----------
+    sorter_stats_csv : str
+        path to a Sorter stats file
+    edit_metric_names: bool
+        if True, edit the metric names to be more human-readable
+
+    Returns
+    -------
+    sorter stats as a pandas DataFrame
+    """
+
+    # read Sorter stats
+    df_sorter_stats = pd.read_csv(sorter_stats_csv, header=None, names=["metric", "value"]).set_index("metric")
+    # replace '(' and ')' in values (legacy format for F95)
+    df_sorter_stats = df_sorter_stats.assign(
+        value=df_sorter_stats["value"]
+        .astype(str)
+        .str.replace("(", "", regex=False)
+        .str.replace(")", "", regex=False)
+        .astype(float)
+        .values
+    )
+    # add convenient metric
+    if "Failed_QC_reads" in df_sorter_stats.index and "PF_Barcode_reads" in df_sorter_stats.index:
+        df_sorter_stats.loc["PCT_Failed_QC_reads"] = (
+            100
+            * df_sorter_stats.loc["Failed_QC_reads"]
+            / (df_sorter_stats.loc["Failed_QC_reads"] + df_sorter_stats.loc["PF_Barcode_reads"])
+        )
+
+    if edit_metric_names:
+        # rename metrics to uniform convention
+        df_sorter_stats = df_sorter_stats.rename({c: c.replace("PCT_", "% ") for c in df_sorter_stats.index})
+    return df_sorter_stats
