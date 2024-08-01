@@ -51,6 +51,7 @@ from ugvc.pipelines.mrd import (
     substitution_error_rate,
 )
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
+from ugvc.pipelines.validation import quick_fingerprinting
 from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
 from ugvc.somatic_cnv import bicseq2_post_processing
@@ -114,6 +115,7 @@ lpr_modules = [
 
 vcfbed_modules = [annotate_contig, intersect_bed_regions, calibrate_bridging_snvs]
 deepvariant_modules = [training_set_consistency_check]
+validation_modules = [quick_fingerprinting]
 
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
@@ -123,6 +125,7 @@ modules.extend(joint_modules)
 modules.extend(lpr_modules)
 modules.extend(vcfbed_modules)
 modules.extend(deepvariant_modules)
+modules.extend(validation_modules)
 
 LOGO = """
       __    __    ___________    ____  ______
