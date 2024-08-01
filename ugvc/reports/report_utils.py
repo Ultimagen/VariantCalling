@@ -13,7 +13,7 @@ from matplotlib.ticker import FormatStrFormatter
 from scipy.interpolate import interp1d
 
 from ugvc.utils.metrics_utils import get_histogram_from_sorter
-from ugvc.utils.misc_utils import set_pyplot_defaults
+from ugvc.utils.plotting_utils import set_pyplot_defaults
 from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
 
 

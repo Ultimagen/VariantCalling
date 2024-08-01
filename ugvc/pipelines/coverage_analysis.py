@@ -51,8 +51,7 @@ from ugvc.utils import misc_utils as utils
 from ugvc.utils.cloud_auth import get_gcs_token
 from ugvc.utils.cloud_sync import cloud_sync
 from ugvc.utils.consts import COVERAGE, GCS_OAUTH_TOKEN, FileExtension
-from ugvc.utils.misc_utils import set_pyplot_defaults
-from ugvc.utils.plotting_utils import set_default_plt_rc_params
+from ugvc.utils.plotting_utils import set_pyplot_defaults
 from ugvc.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
 
 MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
@@ -249,7 +248,7 @@ def run(argv: list[str]):
     argv: list[str]
         Input parameters of the script
     """
-    set_default_plt_rc_params()
+    set_pyplot_defaults()
     cmd = argv[1]
     assert cmd in {
         "full_analysis",

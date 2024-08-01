@@ -8,13 +8,20 @@ FIGSIZE = (16, 8)
 GRID = True
 
 
-def set_default_plt_rc_params():
-    plt.rc("font", size=SMALL_SIZE)  # controls default text sizes
-    plt.rc("axes", titlesize=TITLE_SIZE)  # fontsize of the axes title
-    plt.rc("axes", labelsize=BIGGER_SIZE)  # fontsize of the x and y labels
-    plt.rc("axes", grid=GRID)  # is grid on
-    plt.rc("xtick", labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=MEDIUM_SIZE)  # legend fontsize
-    plt.rc("figure", titlesize=TITLE_SIZE)  # fontsize of the figure title
-    plt.rc("figure", figsize=FIGSIZE)  # size of the figure
+def set_pyplot_defaults(
+    title_size=TITLE_SIZE,
+    small_size=SMALL_SIZE,
+    medium_size=MEDIUM_SIZE,
+    bigger_size=BIGGER_SIZE,
+    grid=GRID,
+    figsize=FIGSIZE
+):
+    plt.rc("font", size=small_size)  # controls default text sizes
+    plt.rc("axes", titlesize=title_size)  # fontsize of the axes title
+    plt.rc("axes", labelsize=bigger_size)  # fontsize of the x and y labels
+    plt.rc("axes", grid=grid)  # is grid on
+    plt.rc("xtick", labelsize=medium_size)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=medium_size)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=medium_size)  # legend fontsize
+    plt.rc("figure", titlesize=title_size)  # fontsize of the figure title
+    plt.rc("figure", figsize=figsize)  # size of the figure
