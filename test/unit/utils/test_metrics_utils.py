@@ -5,6 +5,7 @@ from test import get_resource_dir
 
 import numpy as np
 
+import ugvc.utils.trimmer_utils
 from ugvc.utils import metrics_utils
 
 inputs_dir = get_resource_dir(__file__)
@@ -86,7 +87,7 @@ def test_merge_trimmer_histograms(tmpdir):
         tmpdir,
         basename(trimmer_histograms[0]),
     )
-    merged_histogram = metrics_utils.merge_trimmer_histograms(trimmer_histograms=trimmer_histograms, output_path=tmpdir)
+    merged_histogram = ugvc.utils.trimmer_utils.merge_trimmer_histograms(trimmer_histograms=trimmer_histograms, output_path=tmpdir)
     assert exists(merged_histogram)
     assert merged_histogram == output_path
     assert filecmp.cmp(merged_histogram, expected_output)
@@ -95,7 +96,7 @@ def test_merge_trimmer_histograms(tmpdir):
         tmpdir,
         basename(trimmer_histograms[1]),
     )
-    merged_histogram = metrics_utils.merge_trimmer_histograms(
+    merged_histogram = ugvc.utils.trimmer_utils.merge_trimmer_histograms(
         trimmer_histograms=trimmer_histograms[1], output_path=tmpdir
     )
     assert exists(merged_histogram)
