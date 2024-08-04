@@ -3,7 +3,11 @@ from setuptools import find_packages, setup
 setup(
     name="ugvc",
     version="0.22",
-    packages=find_packages(),
+    packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"],
+    package_dir={
+        "ugbio_core": "ugbio_utils/src/core/ugbio_core",
+        "ugbio_cnv": "ugbio_utils/src/cnv/ugbio_cnv",
+    },
     install_requires=[],
     scripts=[
         "ugvc/__main__.py",
@@ -27,9 +31,9 @@ setup(
         "ugvc/pipelines/sec/sec_training.py",
         "ugvc/pipelines/denovo_recalibrated_qualities.py",
         "ugvc/scripts/convert_h5_to_json.py",
-        "ugvc/cnv/filter_sample_cnvs.py",
-        "ugvc/cnv/convert_cnv_results_to_vcf.py",
-        "ugvc/cnv/plot_cnv_results.py",
+        "ugbio_utils/src/cnv/ugbio_cnv/filter_sample_cnvs.py",
+        "ugbio_utils/src/cnv/ugbio_cnv/convert_cnv_results_to_vcf.py",
+        "ugbio_utils/src/cnv/ugbio_cnv/plot_cnv_results.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
     ],
     package_data={
