@@ -115,6 +115,84 @@ class VcfPipelineUtils:
         """
         self.__execute(f"bedtools intersect -a {input_bed1} -b {input_bed2}", output_file=bed_output)
 
+    def run_vcfeval(
+        self,
+        vcf: str,
+        gt: str,
+        hcr: str,
+        outdir: str,
+        ref_genome: str,
+        ev_region: str | None = None,
+        output_mode: str = "split",
+        samples: str | None = None,
+        erase_outdir: bool = True,
+        additional_args: str = "",
+        score: str = "QUAL",
+        all_records: bool = False,
+    ):  # pylint: disable=too-many-arguments
+        """
+        Run vcfeval to evaluate the concordance between two VCF files
+        Parameters
+        ----------
+        vcf : str
+            Our variant calls
+        gt : str
+            GIAB (or other source truth file)
+        hcr : str
+            High confidence regions
+        outdir : str
+            Output directory
+        ref_genome : str
+            SDF reference file
+        ev_region: str, optional
+            Bed file of regions to evaluate (--bed-region)
+        output_mode: str, optional
+            Mode of vcfeval (default - split)
+        samples: str, optional
+            Sample names to compare (baseline,calls)
+        erase_outdir: bool, optional
+            Erase the output directory if it exists before running (otherwise vcfeval crashes)
+        additional_args: str, optional
+            Additional arguments to pass to vcfeval
+        score: str, optional
+            Score field to use for producing ROC curves in VCFEVAL
+        all_records: bool, optional
+            Include all records in the evaluation (default - False)
+        """
+        if erase_outdir and os.path.exists(outdir):
+            shutil.rmtree(outdir)
+        cmd = [
+            "rtg",
+            "RTG_MEM=12G",
+            "vcfeval",
+            "-b",
+            gt,
+            "-c",
+            vcf,
+            "-e",
+            hcr,
+            "-t",
+            ref_genome,
+            "-m",
+            output_mode,
+            "--decompose",
+            "-f",
+            score,
+            "-o",
+            outdir,
+        ]
+        if ev_region:
+            cmd += ["--bed-regions", ev_region]
+        if all_records:
+            cmd += ["--all-records"]
+        if additional_args:
+            cmd += additional_args.split()
+        if samples:
+            cmd += ["--sample", samples]
+
+        logger.info(" ".join(cmd))
+        return self.__execute(" ".join(cmd))
+
     def intersect_with_intervals(self, input_fn: str, intervals_fn: str, output_fn: str) -> None:
         """Intersects VCF with intervalList. Writes output_fn file
 
@@ -193,27 +271,23 @@ class VcfPipelineUtils:
             shutil.copy(truth_file, filtered_truth_file)
             self.index_vcf(filtered_truth_file)
 
-        # vcfeval calculation
-        vcfeval_command = (
-            f"rtg vcfeval "
-            f"-b {filtered_truth_file} "
-            f"--calls {input_file} "
-            f"-e {evaluation_regions} "
-            f"-t {SDF_path} "
-            f"-o {vcfeval_output_dir} "
-            f"-m {mode} "
-            f"--decompose "
-        )
-
-        if ignore_genotype:
-            vcfeval_command += "--squash-ploidy "
-
         if truth_sample is not None and input_sample is not None:
-            vcfeval_command += f"--sample {truth_sample},{input_sample} "
+            samples = f"{truth_sample},{input_sample}"
+        else:
+            samples = None
 
-        if ignore_filter:
-            vcfeval_command += " --all-records"
-        self.__execute(vcfeval_command)
+        self.run_vcfeval(
+            input_file,
+            filtered_truth_file,
+            evaluation_regions,
+            vcfeval_output_dir,
+            SDF_path,
+            output_mode=mode,
+            samples=samples,
+            erase_outdir=True,
+            additional_args="--squash_ploidy" if ignore_genotype else "",
+            all_records=ignore_filter,
+        )
 
         if mode == "combine":
             # fix the vcf file format
