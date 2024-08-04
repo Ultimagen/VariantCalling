@@ -19,6 +19,7 @@ import argparse
 import logging
 import sys
 import os
+import numpy as np
 import pandas as pd
 from ugvc import logger
     
@@ -64,7 +65,9 @@ def run(argv):
     
     gain_cutoff = args.gain_cutoff
     loss_cutoff = args.loss_cutoff
-    df_segments['alteration']=df_segments['median_ratio'].apply(lambda x: 'gain' if x >= gain_cutoff else ('loss' if ((x <= loss_cutoff) & (x>-1)) else 'neutral'))
+    df_segments['alteration'] = np.where(df_segments['median_ratio']>=gain_cutoff, 'gain',
+                   np.where(((df_segments['median_ratio']<= loss_cutoff) & (df_segments['median_ratio']>-1)), 'loss',
+                   'neutral'))
 
     out_annotated_file = os.path.basename(args.input_segments_file) + '_annotated.txt'
     df_segments.to_csv(out_annotated_file, sep='\t',index=False)
