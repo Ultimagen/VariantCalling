@@ -117,33 +117,25 @@ class QuickFingerprinting:
                 cram_base_name = os.path.basename(cram)
                 local_cram = f"{self.out_dir}/{cram_base_name}"
                 self.sp.print_and_run(f"samtools view {cram} {self.region} -C -o {local_cram}")
+                potential_error = f"{cram} - {sample_id} "
                 for ground_truth_id, ground_truth_to_check_bed in self.ground_truth_to_check_beds.items():
-                    hit_fraction, hit_count, _ = self.vc.calc_hit_fraction(local_cram, ground_truth_to_check_bed)
+                    hit_fraction, _, _ = self.vc.calc_hit_fraction(local_cram, ground_truth_to_check_bed)
                     if hit_fraction > max_hit_fraction:
                         max_hit_fraction = hit_fraction
                         best_match = ground_truth_id
                     hit_fractions.append(hit_fraction)
                     if sample_id == ground_truth_id and hit_fraction < self.min_hit_fraction_target:
                         match_to_expected_truth = hit_fraction
-                        errors.append(
-                            f"{cram} - {sample_id} does not match ground truth "
-                            f"hit_fraction={hit_fraction}, hit_count={hit_count}"
-                        )
+                        potential_error += f"does not match it's ground truth: hit_fraction={hit_fraction} "
                     elif sample_id != ground_truth_id and hit_fraction > self.min_hit_fraction_target:
-                        errors.append(
-                            f"{cram} - {sample_id} matched ground truth of {ground_truth_id}"
-                            f", hit_fraction={hit_fraction}, count={hit_count}"
-                        )
-
+                        potential_error += f"matched ground truth of {ground_truth_id}: hit_fraction={hit_fraction} "
                     print(f"{cram} - {sample_id} vs. {ground_truth_id} hit_fraction={hit_fraction}")
                 if best_match != sample_id:
                     if match_to_expected_truth is None:
                         print(f"best_match={best_match} hit_fraction={max_hit_fraction}")
                     else:
-                        errors.append(
-                            f"{cram} - {sample_id} does not have a maximal match with it's expected ground truth"
-                            f"hit_fraction={match_to_expected_truth}, max_hit_fraction = {max(hit_fractions)}"
-                        )
+                        potential_error += f"max_hit_fraction = {max(hit_fractions)}"
+                errors.append(potential_error)
         for error in errors:
             print(f"ERROR: {error}")
         return errors
