@@ -15,6 +15,7 @@ if path not in sys.path:
 
 # import pipeline modules implementing run(argv) method
 from ugbio_cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results
+from ugvc.pipelines.cnv import annotate_FREEC_segments
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
