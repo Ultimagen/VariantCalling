@@ -19,11 +19,8 @@ import argparse
 import logging
 import sys
 import os
-import warnings
 import pandas as pd
 from ugvc import logger
-
-warnings.filterwarnings("ignore")
     
 def run(argv):
     """
