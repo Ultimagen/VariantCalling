@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import tempfile
+from os.path import dirname
 
 import pybedtools
 
@@ -24,7 +25,7 @@ def run(argc: list) -> None:
     logger = logging.getLogger(__name__)
     args = argparse_gvcf_to_bed().parse_args(argc)
     logger.info("Step 1: Create intervals of low confidence")
-    with tempfile.TemporaryDirectory() as tmp_dir:
+    with tempfile.TemporaryDirectory(dir=dirname(args.bed)) as tmp_dir:
         step1_file = os.path.join(tmp_dir, "low_confidence.bed")
         mb.gvcf_to_bed(args.gvcf, step1_file, args.gq_threshold, gt=False)
         logger.info("Step 2: Merge intervals of low confidence")
