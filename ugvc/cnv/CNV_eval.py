@@ -1,12 +1,7 @@
 import argparse
 import os
 import sys
-import warnings
-
 import pandas as pd
-
-warnings.filterwarnings("ignore")
-
 
 def intersection(sample1_basename, sample2_basename, sample1_bed_file, sample2_bed_file, intersection_cutoff=0.5):
     out_sample1_specific = f"{sample1_basename}.specific_cnv.bed"
