@@ -114,8 +114,26 @@ def read_star_stats(star_stats_file: str) -> pd.Series:
     df.set_index(['type', 'metric'], inplace=True)
     # convert df to pd.series for easier access
     s = df['value']
+
+    # convert types
+    s = s.apply(convert_value)
+
     return s
 
+def convert_value(value):
+    """
+    Convert value to numeric or datetime if possible.
+    """
+    try:
+        # Try to convert to numeric
+        return pd.to_numeric(value)
+    except ValueError:
+        try:
+            # Try to convert to datetime
+            return pd.to_datetime(value)
+        except ValueError:
+            # If both conversions fail, return the original value
+            return value
 
 def get_insert_properties(insert, max_reads=None) -> tuple[pd.DataFrame, list[int]]:
     """
