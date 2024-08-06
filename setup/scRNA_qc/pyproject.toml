@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "scrna_qc"
-version = "1.0.19"
+version = "1.0.20"
 description = ""
 authors = ["Inbal Zelig <inbal.zelig@ultimagen.com>"]
 packages = [
