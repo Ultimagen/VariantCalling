@@ -249,7 +249,7 @@ def count_bases_in_bed_file(file_path: str) -> int:
     return n_bases_in_region
 
 
-def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool = True) -> None:
+def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool = True) -> int:
     """Select records with GQ >= (or <) gq_threshold and write them to a bed file.
     If gt is True, select records with GQ >= gq_threshold. If gt is False, select records with GQ < gq_threshold.
     The output is written to a bed file.
@@ -263,12 +263,45 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
         GQ threshold.
     gt : bool
         If True, select records with GQ >= gq_threshold. If False, select records with GQ < gq_threshold.
+
+    Returns
+    -------
+    int
+        Number of skipped records
     """
     with pysam.VariantFile(gvcf_file) as vcf, open(bed_file, "w", encoding="utf-8") as bed:
+        extent = -1
+        last_chrom = ""
+        skipped = 0
         for record in tqdm.tqdm(vcf.fetch()):
             if gt:
-                if record.samples[0]["GQ"] >= gq_threshold:
-                    bed.write(f"{record.chrom}\t{record.start}\t{record.stop}\n")
+                # If the record is a reference block, write the entire block to the bed file
+                # however, if the record is a "refCall" deletion, it will only write the first base
+                # The other bases will be marked as "uncertain" because they will be taken from the
+                # reference blocks of the gVCF that the efficient deepVariant outputs
+                if "GQ" in record.samples[0] and record.samples[0]["GQ"] >= gq_threshold:
+                    if (
+                        len(str(record.ref)) > 1
+                        and "GQ" not in record.samples[0]
+                        or record.samples[0]["GT"] == (0, 0)
+                        or record.samples[0]["GT"] == (None, None)
+                    ):
+                        chrom = record.chrom
+                        start = record.start  # VCF is 0-based
+                        end = record.start + 1  # gVCF end position
+                    else:
+                        chrom = record.chrom
+                        start = record.start  # VCF is 0-based
+                        end = record.stop  # gVCF end position
+
+                    bed.write(f"{chrom}\t{start}\t{end}\n")
             elif not gt:
-                if record.samples[0]["GQ"] < gq_threshold:
+                if "GQ" not in record.samples[0] or record.samples[0]["GQ"] < gq_threshold:
                     bed.write(f"{record.chrom}\t{record.start}\t{record.stop}\n")
+            if chrom == last_chrom and start < extent:
+                skipped += 1
+                continue
+            if chrom != last_chrom or extent < end:
+                last_chrom = chrom
+                extent = end
+    return skipped
