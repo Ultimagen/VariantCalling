@@ -124,5 +124,5 @@ def test_extract_statistics_table(inputs_dir, output_path):
         s = store[H5Keys.STATISTICS_SHORTLIST.value]
         assert "/" + H5Keys.STATISTICS_SHORTLIST.value in store.keys()
         assert len(s) == 16
-        # assert that entries that start with "PCT_" are between 0 to 100
-        assert (s[s.index.str.startswith("PCT_")].astype(float).between(0, 100).all())
+        # assert that entries that start with "pct_" are between 0 to 100
+        assert (s[s.index.str.startswith("pct_")].astype(float).between(0, 100).all())

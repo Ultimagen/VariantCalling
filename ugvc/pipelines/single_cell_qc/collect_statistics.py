@@ -197,9 +197,9 @@ def extract_statistics_table(h5_file: Path):
         ].values[0]
         stats["num_trimmed_reads"] = num_trimmed_reads
 
-        # PCT_pass_trimmer
+        # pct_pass_trimmer
         pass_trimmer_rate = num_trimmed_reads / num_input_reads
-        stats["PCT_pass_trimmer"] = pass_trimmer_rate * 100
+        stats["pct_pass_trimmer"] = pass_trimmer_rate * 100
 
         # Mean UMI per cell
         mean_umi_per_cell = None  # TODO: waiting for the calculation details from Gila
@@ -211,18 +211,18 @@ def extract_statistics_table(h5_file: Path):
 
         # %q >= 20 for insert
         q20 = store[H5Keys.SORTER_STATS.value].loc["% PF_Q20_bases"].value
-        stats["PCT_q20"] = q20
+        stats["pct_q20"] = q20
 
         # %q >= 30 for insert
         q30 = store[H5Keys.SORTER_STATS.value].loc["% PF_Q30_bases"].value
-        stats["PCT_q30"] = q30
+        stats["pct_q30"] = q30
 
         # %Aligned to genome
         ur_tmm = float(store[H5Keys.STAR_STATS.value].loc[('unmapped_reads','pct_of_reads_unmapped_too_many_mismatches')])
         ur_ts = float(store[H5Keys.STAR_STATS.value].loc[('unmapped_reads','pct_of_reads_unmapped_too_short')])
         ur_other = float(store[H5Keys.STAR_STATS.value].loc[('unmapped_reads','pct_of_reads_unmapped_other')])
         pct_aligned_to_genome = 100 - ur_tmm - ur_ts - ur_other
-        stats["PCT_aligned_to_genome"] = pct_aligned_to_genome
+        stats["pct_aligned_to_genome"] = pct_aligned_to_genome
 
         # %Assigned to genes (unique)
         unassigned_genes_df = store[H5Keys.STAR_READS_PER_GENE.value][
@@ -234,21 +234,21 @@ def extract_statistics_table(h5_file: Path):
         pct_aligned_to_genes_unstranded = (
             100 * (star_input_reads - unassigned_genes_unstranded) / star_input_reads
         )
-        stats["PCT_aligned_to_genes_unstranded"] = pct_aligned_to_genes_unstranded
+        stats["pct_aligned_to_genes_unstranded"] = pct_aligned_to_genes_unstranded
 
         # %Assigned to genes (unique; forward)
         unassigned_genes_forward = unassigned_genes_df.iloc[:, 2].sum()
         pct_aligned_to_genes_forward = (
             100 * (star_input_reads - unassigned_genes_forward) / star_input_reads
         )
-        stats["PCT_aligned_to_genes_forward"] = pct_aligned_to_genes_forward
+        stats["pct_aligned_to_genes_forward"] = pct_aligned_to_genes_forward
 
         # %Assigned to genes (unique; reverse)
         unassigned_genes_reverse = unassigned_genes_df.iloc[:, 3].sum()
         pct_aligned_to_genes_reverse = (
             100 * (star_input_reads - unassigned_genes_reverse) / star_input_reads
         )
-        stats["PCT_aligned_to_genes_reverse"] = pct_aligned_to_genes_reverse
+        stats["pct_aligned_to_genes_reverse"] = pct_aligned_to_genes_reverse
 
         # Average_mapped_length
         average_mapped_length = store[H5Keys.STAR_STATS.value].loc[('unique_reads','Average_mapped_length')]
@@ -256,19 +256,19 @@ def extract_statistics_table(h5_file: Path):
 
         # Uniquely_mapped_reads_%
         pct_uniquely_mapped_reads =  store[H5Keys.STAR_STATS.value].loc[('unique_reads','pct_Uniquely_mapped_reads')]
-        stats["PCT_uniquely_mapped_reads"] = pct_uniquely_mapped_reads
+        stats["pct_uniquely_mapped_reads"] = pct_uniquely_mapped_reads
 
         # Mismatch_rate_per_base_%
         mismatch_rate = float(store[H5Keys.STAR_STATS.value].loc[('unique_reads','pct_Mismatch_rate_per_base')])
-        stats["PCT_mismatch"] = mismatch_rate
+        stats["pct_mismatch"] = mismatch_rate
 
-        # PCT_deletion
+        # pct_deletion
         deletion_rate = float(store[H5Keys.STAR_STATS.value].loc[('unique_reads','pct_Deletion_rate_per_base')])
-        stats["PCT_deletion"] = deletion_rate
+        stats["pct_deletion"] = deletion_rate
 
-        # PCT_insertion
+        # pct_insertion
         insertion_rate = float(store[H5Keys.STAR_STATS.value].loc[('unique_reads','pct_Insertion_rate_per_base')])
-        stats["PCT_insertion"] = insertion_rate
+        stats["pct_insertion"] = insertion_rate
 
     series = pd.Series(stats, dtype="float")
     series.to_hdf(h5_file, key=H5Keys.STATISTICS_SHORTLIST.value)
