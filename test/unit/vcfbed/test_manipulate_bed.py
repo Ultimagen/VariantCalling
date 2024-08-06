@@ -1,3 +1,7 @@
+import filecmp
+from test import get_resource_dir
+
+import pybedtools
 import pytest
 from simppl.simple_pipeline import SimplePipeline
 
@@ -67,3 +71,14 @@ def test_intersect_bed_regions(tmpdir, include_regions, exclude_regions, expecte
         result = f.readlines()
 
     assert result == expected_output
+
+
+def test_gvcf_to_bed(tmpdir):
+    input_file = f"{inputs_dir}/calls.g.vcf.gz"
+    output_file = str(tmpdir.join("calls.observed.bed"))
+    skipped = gvcf_to_bed(input_file, output_file, 20, gt=True)
+    assert skipped == 1
+    assert filecmp.cmp(output_file, f"{inputs_dir}/calls.expected.bed")
+    output_file_mrg = str(tmpdir.join("calls.observed.mrg.bed"))
+    pybedtools.BedTool(output_file).merge().saveas(output_file_mrg)
+    assert count_bases_in_bed_file(output_file_mrg) == count_bases_in_bed_file(output_file)

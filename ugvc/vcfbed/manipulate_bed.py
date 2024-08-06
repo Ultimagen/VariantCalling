@@ -273,6 +273,10 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
         extent = -1
         last_chrom = ""
         skipped = 0
+        chrom = last_chrom
+        end = extent
+        start = extent
+
         for record in tqdm.tqdm(vcf.fetch()):
             if gt:
                 # If the record is a reference block, write the entire block to the bed file
@@ -294,14 +298,20 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
                         start = record.start  # VCF is 0-based
                         end = record.stop  # gVCF end position
 
+                    if chrom == last_chrom and start < extent:
+                        skipped += 1
+                        continue
+                    if chrom != last_chrom or extent < end:
+                        last_chrom = chrom
+                        extent = end
                     bed.write(f"{chrom}\t{start}\t{end}\n")
             elif not gt:
                 if "GQ" not in record.samples[0] or record.samples[0]["GQ"] < gq_threshold:
+                    if chrom == last_chrom and start < extent:
+                        skipped += 1
+                        continue
+                    if chrom != last_chrom or extent < end:
+                        last_chrom = chrom
+                        extent = end
                     bed.write(f"{record.chrom}\t{record.start}\t{record.stop}\n")
-            if chrom == last_chrom and start < extent:
-                skipped += 1
-                continue
-            if chrom != last_chrom or extent < end:
-                last_chrom = chrom
-                extent = end
     return skipped
