@@ -1029,7 +1029,7 @@ class FlowBasedRead:
                 best_alignment = fetch
         return best_alignment
 
-    def base2flow(self, base: int) -> int:
+    def base_to_flow(self, base: int) -> int:
         """Returns the flow at which the read base base is sequenced
 
         Parameters
@@ -1046,6 +1046,21 @@ class FlowBasedRead:
             return self.base_to_flow_mapping[base]
         self.base_to_flow_mapping = np.repeat(np.arange(len(self.key)), self.key.astype(int))
         return self.base_to_flow_mapping[base]
+
+    def get_flow_matrix_column_for_base(self, base: int) -> tuple[str, np.ndarray]:
+        """Returns the flow matrix column for the base
+
+        Parameters
+        ----------
+        base: int
+            Number of the read base
+
+        Returns
+        -------
+        tuple[str,np.ndarray]
+            The flow nucleotide and the flow matrix column
+        """
+        return self.flow_order[self.base_to_flow(base)], self._flow_matrix[:, self.base_to_flow(base)]
 
 
 def get_haplotype_by_read_matrix(haplotypes: list, reads: list) -> np.ndarray:
