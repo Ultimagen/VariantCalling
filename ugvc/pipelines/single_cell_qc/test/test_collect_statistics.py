@@ -108,7 +108,7 @@ def test_get_insert_properties_no_fastq(inputs_dir):
 
 
 def test_extract_statistics_table(inputs_dir, output_path):
-    original_h5_file = inputs_dir / "single_cell_qc_stats_no_shortlist.cRNA.applicationQC.h5"
+    original_h5_file = inputs_dir / "single_cell_qc_stats_no_shortlist.scRNA.applicationQC.h5"
     # copy the file to tmpdir to avoid modifying the original file
     h5_file = output_path / original_h5_file.name
     shutil.copyfile(original_h5_file, str(h5_file))
