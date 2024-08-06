@@ -74,16 +74,16 @@ def test_collect_statistics(output_path, inputs, sample_name):
 
 def test_read_star_stats(inputs):
     star_stats_file = inputs.star_stats
-    df = read_star_stats(star_stats_file)
-    assert isinstance(df, pd.DataFrame)
-    assert df.shape == (32, 4)
-    assert df.isna().sum().sum() == 0
+    s = read_star_stats(star_stats_file)
+    assert isinstance(s, pd.Series)
+    assert len(s) == 32
+    assert s.isna().sum().sum() == 0
 
 
 def test_read_star_stats_missing_file():
     star_stats_file = "missing_file.txt"
     with pytest.raises(FileNotFoundError):
-        df = read_star_stats(star_stats_file)
+        read_star_stats(star_stats_file)
 
 
 def test_get_insert_properties(inputs):
@@ -108,7 +108,7 @@ def test_get_insert_properties_no_fastq(inputs_dir):
 
 
 def test_extract_statistics_table(inputs_dir, output_path):
-    original_h5_file = inputs_dir / "single_cell_qc_stats_no_shortlist.h5"
+    original_h5_file = inputs_dir / "single_cell_qc_stats_no_shortlist.cRNA.applicationQC.h5"
     # copy the file to tmpdir to avoid modifying the original file
     h5_file = output_path / original_h5_file.name
     shutil.copyfile(original_h5_file, str(h5_file))
@@ -121,12 +121,8 @@ def test_extract_statistics_table(inputs_dir, output_path):
 
     # assert h5 contains the STATISTICS_SHORTLIST key
     with pd.HDFStore(h5_file, mode="r") as store:
-        df = store[H5Keys.STATISTICS_SHORTLIST.value]
+        s = store[H5Keys.STATISTICS_SHORTLIST.value]
         assert "/" + H5Keys.STATISTICS_SHORTLIST.value in store.keys()
-        assert df.shape == (16, 1)
+        assert len(s) == 16
         # assert that entries that start with "PCT_" are between 0 to 100
-        assert (
-            df[df.index.str.startswith("PCT_")].astype(float) >= 0
-        ).all().all() and (
-            df[df.index.str.startswith("PCT_")].astype(float) <= 100
-        ).all().all()
+        assert (s[s.index.str.startswith("PCT_")].astype(float).between(0, 100).all())

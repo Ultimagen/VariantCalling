@@ -16,7 +16,7 @@ def inputs_dir():
 
 @pytest.fixture
 def h5_file(inputs_dir):
-    return inputs_dir / "single_cell_qc_stats.h5"
+    return inputs_dir / "single_cell_qc_stats.scRNA.applicationQC.h5"
 
 
 @pytest.fixture
