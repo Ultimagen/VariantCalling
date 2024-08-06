@@ -50,7 +50,7 @@ def single_cell_qc(
     extract_statistics_table(h5_file)
 
     params, tmp_files = prepare_parameters_for_report(h5_file, thresholds, output_path)
-    output_report_html = generate_report(params, output_path, tmp_files, sample_name)
+    generate_report(params, output_path, tmp_files, sample_name)
 
     # keep only STAR and short table data in h5 file
     with pd.HDFStore(h5_file, "a") as store:
@@ -62,8 +62,11 @@ def single_cell_qc(
         for key in store.keys():
             if key.strip('/') not in keys_to_keep:
                 store.remove(key)
-
-
+    
+    # keys to convert to json to disply in pyprus
+    keys_to_convert_to_json = pd.Series([H5Keys.STATISTICS_SHORTLIST.value, H5Keys.STAR_STATS.value])
+    keys_to_convert_to_json.to_hdf(h5_file, key="keys_to_convert")
+        
 def prepare_parameters_for_report(
     h5_file: Path, thresholds: Thresholds, output_path: str
 ) -> tuple[dict, list[Path]]:
