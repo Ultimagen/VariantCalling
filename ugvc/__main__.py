@@ -12,7 +12,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # import pipeline modules implementing run(argv) method
-from ugbio_cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results
+from ugbio_cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results , bicseq2_post_processing , annotate_FREEC_segments
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -55,7 +55,6 @@ from ugvc.pipelines.mrd import (
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
-from ugvc.somatic_cnv import bicseq2_post_processing
 from ugvc.utils import cloud_sync
 
 # create a list of imported pipeline modules
@@ -74,6 +73,7 @@ modules = [
     correct_genotypes_by_imputation,
     vcfeval_flavors,
     bicseq2_post_processing,
+    annotate_FREEC_segments
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
