@@ -5,25 +5,11 @@ SHELL ["/bin/bash", "-c"]
 COPY setup/environment.yml /VariantCalling/setup/
 COPY setup/other_envs/cutadaptenv.yml /VariantCalling/setup/other_envs/
 COPY setup/other_envs/ucsc.yml /VariantCalling/setup/other_envs/
-COPY setup/other_envs/cnmops.yml /VariantCalling/setup/other_envs/
 
 RUN conda env create -f /VariantCalling/setup/environment.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cutadaptenv.yml && \
     conda env create -f /VariantCalling/setup/other_envs/ucsc.yml && \
-    conda env create -f /VariantCalling/setup/other_envs/cnmops.yml && \
     conda init --all && conda clean -a -y
-
-## install ug-cn.mops (branch: ilyasoifer/test.1.40):
-RUN cd /opt && \
-   git clone --branch ilyasoifer/test.1.40 https://github.com/Ultimagen/cn.mops.git cn.mops && \
-   cd cn.mops && \
-   git checkout 824bb44318acf925691488a2d147d497400786ea
-
-RUN source ~/.bashrc && \
-   conda activate cn.mops && \
-   Rscript -e 'remove.packages("cn.mops")' && \
-   R CMD INSTALL --preclean --no-multiarch --with-keep.source /opt/cn.mops/ && \
-   conda deactivate
 
 RUN source ~/.bashrc && \
     conda activate genomics.py3 && \
