@@ -12,7 +12,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # import pipeline modules implementing run(argv) method
-from ugbio_cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results , bicseq2_post_processing
+from ugbio_cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results , bicseq2_post_processing , annotate_FREEC_segments
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -33,7 +33,6 @@ from ugvc.pipelines import (
     training_prep_pipeline,
     vcfeval_flavors,
 )
-from ugvc.pipelines.cnv import annotate_FREEC_segments
 from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugvc.pipelines.mrd import (
