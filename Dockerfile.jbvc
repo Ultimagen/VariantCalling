@@ -2,6 +2,12 @@ FROM continuumio/anaconda3:2022.10
 
 SHELL ["/bin/bash", "-c"]
 
+# Install apt-get dependencies
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    sysstat `# for monitoring script IO metrics` \
+    ; \
+    apt-get autoclean && rm -rf /var/lib/apt/lists/*
+
 COPY setup/environment.yml /VariantCalling/setup/
 COPY setup/other_envs/cutadaptenv.yml /VariantCalling/setup/other_envs/
 COPY setup/other_envs/ucsc.yml /VariantCalling/setup/other_envs/
