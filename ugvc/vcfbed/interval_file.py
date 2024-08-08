@@ -17,6 +17,7 @@ class IntervalFile:
         ref_dict: str | None = None,
     ):
         self.sp = sp
+        self.files_to_clean = []
         # determine the file type and create the other temporary copy
         if interval is None:
             self._is_none: bool = True
@@ -28,6 +29,7 @@ class IntervalFile:
             # create the interval bed file
             if not os.path.exists(f"{os.path.splitext(interval)[0]}.bed"):
                 self.__execute(f"picard IntervalListToBed I={interval} O={os.path.splitext(interval)[0]}.bed")
+                self.files_to_clean.append(f"{os.path.splitext(interval)[0]}.bed")
 
             self._bed_file_name = f"{os.path.splitext(interval)[0]}.bed"
             self._is_none = False
@@ -46,6 +48,7 @@ class IntervalFile:
                     f"picard BedToIntervalList I={interval} "
                     f"O={os.path.splitext(interval)[0]}.interval_list SD={ref_dict}"
                 )
+                self.files_to_clean.append(f"{os.path.splitext(interval)[0]}.interval_list")
 
             self._interval_list_file_name = f"{os.path.splitext(interval)[0]}.interval_list"
             self._is_none = False
@@ -64,5 +67,9 @@ class IntervalFile:
     def is_none(self):
         return self._is_none
 
-    def __execute(self, command: str, output_file: str = None):
+    def __execute(self, command: str, output_file: str | None = None):
         print_and_execute(command, output_file=output_file, simple_pipeline=self.sp, module_name=__name__)
+
+    def __del__(self):
+        for file in self.files_to_clean:
+            os.remove(file)
