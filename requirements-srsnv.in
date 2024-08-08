@@ -1,0 +1,5 @@
+numpy==1.26
+joblib==1.4.2
+pandas==2.2.2
+pysam==0.22.1
+xgboost==2.1.1
