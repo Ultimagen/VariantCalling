@@ -221,7 +221,7 @@ def read_effective_coverage_from_sorter_json(
         sorter_stats = json.load(fh)
 
     # Calculate ratio_of_bases_in_coverage_range
-    cvg = pd.Series(sorter_stats["cvg"])
+    cvg = pd.Series(sorter_stats["base_coverage"].get("Genome", sorter_stats["cvg"]))
     cvg_cdf = cvg.cumsum() / cvg.sum()
     ratio_below_min_coverage = cvg_cdf.loc[min_coverage_for_fp]
 
@@ -236,7 +236,6 @@ def read_effective_coverage_from_sorter_json(
     ratio_of_reads_over_mapq = reads_by_mapq[reads_by_mapq.index >= min_mapq].sum() / reads_by_mapq.sum()
 
     # Calculate mean coverage
-    cvg = pd.Series(sorter_stats["base_coverage"].get("Genome", sorter_stats["cvg"]))
     mean_coverage = (cvg.index.values * cvg.values).sum() / cvg.sum()
 
     return (
@@ -341,8 +340,8 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     ----------
     trimmer_failure_codes_csv : str
         path to a Trimmer failure codes file
-    add_total: bool
-        Aggregate total counts
+    add_total : bool
+        if True, add a row with total failed reads to the dataframe
 
     Returns
     -------
@@ -356,32 +355,32 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     """
     df_trimmer_failure_codes = pd.read_csv(trimmer_failure_codes_csv)
     expected_columns = [
-        "read group",
+        "read_group",
         "code",
         "format",
         "segment",
         "reason",
-        "failed read count",
-        "total read count",
+        "failed_read_count",
+        "total_read_count",
     ]
     if list(df_trimmer_failure_codes.columns) != expected_columns:
         raise ValueError(
-            f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}, \
-                got {list(df_trimmer_failure_codes.columns)}"
+            f"Unexpected columns in {trimmer_failure_codes_csv},"
+            f"expected {expected_columns}, got {list(df_trimmer_failure_codes.columns)}"
         )
 
     df_trimmer_failure_codes = (
         df_trimmer_failure_codes.groupby(["segment", "reason"])
-        .agg({x: "sum" for x in ("failed read count", "total read count")})
-        .assign(**{"% failure": lambda x: 100 * x["failed read count"] / x["total read count"]})
+        .agg({x: "sum" for x in ("failed_read_count", "total_read_count")})
+        .assign(**{"pct_failure": lambda x: 100 * x["failed_read_count"] / x["total_read_count"]})
     )
 
     if add_total:
         total_row = pd.DataFrame(
             {
-                "failed read count": df_trimmer_failure_codes["failed read count"].sum(),
-                "total read count": df_trimmer_failure_codes["total read count"].iloc[0],
-                "% failure": df_trimmer_failure_codes["% failure"].sum(),
+                "failed_read_count": df_trimmer_failure_codes["failed_read_count"].sum(),
+                "total_read_count": df_trimmer_failure_codes["total_read_count"].iloc[0],
+                "pct_failure": df_trimmer_failure_codes["pct_failure"].sum(),
             },
             index=pd.MultiIndex.from_tuples([("total", "total")]),
         )
