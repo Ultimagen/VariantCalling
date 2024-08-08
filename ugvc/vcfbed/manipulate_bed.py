@@ -12,6 +12,7 @@ from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
 from ugvc.utils.exec_utils import print_and_execute
+from ugvc.vcfbed.bed_writer import BedWriter
 
 warnings.filterwarnings("ignore")
 
@@ -269,7 +270,8 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
     int
         Number of skipped records
     """
-    with pysam.VariantFile(gvcf_file) as vcf, open(bed_file, "w", encoding="utf-8") as bed:
+    with pysam.VariantFile(gvcf_file) as vcf:
+        bed = BedWriter(bed_file)
         extent = -1
         last_chrom = ""
         skipped = 0
@@ -305,8 +307,8 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
                 # The other bases will be marked as "uncertain" because they will be taken from the
                 # reference blocks of the gVCF that the efficient deepVariant outputs
                 if "GQ" in record.samples[0] and record.samples[0]["GQ"] >= gq_threshold:
-                    bed.write(f"{chrom}\t{start}\t{end}\n")
+                    bed.write(chrom, start, end)
             elif not gt:
                 if "GQ" not in record.samples[0] or record.samples[0]["GQ"] < gq_threshold:
-                    bed.write(f"{chrom}\t{start}\t{end}\n")
+                    bed.write(chrom, start, end)
     return skipped
