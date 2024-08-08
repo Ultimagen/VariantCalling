@@ -1,4 +1,3 @@
-import os
 import shutil
 import subprocess
 from collections import Counter
@@ -110,19 +109,18 @@ class TestVCFEvalRun:
 
     def test_vcfeval_run_ignore_filter(self, tmp_path):
         sp = SimplePipeline(0, 100, False)
-        high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list")).as_bed_file()
+        high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list"))
         VcfPipelineUtils(sp).run_vcfeval_concordance(
             input_file=self.sample_calls,
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.ignore_filter"),
             ref_genome=self.ref_genome,
-            evaluation_regions=high_conf,
-            comparison_intervals=high_conf,
+            evaluation_regions=str(high_conf.as_bed_file()),
+            comparison_intervals=str(high_conf.as_bed_file()),
             input_sample="sm1",
             truth_sample="HG001",
             ignore_filter=True,
         )
-        os.remove(high_conf)
         assert exists(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz")
         assert exists(tmp_path / "sample.ignore_filter.vcfeval_concordance.vcf.gz.tbi")
 
@@ -132,19 +130,19 @@ class TestVCFEvalRun:
 
     def test_vcfeval_run_use_filter(self, tmp_path):
         sp = SimplePipeline(0, 100, False)
-        high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list")).as_bed_file()
+        high_conf = IntervalFile(None, pjoin(inputs_dir, "highconf.interval_list"))
         VcfPipelineUtils(sp).run_vcfeval_concordance(
             input_file=self.sample_calls,
             truth_file=self.truth_calls,
             output_prefix=str(tmp_path / "sample.use_filter"),
             ref_genome=self.ref_genome,
-            evaluation_regions=high_conf,
-            comparison_intervals=high_conf,
+            evaluation_regions=str(high_conf.as_bed_file()),
+            comparison_intervals=str(high_conf.as_bed_file()),
             input_sample="sm1",
             truth_sample="HG001",
             ignore_filter=False,
         )
-        os.remove(high_conf)
+
         assert exists(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz")
         assert exists(tmp_path / "sample.use_filter.vcfeval_concordance.vcf.gz.tbi")
 
