@@ -6,7 +6,7 @@ from os.path import dirname
 
 import pybedtools
 
-import ugvc.vcfbed.manipulate_bed as mb
+import ugvc.joint.gvcf_bed as mb
 from ugvc.vcfbed.interval_file import IntervalFile
 
 
