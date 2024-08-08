@@ -6,8 +6,8 @@ import os
 
 from simppl.simple_pipeline import SimplePipeline
 
+from ugvc.comparison.variant_hit_fraction_caller import VariantHitFractionCaller
 from ugvc.utils.cloud_sync import cloud_sync
-from ugvc.validation.variant_hit_fraction_caller import VariantHitFractionCaller
 
 
 def __get_parser() -> argparse.ArgumentParser:
@@ -61,7 +61,15 @@ class TrainingSetConsistency:
         self.min_hit_fraction_target = min_hit_fraction_target
         self.sp = sp
         os.makedirs(out_dir, exist_ok=True)
-        self.vc = VariantHitFractionCaller(self.ref, self.out_dir, self.sp, self.min_af_snps)
+        self.vc = VariantHitFractionCaller(self.ref, self.out_dir, self.sp, self.min_af_snps, self.region)
+
+    def vcf_to_bed(self, vcf: str, bed: str, max_vars=10**8, region: str = "") -> None:
+        sed_pattern = r"s/,<\*>//"
+        self.sp.print_and_run(
+            f"bcftools view -H --type snps {vcf} {region} | head -{max_vars}"
+            " | awk -v OFS='\t' '{print $1,$2-1,$2,$5}'"
+            f" | sed '{sed_pattern}' > {bed}"
+        )
 
     def check(self):
         errors = []
@@ -92,7 +100,7 @@ class TrainingSetConsistency:
         self.sp.print_and_run(
             f"bcftools view {ground_truth_in_hcr_and_ti} -r {self.region} -Oz -o {ground_truth_to_check_vcf}"
         )
-        self.vc.vcf_to_bed(f"{ground_truth_to_check_vcf}", ground_truth_to_check, max_vars=self.max_vars)
+        self.vcf_to_bed(f"{ground_truth_to_check_vcf}", ground_truth_to_check, max_vars=self.max_vars)
         hcr_intersect_ti = f"{self.out_dir}/hcr_intersected_training_intervals.bed"
         hcr_in_region = f"{self.out_dir}/hcr_in_region.bed"
         self.sp.print_and_run(
@@ -145,7 +153,7 @@ class TrainingSetConsistency:
             normal_germline_vcf = f"{self.out_dir}/{normal_base_name}.germline.vcf.gz"
             normal_germline_bed = f"{self.out_dir}/{normal_base_name}.germline.bed"
             self.vc.call_variants(normal_cram, normal_germline_vcf, hcr_in_region, min_af=self.min_af_germline_snps)
-            self.vc.vcf_to_bed(normal_germline_vcf, normal_germline_bed)
+            self.vcf_to_bed(normal_germline_vcf, normal_germline_bed)
             normal_germline_vcf_beds.append(normal_germline_bed)
 
         # Validate that each normal-in-tumor sample matches at least one normal sample
