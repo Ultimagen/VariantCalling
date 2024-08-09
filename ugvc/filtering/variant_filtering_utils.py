@@ -98,6 +98,8 @@ def apply_model(
     tuple:
         Predictions and probabilities
     """
+
+    # We apply models on batches of the dataframe to avoid memory issues
     chunks = np.arange(0, input_df.shape[0], MAX_CHUNK_SIZE, dtype=int)
     chunks = np.concatenate((chunks, [input_df.shape[0]]))
     transformed_chunks = [
@@ -500,7 +502,21 @@ def combine_multiallelic_spandel(df: pd.DataFrame, df_unsplit: pd.DataFrame, sco
 def merge_and_assign_pls(
     original_df: pd.DataFrame, grouped_split_df: DataFrameGroupBy, split_scores: pd.Series
 ) -> pd.DataFrame:
-    """Merges the PL scores of multiallelic and spanning deletion calls
+    """Merges the PL scores of multiallelic and spanning deletion calls. The asprocess is like this:
+    In the step of splitting the multiallelics, we have generated the rows as follows:
+    Pick the "strongest" allele (e.g. A1),
+    Combine the support for A1 and A2 into a single allele A
+    Genotype (R,A): the result is (PL'(R,R), PL'(R,A), PL'(A,A))
+    Genotype (A1,A2), where A1 is the reference, A2 is the "alt".
+    In this function we are merging the split genotyping rows back as follows:
+    Merge the support in the following way to generate PL(R,R),PL(R,A1),PL(A1,A1),PL(R,A2),PL(A1,A2),PL(A2,A2) tuple
+    PL(R,R) = PL'(R,R)
+    PL(R,A1) = PL'(R,A)
+    PL(A1,A1) = PL'(A,A) * PL'(A1,A1)
+    PL(A1,A2) = PL'(A,A) * PL(A1,A2)
+    PL(A2,A2) = PL(A,A) * PL(A2,A2)
+
+    Note that PL(R,A2) is zero here.
 
     Parameters
     ----------
@@ -516,6 +532,10 @@ def merge_and_assign_pls(
     -------
     pd.DataFrame:
         The dataframe with multiallelics merged into a single record
+
+    See also
+    --------
+    multiallelics.split_multiallelic_variants
     """
     result = []
     for g in grouped_split_df.groups:
