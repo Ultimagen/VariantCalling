@@ -133,6 +133,29 @@ def test_encode_label(label, allele_indices, expected):
     assert tprep.encode_label(label, allele_indices) == expected
 
 
+testdata = [
+    [0, (0, 0)],
+    [1, (0, 1)],
+    [2, (1, 1)],
+    [3, (0, 2)],
+    [4, (1, 2)],
+    [5, (2, 2)],
+    [6, (0, 3)],
+    [10, (0, 4)],
+    [15, (0, 5)],
+    [21, (0, 6)],
+    [28, (0, 7)],
+    [36, (0, 8)],
+    [45, (0, 9)],
+    [55, (0, 10)],
+]
+
+
+@pytest.mark.parametrize("idx,expected", testdata)
+def test_get_gt_from_pl_idx(idx, expected):
+    assert tprep.get_gt_from_pl_idx(idx) == expected
+
+
 def test_cleanup_multiallelics():
     inputs_dir = get_resource_dir(__file__)
 

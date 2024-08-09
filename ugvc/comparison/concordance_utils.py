@@ -3,87 +3,12 @@ from __future__ import annotations
 from collections import OrderedDict
 from collections.abc import Iterable
 
-import h5py
 import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
 from ugvc import logger
 from ugvc.filtering import variant_filtering_utils
-
-
-def read_hdf(
-    file_name: str,
-    key: str = "all",
-    skip_keys: list[str] | None = None,
-    columns_subset: list[str] | None = None,
-) -> DataFrame:
-    """
-    Read data-frame or data-frames from an h5 file
-
-    Parameters
-    ----------
-    file_name: str
-        path of local file
-    key: str
-        hdf key to the data-frame.
-        Special keys:
-        1. all - read all data-frames from the file and concat them
-        2. all_human_chrs - read chr1, ..., chr22, chrX keys, and concat them
-        3. all_somatic_chrs - chr1, ..., chr22
-    skip_keys: Iterable[str]
-        collection of keys to skip from reading the H5 (e.g. concordance, input_args ... )
-    columns_subset: list[str], optional
-        select a subset of columns
-
-    Returns
-    -------
-    data-frame or concat data-frame read from the h5 file according to key
-    """
-    if skip_keys is None:
-        skip_keys = []
-    if key == "all":
-        with h5py.File(file_name, "r") as h5_file:
-            keys = list(h5_file.keys())
-        for k in skip_keys:
-            if k in keys:
-                keys.remove(k)
-        dfs = []
-        for k in keys:
-            tmpdf: DataFrame = DataFrame(pd.read_hdf(file_name, key=k))
-            if columns_subset is not None:
-                tmpdf = tmpdf[[x for x in columns_subset if x in tmpdf.columns]]
-            if tmpdf.shape[0] > 0:
-                dfs.append(tmpdf)
-        return pd.concat(dfs)
-    if key == "all_human_chrs":
-        dfs = [DataFrame(pd.read_hdf(file_name, key=f"chr{x}")) for x in list(range(1, 23)) + ["X", "Y"]]
-        return pd.concat(dfs)
-    if key == "all_hg19_human_chrs":
-        dfs = [DataFrame(pd.read_hdf(file_name, key=x)) for x in list(range(1, 23)) + ["X", "Y"]]
-        return pd.concat(dfs)
-    if key == "all_somatic_chrs":
-        dfs = [DataFrame(pd.read_hdf(file_name, key=f"chr{x}")) for x in list(range(1, 23))]
-        return pd.concat(dfs)
-    # If not one of the special keys:
-    return DataFrame(pd.read_hdf(file_name, key=key))
-
-
-def get_h5_keys(file_name: str) -> list[str]:
-    """
-    Parameters
-    ----------
-    file_name : str
-        path to local h5 file
-
-    Returns
-    -------
-    list of keys in h5 file
-    """
-    h5_file = h5py.File(file_name, "r")
-    keys = list(h5_file.keys())
-    h5_file.close()
-    return keys
 
 
 def calc_accuracy_metrics(
