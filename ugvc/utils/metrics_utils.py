@@ -151,7 +151,7 @@ def parse_alignment_metrics(alignment_file):
     return res1
 
 
-def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = True) -> pd.DataFrame:
+def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = True) -> pd.Series:
     """
     Collect sorter statistics from csv
 
@@ -160,11 +160,12 @@ def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = 
     sorter_stats_csv : str
         path to a Sorter stats file
     edit_metric_names: bool
-        if True, edit the metric names to be more human-readable
+        if True, edit the metric names to be consistent in the naming of percentages
 
     Returns
     -------
-    sorter stats as a pandas DataFrame
+    pd.Series
+        Series with sorter statistics
     """
 
     # read Sorter stats
@@ -188,8 +189,8 @@ def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = 
 
     if edit_metric_names:
         # rename metrics to uniform convention
-        df_sorter_stats = df_sorter_stats.rename({c: c.replace("PCT_", "% ") for c in df_sorter_stats.index})
-    return df_sorter_stats
+        df_sorter_stats = df_sorter_stats.rename({c: c.replace("% ", "PCT_") for c in df_sorter_stats.index})
+    return df_sorter_stats["value"]
 
 
 def read_effective_coverage_from_sorter_json(
@@ -355,13 +356,13 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     """
     df_trimmer_failure_codes = pd.read_csv(trimmer_failure_codes_csv)
     expected_columns = [
-        "read_group",
+        "read group",
         "code",
         "format",
         "segment",
         "reason",
-        "failed_read_count",
-        "total_read_count",
+        "failed read count",
+        "total read count",
     ]
     if list(df_trimmer_failure_codes.columns) != expected_columns:
         raise ValueError(
@@ -369,10 +370,15 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
             f"expected {expected_columns}, got {list(df_trimmer_failure_codes.columns)}"
         )
 
+    # refactor columns and names
+    df_trimmer_failure_codes = df_trimmer_failure_codes.rename(
+        columns={c: c.replace(" ", "_").lower() for c in df_trimmer_failure_codes.columns}
+    )
+
     df_trimmer_failure_codes = (
         df_trimmer_failure_codes.groupby(["segment", "reason"])
         .agg({x: "sum" for x in ("failed_read_count", "total_read_count")})
-        .assign(**{"pct_failure": lambda x: 100 * x["failed_read_count"] / x["total_read_count"]})
+        .assign(**{"PCT_failure": lambda x: 100 * x["failed_read_count"] / x["total_read_count"]})
     )
 
     if add_total:
@@ -380,7 +386,7 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
             {
                 "failed_read_count": df_trimmer_failure_codes["failed_read_count"].sum(),
                 "total_read_count": df_trimmer_failure_codes["total_read_count"].iloc[0],
-                "pct_failure": df_trimmer_failure_codes["pct_failure"].sum(),
+                "PCT_failure": df_trimmer_failure_codes["PCT_failure"].sum(),
             },
             index=pd.MultiIndex.from_tuples([("total", "total")]),
         )
