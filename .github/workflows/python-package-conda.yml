@@ -31,7 +31,6 @@ jobs:
           pip install flake8
           conda env create --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
-          conda env create --file setup/other_envs/cnmops.yml --name cn.mops
           conda env create --file setup/environment.yml --name genomics.py3
       - name: Install as a package
         run: |

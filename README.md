@@ -11,12 +11,11 @@ In addition, the code provides
 * Tools to perform evaluation of the callset relative to the ground truth.
 * Tools to perform building a database of noisy locaitons (SEC) and filtering callset relative to them - still undocumented
 * Set of tools for MRD (minimal residual disease) - still undocumented.
-* Tools to perform germline CNV calling : [germline_cnv_calling](docs/germline_cnv_calling.md)
 
 ## Setup
 1. Make sure git-lfs is installed on your system if you want to clone test resources along with the code (https://git-lfs.github.com/)
 1. Clone VariantCalling repository to e.g. `software/VariantCalling`
-1. Create the three conda environments:
+1. Create the four conda environments:
    * `conda env create -f setup/environment.yml`
    * `conda env create -f setup/other_envs/ucsc.yml`
    * `conda env create -f setup/other_envs/cutadapt.yml`
