@@ -38,6 +38,21 @@ def download_from_s3(bucket_name, object_name, destination_file_name):
     client.download_file(bucket_name, object_name, destination_file_name)
 
 
+def optional_cloud_sync(
+    cloud_path_in,
+    local_dir_in="/data",
+    print_output=False,
+    force_download=False,
+    raise_error_is_file_exists=False,
+    dry_run=False,
+):
+    if cloud_path_in.startswith("gs://") or cloud_path_in.startswith("s3://"):
+        return cloud_sync(
+            cloud_path_in, local_dir_in, print_output, force_download, raise_error_is_file_exists, dry_run
+        )
+    return cloud_path_in
+
+
 def cloud_sync(
     cloud_path_in,
     local_dir_in="/data",

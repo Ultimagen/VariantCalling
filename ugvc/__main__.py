@@ -33,6 +33,7 @@ from ugvc.pipelines import (
     training_prep_pipeline,
     vcfeval_flavors,
 )
+from ugvc.pipelines.comparison import quick_fingerprinting
 from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugvc.pipelines.mrd import (
@@ -119,6 +120,7 @@ lpr_modules = [
 
 vcfbed_modules = [annotate_contig, intersect_bed_regions, calibrate_bridging_snvs]
 deepvariant_modules = [training_set_consistency_check]
+comparison_modules = [quick_fingerprinting]
 
 modules.extend(mrd_modules)
 modules.extend(sec_modules)
@@ -128,6 +130,7 @@ modules.extend(joint_modules)
 modules.extend(lpr_modules)
 modules.extend(vcfbed_modules)
 modules.extend(deepvariant_modules)
+modules.extend(comparison_modules)
 
 LOGO = """
       __    __    ___________    ____  ______
