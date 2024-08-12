@@ -1040,6 +1040,7 @@ def annotate_featuremap(
     max_hmer_length: int,
     flow_order: str = DEFAULT_FLOW_ORDER,
     ppmSeq_adapter_version: str = None,
+    process_number: int = 0,
 ):
     """
     Annotate featuremap with ref context, hmer length and ppmSeq features
@@ -1076,5 +1077,5 @@ def annotate_featuremap(
         annotators=annotators,
         input_path=input_featuremap,
         output_path=output_featuremap,
-        process_number=1,
+        process_number=process_number,
     )
