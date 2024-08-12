@@ -3,7 +3,7 @@ from test import get_resource_dir, test_dir
 
 import pandas as pd
 import pytest
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal, assert_series_equal
 
 from ugvc.mrd.ppmSeq_utils import (
     add_strand_ratios_and_categories_to_featuremap,
@@ -185,12 +185,12 @@ def test_collect_statistics(tmpdir):
         assert sorted(fh1.keys()) == sorted(fh2.keys())
         keys = fh1.keys()
     for k in keys:
-        assert_frame_equal(
-            pd.read_hdf(f1, k).rename(
-                columns={"native_adapter_with_leading_C": "native_adapter"}
-            ),  # backwards compatibility patch for old test data
-            pd.read_hdf(f2, k),
-        )
+        x1 = pd.read_hdf(f1, k)
+        x2 = pd.read_hdf(f2, k)
+        if isinstance(x1, pd.Series):
+            assert_series_equal(x1, x2)
+        else:
+            assert_frame_equal(x1, x2)
 
     collect_statistics(
         ppmSeqAdapterVersions.LEGACY_V5_START,
@@ -205,10 +205,12 @@ def test_collect_statistics(tmpdir):
         assert fh1.keys() == fh2.keys()
         keys = fh1.keys()
     for k in keys:
-        assert_frame_equal(
-            pd.read_hdf(f1, k),
-            pd.read_hdf(f2, k),
-        )
+        x1 = pd.read_hdf(f1, k)
+        x2 = pd.read_hdf(f2, k)
+        if isinstance(x1, pd.Series):
+            assert_series_equal(x1, x2)
+        else:
+            assert_frame_equal(x1, x2)
 
 
 def test_plot_ppmSeq_ratio(tmpdir):
