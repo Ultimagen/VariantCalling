@@ -104,7 +104,7 @@ class VcfAnnotator(ABC):
                 print_and_execute(command, shell=True)
 
             # index the final output file
-            command = f"bcftools index --threads {process_number} - -f -t {output_path}"
+            command = f"bcftools index --threads {process_number} -f -t {output_path}"
             print_and_execute(command, shell=True)
 
         finally:
