@@ -177,10 +177,10 @@ class VcfAnnotator(ABC):
             else:
                 for command in commands:
                     sp.print_and_run(command)
-            # Merge the temporary output files into the final output file and remove them
-            VcfAnnotator.merge_temp_files(tmp_output_paths, output_path, new_header)
-            # Create a tabix index for the final output file
-            pysam.tabix_index(output_path, preset="vcf", force=True)
+            # # Merge the temporary output files into the final output file and remove them
+            # VcfAnnotator.merge_temp_files(tmp_output_paths, output_path, new_header)
+            # # Create a tabix index for the final output file
+            # pysam.tabix_index(output_path, preset="vcf", force=True)
 
     @staticmethod
     def process_contig(
