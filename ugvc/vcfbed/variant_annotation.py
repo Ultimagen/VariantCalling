@@ -12,6 +12,7 @@ import pyBigWig as pbw
 import pyfaidx
 import pysam
 from simppl.simple_pipeline import SimplePipeline
+from ugbio_core.exec_utils import print_and_execute
 
 import ugvc.dna.utils as dnautils
 import ugvc.flow_format.flow_based_read as flowBasedRead
@@ -80,7 +81,7 @@ class VcfAnnotator(ABC):
         pass
 
     @staticmethod
-    def merge_temp_files(contig_output_vcfs: list[str], output_path: str, header: pysam.VariantHeader):
+    def merge_temp_files(contig_output_vcfs: list[str], output_path: str, header: pysam.VariantHeader = None, process_number: int = 1):
         """
         Static method to merge temporary output files and write to the final output file.
 
@@ -93,19 +94,22 @@ class VcfAnnotator(ABC):
             VCF file header.
         """
         try:
-            # Open the final output file
-            with pysam.VariantFile(output_path, "w", header=header) as vcf_out:
-                # Loop over each contig
-                for temp_file_path in contig_output_vcfs:
-                    # Open the temp file
-                    with pysam.VariantFile(temp_file_path, "r") as vcf_contig:
-                        # Write each record from the temp file to the final output file
-                        for record in vcf_contig:
-                            vcf_out.write(record)
+            # merge using bcftools
+            command = f"bcftools concat --threads {process_number} -Oz --naive -o {output_path} {' '.join(contig_output_vcfs)}"
+            print_and_execute(command, shell=True)
+
+            if header is not None:
+                # reheader using bcftools
+                command = f"bcftools reheader --threads {process_number} -h {header} {output_path} -o {output_path}"
+                print_and_execute(command, shell=True)
+
+            # index the final output file
+            command = f"bcftools index --threads {process_number} - -f -t {output_path}"
+            print_and_execute(command, shell=True)
+
         finally:
-            # Loop over each contig again
+            # remove the temporary files
             for temp_file_path in contig_output_vcfs:
-                # If the temp file exists, remove it
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
 
@@ -196,9 +200,7 @@ class VcfAnnotator(ABC):
                 for command in commands:
                     sp.print_and_run(command)
             # Merge the temporary output files into the final output file and remove them
-            VcfAnnotator.merge_temp_files(tmp_output_paths, output_path, new_header)
-            # Create a tabix index for the final output file
-            pysam.tabix_index(output_path, preset="vcf", force=True)
+            VcfAnnotator.merge_temp_files(tmp_output_paths, output_path, process_number=process_number)
 
     @staticmethod
     def process_contig(
