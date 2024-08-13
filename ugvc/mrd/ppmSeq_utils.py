@@ -91,6 +91,7 @@ class HistogramColumnNames(Enum):
     STRAND_RATIO_CATEGORY_CONSENSUS = "strand_ratio_category_consensus"
     LOOP_SEQUENCE_START = "loop_sequence_start"
     LOOP_SEQUENCE_END = "loop_sequence_end"
+    DUMBBELL_LEFTOVER_START = "Dumbbell_leftover_start"
 
 
 # Input parameter defaults for legacy_v5
@@ -99,6 +100,9 @@ STRAND_RATIO_UPPER_THRESH = 0.73
 MIN_TOTAL_HMER_LENGTHS_IN_LOOPS = 4
 MAX_TOTAL_HMER_LENGTHS_IN_LOOPS = 8
 MIN_STEM_END_MATCHED_LENGTH = 11  # the stem is 12bp, 1 indel allowed as tolerance
+DUMBBELL_LEFTOVER_START_MATCH = (
+    HistogramColumnNames.DUMBBELL_LEFTOVER_START.value + TrimmerHistogramSuffixes.MATCH.value
+)
 
 
 class ppmSeqStrandVcfAnnotator(VcfAnnotator):
@@ -668,7 +672,9 @@ def get_strand_ratio_category_concordance(
         )
         .fillna(0)
     )
-    df_category_concordance = df_category_concordance / df_category_concordance.sum().sum()
+    df_category_concordance = (df_category_concordance / df_category_concordance.sum().sum()).rename(
+        columns={HistogramColumnNames.COUNT.value: HistogramColumnNames.COUNT_NORM.value}
+    )
     # create concordance dataframe excluding end unreached reads
     df_category_concordance_no_end_unreached = df_category_concordance.drop(
         ppmSeqCategories.END_UNREACHED.value,
@@ -727,9 +733,9 @@ def get_strand_ratio_category_concordance(
     )
 
     return (
-        df_category_concordance,
-        df_category_concordance_no_end_unreached.set_index(index_names),
-        df_category_consensus,
+        df_category_concordance[HistogramColumnNames.COUNT_NORM.value],
+        df_category_concordance_no_end_unreached.set_index(index_names)[HistogramColumnNames.COUNT_NORM.value],
+        df_category_consensus[HistogramColumnNames.COUNT_NORM.value],
     )
 
 
@@ -739,7 +745,7 @@ def read_trimmer_tags_dataframe(
     df_category_consensus: str,
     df_sorter_stats: str,
     df_category_concordance: str = None,
-):
+) -> pd.DataFrame:
     """
     Read the trimmer tags dataframe
 
@@ -747,13 +753,13 @@ def read_trimmer_tags_dataframe(
     ----------
     adapter_version : str | ppmSeqAdapterVersions
         adapter version to check
-    df_strand_ratio_category : str
+    df_strand_ratio_category : pd.DataFrame
 
-    df_category_consensus : str
+    df_category_consensus : pd.DataFrame
 
-    df_sorter_stats : str
+    df_sorter_stats : pd.DataFrame
 
-    df_category_concordance : str, optional
+    df_category_concordance : pd.DataFrame, optional
 
     Returns
     -------
@@ -773,17 +779,19 @@ def read_trimmer_tags_dataframe(
         df_tags = df_strand_ratio_category.drop(ppmSeqCategories.END_UNREACHED.value, errors="ignore")[
             [HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value]
         ]
-        df_tags.index = [f"% {x} reads" for x in df_tags.index]
+        df_tags.index = [f"PCT_{x}_reads" for x in df_tags.index]
         df_tags.columns = ["value"]
         df_tags = df_tags * 100 / df_tags.sum()
+        df_tags = df_tags["value"]
     elif adapter_version in (
         ppmSeqAdapterVersions.LEGACY_V5_END,
         ppmSeqAdapterVersions.LEGACY_V5_END.value,
     ):
         df_tags = df_strand_ratio_category[[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value]]
-        df_tags.index = [f"% {x} reads" for x in df_tags.index]
+        df_tags.index = [f"PCT_{x}_reads" for x in df_tags.index]
         df_tags.columns = ["value"]
         df_tags = df_tags * 100 / df_tags.sum()
+        df_tags = df_tags["value"]
     elif adapter_version in (
         ppmSeqAdapterVersions.LEGACY_V5,
         ppmSeqAdapterVersions.LEGACY_V5.value,
@@ -797,18 +805,18 @@ def read_trimmer_tags_dataframe(
         df_tags = df_tags.rename(
             {
                 **{
-                    x: f"% {x} reads (both tags) where end was reached"
+                    x: f"PCT_{x}_both_tags_where_endreached"
                     for x in (
                         ppmSeqCategories.MIXED.value,
                         ppmSeqCategories.MINUS.value,
                         ppmSeqCategories.PLUS.value,
                     )
                 },
-                undetermined: f"% {undetermined} (either tag)",
-                ppmSeqCategoriesConsensus.DISCORDANT.value: f"% {ppmSeqCategoriesConsensus.DISCORDANT.value}",
+                undetermined: f"PCT_{undetermined}_either_tag",
+                ppmSeqCategoriesConsensus.DISCORDANT.value: f"PCT_{ppmSeqCategoriesConsensus.DISCORDANT.value}",
             }
         )
-        df_tags.columns = ["value"]
+        df_tags.name = "value"
         df_strand_ratio_category_norm = (
             df_strand_ratio_category.loc[
                 [ppmSeqCategories.END_UNREACHED.value],
@@ -817,25 +825,24 @@ def read_trimmer_tags_dataframe(
             * 100
             / df_strand_ratio_category[HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value].sum()
         ).T.to_frame()
-        df_strand_ratio_category_norm.index = ["% read end unreached"]
+        df_strand_ratio_category_norm.index = ["PCT_read_end_unreached"]
         df_strand_ratio_category_norm.columns = ["value"]
-        df_tags = pd.concat((df_tags, df_strand_ratio_category_norm)).rename(
+        df_tags = pd.concat((df_tags, df_strand_ratio_category_norm["value"])).rename(
             {
-                HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value: "% read end unreached",
+                HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value: "PCT_read_end_unreached",
             }
         )
         # Calculate mixed reads of total (including end unreached) and mixed read coverage
         mixed_tot = df_category_concordance.loc[
             (ppmSeqCategories.MIXED.value, ppmSeqCategories.MIXED.value),
-            HistogramColumnNames.COUNT.value,
         ]
         df_mixed_cov = pd.DataFrame(
             {
-                "MIXED read mean coverage": mixed_tot * df_sorter_stats.loc["Mean_cvg", "value"],
-                "% MIXED (both tags) of all reads": mixed_tot * 100,
+                "MIXED_read_mean_coverage": mixed_tot * df_sorter_stats.loc["Mean_cvg", "value"],
+                "PCT_MIXED_both_tags": mixed_tot * 100,
             },
             index=["value"],
-        ).T
+        ).T["value"]
         df_tags = pd.concat((df_mixed_cov, df_tags))
     else:
         raise ValueError(
@@ -857,8 +864,8 @@ def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str):
 
     Returns
     -------
-    pd.DataFrame
-        dataframe with sorter statistics
+    pd.Series
+        Series with sorter statistics
     """
     df_sorter_stats = read_sorter_statistics_csv(sorter_stats_csv)
 
@@ -866,15 +873,13 @@ def read_and_parse_sorter_statistics_csv(sorter_stats_csv: str):
     df_stats_shortlist = df_sorter_stats.reindex(
         [
             "Mean_cvg",
-            "coverage_GE/ng",
             "Indel_Rate",
             "Mean_Read_Length",
             "PF_Barcode_reads",
-            "PF_reads/ng",
-            "% PF_Reads_aligned",
-            "% Chimeras",
-            "% duplicates",
-            "% Failed_QC_reads",
+            "PCT_PF_Reads_aligned",
+            "PCT_Chimeras",
+            "PCT_duplicates",
+            "PCT_Failed_QC_reads",
         ]
     )
 
@@ -906,26 +911,28 @@ def read_trimmer_failure_codes_mrd(trimmer_failure_codes_csv: str):
     df_trimmer_failure_codes = read_trimmer_failure_codes(trimmer_failure_codes_csv)
     adapter_dimers_index = ("insert", "sequence was too short")
     adapter_dimers = (
-        df_trimmer_failure_codes.reindex([adapter_dimers_index]).fillna(0).loc[adapter_dimers_index, "% failure"]
+        df_trimmer_failure_codes.reindex([adapter_dimers_index]).fillna(0).loc[adapter_dimers_index, "PCT_failure"]
     )
 
     unrecognized_stem_index = ("Stem_start", "no match")
     unrecognized_stem = (
-        df_trimmer_failure_codes.reindex([unrecognized_stem_index]).fillna(0).loc[unrecognized_stem_index, "% failure"]
+        df_trimmer_failure_codes.reindex([unrecognized_stem_index])
+        .fillna(0)
+        .loc[unrecognized_stem_index, "PCT_failure"]
     )
 
     unrecognized_start_loop_index = ("Unrecognized_Start_loop", "sequence was too long")
     unrecognized_start_loop = (
         df_trimmer_failure_codes.reindex([unrecognized_start_loop_index])
         .fillna(0)
-        .loc[unrecognized_start_loop_index, "% failure"]
+        .loc[unrecognized_start_loop_index, "PCT_failure"]
     )
 
     df_metrics = pd.DataFrame(
         (
-            ("% failed - adapter dimers", adapter_dimers),
-            ("% failed - unrecognized start stem", unrecognized_stem),
-            ("% failed - unrecognized start loop", unrecognized_start_loop),
+            ("PCT_failed_adapter_dimers", adapter_dimers),
+            ("PCT_failed_unrecognized_start_stem", unrecognized_stem),
+            ("PCT_failed_unrecognized_start_loop", unrecognized_start_loop),
         ),
         columns=["metric", "value"],
     ).set_index("metric")
@@ -950,7 +957,7 @@ def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv, le
         dataframe with dumbell leftover stats
     """
     df_dumbbell_leftover = pd.read_csv(trimmer_histogram_extra_csv)
-    expected_columns = ["Dumbbell_leftover_start_match", "count"]
+    expected_columns = [DUMBBELL_LEFTOVER_START_MATCH, HistogramColumnNames.COUNT.value]
     if not legacy_histogram_column_names:
         df_dumbbell_leftover = df_dumbbell_leftover.rename(
             columns={c + TrimmerHistogramSuffixes.MATCH.value: c for c in expected_columns}
@@ -958,12 +965,13 @@ def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv, le
     assert (
         df_dumbbell_leftover.columns.tolist() == expected_columns
     ), f"Unexpected columns {df_dumbbell_leftover.columns.tolist()}, expected {expected_columns}"
+    dumbbell_leftover_start_found = "dumbbell_leftover_start_found"
     df_dumbbell_leftover = df_dumbbell_leftover.assign(
-        Dumbbell_leftover_start_found=df_dumbbell_leftover["Dumbbell_leftover_start_match"].notnull(),
+        **{dumbbell_leftover_start_found: df_dumbbell_leftover[DUMBBELL_LEFTOVER_START_MATCH].notnull()},
     )
     df_dumbbell_leftover = (
         100
-        * df_dumbbell_leftover.groupby(["Dumbbell_leftover_start_found"]).agg({HistogramColumnNames.COUNT.value: "sum"})
+        * df_dumbbell_leftover.groupby([dumbbell_leftover_start_found]).agg({HistogramColumnNames.COUNT.value: "sum"})
         / df_dumbbell_leftover[HistogramColumnNames.COUNT.value].sum()
     ).rename(columns={HistogramColumnNames.COUNT.value: "value"})
     df_dumbbell_leftover = (
@@ -971,7 +979,7 @@ def read_dumbell_leftover_from_trimmer_histogram(trimmer_histogram_extra_csv, le
         .fillna(0)
         .assign(
             metric=[
-                "% dumbbell leftover in read start",
+                "PCT_Dumbbell_leftover_in_read_start",
             ]
         )
         .set_index("metric")
@@ -1042,24 +1050,24 @@ def collect_statistics(
         df_category_consensus = None
 
     # read Sorter stats
-    df_sorter_stats = read_and_parse_sorter_statistics_csv(sorter_stats_csv)
+    sorter_stats = read_and_parse_sorter_statistics_csv(sorter_stats_csv)
 
     # read Trimmer tag stats
     df_tags = read_trimmer_tags_dataframe(
         adapter_version=adapter_version,
         df_strand_ratio_category=df_strand_ratio_category,
         df_category_consensus=df_category_consensus,
-        df_sorter_stats=df_sorter_stats,
+        df_sorter_stats=sorter_stats.to_frame(),
         df_category_concordance=df_category_concordance,
     )
 
     # Merge to create stats shortlist
-    df_stats_shortlist = pd.concat((df_tags, df_sorter_stats))
+    df_stats_shortlist = pd.concat((df_tags, sorter_stats))
 
     # read Trimmer failure tags
     if trimmer_failure_codes_csv:
         df_trimmer_failure_codes, df_failure_codes_metrics = read_trimmer_failure_codes_mrd(trimmer_failure_codes_csv)
-        df_stats_shortlist = pd.concat((df_stats_shortlist, df_failure_codes_metrics))
+        df_stats_shortlist = pd.concat((df_stats_shortlist, df_failure_codes_metrics["value"]))
 
     is_v7_dumbell = (
         adapter_version
@@ -1071,7 +1079,8 @@ def collect_statistics(
     )
     if is_v7_dumbell:
         df_dumbell_leftover = read_dumbell_leftover_from_trimmer_histogram(
-            trimmer_histogram_extra_csv, legacy_histogram_column_names=legacy_histogram_column_names
+            trimmer_histogram_extra_csv,
+            legacy_histogram_column_names=legacy_histogram_column_names,
         )
         df_stats_shortlist = pd.concat((df_stats_shortlist, df_dumbell_leftover))
 
@@ -1079,18 +1088,31 @@ def collect_statistics(
     if not output_filename.endswith(".h5"):
         output_filename += ".h5"
     with pd.HDFStore(output_filename, "w") as store:
+        keys_to_convert = [
+            "stats_shortlist",
+            "sorter_stats",
+            "strand_ratio_category_counts",
+            "strand_ratio_category_norm",
+        ]
         store["stats_shortlist"] = df_stats_shortlist
-        store["sorter_stats"] = df_sorter_stats
+        store["sorter_stats"] = sorter_stats
         store["trimmer_histogram"] = df_trimmer_histogram
         store["strand_ratio_category_counts"] = df_strand_ratio_category
         store["strand_ratio_category_norm"] = df_strand_ratio_category / df_strand_ratio_category.sum()
         if adapter_in_both_ends:
-            store["df_category_concordance"] = df_category_concordance
-            store["df_category_consensus"] = df_category_consensus
+            store["strand_ratio_category_concordance"] = df_category_concordance
+            store["strand_ratio_category_consensus"] = df_category_consensus
+            keys_to_convert += [
+                "strand_ratio_category_concordance",
+                "strand_ratio_category_consensus",
+            ]
         if trimmer_failure_codes_csv:
-            store["df_trimmer_failure_codes"] = df_trimmer_failure_codes
+            store["trimmer_failure_codes"] = df_trimmer_failure_codes
+            keys_to_convert += ["trimmer_failure_codes"]
         if is_v7_dumbell and trimmer_failure_codes_csv:
-            store["df_failure_codes_metrics"] = df_failure_codes_metrics
+            store["failure_codes_metrics"] = df_failure_codes_metrics
+            keys_to_convert += ["failure_codes_metrics"]
+        store["keys_to_convert"] = pd.Series(keys_to_convert)
 
 
 def add_strand_ratios_and_categories_to_featuremap(
@@ -1397,7 +1419,7 @@ def plot_strand_ratio_category_concordnace(
         ("All reads", "Only reads where end was reached"),
         (df_category_concordance, df_category_concordance_no_end_unreached),
     ):
-        df_plot = df_plot.unstack().droplevel(0, axis=1)
+        df_plot = df_plot.to_frame().unstack().droplevel(0, axis=1)
         df_plot = df_plot.loc[
             [v for v in ppmSeq_category_list if v != ppmSeqCategories.END_UNREACHED.value],
             [v for v in ppmSeq_category_list if v in df_plot.columns],
@@ -1734,14 +1756,20 @@ def convert_h5_to_papyrus_json(h5_file: str, output_json: str) -> str:
     }
 
     # flatten 1D dataframes
-    keys_to_convert = ["stats_shortlist", "sorter_stats", "df_category_consensus"]
+    keys_to_convert = [
+        "stats_shortlist",
+        "sorter_stats",
+        "strand_ratio_category_consensus",
+    ]
     flatten_dfs.update({key: flatten_metrics(h5_file, key) for key in keys_to_convert if f"/{key}" in h5_file_keys})
 
     # category concordance
-    if "/df_category_concordance" in h5_file_keys:
-        df_category_concordance = pd.read_hdf(h5_file, "/df_category_concordance")
+    if "/strand_ratio_category_concordance" in h5_file_keys or "strand_ratio_category_concordance" in h5_file_keys:
+        df_category_concordance = pd.read_hdf(h5_file, "/strand_ratio_category_concordance")
         df_category_concordance.index = df_category_concordance.index.to_flat_index()
-        df_category_concordance.rename(columns={"count": 0}, inplace=True)
+        df_category_concordance = df_category_concordance.to_frame().rename(
+            columns={HistogramColumnNames.COUNT_NORM.value: 0}
+        )
         df_category_concordance = df_category_concordance.T
         flatten_dfs["category_concordance"] = df_category_concordance
 
@@ -1946,14 +1974,16 @@ def ppmSeq_qc_analysis(
         )
         illustration_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "reports/ppm_seq/ppmSeq_legacy_v5_illustration.png"
-            if adapter_version
-            in (
-                ppmSeqAdapterVersions.LEGACY_V5_START.value,
-                ppmSeqAdapterVersions.LEGACY_V5.value,
-                ppmSeqAdapterVersions.LEGACY_V5_END.value,
-            )
-            else "reports/ppm_seq/ppmSeq_v1_illustration.png",
+            (
+                "reports/ppm_seq/ppmSeq_legacy_v5_illustration.png"
+                if adapter_version
+                in (
+                    ppmSeqAdapterVersions.LEGACY_V5_START.value,
+                    ppmSeqAdapterVersions.LEGACY_V5.value,
+                    ppmSeqAdapterVersions.LEGACY_V5_END.value,
+                )
+                else "reports/ppm_seq/ppmSeq_v1_illustration.png"
+            ),
         )
         parameters = dict(
             adapter_version=(adapter_version if isinstance(adapter_version, str) else adapter_version.value),
@@ -1997,7 +2027,7 @@ def ppmSeq_qc_analysis(
         # edit html for readability
         modify_jupyter_notebook_html(output_report_html)
 
-    # remove temporary files - png and ipynb files
+    # remove temporary png and ipynb files
     if not keep_temp_visualization_files:
         for visualization_file in output_visualization_files:
             if os.path.isfile(visualization_file):

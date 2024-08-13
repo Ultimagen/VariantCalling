@@ -38,7 +38,7 @@ def sorter_to_h5(
         path to the output h5 file
     """
     # Read in the input files
-    input_csv = read_sorter_statistics_csv(input_csv_file, edit_metric_names=False)
+    input_csv = read_sorter_statistics_csv(input_csv_file, edit_metric_names=False).to_frame()
 
     with open(input_json_file, encoding="utf-8") as jf:
         json_data = json.load(jf)

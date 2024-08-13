@@ -151,7 +151,7 @@ def parse_alignment_metrics(alignment_file):
     return res1
 
 
-def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = True) -> pd.DataFrame:
+def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = True) -> pd.Series:
     """
     Collect sorter statistics from csv
 
@@ -160,11 +160,12 @@ def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = 
     sorter_stats_csv : str
         path to a Sorter stats file
     edit_metric_names: bool
-        if True, edit the metric names to be more human-readable
+        if True, edit the metric names to be consistent in the naming of percentages
 
     Returns
     -------
-    sorter stats as a pandas DataFrame
+    pd.Series
+        Series with sorter statistics
     """
 
     # read Sorter stats
@@ -188,8 +189,8 @@ def read_sorter_statistics_csv(sorter_stats_csv: str, edit_metric_names: bool = 
 
     if edit_metric_names:
         # rename metrics to uniform convention
-        df_sorter_stats = df_sorter_stats.rename({c: c.replace("PCT_", "% ") for c in df_sorter_stats.index})
-    return df_sorter_stats
+        df_sorter_stats = df_sorter_stats.rename({c: c.replace("% ", "PCT_") for c in df_sorter_stats.index})
+    return df_sorter_stats["value"]
 
 
 def read_effective_coverage_from_sorter_json(
@@ -221,7 +222,7 @@ def read_effective_coverage_from_sorter_json(
         sorter_stats = json.load(fh)
 
     # Calculate ratio_of_bases_in_coverage_range
-    cvg = pd.Series(sorter_stats["cvg"])
+    cvg = pd.Series(sorter_stats["base_coverage"].get("Genome", sorter_stats["cvg"]))
     cvg_cdf = cvg.cumsum() / cvg.sum()
     ratio_below_min_coverage = cvg_cdf.loc[min_coverage_for_fp]
 
@@ -236,7 +237,6 @@ def read_effective_coverage_from_sorter_json(
     ratio_of_reads_over_mapq = reads_by_mapq[reads_by_mapq.index >= min_mapq].sum() / reads_by_mapq.sum()
 
     # Calculate mean coverage
-    cvg = pd.Series(sorter_stats["base_coverage"].get("Genome", sorter_stats["cvg"]))
     mean_coverage = (cvg.index.values * cvg.values).sum() / cvg.sum()
 
     return (
@@ -341,8 +341,8 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     ----------
     trimmer_failure_codes_csv : str
         path to a Trimmer failure codes file
-    add_total: bool
-        Aggregate total counts
+    add_total : bool
+        if True, add a row with total failed reads to the dataframe
 
     Returns
     -------
@@ -366,22 +366,27 @@ def read_trimmer_failure_codes(trimmer_failure_codes_csv: str, add_total: bool =
     ]
     if list(df_trimmer_failure_codes.columns) != expected_columns:
         raise ValueError(
-            f"Unexpected columns in {trimmer_failure_codes_csv}, expected {expected_columns}, \
-                got {list(df_trimmer_failure_codes.columns)}"
+            f"Unexpected columns in {trimmer_failure_codes_csv},"
+            f"expected {expected_columns}, got {list(df_trimmer_failure_codes.columns)}"
         )
+
+    # refactor columns and names
+    df_trimmer_failure_codes = df_trimmer_failure_codes.rename(
+        columns={c: c.replace(" ", "_").lower() for c in df_trimmer_failure_codes.columns}
+    )
 
     df_trimmer_failure_codes = (
         df_trimmer_failure_codes.groupby(["segment", "reason"])
-        .agg({x: "sum" for x in ("failed read count", "total read count")})
-        .assign(**{"% failure": lambda x: 100 * x["failed read count"] / x["total read count"]})
+        .agg({x: "sum" for x in ("failed_read_count", "total_read_count")})
+        .assign(**{"PCT_failure": lambda x: 100 * x["failed_read_count"] / x["total_read_count"]})
     )
 
     if add_total:
         total_row = pd.DataFrame(
             {
-                "failed read count": df_trimmer_failure_codes["failed read count"].sum(),
-                "total read count": df_trimmer_failure_codes["total read count"].iloc[0],
-                "% failure": df_trimmer_failure_codes["% failure"].sum(),
+                "failed_read_count": df_trimmer_failure_codes["failed_read_count"].sum(),
+                "total_read_count": df_trimmer_failure_codes["total_read_count"].iloc[0],
+                "PCT_failure": df_trimmer_failure_codes["PCT_failure"].sum(),
             },
             index=pd.MultiIndex.from_tuples([("total", "total")]),
         )

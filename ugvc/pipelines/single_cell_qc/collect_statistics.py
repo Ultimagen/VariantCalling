@@ -210,11 +210,11 @@ def extract_statistics_table(h5_file: Path):
         stats["mean_read_length"] = mean_read_length
 
         # %q >= 20 for insert
-        q20 = store[H5Keys.SORTER_STATS.value].loc["% PF_Q20_bases"].value
+        q20 = store[H5Keys.SORTER_STATS.value].loc["PCT_PF_Q20_bases"]
         stats["pct_q20"] = q20
 
         # %q >= 30 for insert
-        q30 = store[H5Keys.SORTER_STATS.value].loc["% PF_Q30_bases"].value
+        q30 = store[H5Keys.SORTER_STATS.value].loc["PCT_PF_Q30_bases"]
         stats["pct_q30"] = q30
 
         # %Aligned to genome
