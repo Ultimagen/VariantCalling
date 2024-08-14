@@ -9,7 +9,8 @@ from os.path import join as pjoin
 import pandas as pd
 
 from ugvc.pipelines.coverage_analysis import generate_stats_from_histogram
-from ugvc.utils.metrics_utils import read_sorter_statistics_csv
+from ugvc.utils.sorter_utils import read_sorter_statistics_csv
+
 
 
 def sorter_to_h5(
