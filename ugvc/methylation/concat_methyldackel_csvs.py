@@ -49,7 +49,7 @@ import pandas as pd
 def parse_args(argv: list[str]) -> argparse.Namespace:
     ap_var = argparse.ArgumentParser(
         prog="concat_methyldackel_csvs.py",
-        description="Concatenate CSV output files of MethylDackel processing.",
+        description="Concatenate CSV output files of MethylDackel processing into an HDF5 file",
     )
     ap_var.add_argument("--mbias", help="csv summary of MethylDackelMbias", type=str, required=True)
     ap_var.add_argument(
@@ -62,7 +62,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         type=str,
         required=True,
     )
-    ap_var.add_argument("--per_read", help="csv summary of MethylDackelPerRead", type=str, required=True)
+    ap_var.add_argument("--per_read", help="csv summary of MethylDackelPerRead", type=str, required=False, default=None)
     ap_var.add_argument("--output", help="Output file basename", type=str, required=True)
 
     return ap_var.parse_args(argv[1:])
@@ -74,54 +74,26 @@ def run(argv: list[str] | None = None):
         argv: list[str] = sys.argv
 
     args = parse_args(argv)
-    # print(f"Processing file {args}")
 
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info("Running")
 
-    try:
-        # check if input files exist
-
-        df_csv_output = pd.concat(
-            (
-                pd.read_csv(filename).assign(table=table)
-                for table, filename in (
-                    ("Mbias", args.mbias),
-                    ("MbiasNoCpG", args.mbias_non_cpg),
-                    ("MergeContext", args.merge_context),
-                    ("MergeContextNoCpG", args.merge_context_non_cpg),
-                    ("PerRead", args.per_read),
-                )
-            )
-        )
-        # parse to create more readable columns
-        temp = df_csv_output["metric"].str.split("_", n=1, expand=True)
-        temp.columns = ["measure", "bin"]
-        df_csv_output = pd.concat([df_csv_output, temp], axis=1)
-
-        df_csv_output["measure"] = df_csv_output["measure"].str.replace(
-            r"PercentMethylation$", "Percent Methylation", regex=True
-        )
-        df_csv_output["measure"] = df_csv_output["measure"].str.replace(
-            r"MethylationPosition", " Methylation Position", regex=True
-        )
-        df_csv_output["measure"] = df_csv_output["measure"].str.replace(r"TotalCpGs", "Total CpGs", regex=True)
-
-        # print out combined CSVs into one CSV file
-        # ==========================================================================================
-        out_file_name = args.output + ".csv"
-        df_csv_output.to_csv(out_file_name, index=False, na_rep="NULL", header=True, encoding="utf-8")
-
-        # ==============
-        # Fin
-        # ==============
-
-    except Exception as err:
-        exc_info = sys.exc_info()
-        logger.exception(*exc_info)
-        logger.error("Combining CSV files run: failed")
-        raise err
+    input_tup = (
+        ("Mbias", args.mbias),
+        ("MbiasNoCpG", args.mbias_non_cpg),
+        ("MergeContext", args.merge_context),
+        ("MergeContextNoCpG", args.merge_context_non_cpg),
+        ("PerRead", args.per_read),
+    )
+    h5_output = args.output + ".h5"
+    with pd.HDFStore(h5_output, mode="w") as store:
+        for table, filename in input_tup:
+            if table == "PerRead" and filename is None:
+                continue
+            df = pd.read_csv(filename)
+            store.put(table, df, format="table", data_columns=True)
+    logger.info("Finished")
 
 
 if __name__ == "__main__":
