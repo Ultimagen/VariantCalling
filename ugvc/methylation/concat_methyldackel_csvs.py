@@ -92,6 +92,7 @@ def run(argv: list[str] | None = None):
             if table == "PerRead" and filename is None:
                 continue
             df = pd.read_csv(filename)
+            df.set_index(["detail", "metric"], inplace=True)
             store.put(table, df, format="table", data_columns=True)
     logger.info("Finished")
 
