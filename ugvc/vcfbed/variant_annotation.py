@@ -156,18 +156,36 @@ class VcfAnnotator(ABC):
             tmp_output_paths = []
             sp = SimplePipeline(0, max(100, len(contigs)))
             commands = []
+            variant_counts = {}  # Dictionary to store variant counts per contig
+            skipped_contigs = []
             ugvc_path = os.path.dirname(os.path.dirname(__file__))
             for contig in contigs:
                 try:
                     next(input_variant_file.fetch(contig))  # to raise StopIteration if contig is empty
-                    out_per_contig = os.path.join(out_dir, contig + ".vcf.gz")
-                    commands.append(
-                        f"python {ugvc_path} annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} "
-                        f"--annotators_pickle {annotators_pickle} --contig {contig} --chunk_size {chunk_size}"
-                    )
-                    tmp_output_paths.append(out_per_contig)
-                except StopIteration:
-                    pass
+                    variant_count = 1
+                    # Iterate through variants in the contig and count them
+                    # for _ in input_variant_file.fetch(contig):
+                    #     variant_count += 1
+
+                    if variant_count > 0:
+                        out_per_contig = os.path.join(out_dir, contig + ".vcf.gz")
+                        commands.append(
+                            f"python {ugvc_path} annotate_contig --vcf_in {input_path} --vcf_out {out_per_contig} "
+                            f"--annotators_pickle {annotators_pickle} --contig {contig} --chunk_size {chunk_size}"
+                        )
+                        tmp_output_paths.append(out_per_contig)
+                        variant_counts[contig] = variant_count
+                    else:
+                        logger.info(f"Skipping empty contig {contig}. No variants found.")
+                except StopIteration:  # as e:
+                    skipped_contigs.append(contig)
+                    # logger.info(f"Skipping empty contig {contig}. Error: {e}")
+            # for contig, count in variant_counts.items():
+            #     if count>0:
+            #         logger.info(f"Contig {contig} has {count} variants.")
+            if len(skipped_contigs) > 0:
+                logger.info(f"Number of skipped contigs: {len(skipped_contigs)}")
+                logger.info(f"First 10 skipped contigs: {skipped_contigs[:10]}")
             # process_number<1 it is interpreted as all the CPUs except -process_number
             if process_number < 1:
                 process_number = multiprocessing.cpu_count() + process_number

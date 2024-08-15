@@ -183,6 +183,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="""random seed for reproducibility""",
     )
+    parser.add_argument(
+        "--load_dataset_and_model",
+        action="store_true",
+        help="""If flag is provided, skip dataset genenration and model training.
+        Output folder should contain featuremap_df.parquet and model.joblib,
+        and all other relevant files.""",
+    )
     return parser.parse_args(argv[1:])
 
 
@@ -262,7 +269,6 @@ def run(argv: list[str]):
     # TODO add to args         classifier_class=xgb.XGBClassifier,
 
     dataset_params = read_dataset_params(args)
-
     s = SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
@@ -284,6 +290,7 @@ def run(argv: list[str]):
         out_basename=args.basename,
         lod_filters=args.lod_filters,
         save_model_jsons=args.save_model_jsons,
+        load_dataset_and_model=args.load_dataset_and_model,
         ppmSeq_adapter_version=dataset_params["ppmSeq_adapter_version"],
         pre_filter=dataset_params["pre_filter"],
         random_seed=dataset_params["random_seed"],
@@ -300,11 +307,11 @@ def run(argv: list[str]):
         simple_pipeline=None,
     )
 
-    srsnv_report(
-        out_path=args.output,
-        out_basename=args.basename,
-        report_name="train",
-        model_file=s.model_joblib_save_path,
-        params_file=s.params_save_path,
-        simple_pipeline=None,
-    )
+    # srsnv_report(
+    #     out_path=args.output,
+    #     out_basename=args.basename,
+    #     report_name="train",
+    #     model_file=s.model_joblib_save_path,
+    #     params_file=s.params_save_path,
+    #     simple_pipeline=None,
+    # )
