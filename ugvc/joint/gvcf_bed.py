@@ -36,9 +36,8 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
         start = extent
 
         for record in tqdm.tqdm(vcf.fetch()):
-            if (
-                len(str(record.ref)) > 1
-                and ("GQ" not in record.samples[0])
+            if len(str(record.ref)) > 1 and (
+                ("GQ" not in record.samples[0])
                 or record.samples[0]["GT"] == (0, 0)
                 or record.samples[0]["GT"] == (None, None)
             ):
