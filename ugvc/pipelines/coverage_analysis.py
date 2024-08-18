@@ -51,7 +51,7 @@ from ugvc.utils import misc_utils as utils
 from ugvc.utils.cloud_auth import get_gcs_token
 from ugvc.utils.cloud_sync import cloud_sync
 from ugvc.utils.consts import COVERAGE, GCS_OAUTH_TOKEN, FileExtension
-from ugvc.utils.plotting_utils import set_pyplot_defaults
+from ugbio_core.plotting_utils import set_pyplot_defaults
 from ugvc.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
 
 MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
