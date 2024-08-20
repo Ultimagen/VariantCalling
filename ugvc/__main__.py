@@ -12,7 +12,15 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # import pipeline modules implementing run(argv) method
-from ugbio_cnv import convert_cnv_results_to_vcf, filter_sample_cnvs, plot_cnv_results , bicseq2_post_processing , annotate_FREEC_segments , plot_FREEC_neutral_AF
+from ugbio_cnv import (
+    annotate_FREEC_segments,
+    bicseq2_post_processing,
+    convert_cnv_results_to_vcf,
+    filter_sample_cnvs,
+    plot_cnv_results,
+    plot_FREEC_neutral_AF
+)
+
 from ugvc.joint import compress_gvcf
 from ugvc.methylation import (
     concat_methyldackel_csvs,
@@ -54,7 +62,7 @@ from ugvc.pipelines.mrd import (
     substitution_error_rate,
 )
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
-from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, intersect_bed_regions
+from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, gvcf_hcr, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
 from ugvc.utils import cloud_sync
 
@@ -119,7 +127,7 @@ lpr_modules = [
     filter_vcf_with_lib_prep_recalibration_model,
 ]
 
-vcfbed_modules = [annotate_contig, intersect_bed_regions, calibrate_bridging_snvs]
+vcfbed_modules = [annotate_contig, intersect_bed_regions, calibrate_bridging_snvs, gvcf_hcr]
 deepvariant_modules = [training_set_consistency_check]
 comparison_modules = [quick_fingerprinting]
 
