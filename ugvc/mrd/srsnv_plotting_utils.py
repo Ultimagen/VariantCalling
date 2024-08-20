@@ -231,7 +231,7 @@ def srsnv_report(
         output_ppmSeq_fpr,
         output_ppmSeq_recalls,
     ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
-    srsnv_qc_h5_filename = os.path.join(out_path, f"{out_basename}applicationQC.h5")
+    srsnv_qc_h5_filename = os.path.join(out_path, f"{out_basename}single_read_snv.applicationQC.h5")
 
     template_notebook = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
@@ -1539,7 +1539,7 @@ class SRSNVReport:
         else:
             self.params["data_name"] = ""
 
-        self.output_h5_filename = os.path.join(out_path, f"{base_name}applicationQC.h5")
+        self.output_h5_filename = os.path.join(out_path, f"{base_name}single_read_snv.applicationQC.h5")
         # add logits to data_df
         self.data_df["ML_logit_test"] = prob_to_logit(self.data_df["ML_prob_1_test"])
         self.data_df["ML_logit_train"] = prob_to_logit(self.data_df["ML_prob_1_train"])
