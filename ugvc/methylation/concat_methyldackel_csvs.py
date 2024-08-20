@@ -79,21 +79,28 @@ def run(argv: list[str] | None = None):
     logger = logging.getLogger(__name__)
     logger.info("Running")
 
-    input_tup = (
-        ("Mbias", args.mbias),
-        ("MbiasNoCpG", args.mbias_non_cpg),
-        ("MergeContext", args.merge_context),
-        ("MergeContextNoCpG", args.merge_context_non_cpg),
-        ("PerRead", args.per_read),
-    )
+    input_dict = {
+        "Mbias": args.mbias,
+        "MbiasNoCpG": args.mbias_non_cpg,
+        "MergeContext": args.merge_context,
+        "MergeContextNoCpG": args.merge_context_non_cpg,
+        "PerRead": args.per_read,
+    }
     h5_output = args.output + ".h5"
     with pd.HDFStore(h5_output, mode="w") as store:
-        for table, filename in input_tup:
+        for table, filename in input_dict.items():
             if table == "PerRead" and filename is None:
                 continue
             df = pd.read_csv(filename)
             df.set_index(["detail", "metric"], inplace=True)
+            df = df.squeeze(axis=1)
             store.put(table, df, format="table", data_columns=True)
+
+        keys_to_convert = input_dict.keys()
+        if args.per_read is None:
+            keys_to_convert.remove("PerRead")
+        store.put("keys_to_convert", pd.Series(keys_to_convert))
+
     logger.info("Finished")
 
 
