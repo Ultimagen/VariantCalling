@@ -164,7 +164,7 @@ class TestParsers:
             for key, value in input_files.items():
                 ref_csv = pd.read_csv(open(f"{self.inputs_dir}/{value}"))
                 result_csv = store[key]
-                assert np.all(np.sum(ref_csv.value) == np.sum(result_csv.value))
+                assert np.all(np.sum(ref_csv["value"]) == np.sum(result_csv))
 
     # ------------------------------------------------------
 
