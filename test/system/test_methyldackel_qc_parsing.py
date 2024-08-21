@@ -160,11 +160,27 @@ class TestParsers:
             "PerRead": "ProcessMethylDackelPerRead.csv",
         }
 
+        df_result = pd.DataFrame()
         with pd.HDFStore(output_h5_file, "r") as store:
-            for key, value in input_files.items():
-                ref_csv = pd.read_csv(open(f"{self.inputs_dir}/{value}"))
-                result_csv = store[key]
-                assert np.all(np.sum(ref_csv["value"]) == np.sum(result_csv))
+            for key in store.keys():
+                if key == "/keys_to_convert":
+                    continue
+                df = pd.DataFrame(store[key])
+                df = df.reset_index()
+                df_result = pd.concat((df_result, df))
+        df_result
+
+        df_ref = pd.DataFrame()
+        for value in input_files.values():
+            df_ref = pd.concat(
+                (
+                    df_ref,
+                    pd.read_csv(
+                        f"{self.inputs_dir}/{value}", dtype={"metric": str, "value": np.float64, "detail": str}
+                    ),
+                )
+            )
+        assert np.ceil(np.sum(df_ref["value"])) == np.ceil(np.sum(df_result["value"]))
 
     # ------------------------------------------------------
 

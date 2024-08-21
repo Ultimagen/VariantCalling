@@ -68,6 +68,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return ap_var.parse_args(argv[1:])
 
 
+def split_position_hist_desc(df):
+    df_per_position = df.loc[df["metric"].str.startswith("PercentMethylationPosition")].copy()
+    df_hist = df.loc[df["metric"].str.contains("PercentMethylation_[0-9]+|Coverage_[0-9]+")].copy()
+    df_desc = df.loc[~df["metric"].str.contains("_[0-9]+")].copy()
+    return df_per_position, df_hist, df_desc
+
+
 def run(argv: list[str] | None = None):
     "Combine csvs from POST-MethylDackel processing"
     if argv is None:
@@ -86,19 +93,32 @@ def run(argv: list[str] | None = None):
         "MergeContextNoCpG": args.merge_context_non_cpg,
         "PerRead": args.per_read,
     }
+
     h5_output = args.output + ".h5"
     with pd.HDFStore(h5_output, mode="w") as store:
-        for table, filename in input_dict.items():
-            if table == "PerRead" and filename is None:
+        for table, input_file in input_dict.items():
+            if table == "PerRead" and input_file is None:
                 continue
-            df = pd.read_csv(filename)
-            df.set_index(["detail", "metric"], inplace=True)
-            df = df.squeeze(axis=1)
-            store.put(table, df, format="table", data_columns=True)
+            df = pd.read_csv(input_file)
+            df_per_position, df_hist, df_desc = split_position_hist_desc(df)
+            tables_to_take = {"per_position": df_per_position, "hist": df_hist, "desc": df_desc}
+            for table_ext, df in tables_to_take.items():
+                df.set_index(["detail", "metric"], inplace=True)
+                df = df.squeeze(axis=1)
+                table_name = f"{table}_{table_ext}"
+                store.put(table_name, df, format="table", data_columns=True)
 
-        keys_to_convert = input_dict.keys()
+        keys_to_convert = pd.Series(
+            [
+                "Mbias_desc",
+                "MbiasNoCpG_desc",
+                "MergeContext_desc",
+                "MergeContextNoCpG_desc",
+                "PerRead_desc",
+            ]
+        )
         if args.per_read is None:
-            keys_to_convert.remove("PerRead")
+            keys_to_convert.remove("PerRead_desc")
         store.put("keys_to_convert", pd.Series(keys_to_convert))
 
     logger.info("Finished")
