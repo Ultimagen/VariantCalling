@@ -154,7 +154,7 @@ class VcfAnnotator(ABC):
             logger.info("Getting contigs")
             contigs = list(input_variant_file.header.contigs)
             tmp_output_paths = []
-            sp = SimplePipeline(0, 100)
+            sp = SimplePipeline(0, max(100, len(contigs)))
             commands = []
             ugvc_path = os.path.dirname(os.path.dirname(__file__))
             for contig in contigs:
