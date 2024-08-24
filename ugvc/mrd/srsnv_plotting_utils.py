@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import functools
 import os
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from os.path import join as pjoin
 from typing import Any
@@ -52,6 +54,28 @@ default_LoD_filters = {
 TP_READ_RETENTION_RATIO = "tp_read_retention_ratio"
 FP_READ_RETENTION_RATIO = "fp_read_retention_ratio"
 RESIDUAL_SNV_RATE = "residual_snv_rate"
+
+
+class ExceptionConfig:
+    def __init__(self, raise_exception=False):
+        self.raise_exception = raise_exception
+
+
+exception_config = ExceptionConfig()
+
+
+def exception_handler(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"Exception occurred in {func.__name__}: {e}", exc_info=True)
+            if exception_config.raise_exception:
+                raise e
+            return None
+
+    return wrapper
 
 
 def prob_to_phred(arr, eps=1e-10):
@@ -227,6 +251,7 @@ def srsnv_report(
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
+        qual_histogram,
         output_ppmSeq_hists,
         output_ppmSeq_fpr,
         output_ppmSeq_recalls,
@@ -254,6 +279,7 @@ def srsnv_report(
 -p output_obsereved_qual_plot {output_obsereved_qual_plot} \
 -p output_ML_qual_hist {output_ML_qual_hist} \
 -p output_qual_per_feature {output_qual_per_feature} \
+-p qual_histogram {qual_histogram} \
 -p output_bepcr_hists {output_ppmSeq_hists} \
 -p output_bepcr_fpr {output_ppmSeq_fpr} \
 -p output_bepcr_recalls {output_ppmSeq_recalls} \
@@ -490,6 +516,18 @@ def retention_noise_and_mrd_lod_simulation(
         f"{read_filter_correction_factor=:.3f}, "
         f"{n_bases_in_region=:.0f}"
     )
+    normalization_factor_dict = {
+        "n_noise_reads": n_noise_reads,
+        "n_signal_reads": n_signal_reads,
+        "mean_coverage": mean_coverage,
+        "n_bases_in_region": n_bases_in_region,
+        "ratio_of_reads_over_mapq": ratio_of_reads_over_mapq,
+        "ratio_of_bases_in_coverage_range": ratio_of_bases_in_coverage_range,
+        "read_filter_correction_factor": read_filter_correction_factor,
+        "effective_bases_covered": effective_bases_covered,
+        "residual_snv_rate_no_filter": residual_snv_rate_no_filter,
+        "ratio_filtered_prior_to_featuremap": ratio_filtered_prior_to_featuremap,
+    }
 
     # Calculate simulated LoD definitions and correction factors
     effective_signature_bases_covered = int(
@@ -562,9 +600,10 @@ def retention_noise_and_mrd_lod_simulation(
     if output_dataframe_file:
         df_mrd_simulation.to_parquet(output_dataframe_file)
 
-    return df_mrd_simulation, lod_filters, lod_label, c_lod
+    return df_mrd_simulation, lod_filters, lod_label, c_lod, normalization_factor_dict
 
 
+@exception_handler
 def plot_LoD(
     df_mrd_sim: pd.DataFrame,
     lod_label: str,
@@ -1325,6 +1364,7 @@ def _get_plot_paths(report_name, out_path, out_basename):
     SHAP_beeswarm_plot = os.path.join(outdir, f"{basename}{report_name}.SHAP_beeswarm")
     trinuc_stats_plot = os.path.join(outdir, f"{basename}{report_name}.trinuc_stats")
     output_LoD_qual_plot = os.path.join(outdir, f"{basename}{report_name}.LoD_qual_curve")
+    qual_histogram = os.path.join(outdir, f"{basename}{report_name}.qual_histogram")
     output_cm_plot = os.path.join(outdir, f"{basename}{report_name}.confusion_matrix")
     output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
     output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
@@ -1346,12 +1386,14 @@ def _get_plot_paths(report_name, out_path, out_basename):
         output_obsereved_qual_plot,
         output_ML_qual_hist,
         output_qual_per_feature,
+        qual_histogram,
         output_ppmSeq_hists,
         output_ppmSeq_fpr,
         output_ppmSeq_recalls,
     ]
 
 
+@exception_handler
 def calculate_lod_stats(
     df_mrd_simulation: pd.DataFrame,
     output_h5: str,
@@ -1426,9 +1468,11 @@ def create_report(
     c_lod,
     # min_LoD_filter,
     df_mrd_simulation,
+    ML_qual_to_qual_fn,
     statistics_h5_file,
     statistics_json_file,
     rng,
+    raise_exceptions=False,
 ):
     SRSNVReport(
         models=models,
@@ -1441,9 +1485,11 @@ def create_report(
         c_lod=c_lod,
         # min_LoD_filter=min_LoD_filter,
         df_mrd_simulation=df_mrd_simulation,
+        ML_qual_to_qual_fn=ML_qual_to_qual_fn,
         statistics_h5_file=statistics_h5_file,
         statistics_json_file=statistics_json_file,
         rng=rng,
+        raise_exceptions=raise_exceptions,
     ).create_report()
 
 
@@ -1461,9 +1507,11 @@ class SRSNVReport:
         c_lod: str = "LoD",
         # min_LoD_filter: str = None,
         df_mrd_simulation: pd.DataFrame = None,
+        ML_qual_to_qual_fn: Callable = None,
         statistics_h5_file: str = None,
         statistics_json_file: str = None,
         rng: Any = None,
+        raise_exceptions: bool = False,
     ):
         """loads model, data, params and generate plots for report. Saves data in hdf5 file
 
@@ -1490,6 +1538,7 @@ class SRSNVReport:
         statistics_json_file : str, optional
             path to output json file with stats, by default None
         """
+        exception_config.raise_exception = raise_exceptions
         self.models = models
         self.data_df = data_df
         self.params = params
@@ -1500,12 +1549,13 @@ class SRSNVReport:
         self.c_lod = c_lod
         # self.min_LoD_filter = min_LoD_filter
         self.df_mrd_simulation = df_mrd_simulation
+        self.ML_qual_to_qual_fn = ML_qual_to_qual_fn
         self.statistics_h5_file = statistics_h5_file
         self.statistics_json_file = statistics_json_file
         if rng is None:
             random_seed = int(datetime.now().timestamp())
             rng = np.random.default_rng(seed=random_seed)
-            logger.info(f"SRSNVReport: Initializing random numer generator with {random_seed=}")
+            logger.info(f"SRSNVReport: Initializing random number generator with {random_seed=}")
             self.rng = np.random.default_rng(seed=14)
         else:
             self.rng = rng
@@ -1530,6 +1580,8 @@ class SRSNVReport:
         ]
         for key in expected_keys_in_params:
             assert key in params, f"no {key} in params"
+        self.start_tag_col = self.params.get("start_tag_col", None)
+        self.end_tag_col = self.params.get("end_tag_col", None)
 
         # init dir
         os.makedirs(out_path, exist_ok=True)
@@ -1554,6 +1606,7 @@ class SRSNVReport:
                 fig.tight_layout()
             fig.savefig(output_filename, facecolor="w", dpi=300, bbox_inches="tight", **kwargs)
 
+    @exception_handler
     def calc_run_info_table(self):
         """Calculate run_info_table, a table with general run information."""
         # Generate Run Info table
@@ -1597,10 +1650,17 @@ class SRSNVReport:
             ("Pipeline version", ""): self.params["pipeline_version"],
             ("Docker image", ""): self.params["docker_image"],
             ("Adapter version", ""): self.params["adapter_version"],
+            ("Report created on", ""): datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         run_info_table = pd.Series({**general_info, **dataset_sizes, **version_info}, name="")
         run_info_table.to_hdf(self.output_h5_filename, key="run_info_table", mode="a")
 
+    @exception_handler
+    def calc_training_metrics_table(self):
+        """Calculte main run quality statistics"""
+        pass
+
+    @exception_handler
     def calc_run_quality_table(
         self,
         qual_stat_ps=None,
@@ -1660,35 +1720,36 @@ class SRSNVReport:
         run_quality_table.to_hdf(self.output_h5_filename, key="run_quality_table", mode="a")
         run_quality_table_display.to_hdf(self.output_h5_filename, key="run_quality_table_display", mode="a")
 
+    @exception_handler
     def quality_per_ppmseq_tags(self, output_filename: str = None):
         """Generate tables of median quality and data quantity per start and end ppmseq tags."""
-        data_df_tp = self.data_df[self.data_df["label"]]
-        ppmseq_tags_in_data = True
-        if ("strand_ratio_category_start" in self.data_df.columns) and (
-            "strand_ratio_category_end" in self.data_df.columns
-        ):
-            start_cat, end_cat = "strand_ratio_category_start", "strand_ratio_category_end"
-        elif ("st" in self.data_df.columns) and ("et" in self.data_df.columns):
-            start_cat, end_cat = "st", "et"
-        else:
-            ppmseq_category_quality_table = pd.DataFrame(None)
-            ppmseq_category_quality_table = pd.DataFrame(None)
-            ppmseq_tags_in_data = False
-        if ppmseq_tags_in_data:
-            ppmseq_category_quality_table = (
-                data_df_tp.groupby([start_cat, end_cat])["qual"].median().unstack().drop(index="END_UNREACHED")
-            )
-            ppmseq_category_quantity_table = (
-                data_df_tp.groupby([start_cat, end_cat])["qual"].count().unstack().drop(index="END_UNREACHED")
-            )
-            ppmseq_category_quantity_table = (
-                ppmseq_category_quantity_table / ppmseq_category_quantity_table.values.sum()
-            ) * 100
-            # Convert index and columns from categorical to string
-            ppmseq_category_quality_table.index = ppmseq_category_quality_table.index.astype(str)
-            ppmseq_category_quality_table.columns = ppmseq_category_quality_table.columns.astype(str)
-            ppmseq_category_quantity_table.index = ppmseq_category_quantity_table.index.astype(str)
-            ppmseq_category_quantity_table.columns = ppmseq_category_quantity_table.columns.astype(str)
+        data_df_tp = self.data_df[self.data_df["label"]].copy()
+        ppmseq_tags_in_data = self.start_tag_col is not None and self.end_tag_col is not None
+        start_tag_col, end_tag_col = (self.start_tag_col, self.end_tag_col) if ppmseq_tags_in_data else ("st", "et")
+        if not ppmseq_tags_in_data:
+            data_df_tp[start_tag_col] = np.nan
+            data_df_tp[end_tag_col] = np.nan
+        if data_df_tp[start_tag_col].isna().any() or data_df_tp[end_tag_col].isna().any():
+            data_df_tp = data_df_tp.astype({start_tag_col: str, end_tag_col: str})
+        ppmseq_category_quality_table = (
+            data_df_tp.groupby([start_tag_col, end_tag_col], dropna=False)["qual"].median().unstack()
+        )
+        if "END_UNREACHED" in ppmseq_category_quality_table.index:
+            ppmseq_category_quality_table = ppmseq_category_quality_table.drop(index="END_UNREACHED")
+        ppmseq_category_quantity_table = (
+            data_df_tp.groupby([start_tag_col, end_tag_col], dropna=False)["qual"].count().unstack()
+        )
+        if "END_UNREACHED" in ppmseq_category_quantity_table.index:
+            ppmseq_category_quantity_table = ppmseq_category_quantity_table.drop(index="END_UNREACHED")
+        ppmseq_category_quantity_table = (
+            ppmseq_category_quantity_table / ppmseq_category_quantity_table.values.sum()
+        ) * 100
+        # Convert index and columns from categorical to string
+        ppmseq_category_quality_table.index = ppmseq_category_quality_table.index.astype(str)
+        ppmseq_category_quality_table.columns = ppmseq_category_quality_table.columns.astype(str)
+        ppmseq_category_quantity_table.index = ppmseq_category_quantity_table.index.astype(str)
+        ppmseq_category_quantity_table.columns = ppmseq_category_quantity_table.columns.astype(str)
+
         # Save to hdf5
         ppmseq_category_quality_table.to_hdf(self.output_h5_filename, key="ppmseq_category_quality_table", mode="a")
         ppmseq_category_quantity_table.to_hdf(self.output_h5_filename, key="ppmseq_category_quantity_table", mode="a")
@@ -1716,10 +1777,11 @@ class SRSNVReport:
         # Customization to make it more readable
         plt.yticks(rotation=0, fontsize=12)
         plt.xticks(rotation=45, fontsize=12)
-        plt.xlabel("strand_ratio_category_end", fontsize=14)
-        plt.ylabel("strand_ratio_category_start", fontsize=14)
+        plt.xlabel("ppmSeq tag end", fontsize=14)
+        plt.ylabel("ppmSeq tag start", fontsize=14)
         self._save_plt(output_filename, fig=fig)
 
+    @exception_handler
     def training_progress_plot(self, output_filename: str = None, ylims=None):
         """Generate plot of training progress plot, i.e., logloss and roc auc
         as a function of training steps.
@@ -1995,6 +2057,7 @@ class SRSNVReport:
         fig_num_cbar.set_ticklabels(["Low value", "High value"], fontsize=12)
         fig_num_cbar.outline.set_visible(False)
 
+    @exception_handler
     def calc_and_plot_shap_values(
         self,
         output_filename_importance: str = None,
@@ -2084,6 +2147,70 @@ class SRSNVReport:
         snv_labels = [" ".join(trinuc_snv[2:5]) for trinuc_snv in trinuc_index[np.arange(0, 16 * 12, 16)]]
         return trinuc_ref_alt, trinuc_index, snv_labels
 
+    @exception_handler
+    def plot_quality_histogram(self, plot_interpolating_function: bool = False, output_filename: str = None):
+        """Plot a histogram of qual values for TP reads, both mixed and non-mixed."""
+        # label_fontsize = 12
+        # ticklabelsfontsize = 12
+        if plot_interpolating_function:
+            fig, axes = plt.subplots(
+                3, 1, figsize=(7, 5), sharex=True, gridspec_kw={"height_ratios": [5, 2, 3], "hspace": 0}
+            )
+            ax = axes[0]
+        else:
+            fig, ax = plt.subplots(figsize=(7, 4))
+            axes = [ax]
+
+        xs = np.arange(0.00001, 30, 0.1)
+        sns.histplot(
+            data=self.data_df[self.data_df["label"]],
+            x="qual",
+            # bins=50,
+            hue="is_mixed",
+            hue_order=[False, True],
+            element="step",
+            stat="density",
+            common_norm=False,
+            kde=True,
+            kde_kws={"bw_adjust": 3},
+            linewidth=1,
+            ax=ax,
+            palette={False: "red", True: "green"},  # Map False to red and True to green
+        )
+        sns.move_legend(
+            ax,
+            "upper left",
+        )
+        ax.set_ylabel("Density")  # , fontsize=label_fontsize)
+        ax.grid(visible=True)
+        if plot_interpolating_function:
+            ax = axes[1]
+            ax.plot(
+                self.ML_qual_to_qual_fn((xs[1:] + xs[:-1]) / 2),
+                0.1 / (self.ML_qual_to_qual_fn(xs)[1:] - self.ML_qual_to_qual_fn(xs)[:-1]),
+                ".-",
+            )
+            ax.set_ylabel("ML_qual'")  # , fontsize=label_fontsize)
+            ax.grid(visible=True)
+
+            ax = axes[2]
+            ax.plot(self.ML_qual_to_qual_fn(xs), xs, ".-")
+            ax.set_ylabel("ML_qual")  # , fontsize=label_fontsize)
+            ax.grid(visible=True)
+
+        ax.set_xlabel("SNVQ")  # , fontsize=label_fontsize)
+        ax.set_xlim([0.99 * self.ML_qual_to_qual_fn(xs).min(), self.ML_qual_to_qual_fn(xs).max() * 1.01])
+        # ticklabels = ax.get_xmajorticklabels()
+        # ax.set_xticklabels(ticklabels, fontsize=ticklabelsfontsize)
+        # for ax in axes:
+        #     ticklabels = ax.get_ymajorticklabels()
+        #     ax.set_yticklabels(ticklabels, fontsize=ticklabelsfontsize)
+
+        fig.tight_layout()
+        plt.show()
+        self._save_plt(output_filename, fig=fig)
+
+    @exception_handler
     def calc_and_plot_trinuc_plot(
         self,
         output_filename: str = None,
@@ -2126,13 +2253,13 @@ class SRSNVReport:
             trinuc_stats[trinuc_stats[boolean_column_frac] & cond_for_frac_plot]
             .groupby("trinuc_context_with_alt")["fraction"]
             .sum()
-            .loc[trinuc_symmetric_ref_alt]
+            .reindex(trinuc_symmetric_ref_alt)
         )
         plot_df_false_frac = (
             trinuc_stats[~trinuc_stats[boolean_column_frac] & cond_for_frac_plot]
             .groupby("trinuc_context_with_alt")["fraction"]
             .sum()
-            .loc[trinuc_symmetric_ref_alt]
+            .reindex(trinuc_symmetric_ref_alt)
         )
         plot_df_true_frac.index = symmetric_index
         plot_df_false_frac.index = symmetric_index
@@ -2146,7 +2273,7 @@ class SRSNVReport:
                 quantile1_qual=("quantile1_qual", "mean"),
                 quantile3_qual=("quantile3_qual", "mean"),
             )
-            .loc[trinuc_symmetric_ref_alt]
+            .reindex(trinuc_symmetric_ref_alt)
         )
         plot_df_false_qual = (
             trinuc_stats[(~trinuc_stats[boolean_column_qual]) & (cond_for_qual_plot)]
@@ -2156,7 +2283,7 @@ class SRSNVReport:
                 quantile1_qual=("quantile1_qual", "mean"),
                 quantile3_qual=("quantile3_qual", "mean"),
             )
-            .loc[trinuc_symmetric_ref_alt]
+            .reindex(trinuc_symmetric_ref_alt)
         )
         plot_df_true_qual.index = symmetric_index
         plot_df_false_qual.index = symmetric_index
@@ -2217,8 +2344,8 @@ class SRSNVReport:
 
             # Second Plot (Median Qual) on the secondary y-axis
             ylims_qual = [
-                0 * min(plot_df_true_qual.values.min(), plot_df_false_qual.values.min()),
-                1.05 * max(plot_df_true_qual.values.max(), plot_df_false_qual.values.max()),
+                0 * np.nanmin([plot_df_true_qual.values.min(), plot_df_false_qual.values.min()]),
+                1.05 * np.nanmax([plot_df_true_qual.values.max(), plot_df_false_qual.values.max()]),
             ]
             (line_false,) = ax2.step(
                 x_values_ext,
@@ -2252,7 +2379,6 @@ class SRSNVReport:
                 color=tcolor_qual,
                 alpha=0.2,
             )
-
             ax2.set_ylim(ylims_qual)
             ax2.set_ylabel("SNVQ on TP reads", fontsize=label_fontsize)
             ax2.tick_params(axis="y", labelsize=yticks_fontsize)  # Set y-axis tick label size
@@ -2334,9 +2460,19 @@ class SRSNVReport:
             qual_df = stats_for_plot.loc[is_mixed & stats_for_plot["label"] & (stats_for_plot["count"] > min_count), :]
             fb_kws["color"] = color
             step_kws["color"] = color
-            poly, line = plot_box_and_line(
-                qual_df, col, "median_qual", "quantile1_qual", "quantile3_qual", ax=ax, fb_kws=fb_kws, step_kws=step_kws
-            )
+            if qual_df.shape[0] > 0:
+                poly, line = plot_box_and_line(
+                    qual_df,
+                    col,
+                    "median_qual",
+                    "quantile1_qual",
+                    "quantile3_qual",
+                    ax=ax,
+                    fb_kws=fb_kws,
+                    step_kws=step_kws,
+                )
+            else:
+                poly, line = None, None
             polys.append(poly)
             lines.append(line)
         return polys, lines
@@ -2367,6 +2503,7 @@ class SRSNVReport:
         stats_for_plot = stats_for_plot.reset_index()
         return stats_for_plot
 
+    @exception_handler
     def plot_numerical_feature_hist_and_qual(
         self, col: str, q1: float = 0.1, q2: float = 0.9, nbins: int = 50, output_filename: str = None
     ):
@@ -2429,6 +2566,9 @@ class SRSNVReport:
             ncol=1,
             frameon=False,
         )
+        # Next two lines are to display correctly the legend if there are no mixed reads
+        lines = [line if line is not None else empty_handle for line in lines]
+        polys = [poly if poly is not None else empty_handle for poly in polys]
         fig.legend(
             [empty_handle, lines[0], polys[0], empty_handle, lines[1], polys[1]],
             ["Non-mixed", "median", "10%-90% range", "Mixed", "median", "10%-90% range"],
@@ -2461,6 +2601,7 @@ class SRSNVReport:
             output_obsereved_qual_plot,
             output_ML_qual_hist,
             output_qual_per_feature,
+            qual_histogram,
             output_ppmSeq_hists,
             output_ppmSeq_fpr,
             output_ppmSeq_recalls,
@@ -2478,6 +2619,9 @@ class SRSNVReport:
         self.calc_and_plot_shap_values(
             output_filename_importance=SHAP_importance_plot, output_filename_beeswarm=SHAP_beeswarm_plot
         )
+
+        # Quality histogram
+        self.plot_quality_histogram(output_filename=qual_histogram)
 
         # Trinuc stats plot
         self.calc_and_plot_trinuc_plot(output_filename=trinuc_stats_plot, order="symmetric")
@@ -2548,7 +2692,13 @@ class SRSNVReport:
         # LoD_params["minimum_number_of_read_for_detection"] = 2
 
         if self.params["fp_regions_bed_file"] is not None:
-            # (df_mrd_simulation, lod_filters_filtered, lod_label, c_lod,) = retention_noise_and_mrd_lod_simulation(
+            # (
+            #     df_mrd_simulation,
+            #     lod_filters_filtered,
+            #     lod_label,
+            #     c_lod,
+            #     normalization_factor_dict
+            # ) = retention_noise_and_mrd_lod_simulation(
             #     df=df_X_with_pred_columns,
             #     single_sub_regions=self.params["fp_regions_bed_file"],
             #     sorter_json_stats_file=sorter_json_stats_file,

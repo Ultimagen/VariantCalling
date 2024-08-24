@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from collections import defaultdict
 from datetime import datetime
 from os.path import basename, isfile
@@ -630,12 +631,15 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         balanced_sampling_info_fields: list[str] = None,
         lod_filters: str = None,
         ppmSeq_adapter_version: str = None,
+        start_tag_col: str = None,
+        end_tag_col: str = None,
         pipeline_version: str = None,
         docker_image: str = None,
         pre_filter: str = None,
         random_seed: int = None,
         simple_pipeline: SimplePipeline = None,
         load_dataset_and_model: bool = False,
+        raise_exceptions_in_report: bool = False,
     ):
         """
         Train a classifier on FP and TP featuremaps
@@ -693,6 +697,12 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             json file with a dict of format 'filter name':'query' for LoD simulation, by default None
         ppmSeq_adapter_version : str, optional
             adapter version, indicates if input featuremap is from balanced ePCR data, by default None
+        start_tag_col : str, optional
+            column name for ppmSeq start tag, by default None. If None, value is inferred
+            from ppmSeq_adapter_version, featuremap, and categorical features
+        end_tag_col : str, optional
+            column name for ppmSeq end tag, by default None. If None, value is inferred
+            from ppmSeq_adapter_version, featuremap, and categorical features
         pipeline_version : str, optional
             pipeline version, by default None
         docker_image : str, optional
@@ -821,6 +831,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             logger.info(f"SRSNVTrain: Initializing random numer generator with {random_seed=}")
         self.random_seed = random_seed
         self.rng = np.random.default_rng(seed=self.random_seed)
+        self.raise_exceptions_in_report = raise_exceptions_in_report
 
         # misc
         if isinstance(lod_filters, str) and isfile(lod_filters) and lod_filters.endswith(".json"):
@@ -832,9 +843,12 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.lod_filters = lod_filters
         else:
             raise ValueError("lod_filters should be json_file | dictionary | None")
+        self.normalization_factors_dict = None
 
         self.flow_order = flow_order
         self.ppmSeq_adapter_version = ppmSeq_adapter_version
+        self.start_tag_col = start_tag_col
+        self.end_tag_col = end_tag_col
         self.pipeline_version = pipeline_version
         self.docker_image = docker_image
         self.sp = simple_pipeline
@@ -895,6 +909,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "tp_train_set_size": self.tp_train_set_size,
             "lod_filters": self.lod_filters,
             "adapter_version": self.ppmSeq_adapter_version,
+            "start_tag_col": self.start_tag_col,
+            "end_tag_col": self.end_tag_col,
             "pipeline_version": self.pipeline_version,
             "docker_image": self.docker_image,
             "columns": self.columns,
@@ -903,6 +919,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "random_seed": self.random_seed,
             "chroms_to_folds": self.chroms_to_folds,
             "num_CV_folds": self.k_folds,
+            "normalization_factors_dict": self.normalization_factors_dict,
         }
 
     def save_model_and_data(self):
@@ -914,32 +931,97 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         params_to_save = self.get_params()
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
+        logger.info(f"Saved params to {self.params_save_path}")
         # save model joblib (includes params and interpolation)
         joblib.dump(
             {
                 "models": self.classifiers,
                 "params": params_to_save,
-                "quality_interpolation_function": self.quality_interpolation_function,
+                "quality_interpolation_function": getattr(self, "quality_interpolation_function", None),
             },
             self.model_joblib_save_path,
         )
+        logger.info(f"Saved model to {self.model_joblib_save_path}")
         # save data
         for data, savename in ((self.featuremap_df, self.featuremap_df_save_path),):
             data.to_parquet(savename)
+            logger.info(f"Saved featuremap_df to {savename}")
+
+    def _get_ppmseq_tags_column_names(self):
+        """Get the column names for the ppmSeq start and end tags.
+        If these are provided as arguments/parameters, use them.
+        Otherwise, infer them using the following logic:
+        - If they can be unambiguously inferred from the featuremap, use this value.
+          If the are absent, set them to None.
+        - If both versions are in the featuremap, use the one from the categorical features dict.
+        - If categorical features dict does not disambiguate, use the ppmSeq_adapter_version.
+        Raise warnings if any of the values above are inconsistent.
+        """
+        ppmSeq_adapter_version = self.ppmSeq_adapter_version
+        strand_ratio_in_featuremap = (
+            "strand_ratio_category_end" in self.featuremap_df and "strand_ratio_category_start" in self.featuremap_df
+        )
+        strand_ratio_in_categorical = (
+            "strand_ratio_category_end" in self.categorical_features_names
+            and "strand_ratio_category_start" in self.categorical_features_names
+        )
+        cram_tags_in_featuremap = "st" in self.featuremap_df and "et" in self.featuremap_df
+        cram_tags_in_categorical = "st" in self.categorical_features_names and "et" in self.categorical_features_names
+        if cram_tags_in_categorical and strand_ratio_in_categorical:
+            logger.warning("categorical_features_dict contains both legacy_v5 and v1 ppmSeq tags")
+        if self.ppmSeq_adapter_version == "v1":
+            tag_cols_from_adapter = ["st", "et"]
+        elif self.ppmSeq_adapter_version == "legacy_v5":
+            tag_cols_from_adapter = ["strand_ratio_category_start", "strand_ratio_category_end"]
+        else:
+            tag_cols_from_adapter = [None, None]
+
+        if self.start_tag_col is None and self.end_tag_col is None:
+            if strand_ratio_in_featuremap and cram_tags_in_featuremap:
+                logger.warning("featuremap_df contains both legacy_v5 and v1 ppmSeq tags")
+                # Both versions in featuremap, need to check further
+                if (strand_ratio_in_categorical and cram_tags_in_categorical) or (
+                    not strand_ratio_in_categorical and not cram_tags_in_categorical
+                ):
+                    # Categorical features do not disambiguate, use ppmSeq_adapter_version
+                    self.start_tag_col, self.end_tag_col = tag_cols_from_adapter
+                    logger.info(f"Using {tag_cols_from_adapter=} (inferred from {ppmSeq_adapter_version=})")
+                elif strand_ratio_in_categorical:
+                    self.start_tag_col = "strand_ratio_category_start"
+                    self.end_tag_col = "strand_ratio_category_end"
+                elif cram_tags_in_categorical:
+                    self.start_tag_col = "st"
+                    self.end_tag_col = "et"
+            elif strand_ratio_in_featuremap:
+                self.start_tag_col = "strand_ratio_category_start"
+                self.end_tag_col = "strand_ratio_category_end"
+                if not strand_ratio_in_categorical:
+                    logger.warning("ppmSeq tags not in categorica_features_dict")
+            elif cram_tags_in_featuremap:
+                self.start_tag_col = "st"
+                self.end_tag_col = "et"
+                if not cram_tags_in_categorical:
+                    logger.warning("ppmSeq tags not in categorica_features_dict")
+            else:  # No ppmSeq tags in featuremap
+                self.start_tag_col = None
+                self.end_tag_col = None
+        logger.info(f"Using [start_tag, end_tag] = {[self.start_tag_col, self.end_tag_col]}")
+        if (self.start_tag_col, self.end_tag_col) != tag_cols_from_adapter:
+            logger.warning(f"ppmSeq tags are not consistent with respect to {tag_cols_from_adapter=}")
 
     def add_is_mixed_to_featuremap_df(self):
         """Add is_mixed column to self.featuremap_df"""
         logger.info("Adding is_mixed column to featuremap")
         # TODO: use the information from adapter_version instead of this patch
-        if "strand_ratio_category_end" in self.featuremap_df and "strand_ratio_category_start" in self.featuremap_df:
+        self._get_ppmseq_tags_column_names()
+        if self.start_tag_col is not None and self.end_tag_col is not None:
             self.featuremap_df["is_mixed"] = np.logical_and(
-                (self.featuremap_df["strand_ratio_category_end"] == "MIXED"),
-                (self.featuremap_df["strand_ratio_category_start"] == "MIXED"),
+                (self.featuremap_df[self.start_tag_col] == "MIXED"),
+                (self.featuremap_df[self.end_tag_col] == "MIXED"),
             )
-        elif "st" in self.featuremap_df and "et" in self.featuremap_df:
-            self.featuremap_df["is_mixed"] = np.logical_and(
-                (self.featuremap_df["st"] == "MIXED"), (self.featuremap_df["et"] == "MIXED")
-            )
+        else:  # If no strand ratio information is available, set is_mixed to False
+            self.featuremap_df["is_mixed"] = False
+            logger.warning("No ppmSeq tags in data, setting is_mixed to False")
 
     def calc_qual_and_mrd_simulation(self, ML_qual_col: str = "ML_qual_1_test"):
         """Calibrate ML_qual to qual, get the interpolating function,
@@ -976,6 +1058,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 self.lod_filters_filtered,
                 self.lod_label,
                 self.c_lod,
+                self.normalization_factors_dict,
             ) = retention_noise_and_mrd_lod_simulation(
                 df=self.featuremap_df,
                 single_sub_regions=self.fp_regions_bed_file,
@@ -1057,9 +1140,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 c_lod=self.c_lod,
                 # min_LoD_filter=self.min_LoD_filter,
                 df_mrd_simulation=self.df_mrd_simulation,
+                ML_qual_to_qual_fn=self.quality_interpolation_function,
                 statistics_h5_file=statistics_h5_file,
                 statistics_json_file=statistics_json_file,
                 rng=self.rng,
+                raise_exceptions=self.raise_exceptions_in_report,
             )
 
     def prepare_featuremap_for_model(self):
@@ -1163,6 +1248,11 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
     def process(self):
         if self.load_dataset_and_model:
+            # Check that that environment is set up correctly
+            logger.info("Verifying papermill in environment")
+            subprocess.run(
+                "papermill --version", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+            )
             # load data and model
             model_data = joblib.load(self.model_joblib_save_path)
             self.classifiers = model_data["models"]
@@ -1208,6 +1298,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.add_is_mixed_to_featuremap_df()
         self.add_predictions_to_featuremap_df()
 
+        self.save_model_and_data()  # In case the run fails
         # run MRD simulation
         self.calc_qual_and_mrd_simulation()
 
@@ -1217,6 +1308,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         )
 
         # Add interpolated qualities
+        logger.info("Adding 'qual' column to featuremap_df")
         self.featuremap_df["qual"] = (
             self.featuremap_df["ML_qual_1_test"]
             .apply(self.quality_interpolation_function)

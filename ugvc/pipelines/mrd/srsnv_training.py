@@ -170,6 +170,36 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""adapter version, indicates if input featuremap is from balanced ePCR data """,
     )
     parser.add_argument(
+        "--start_tag_col",
+        type=str,
+        required=False,
+        default=None,
+        help="""Name of column in featuremap that contains ppmSeq start tag.
+        When not provided, value is inferred from the featuremap and categorial features""",
+    )
+    parser.add_argument(
+        "--end_tag_col",
+        type=str,
+        required=False,
+        default=None,
+        help="""Name of column in featuremap that contains ppmSeq end tag.
+        When not provided, value is inferred from the featuremap and categorial features""",
+    )
+    parser.add_argument(
+        "--pipeline_version",
+        type=str,
+        required=False,
+        default=None,
+        help="""Pipeline version""",
+    )
+    parser.add_argument(
+        "--docker",
+        type=str,
+        required=False,
+        default=None,
+        help="""docker used to run the pipeline""",
+    )
+    parser.add_argument(
         "--pre_filter",
         type=str,
         required=False,
@@ -189,6 +219,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""If flag is provided, skip dataset genenration and model training.
         Output folder should contain featuremap_df.parquet and model.joblib,
         and all other relevant files.""",
+    )
+    parser.add_argument(
+        "--raise_exceptions_in_report",
+        action="store_true",
+        help="""If flag is provided, raise exceptions when creating report.
+        Otherwise, suprress the exceptions (exceptions are logged, and correspoding
+        error messages appear in the report).
+        """,
     )
     return parser.parse_args(argv[1:])
 
@@ -213,6 +251,10 @@ def read_dataset_params(args):
         "balanced_sampling_info_fields": args.balanced_sampling_info_fields,
         "pre_filter": args.pre_filter,
         "ppmSeq_adapter_version": args.ppmSeq_adapter_version,
+        "start_tag_col": args.start_tag_col,
+        "end_tag_col": args.end_tag_col,
+        "pipeline_version": args.pipeline_version,
+        "docker": args.docker,
         "random_seed": args.random_seed,
         "num_CV_folds": args.num_CV_folds,
     }
@@ -250,6 +292,11 @@ def read_dataset_params(args):
             )
     if args.split_folds_randomly:  # override json file
         dataset_params["split_folds_by_chrom"] = False
+
+    ppmseq_tags_consistent = (dataset_params["start_tag_col"] and dataset_params["end_tag_col"]) or (
+        dataset_params["start_tag_col"] is None and dataset_params["end_tag_col"] is None
+    )
+    assert ppmseq_tags_consistent, "Both start_tag_col and end_tag_col must be provided or neither."
 
     return dataset_params
 
@@ -292,8 +339,13 @@ def run(argv: list[str]):
         save_model_jsons=args.save_model_jsons,
         load_dataset_and_model=args.load_dataset_and_model,
         ppmSeq_adapter_version=dataset_params["ppmSeq_adapter_version"],
+        start_tag_col=dataset_params["start_tag_col"],
+        end_tag_col=dataset_params["end_tag_col"],
+        pipeline_version=dataset_params["pipeline_version"],
+        docker_image=dataset_params["docker"],
         pre_filter=dataset_params["pre_filter"],
         random_seed=dataset_params["random_seed"],
+        raise_exceptions_in_report=args.raise_exceptions_in_report,
         simple_pipeline=sp,
     ).process()
 
