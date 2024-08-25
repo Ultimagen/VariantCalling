@@ -36,22 +36,24 @@ from ugvc.pipelines import (
 from ugvc.pipelines.comparison import quick_fingerprinting
 from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
-from ugvc.pipelines.mrd import (
+from ugbio_featuremap.pipelines import (
     annotate_featuremap,
-    collect_coverage_per_motif,
-    concat_dataframes,
     create_hom_snv_featuremap,
     featuremap_to_dataframe,
+    pileup_featuremap,
+    sorter_stats_to_mean_coverage
+)
+from ugbio_mrd import (
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
-    pileup_based_read_features,
-    pileup_featuremap,
-    ppmSeq_qc_analysis,
-    prepare_data_from_mrd_pipeline,
-    sorter_stats_to_mean_coverage,
+    prepare_data_from_mrd_pipeline
+)
+from ugbio_ppmseq.pipelines import (
+    ppmSeq_qc_analysis
+)
+from ugbio_srsnv.pipelines import (
     srsnv_inference,
-    srsnv_training,
-    substitution_error_rate,
+    srsnv_training
 )
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, intersect_bed_regions
@@ -81,14 +83,10 @@ sec_modules = [correct_systematic_errors, sec_training, sec_validation]
 
 mrd_modules = [
     ppmSeq_qc_analysis,
-    substitution_error_rate,
-    collect_coverage_per_motif,
-    concat_dataframes,
     sorter_stats_to_mean_coverage,
     featuremap_to_dataframe,
     intersect_featuremap_with_signature,
     prepare_data_from_mrd_pipeline,
-    pileup_based_read_features,
     generate_synthetic_signatures,
     annotate_featuremap,
     srsnv_training,
