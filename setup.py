@@ -3,10 +3,14 @@ from setuptools import find_packages, setup
 setup(
     name="ugvc",
     version="0.22",
-    packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"],
+    packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"] + ["ugbio_mrd"] + ["ugbio_ppmseq"] + ["ugbio_srsnv"] + ["ugbio_featuremap"],
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
         "ugbio_cnv": "ugbio_utils/src/cnv/ugbio_cnv",
+        "ugbio_ppmseq": "ugbio_utils/src/ppmseq/ugbio_ppmseq",
+        "ugbio_featuremap": "ugbio_utils/src/featuremap/ugbio_featuremap",
+        "ugbio_srsnv": "ugbio_utils/src/srsnv/ugbio_srsnv",
+        "ugbio_mrd": "ugbio_utils/src/mrd/ugbio_mrd",
     },
     install_requires=[],
     scripts=[
