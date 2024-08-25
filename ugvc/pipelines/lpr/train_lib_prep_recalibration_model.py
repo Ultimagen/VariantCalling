@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from simppl.cli import get_parser, get_simple_pipeline
 
-from ugvc.pipelines.mrd import featuremap_to_dataframe
+from ugbio_featuremap import featuremap_to_dataframe
 from ugvc.utils.cloud_sync import cloud_sync
 
 
