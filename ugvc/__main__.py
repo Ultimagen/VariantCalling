@@ -36,14 +36,9 @@ from ugvc.pipelines import (
 from ugvc.pipelines.comparison import quick_fingerprinting
 from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
-from ugbio_featuremap import (
-    annotate_featuremap,
-    create_hom_snv_featuremap,
-    featuremap_to_dataframe,
-    pileup_featuremap,
-    sorter_stats_to_mean_coverage
-)
-from ugbio_mrd import (
+from ugbio_featuremap.pipelines import annotate_featuremap, create_hom_snv_featuremap, featuremap_to_dataframe, \
+    pileup_featuremap, sorter_stats_to_mean_coverage
+from ugbio_mrd.pipelines import (
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
     prepare_data_from_mrd_pipeline
