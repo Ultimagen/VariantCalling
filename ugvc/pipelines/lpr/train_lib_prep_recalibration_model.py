@@ -4,7 +4,7 @@ import os
 import pandas as pd
 from simppl.cli import get_parser, get_simple_pipeline
 
-from ugbio_featuremap.pipelines import featuremap_to_dataframe
+# from ugbio_featuremap.pipelines import featuremap_to_dataframe #todo now why it doesn't work???
 from ugvc.utils.cloud_sync import cloud_sync
 
 
@@ -57,7 +57,7 @@ def run(argv):
         sp.print_and_run(f"bcftools view --type snps -f PASS -m2 -M2 {unfiltered_calls} -Oz -o {calls_vcf}")
 
         sp.print_and_run_clt(
-            featuremap_to_dataframe.run,
+            # featuremap_to_dataframe.run,
             [],
             {
                 "-i": calls_vcf,
@@ -87,7 +87,7 @@ def run(argv):
         )
 
         sp.print_and_run_clt(
-            featuremap_to_dataframe.run,
+            # featuremap_to_dataframe.run,
             [],
             {"-i": featuremap_on_calls_vcf, "-r": args.ref_fasta, "-f": "TGCA", "-o": featuremap_on_calls_parquet},
         )
@@ -112,7 +112,7 @@ def run(argv):
                 f"bedtools intersect -a {featuremap_vcf} -b {bed_file} -u -header | " f"bcftools view -Oz -o {vcf_file}"
             )
             sp.print_and_run_clt(
-                featuremap_to_dataframe.run,
+                # featuremap_to_dataframe.run,
                 [],
                 {"-i": vcf_file, "-r": args.ref_fasta, "-f": "TGCA", "-o": parquet_file},
             )
