@@ -184,35 +184,6 @@ def find_scripts_path() -> str:
     return pjoin(dirname(package.get_filename()), "bash")
 
 
-def catch(
-    func: collections.abc.Callable,
-    *args,
-    exception_type: Exception = Exception,
-    handle: collections.abc.Callable = lambda e: e,
-    **kwargs,
-):
-    """From https://stackoverflow.com/a/8915613 general wrapper that
-    catches exception and returns value. Useful for handling error in list comprehension
-
-    Parameters
-    ----------
-    func: Callable
-        Function being wrapped
-    *args:
-        func non-named arguments
-    exception_type:
-        Type of exception to catch
-    handle:
-        How to handle the exception (what value to return)
-    **kwargs:
-        func named arguments
-    """
-    try:
-        return func(*args, **kwargs)
-    except exception_type as e:  # pylint: disable=broad-except
-        return handle(e)
-
-
 def set_pyplot_defaults(
     title_size=TITLE_SIZE,
     small_size=SMALL_SIZE,
