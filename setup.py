@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 setup(
     name="ugvc",
     version="0.22",
-    packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"] + ["ugbio_mrd"] + ["ugbio_ppmseq"] + ["ugbio_srsnv"] + ["ugbio_featuremap"],
+    packages=find_packages() + ["ugbio_core"] + ["ugbio_cnv"] + ["ugbio_mrd"] + ["ugbio_ppmseq"] + ["ugbio_srsnv"] + ["ugbio_featuremap"],
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
         "ugbio_cnv": "ugbio_utils/src/cnv/ugbio_cnv",
