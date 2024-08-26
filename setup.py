@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 setup(
     name="ugvc",
     version="0.22",
-    packages=find_packages() + ["ugbio_core"] + ["ugbio_cnv"] + ["ugbio_mrd"] + ["ugbio_ppmseq"] + ["ugbio_srsnv"] + ["ugbio_featuremap"],
+    packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"] + ["ugbio_mrd"] + ["ugbio_ppmseq"] + ["ugbio_srsnv"] + ["ugbio_featuremap"],
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
         "ugbio_cnv": "ugbio_utils/src/cnv/ugbio_cnv",
@@ -18,8 +18,8 @@ setup(
         "ugvc/pipelines/run_comparison_pipeline.py",
         "ugvc/pipelines/coverage_analysis.py",
         "ugvc/pipelines/collect_existing_metrics.py",
-        "ugbio_utils/src/featuremap/ugbio_featuremap/pipelines/sorter_stats_to_mean_coverage.py",
-        "ugbio_utils/src/featuremap/ugbio_featuremap/pipelines/featuremap_to_dataframe.py",
+        "ugbio_utils/src/featuremap/ugbio_featuremap/sorter_stats_to_mean_coverage.py",
+        "ugbio_utils/src/featuremap/ugbio_featuremap/featuremap_to_dataframe.py",
         "ugbio_utils/src/mrd/ugbio_mrd/pipelines/intersect_featuremap_with_signature.py",
         "ugbio_utils/src/mrd/ugbio_mrd/pipelines/prepare_data_from_mrd_pipeline.py",
         "ugvc/pipelines/training_prep_pipeline.py",
