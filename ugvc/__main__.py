@@ -44,14 +44,15 @@ from ugbio_mrd import (
     prepare_data_from_mrd_pipeline
 )
 from ugbio_ppmseq import (
-    ppmSeq_qc_analysis
+    ppmSeq_qc_analysis,
+    annotate_contig
 )
 from ugbio_srsnv import (
     srsnv_inference,
     srsnv_training
 )
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
-from ugvc.pipelines.vcfbed import annotate_contig, calibrate_bridging_snvs, intersect_bed_regions
+from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
 from ugvc.utils import cloud_sync
 
