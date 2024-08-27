@@ -18,7 +18,7 @@ setup(
         "ugvc/pipelines/run_comparison_pipeline.py",
         "ugvc/pipelines/coverage_analysis.py",
         "ugvc/pipelines/collect_existing_metrics.py",
-        "ugbio_utils/src/core/ugbio_core/annotate_contig.py"
+        "ugbio_utils/src/core/ugbio_core/annotate_contig.py",
         "ugbio_utils/src/featuremap/ugbio_featuremap/sorter_stats_to_mean_coverage.py",
         "ugbio_utils/src/featuremap/ugbio_featuremap/featuremap_to_dataframe.py",
         "ugbio_utils/src/mrd/ugbio_mrd/intersect_featuremap_with_signature.py",
