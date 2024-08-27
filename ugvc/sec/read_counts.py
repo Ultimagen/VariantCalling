@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ugvc.dna.strand_direction import StrandDirection
+from ugbio_core.strand_direction import StrandDirection
 
 
 class ReadCounts:

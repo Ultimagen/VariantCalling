@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pysam
 
-from ugvc.dna import utils as dnautils
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugbio_utils import dna_utils as dnautils
+from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
 from ugvc.utils import misc_utils as utils
 
 from . import read_expander

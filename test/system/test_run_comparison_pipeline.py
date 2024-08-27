@@ -2,7 +2,7 @@ import os
 from os.path import dirname
 from test import get_resource_dir, test_dir
 
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
 from ugvc.pipelines import run_comparison_pipeline
 from ugvc.utils.misc_utils import read_hdf
 

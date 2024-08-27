@@ -4,7 +4,7 @@ from os.path import dirname
 
 from python import error_model
 
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
 
 ap = argparse.ArgumentParser(prog="add_ml_tags_bam.py", description="Add probability tags to uBAM")
 ap.add_argument("--probability_tensor", help="Probability tensor (npy/bin)", type=str)

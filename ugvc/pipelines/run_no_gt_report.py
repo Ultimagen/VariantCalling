@@ -33,7 +33,7 @@ from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as
 
 import ugbio_core.variant_annotation as annotation
 from ugvc.comparison import vcf_pipeline_utils
-from ugvc.dna.utils import revcomp
+from ugbio_core.dna_utils import revcomp
 from ugvc.vcfbed import vcftools
 
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
