@@ -60,7 +60,6 @@ jobs:
       - name: Test with pytest
         run: |
           source activate genomics.py3
-#          python -m pytest ugbio_utils/src/*/tests
           python -m pytest ugbio_utils/src/core/tests
       - uses: actions/setup-python@v4
         with:
