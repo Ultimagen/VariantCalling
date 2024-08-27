@@ -10,7 +10,7 @@ import pandas as pd
 import pysam
 from simppl.simple_pipeline import SimplePipeline
 
-from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, bed_file_length, vcf2concordance
+from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, bed_file_length, vcf2concordance, close_to_hmer_run
 from ugvc.utils.misc_utils import read_hdf
 from ugvc.vcfbed import vcftools
 from ugvc.vcfbed.interval_file import IntervalFile
@@ -176,3 +176,9 @@ def test_bed_file_length():
     bed1 = pjoin(inputs_dir, "bed1.bed")
     result = bed_file_length(bed1)
     assert result == 3026
+
+def test_close_to_hmer_run():
+    input_vcf = vcftools.get_vcf_df(pjoin(inputs_dir, "hg19.vcf.gz"))
+    runs_file = pjoin(inputs_dir, "runs.hg19.bed")
+    result = close_to_hmer_run(input_vcf, runs_file)
+    assert result["close_to_hmer_run"].sum() == 76
