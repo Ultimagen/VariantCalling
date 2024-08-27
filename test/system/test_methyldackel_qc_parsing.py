@@ -168,19 +168,14 @@ class TestParsers:
                 df = pd.DataFrame(store[key])
                 df = df.reset_index()
                 df_result = pd.concat((df_result, df))
-        df_result
 
-        df_ref = pd.DataFrame()
-        for value in input_files.values():
-            df_ref = pd.concat(
-                (
-                    df_ref,
-                    pd.read_csv(
-                        f"{self.inputs_dir}/{value}", dtype={"metric": str, "value": np.float64, "detail": str}
-                    ),
-                )
+        df_ref = pd.concat(
+            (
+                pd.read_csv(f"{self.inputs_dir}/{value}", dtype={"metric": str, "value": np.float64, "detail": str})
+                for value in input_files.values()
             )
-        assert np.ceil(np.sum(df_ref["value"])) == np.ceil(np.sum(df_result["value"]))
+        )
+        assert np.allclose(np.sum(df_ref["value"]), np.ceil(np.sum(df_result["value"])))
 
     # ------------------------------------------------------
 
