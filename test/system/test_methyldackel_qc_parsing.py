@@ -132,7 +132,7 @@ class TestParsers:
 
     def test_concat_methyldackel_csvs(self, tmpdir):
         output_prefix = f"{tmpdir}/concat_methyldackel_csvs"
-        output_h5_file = output_prefix + ".h5"
+        output_h5_file = output_prefix + ".methyl_seq.applicationQC.h5"
         os.makedirs(tmpdir, exist_ok=True)
 
         concat_methyldackel_csvs.run(

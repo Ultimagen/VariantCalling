@@ -94,7 +94,7 @@ def run(argv: list[str] | None = None):
         "PerRead": args.per_read,
     }
 
-    h5_output = args.output + ".h5"
+    h5_output = args.output + ".methyl_seq.applicationQC.h5"
     with pd.HDFStore(h5_output, mode="w") as store:
         for table, input_file in input_dict.items():
             if table == "PerRead" and input_file is None:
