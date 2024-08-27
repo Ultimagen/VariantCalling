@@ -44,13 +44,13 @@ from ugbio_mrd import (
     prepare_data_from_mrd_pipeline
 )
 from ugbio_ppmseq import (
-    ppmSeq_qc_analysis,
-    annotate_contig
+    ppmSeq_qc_analysis
 )
 from ugbio_srsnv import (
     srsnv_inference,
     srsnv_training
 )
+from ugbio_core import annotate_contig
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, intersect_bed_regions
 from ugvc.scripts import sorter_to_h5
