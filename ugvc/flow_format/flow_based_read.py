@@ -12,6 +12,7 @@ import pysam
 
 from ugbio_utils import dna_utils as dnautils
 from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
+from ugbio_core.flow_based_read import generate_key_from_sequence
 from ugvc.flow_format import error_model, simulator
 from ugvc.utils import math_utils as phred
 from ugvc.utils import misc_utils as utils
