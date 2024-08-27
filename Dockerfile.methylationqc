@@ -1,4 +1,4 @@
-FROM python:3.9-bullseye as build
+FROM python:3.9-bullseye AS build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
