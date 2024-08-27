@@ -40,7 +40,7 @@ import pyfaidx
 import ugbio_core.flow_based_read as fbr
 import ugvc.utils.misc_utils as utils
 from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
-from ugbio_core import vcftools
+from ugvc.vcfbed import vcftools
 
 
 def reinterpret_variants(concordance_df: pd.DataFrame, in_dict: dict, fasta: pyfaidx.Fasta) -> pd.DataFrame:
