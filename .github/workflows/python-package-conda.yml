@@ -61,6 +61,7 @@ jobs:
         run: |
           source activate genomics.py3
           python -m pytest ugbio_utils/src/featuremap/tests
+          python -m pytest ugbio_utils/src/core/tests
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11
