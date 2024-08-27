@@ -19,7 +19,7 @@ from ugvc import logger
 from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
 from ugbio_core.exec_utils import print_and_execute
 from ugvc.vcfbed import vcftools
-from ugvc.vcfbed import bed_writer
+from ugbio_core import bed_writer
 
 
 class VcfPipelineUtils:
