@@ -103,7 +103,6 @@ dependencies:
   - fribidi=1.0.10=h36c2ea0_0
   - frozenlist=1.4.1=py310h2372a71_0
   - fsspec=2024.6.1=pyhff2d567_0
-  - gatk4=4.5.0.0=py36hdfd78af_0
   - gcc_impl_linux-64=14.1.0=h3c94d91_0
   - gettext=0.22.5=h59595ed_2
   - gettext-tools=0.22.5=h59595ed_2

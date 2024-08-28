@@ -33,6 +33,14 @@ RUN source ~/.bashrc && \
     cd /VariantCalling && \
     pip install .
 
+RUN export GATK_VERSION="4.6.0.0" && \
+    mkdir -p /gatk && \
+    cd /gatk && \
+    wget https://github.com/broadinstitute/gatk/releases/download/${GATK_VERSION}/gatk-${GATK_VERSION}.zip && \
+    unzip gatk-${GATK_VERSION}.zip && \
+    rm gatk-${GATK_VERSION}.zip && \
+    ln -s /gatk/gatk-${GATK_VERSION}/gatk /usr/local/bin/gatk
+
 # Include licenses
 COPY ["Ultima UGVC - EULA.pdf", "./"]
 COPY ["Third Party Licenses/", "./Third Party Licenses/"]
