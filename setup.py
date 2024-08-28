@@ -45,7 +45,8 @@ setup(
             "bash/remove_empty_files.sh",
             "bash/index_vcf_file.sh",
             "bash/find_adapter_coords.sh",
-        ]
+        ],
+        "": ["**/reports/*.ipynb"]
     },
     install_package_data=True,
 )
