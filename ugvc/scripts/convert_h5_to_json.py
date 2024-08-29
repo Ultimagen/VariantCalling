@@ -1,7 +1,7 @@
 #!/env/python
 import argparse
 
-from ugvc.utils import metrics_utils
+from ugbio_core import metrics_utils
 
 ap = argparse.ArgumentParser(
     prog="convert_h5_to_json.py",
