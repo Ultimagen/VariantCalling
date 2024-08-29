@@ -4,7 +4,7 @@ from test import get_resource_dir, test_dir
 
 from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
 from ugvc.pipelines import run_comparison_pipeline
-from ugvc.utils.misc_utils import read_hdf
+from ugbio_core.metrics_utils import read_hdf
 
 
 class TestRunComparisonPipeline:

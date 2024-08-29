@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from ugvc.utils import metrics_utils
+from ugbio_core import metrics_utils
 
 ap = argparse.ArgumentParser(
     prog="collect_existing_picard_metrics.py",

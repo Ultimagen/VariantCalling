@@ -6,8 +6,8 @@ import pandas as pd
 from Bio import SeqIO
 
 from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import H5Keys, Inputs, OutputFiles
-from ugvc.utils.metrics_utils import merge_trimmer_histograms, read_sorter_statistics_csv, read_trimmer_failure_codes
-
+from ugbio_core.trimmer_utils import read_trimmer_failure_codes, merge_trimmer_histograms
+from ugbio_core.sorter_utils import read_sorter_statistics_csv
 
 def collect_statistics(input_files: Inputs, output_path: str, sample_name: str) -> Path:
     """

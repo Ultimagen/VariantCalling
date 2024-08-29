@@ -6,7 +6,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 
 from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import H5Keys, OutputFiles
-from ugvc.utils.misc_utils import set_pyplot_defaults
+from ugbio_core.plotting_utils import set_pyplot_defaults
 
 set_pyplot_defaults()
 

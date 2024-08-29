@@ -23,7 +23,7 @@ from ugvc.pipelines.single_cell_qc.sc_qc_dataclasses import (
     OutputFiles,
     Thresholds,
 )
-from ugvc.utils.misc_utils import modify_jupyter_notebook_html
+from ugbio_core.report_utils import modify_jupyter_notebook_html
 
 
 def single_cell_qc(

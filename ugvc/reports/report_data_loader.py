@@ -1,7 +1,7 @@
 import numpy as np
 
 from ugvc.reports.report_utils import ErrorType
-from ugvc.utils.misc_utils import read_hdf
+from ugbio_core.metrics_utils import read_hdf
 
 
 class ReportDataLoader:
