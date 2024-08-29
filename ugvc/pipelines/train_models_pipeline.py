@@ -31,7 +31,7 @@ import pandas as pd
 from ugvc import logger
 from ugvc.filtering import transformers, variant_filtering_utils
 from ugvc.filtering.tprep_constants import GtType, VcfType
-from ugvc.utils import misc_utils
+from ugbio_core.metrics_utils import read_hdf
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -106,7 +106,7 @@ def run(argv: list[str]):
         # read all data besides concordance and input_args or as defined in list_of_contigs_to_read
         dfs = []
         for input_file in args.train_dfs:
-            df = misc_utils.read_hdf(input_file, columns_subset=features_to_extract)
+            df = read_hdf(input_file, columns_subset=features_to_extract)
             dfs.append(df)
         train_df = pd.concat(dfs)
         logger.info("Read training data: success")
@@ -120,7 +120,7 @@ def run(argv: list[str]):
         logger.info("Read test data: start")
         dfs = []
         for input_file in args.test_dfs:
-            df = misc_utils.read_hdf(input_file, columns_subset=features_to_extract)
+            df = read_hdf(input_file, columns_subset=features_to_extract)
             dfs.append(df)
         test_df = pd.concat(dfs)
         logger.info("Read test data: done")
