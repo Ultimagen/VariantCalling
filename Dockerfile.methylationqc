@@ -99,6 +99,12 @@ RUN mkdir -p /app/.config/matplotlib && \
 
 ENV MPLCONFIGDIR=/app/.config/matplotlib
 
+# Set FONTCONFIG_PATH to /app/.cache/fontconfig
+RUN mkdir -p /app/.cache/fontconfig && \
+    chmod 777 /app/.cache/fontconfig
+
+ENV FONTCONFIG_PATH=/app/.cache/fontconfig
+
 WORKDIR /app/VariantCalling
 
 # most of the time we would like to run python scripts (which will come in the command)
