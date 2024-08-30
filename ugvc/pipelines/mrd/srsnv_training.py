@@ -83,6 +83,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Number of cross-validation folds to use. Default=1 (no CV)""",
     )
     parser.add_argument(
+        "--num_chroms_for_test",
+        type=int,
+        required=False, 
+        default=None,
+        help="""Number chromosomes to exclude from training and use exclusively for test set""",
+    )
+    parser.add_argument(
         "--split_folds_randomly",
         action="store_true",
         help="""by default the training data is split into folds by chromosomes,
@@ -246,6 +253,7 @@ def read_dataset_params(args):
     dataset_params = {
         "train_set_size": args.train_set_size,
         "test_set_size": args.test_set_size,
+        "num_chroms_for_test": args.num_chroms_for_test,
         "numerical_features": args.numerical_features,
         "categorical_features": args.categorical_features,
         "balanced_sampling_info_fields": args.balanced_sampling_info_fields,
@@ -331,6 +339,7 @@ def run(argv: list[str]):
         test_set_size=dataset_params["test_set_size"],
         k_folds=dataset_params["num_CV_folds"],
         split_folds_by_chrom=dataset_params["split_folds_by_chrom"],
+        num_chroms_for_test=dataset_params["num_chroms_for_test"],
         model_params=args.model_params,
         reference_dict=args.reference_dict,
         out_path=args.output,

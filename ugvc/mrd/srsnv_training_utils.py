@@ -30,6 +30,7 @@ from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
 ML_QUAL = "ML_QUAL"
 FOLD_ID = "fold_id"
+NUM_CHROMS_FOR_TEST = 1
 
 
 default_xgboost_model_params = {
@@ -150,7 +151,7 @@ def set_categorical_columns(df: pd.DataFrame, cat_dict: dict[str, list]):
     return df
 
 
-def partition_into_folds(series_of_sizes, k_folds, alg="greedy"):
+def partition_into_folds(series_of_sizes, k_folds, alg="greedy", n_test=0):
     """Returns a partition of the indices of the series series_of_sizes
     into k_fold groups whose total size is approximately the same.
     Returns a dictionary that maps the indices (keys) of series_of_sizes into
@@ -167,12 +168,16 @@ def partition_into_folds(series_of_sizes, k_folds, alg="greedy"):
         - k_folds [int]: the number of folds into which series_of_sizes should be partitioned.
         - alg ['greedy']: the algorithm used. For the time being only the greedy algorithm
             is implemented.
+        - n_test [int]: The n_test smallest chroms are not assigned to any fold (they are excluded 
+            from the indices_to_folds dict). These are excluded from training all together, and 
+            are used for test only. 
     Returns:
         - indices_to_folds [dict]: a dictionary that maps indices to the corresponding
             fold numbers.
     """
     assert alg == "greedy", "Only greedy algorithm implemented at this time"
     series_of_sizes = series_of_sizes.sort_values(ascending=False)
+    series_of_sizes = series_of_sizes.iloc[:series_of_sizes.shape[0]-n_test] # Removing the n_test smallest sizes
     partitions = [[] for _ in range(k_folds)]  # an empty partition
     partition_sums = np.zeros(k_folds)  # The running sum of partitions
     for idx, s in series_of_sizes.items():
@@ -619,6 +624,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         test_set_size: int = MIN_TEST_SIZE,
         k_folds: int = 1,
         split_folds_by_chrom: bool = True,
+        num_chroms_for_test: int = NUM_CHROMS_FOR_TEST,
         reference_dict: str = None,
         numerical_features: list[str] = None,
         categorical_features: dict[str, list] = None,
@@ -661,6 +667,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         k_folds: int, optional
             The number of cross-validation folds to use. By default 1 (no CV).
             If k_folds != 1, ignores test_set_size (there's no test set).
+        num_chroms_for_test : int, optional
+            Number of chromosomes to exclude from training and include exclusively in test set.
         numerical_features : list[str], optional
             List of numerical features to use, default (None): [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
         categorical_features : dict[str, list], optional
@@ -774,14 +782,16 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 if chrom_to_exclude in chrom_list:
                     chrom_list.remove(chrom_to_exclude)
                     logger.warning(f"Excluding {chrom_to_exclude} from the list of chromosomes")
-            if len(chrom_list) < self.k_folds:
+            self.num_chroms_for_test = num_chroms_for_test
+            if len(chrom_list) - self.num_chroms_for_test < self.k_folds:
                 logger.warning(
                     f"Number of chromosomes ({len(chrom_list)}) is less than the number of folds ({self.k_folds})!"
                 )
             chrom_sizes_filt = {chrom: size for chrom, size in chrom_sizes.items() if chrom in chrom_list}
-            self.chroms_to_folds = partition_into_folds(pd.Series(chrom_sizes_filt), self.k_folds)
+            self.chroms_to_folds = partition_into_folds(pd.Series(chrom_sizes_filt), self.k_folds, n_test=self.num_chroms_for_test)
         else:
             self.chroms_to_folds = None
+            self.num_chroms_for_test = None
 
         # determine output paths
         os.makedirs(out_path, exist_ok=True)
@@ -918,6 +928,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "pre_filter": self.pre_filter,
             "random_seed": self.random_seed,
             "chroms_to_folds": self.chroms_to_folds,
+            "num_chroms_for_test": self.num_chroms_for_test,
             "num_CV_folds": self.k_folds,
             "normalization_factors_dict": self.normalization_factors_dict,
         }
@@ -1207,7 +1218,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         )
         if self.use_CV:
             if self.split_folds_by_chrom:
-                self.featuremap_df[FOLD_ID] = self.featuremap_df["chrom"].map(self.chroms_to_folds)
+                self.featuremap_df[FOLD_ID] = self.featuremap_df["chrom"].map(self.chroms_to_folds).astype('Int64')
             else:
                 # rng = np.random.default_rng(seed=14)
                 N_train = self.featuremap_df.shape[0]
