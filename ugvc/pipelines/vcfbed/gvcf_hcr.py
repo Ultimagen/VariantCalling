@@ -20,4 +20,4 @@ import sys
 from ugvc.pipelines.vcfbed.gvcf_hcr_main import run
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    run(sys.argv)

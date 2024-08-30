@@ -20,10 +20,11 @@ def argparse_gvcf_to_bed() -> argparse.ArgumentParser:
     return parser
 
 
-def run(argc: list) -> None:
+def run(argv: list) -> None:
+    """Converts gVCF to high confidence BED file."""
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     logger = logging.getLogger(__name__)
-    args = argparse_gvcf_to_bed().parse_args(argc)
+    args = argparse_gvcf_to_bed().parse_args(argv[1:])
     logger.info("Step 1: Create intervals of low confidence")
     with tempfile.TemporaryDirectory(dir=dirname(args.bed)) as tmp_dir:
         step1_file = os.path.join(tmp_dir, "low_confidence.bed")
