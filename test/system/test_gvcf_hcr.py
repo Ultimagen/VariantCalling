@@ -11,6 +11,7 @@ def test_gvcf_hcr(tmpdir):
     inputs_dir = get_resource_dir(__file__)
     gvcf_hcr.run(
         [
+            "gvcf_hcr.py",
             "--gvcf",
             f"{inputs_dir}/calls.g.vcf.gz",
             "--bed",
