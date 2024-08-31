@@ -49,3 +49,17 @@ def test_matrix_from_trimmed_read():
 
     np.testing.assert_array_almost_equal(flow_based_read._flow_matrix[:, 2], np.ones(21) / 21, 0.0001)
     np.testing.assert_array_almost_equal(flow_based_read._flow_matrix[:, -1], np.ones(21) / 21, 0.0001)
+
+
+def test_get_flow_matrix_column_for_base():
+    data = [x for x in pysam.AlignmentFile(pjoin(input_dir, "chr9.sample.bam"))]
+    fbrs = [
+        fbr.FlowBasedRead.from_sam_record(x, flow_order=DEFAULT_FLOW_ORDER, _fmt="cram", max_hmer_size=12) for x in data
+    ]
+    for rec in fbrs:
+        for i in range(len(str(rec.record.query_sequence))):
+            assert rec.get_flow_matrix_column_for_base(i)[0] == str(rec.record.query_sequence)[i]
+            if i > 12 and i < len(str(rec.record.query_sequence)) - 12:
+                assert (
+                    rec.key[rec.base_to_flow_mapping[i]] == np.argmax(rec.get_flow_matrix_column_for_base(i)[1])
+                ) or np.max(rec.get_flow_matrix_column_for_base(i)[1]) < 0.9
