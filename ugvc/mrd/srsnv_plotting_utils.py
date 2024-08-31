@@ -19,7 +19,7 @@ from matplotlib import cm, colors
 from matplotlib import lines as mlines
 from scipy.interpolate import interp1d
 from scipy.stats import binom
-from sklearn.metrics import confusion_matrix, precision_score, recall_score
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, roc_auc_score
 from tqdm import tqdm
 from ugbio_core.exec_utils import print_and_execute
 from ugbio_core.filter_bed import count_bases_in_bed_file
@@ -32,6 +32,15 @@ from ugvc.utils.misc_utils import filter_valid_queries
 from ugbio_core.plotting_utils import set_pyplot_defaults
 from ugbio_core.filter_bed import count_bases_in_bed_file
 
+# featuremap_df column names. TODO: make more generic?
+ML_PROB_1_TEST = "ML_prob_1_test"
+ML_QUAL_1_TEST = "ML_qual_1_test"
+ML_LOGIT_TEST = "ML_logit_test"
+LABEL = "label"
+QUAL = "qual"
+IS_MIXED = "is_mixed"
+FOLD_ID = "fold_id"
+
 edist_filter = f"{FeatureMapFields.X_EDIST.value} <= 5"
 HQ_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 7.9"
 CSKP_SNV_filter = f"{FeatureMapFields.X_SCORE.value} >= 10"
@@ -39,7 +48,7 @@ read_end_filter = (
     f"{FeatureMapFields.X_INDEX.value} > 12 and "
     f"{FeatureMapFields.X_INDEX.value} < ({FeatureMapFields.X_LENGTH.value} - 12)"
 )
-mixed_read_filter = "is_mixed"  # TODO use adapter_version
+mixed_read_filter = IS_MIXED  # TODO use adapter_version
 default_LoD_filters = {
     "no_filter": f"{FeatureMapFields.X_SCORE.value} >= 0",
     "HQ_SNV": f"{HQ_SNV_filter} and {edist_filter}",
@@ -239,22 +248,24 @@ def srsnv_report(
     reporthtml = pjoin(out_path, f"{out_basename}{report_name}_report.html")
 
     [
-        output_roc_plot,
         output_LoD_plot,
         qual_vs_ppmseq_tags_table,
         training_progerss_plot,
         SHAP_importance_plot,
         SHAP_beeswarm_plot,
         trinuc_stats_plot,
-        output_LoD_qual_plot,
-        output_cm_plot,
-        output_obsereved_qual_plot,
-        output_ML_qual_hist,
         output_qual_per_feature,
         qual_histogram,
-        output_ppmSeq_hists,
-        output_ppmSeq_fpr,
-        output_ppmSeq_recalls,
+        logit_histogram,
+        link_fn_with_hist,
+        # output_roc_plot,
+        # output_LoD_qual_plot,
+        # output_cm_plot,
+        # output_obsereved_qual_plot,
+        # output_ML_qual_hist,
+        # output_ppmSeq_hists,
+        # output_ppmSeq_fpr,
+        # output_ppmSeq_recalls,
     ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
     srsnv_qc_h5_filename = os.path.join(out_path, f"{out_basename}single_read_snv.applicationQC.h5")
 
@@ -267,22 +278,16 @@ def srsnv_report(
 -p model_file {model_file} \
 -p params_file {params_file} \
 -p srsnv_qc_h5_file {srsnv_qc_h5_filename} \
--p output_roc_plot {output_roc_plot} \
 -p output_LoD_plot {output_LoD_plot} \
 -p qual_vs_ppmseq_tags_table {qual_vs_ppmseq_tags_table} \
 -p training_progerss_plot {training_progerss_plot} \
 -p SHAP_importance_plot {SHAP_importance_plot} \
 -p SHAP_beeswarm_plot {SHAP_beeswarm_plot} \
 -p trinuc_stats_plot {trinuc_stats_plot} \
--p output_LoD_qual_plot {output_LoD_qual_plot} \
--p output_cm_plot {output_cm_plot} \
--p output_obsereved_qual_plot {output_obsereved_qual_plot} \
--p output_ML_qual_hist {output_ML_qual_hist} \
 -p output_qual_per_feature {output_qual_per_feature} \
 -p qual_histogram {qual_histogram} \
--p output_bepcr_hists {output_ppmSeq_hists} \
--p output_bepcr_fpr {output_ppmSeq_fpr} \
--p output_bepcr_recalls {output_ppmSeq_recalls} \
+-p logit_histogram {logit_histogram} \
+-p link_fn_with_hist {link_fn_with_hist} \
 -k python3"
     preprocessor_name = "ugvc.mrd.toc_preprocessor.TocPreprocessor"
     jupyter_nbconvert_command = (
@@ -1356,40 +1361,44 @@ def _get_plot_paths(report_name, out_path, out_basename):
     outdir = out_path
     basename = out_basename
 
-    output_roc_plot = os.path.join(outdir, f"{basename}{report_name}.ROC_curve")
     output_LoD_plot = os.path.join(outdir, f"{basename}{report_name}.LoD_curve")
     qual_vs_ppmseq_tags_table = os.path.join(outdir, f"{basename}{report_name}.qual_vs_ppmSeq_tags_table")
     training_progerss_plot = os.path.join(outdir, f"{basename}{report_name}.training_progress")
     SHAP_importance_plot = os.path.join(outdir, f"{basename}{report_name}.SHAP_importance")
     SHAP_beeswarm_plot = os.path.join(outdir, f"{basename}{report_name}.SHAP_beeswarm")
     trinuc_stats_plot = os.path.join(outdir, f"{basename}{report_name}.trinuc_stats")
-    output_LoD_qual_plot = os.path.join(outdir, f"{basename}{report_name}.LoD_qual_curve")
     qual_histogram = os.path.join(outdir, f"{basename}{report_name}.qual_histogram")
-    output_cm_plot = os.path.join(outdir, f"{basename}{report_name}.confusion_matrix")
-    output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
-    output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
+    logit_histogram = os.path.join(outdir, f"{basename}{report_name}.logit_histogram")
+    link_fn_with_hist = os.path.join(outdir, f"{basename}{report_name}.link_fn_with_hist")
     output_qual_per_feature = os.path.join(outdir, f"{basename}{report_name}.qual_per_")
-    output_ppmSeq_hists = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_")
-    output_ppmSeq_fpr = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_fpr")
-    output_ppmSeq_recalls = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_recalls")
+    # output_roc_plot = os.path.join(outdir, f"{basename}{report_name}.ROC_curve")
+    # output_LoD_qual_plot = os.path.join(outdir, f"{basename}{report_name}.LoD_qual_curve")
+    # output_cm_plot = os.path.join(outdir, f"{basename}{report_name}.confusion_matrix")
+    # output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
+    # output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
+    # output_ppmSeq_hists = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_")
+    # output_ppmSeq_fpr = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_fpr")
+    # output_ppmSeq_recalls = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_recalls")
 
     return [
-        output_roc_plot,
         output_LoD_plot,
         qual_vs_ppmseq_tags_table,
         training_progerss_plot,
         SHAP_importance_plot,
         SHAP_beeswarm_plot,
         trinuc_stats_plot,
-        output_LoD_qual_plot,
-        output_cm_plot,
-        output_obsereved_qual_plot,
-        output_ML_qual_hist,
         output_qual_per_feature,
         qual_histogram,
-        output_ppmSeq_hists,
-        output_ppmSeq_fpr,
-        output_ppmSeq_recalls,
+        logit_histogram,
+        link_fn_with_hist,
+        # output_roc_plot,
+        # output_LoD_qual_plot,
+        # output_cm_plot,
+        # output_obsereved_qual_plot,
+        # output_ML_qual_hist,
+        # output_ppmSeq_hists,
+        # output_ppmSeq_fpr,
+        # output_ppmSeq_recalls,
     ]
 
 
@@ -1656,9 +1665,204 @@ class SRSNVReport:
         run_info_table.to_hdf(self.output_h5_filename, key="run_info_table", mode="a")
 
     @exception_handler
-    def calc_training_metrics_table(self):
-        """Calculte main run quality statistics"""
-        pass
+    def plot_interpolating_function_with_histograms(self, output_filename: str = None):
+        """Plot the interpolating function with histograms of the data.
+        Arguments:
+            output_filename: str: path to output file
+        """
+        logger.info("Generating plot of ML_qual -> SNVQ link function (with histograms)")
+        ml_qual_max_int = np.floor(self.data_df["ML_qual_1_test"].max())
+        x_ml_qual = np.arange(1e-10, ml_qual_max_int, 0.1)
+
+        xs = self.ML_qual_to_qual_fn((x_ml_qual[1:] + x_ml_qual[:-1]) / 2).reshape(
+            -1,
+        )
+        ys = 0.1 / (self.ML_qual_to_qual_fn(x_ml_qual)[1:] - self.ML_qual_to_qual_fn(x_ml_qual)[:-1]).reshape(
+            -1,
+        )
+
+        plot_df = self.data_df[self.data_df[LABEL]]
+
+        # Set the axis limits
+        xmin, xmax = 0.99 * xs.min(), xs.max() * 1.01
+        ymin, ymax = 0, ml_qual_max_int + 1
+
+        # Create a figure with a gridspec layout to control the positions of the marginals
+        fig = plt.figure(figsize=(10, 10))
+        gs = fig.add_gridspec(8, 4, hspace=0.0, wspace=0.0)
+
+        # Joint scatterplot
+        ax_joint = fig.add_subplot(gs[3:8, 0:3])
+        sns.scatterplot(data=plot_df, x=QUAL, y=ML_QUAL_1_TEST, color="black", s=1, alpha=1, ax=ax_joint)
+        ax_joint.grid(True)
+        ax_joint.set_xlim(xmin, xmax)
+        ax_joint.set_ylim(ymin, ymax)
+
+        # X-axis marginal histplot
+        ax_marg_x = fig.add_subplot(gs[0:2, 0:3], sharex=ax_joint)
+        sns.histplot(
+            data=plot_df,
+            x=QUAL,
+            hue=IS_MIXED,
+            hue_order=[False, True],
+            element="step",
+            stat="density",
+            common_norm=False,
+            linewidth=1,
+            ax=ax_marg_x,
+            palette={False: "red", True: "green"},
+        )
+        ax_marg_x.grid(True)
+        ax_marg_x.set_xlabel("")
+        plt.setp(ax_marg_x.get_xticklabels(), visible=False)
+        sns.move_legend(
+            ax_marg_x,
+            "upper left",
+        )
+
+        # Extra plot (in the middle-left position)
+        ax_extra = fig.add_subplot(gs[2, 0:3], sharex=ax_joint)
+        ax_extra.plot(xs, ys, "k.-")
+        ax_extra.grid(True)
+        ax_extra.set_xlabel("")
+        ax_extra.set_ylabel("deriv")
+        plt.setp(ax_extra.get_xticklabels(), visible=False)
+
+        # Y-axis marginal histplot
+        ax_marg_y = fig.add_subplot(gs[3:8, 3], sharey=ax_joint)
+        sns.histplot(
+            data=plot_df,
+            y=ML_QUAL_1_TEST,
+            hue=IS_MIXED,
+            hue_order=[False, True],
+            element="step",
+            stat="density",
+            common_norm=False,
+            linewidth=1,
+            ax=ax_marg_y,
+            palette={False: "red", True: "green"},
+        )
+        ax_marg_y.grid(True)
+        ax_marg_y.set_ylabel("")
+        ax_marg_y.get_legend().set_visible(False)
+        plt.setp(ax_marg_y.get_yticklabels(), visible=False)
+
+        # Adjust the layout to ensure no space between the plots
+        plt.tight_layout()
+        gs.update(hspace=0.0, wspace=0.0)
+        self._save_plt(output_filename, fig)
+        plt.show()
+
+    @exception_handler
+    def calc_roc_auc_table(self, holdout_fold_size_thresh: int = 100):
+        """Calculte statistics of ROC AUC
+        Arguments:
+            holdout_fold_size_thresh: int: holdout set (fold_id is NaN) must be at least
+                this size to calculate statistics on it
+        """
+        logger.info("Generating ROC AUC table")
+
+        num_CV_folds = self.params["num_CV_folds"]
+        auc_total = prob_to_phred(roc_auc_score(self.data_df[LABEL], self.data_df[ML_PROB_1_TEST]))
+        mix_cond = self.data_df[IS_MIXED]
+        auc_mixed = prob_to_phred(
+            roc_auc_score(self.data_df.loc[mix_cond, LABEL], self.data_df.loc[mix_cond, ML_PROB_1_TEST])
+        )
+        auc_non_mixed = prob_to_phred(
+            roc_auc_score(self.data_df.loc[~mix_cond, LABEL], self.data_df.loc[~mix_cond, ML_PROB_1_TEST])
+        )
+
+        auc_per_fold = []
+        auc_per_fold_mixed = []
+        auc_per_fold_non_mixed = []
+        auc_on_holdout = []
+        auc_on_holdout_mixed = []
+        auc_on_holdout_non_mixed = []
+        for k in range(num_CV_folds):
+            fold_cond = self.data_df[FOLD_ID] == k
+            mix_fold_cond = (self.data_df[FOLD_ID] == k) & (self.data_df[IS_MIXED])
+            nonmix_fold_cond = (self.data_df[FOLD_ID] == k) & (~self.data_df[IS_MIXED])
+            auc_per_fold.append(
+                prob_to_phred(
+                    roc_auc_score(self.data_df.loc[fold_cond, LABEL], self.data_df.loc[fold_cond, "ML_prob_1_test"])
+                )
+            )
+            auc_per_fold_mixed.append(
+                prob_to_phred(
+                    roc_auc_score(
+                        self.data_df.loc[mix_fold_cond, LABEL], self.data_df.loc[mix_fold_cond, "ML_prob_1_test"]
+                    )
+                )
+            )
+            auc_per_fold_non_mixed.append(
+                prob_to_phred(
+                    roc_auc_score(
+                        self.data_df.loc[nonmix_fold_cond, LABEL], self.data_df.loc[nonmix_fold_cond, "ML_prob_1_test"]
+                    )
+                )
+            )
+
+            holdout_fold_cond = self.data_df[FOLD_ID].isna()
+            if holdout_fold_cond.sum() > holdout_fold_size_thresh:
+                mix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (self.data_df[IS_MIXED])
+                nonmix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (~self.data_df[IS_MIXED])
+                all_features = self.params["numerical_features"] + self.params["categorical_features_names"]
+                auc_on_holdout.append(
+                    prob_to_phred(
+                        roc_auc_score(
+                            self.data_df.loc[holdout_fold_cond, LABEL],
+                            self.models[k].predict_proba(self.data_df.loc[holdout_fold_cond, all_features])[:, 1],
+                        )
+                    )
+                )
+                auc_on_holdout_mixed.append(
+                    prob_to_phred(
+                        roc_auc_score(
+                            self.data_df.loc[mix_holdout_fold_cond, LABEL],
+                            self.models[k].predict_proba(self.data_df.loc[mix_holdout_fold_cond, all_features])[:, 1],
+                        )
+                    )
+                )
+                auc_on_holdout_non_mixed.append(
+                    prob_to_phred(
+                        roc_auc_score(
+                            self.data_df.loc[nonmix_holdout_fold_cond, LABEL],
+                            self.models[k].predict_proba(self.data_df.loc[nonmix_holdout_fold_cond, all_features])[
+                                :, 1
+                            ],
+                        )
+                    )
+                )
+
+        auc_table_dict = {
+            "ROC AUC": [auc_total, auc_mixed, auc_non_mixed],
+            "ROC AUC per fold mean": [
+                np.array(auc_per_fold).mean(),
+                np.array(auc_per_fold_mixed).mean(),
+                np.array(auc_per_fold_non_mixed).mean(),
+            ],
+            "ROC AUC per fold std": [
+                np.array(auc_per_fold).std(),
+                np.array(auc_per_fold_mixed).std(),
+                np.array(auc_per_fold_non_mixed).std(),
+            ],
+        }
+
+        if holdout_fold_cond.sum() > holdout_fold_size_thresh:
+            auc_table_dict["ROC AUC on holdout mean"] = [
+                np.array(auc_on_holdout).mean(),
+                np.array(auc_on_holdout_mixed).mean(),
+                np.array(auc_on_holdout_non_mixed).mean(),
+            ]
+            auc_table_dict["ROC AUC on holdout std"] = [
+                np.array(auc_on_holdout).std(),
+                np.array(auc_on_holdout_mixed).std(),
+                np.array(auc_on_holdout_non_mixed).std(),
+            ]
+
+        pd.DataFrame(auc_table_dict, index=["Total", "Mixed only", "Non-mixed only"]).to_hdf(
+            self.output_h5_filename, key="roc_auc_table", mode="a"
+        )
 
     @exception_handler
     def calc_run_quality_table(
@@ -2148,69 +2352,6 @@ class SRSNVReport:
         return trinuc_ref_alt, trinuc_index, snv_labels
 
     @exception_handler
-    def plot_quality_histogram(self, plot_interpolating_function: bool = False, output_filename: str = None):
-        """Plot a histogram of qual values for TP reads, both mixed and non-mixed."""
-        # label_fontsize = 12
-        # ticklabelsfontsize = 12
-        if plot_interpolating_function:
-            fig, axes = plt.subplots(
-                3, 1, figsize=(7, 5), sharex=True, gridspec_kw={"height_ratios": [5, 2, 3], "hspace": 0}
-            )
-            ax = axes[0]
-        else:
-            fig, ax = plt.subplots(figsize=(7, 4))
-            axes = [ax]
-
-        xs = np.arange(0.00001, 30, 0.1)
-        sns.histplot(
-            data=self.data_df[self.data_df["label"]],
-            x="qual",
-            # bins=50,
-            hue="is_mixed",
-            hue_order=[False, True],
-            element="step",
-            stat="density",
-            common_norm=False,
-            kde=True,
-            kde_kws={"bw_adjust": 3},
-            linewidth=1,
-            ax=ax,
-            palette={False: "red", True: "green"},  # Map False to red and True to green
-        )
-        sns.move_legend(
-            ax,
-            "upper left",
-        )
-        ax.set_ylabel("Density")  # , fontsize=label_fontsize)
-        ax.grid(visible=True)
-        if plot_interpolating_function:
-            ax = axes[1]
-            ax.plot(
-                self.ML_qual_to_qual_fn((xs[1:] + xs[:-1]) / 2),
-                0.1 / (self.ML_qual_to_qual_fn(xs)[1:] - self.ML_qual_to_qual_fn(xs)[:-1]),
-                ".-",
-            )
-            ax.set_ylabel("ML_qual'")  # , fontsize=label_fontsize)
-            ax.grid(visible=True)
-
-            ax = axes[2]
-            ax.plot(self.ML_qual_to_qual_fn(xs), xs, ".-")
-            ax.set_ylabel("ML_qual")  # , fontsize=label_fontsize)
-            ax.grid(visible=True)
-
-        ax.set_xlabel("SNVQ")  # , fontsize=label_fontsize)
-        ax.set_xlim([0.99 * self.ML_qual_to_qual_fn(xs).min(), self.ML_qual_to_qual_fn(xs).max() * 1.01])
-        # ticklabels = ax.get_xmajorticklabels()
-        # ax.set_xticklabels(ticklabels, fontsize=ticklabelsfontsize)
-        # for ax in axes:
-        #     ticklabels = ax.get_ymajorticklabels()
-        #     ax.set_yticklabels(ticklabels, fontsize=ticklabelsfontsize)
-
-        fig.tight_layout()
-        plt.show()
-        self._save_plt(output_filename, fig=fig)
-
-    @exception_handler
     def calc_and_plot_trinuc_plot(
         self,
         output_filename: str = None,
@@ -2385,9 +2526,9 @@ class SRSNVReport:
             ax2.grid(visible=False)
 
         # legend
-        handles_frac.append(bars_false.patches[96])
+        handles_frac.append(bars_false.patches[0])
         labels_frac.append("FP")
-        handles_frac.append(bars_true.patches[0])
+        handles_frac.append(bars_true.patches[96])
         labels_frac.append("TP")
         handles_qual.append(line_false)
         labels_qual.append("Non-mixed reads")
@@ -2581,6 +2722,144 @@ class SRSNVReport:
         )
         self._save_plt(output_filename=output_filename, fig=fig)
 
+    def _get_histogram_data(self, ax, col_name=""):
+        """Get histogram data from a matplotlib axis that was created by a call
+        for seaborn's sns.histplot(..., element='step').
+        Arguments:
+            ax [matplotlib.Axes]: matplotlib axis
+            col_name [str]: column name to assign to the histogram data
+        """
+        hist_dict = {}
+        for (poly_collection, label) in zip(ax.collections, ax.get_legend().get_texts()):
+            vertices = poly_collection.get_paths()[0].vertices
+            hist_dict[(col_name + " " + label.get_text(), "bin_edges")] = vertices[:, 0]
+            hist_dict[(col_name + " " + label.get_text(), "density")] = vertices[:, 1]
+        return pd.DataFrame(hist_dict)
+
+    @exception_handler
+    def plot_quality_histogram(self, plot_interpolating_function: bool = False, output_filename: str = None):
+        """Plot a histogram of qual values for TP reads, both mixed and non-mixed."""
+        # label_fontsize = 12
+        # ticklabelsfontsize = 12
+        logger.info("Plotting SNVQ histogram")
+        if plot_interpolating_function:
+            fig, axes = plt.subplots(
+                3, 1, figsize=(12, 10), sharex=True, gridspec_kw={"height_ratios": [5, 2, 3], "hspace": 0}
+            )
+            ax = axes[0]
+        else:
+            fig, ax = plt.subplots(figsize=(12, 7))
+            axes = [ax]
+
+        plot_df = self.data_df[self.data_df[LABEL]]
+        g = sns.histplot(
+            data=plot_df,
+            x=QUAL,
+            # bins=50,
+            hue=IS_MIXED,
+            hue_order=[False, True],
+            element="step",
+            stat="density",
+            common_norm=False,
+            kde=True,
+            kde_kws={"bw_adjust": 3},
+            linewidth=1,
+            ax=ax,
+            palette={False: "red", True: "green"},  # Map False to red and True to green
+        )
+        sns.move_legend(
+            ax,
+            "upper left",
+        )
+        ax.set_ylabel("Density")  # , fontsize=label_fontsize)
+        ax.grid(visible=True)
+        xlims = [0.99 * plot_df[QUAL].min(), plot_df[QUAL].max() * 1.01]
+        hist_data_df = self._get_histogram_data(g, col_name=IS_MIXED)
+        hist_data_df.to_hdf(self.output_h5_filename, key="quality_histogram", mode="a")
+        if plot_interpolating_function:
+            xs = np.arange(1e-10, np.floor(self.data_df[ML_QUAL_1_TEST].max()), 0.1)
+            ax = axes[1]
+            ax.plot(
+                self.ML_qual_to_qual_fn((xs[1:] + xs[:-1]) / 2),
+                0.1 / (self.ML_qual_to_qual_fn(xs)[1:] - self.ML_qual_to_qual_fn(xs)[:-1]),
+                ".-",
+            )
+            ax.set_ylabel("ML_qual'")  # , fontsize=label_fontsize)
+            ax.grid(visible=True)
+
+            ax = axes[2]
+            ax.plot(self.ML_qual_to_qual_fn(xs), xs, ".-")
+            ax.set_ylabel("ML_qual")  # , fontsize=label_fontsize)
+            ax.grid(visible=True)
+            # If plotting the interpolating function, might need to widen the xlims
+            xlims = [0.99 * self.ML_qual_to_qual_fn(xs).min(), self.ML_qual_to_qual_fn(xs).max() * 1.01]
+
+        ax.set_xlabel("SNVQ")  # , fontsize=label_fontsize)
+        ax.set_xlim(xlims)
+        # ticklabels = ax.get_xmajorticklabels()
+        # ax.set_xticklabels(ticklabels, fontsize=ticklabelsfontsize)
+        # for ax in axes:
+        #     ticklabels = ax.get_ymajorticklabels()
+        #     ax.set_yticklabels(ticklabels, fontsize=ticklabelsfontsize)
+
+        fig.tight_layout()
+        plt.show()
+        self._save_plt(output_filename, fig=fig)
+
+    def _plot_logit_histogram(self, plot_df, ax, alpha=0.4):
+        """Plot a single histogram of logit values, by: FP, TP mixed, TP non-mixed."""
+        plot_df[""] = plot_df[LABEL].astype(str)
+        plot_df.loc[~plot_df[LABEL], ""] = "FP"
+        plot_df.loc[plot_df[LABEL] & plot_df[IS_MIXED], ""] = "TP mixed"
+        plot_df.loc[plot_df[LABEL] & ~plot_df[IS_MIXED], ""] = "TP non-mixed"
+        sns.histplot(
+            data=plot_df,
+            x=ML_LOGIT_TEST,
+            hue="",
+            hue_order=["FP", "TP mixed", "TP non-mixed"],
+            palette={"FP": "tab:blue", "TP non-mixed": "red", "TP mixed": "green"},
+            element="step",
+            stat="density",
+            common_norm=False,
+            alpha=alpha,
+            ax=ax,
+        )
+
+    @exception_handler
+    def plot_logit_histograms(self, plot_by_fold: bool = True, output_filename: str = None):
+        """Plot a histogram of logit values, by: FP, TP mixed, TP non-mixed.
+        If plot_by_fold is True, overlay histograms for each fold.
+        """
+        # label_fontsize = 12
+        # ticklabelsfontsize = 12
+        logger.info("Plotting logit histogram")
+        fig, ax = plt.subplots(figsize=(12, 7))
+
+        plot_df = self.data_df[[ML_LOGIT_TEST, LABEL, IS_MIXED, FOLD_ID]].copy()
+        self._plot_logit_histogram(plot_df, ax)
+        hist_data_df = self._get_histogram_data(ax, col_name="")
+        hist_data_df.to_hdf(self.output_h5_filename, key="logit_histogram", mode="a")
+
+        if plot_by_fold:
+            plt.close(fig)
+            fig, ax = plt.subplots(figsize=(12, 7))
+            plot_dfs = [plot_df[plot_df[FOLD_ID] == k] for k in range(len(self.models))]
+            for plot_df in plot_dfs:
+                self._plot_logit_histogram(plot_df, ax, alpha=0.15)
+
+        sns.move_legend(
+            ax,
+            "upper left",
+        )
+        ax.set_ylabel("Density")  # , fontsize=label_fontsize)
+        ax.grid(visible=True)
+        xmin, xmax = [0.99 * self.data_df[ML_LOGIT_TEST].min(), self.data_df[ML_LOGIT_TEST].max() * 1.01]
+        ax.set_xlabel("ML logit")  # , fontsize=label_fontsize)
+        ax.set_xlim([xmin, xmax])
+        fig.tight_layout()
+        plt.show()
+        self._save_plt(output_filename, fig=fig)
+
     # ### HERE
 
     def create_report(self):
@@ -2589,28 +2868,37 @@ class SRSNVReport:
         # Get filenames for plots
         # TODO: change report_name
         [
-            output_roc_plot,
             output_LoD_plot,
             qual_vs_ppmseq_tags_table,
             training_progerss_plot,
             SHAP_importance_plot,
             SHAP_beeswarm_plot,
             trinuc_stats_plot,
-            output_LoD_qual_plot,
-            output_cm_plot,
-            output_obsereved_qual_plot,
-            output_ML_qual_hist,
             output_qual_per_feature,
             qual_histogram,
-            output_ppmSeq_hists,
-            output_ppmSeq_fpr,
-            output_ppmSeq_recalls,
+            logit_histogram,
+            link_fn_with_hist,
+            # output_roc_plot,
+            # output_LoD_qual_plot,
+            # output_cm_plot,
+            # output_obsereved_qual_plot,
+            # output_ML_qual_hist,
+            # output_ppmSeq_hists,
+            # output_ppmSeq_fpr,
+            # output_ppmSeq_recalls,
         ] = _get_plot_paths("test", out_path=self.params["workdir"], out_basename=self.params["data_name"])
         # General info
         self.calc_run_info_table()
         # Quality stats
         self.calc_run_quality_table()
         self.quality_per_ppmseq_tags(output_filename=qual_vs_ppmseq_tags_table)
+
+        # ROC AUC stats
+        self.calc_roc_auc_table()
+
+        # ML_qual histograms
+        self.plot_logit_histograms(output_filename=logit_histogram)
+        self.plot_interpolating_function_with_histograms(output_filename=link_fn_with_hist)
 
         # Training progress
         self.training_progress_plot(output_filename=training_progerss_plot)
@@ -2633,32 +2921,33 @@ class SRSNVReport:
         # ### From here on is the old code
         # report_name = "test"
         # Create dataframes for test and train seperately
-        pred_cols = (
-            [f"ML_prob_{i}" for i in (0, 1)] + [f"ML_qual_{i}" for i in (0, 1)] + [f"ML_prediction_{i}" for i in (0, 1)]
-        )
-        dataset, other_dataset = ("test", "train")
-        data_df = self.data_df.copy()
-        data_df.drop(columns=[f"{col}_{other_dataset}" for col in pred_cols], inplace=True)
-        data_df.rename(columns={f"{col}_{dataset}": col for col in pred_cols}, inplace=True)
-        # Make sure to take only reads that are indeed in the "train"/"test" sets:
-        data_df = data_df.loc[~data_df["ML_prob_1"].isna(), :]
+        # pred_cols = (
+        #     [f"ML_prob_{i}" for i in (0, 1)] + [f"ML_qual_{i}" for i in (0, 1)] +
+        #     [f"ML_prediction_{i}" for i in (0, 1)]
+        # )
+        # dataset, other_dataset = ("test", "train")
+        # data_df = self.data_df.copy()
+        # data_df.drop(columns=[f"{col}_{other_dataset}" for col in pred_cols], inplace=True)
+        # data_df.rename(columns={f"{col}_{dataset}": col for col in pred_cols}, inplace=True)
+        # # Make sure to take only reads that are indeed in the "train"/"test" sets:
+        # data_df = data_df.loc[~data_df["ML_prob_1"].isna(), :]
 
         # From what I can tell, fprs is needed only for the calibration plot (reliability diagram)
         # max_score is used several times when plotting ML_qual.
         # df_tp, df_fp are used only for percision-recall curve (called here ROC curve)
         # cls_features is used for plotting qual per feature
-        (
-            df,
-            df_tp,
-            df_fp,
-            max_score,
-            _,  # cls_features,
-            fprs,
-            _,
-        ) = create_data_for_report(self.models, data_df)
-        df_X_with_pred_columns = df
+        # (
+        #     df,
+        #     df_tp,
+        #     df_fp,
+        #     max_score,
+        #     _,  # cls_features,
+        #     fprs,
+        #     _,
+        # ) = create_data_for_report(self.models, data_df)
+        # df_X_with_pred_columns = df
 
-        labels_dict = {1: "TP", 0: "FP"}
+        # labels_dict = {1: "TP", 0: "FP"}
 
         # lod_basic_filters = self.lod_filters or default_LoD_filters
         # ML_filters = {f"ML_qual_{q}": f"ML_qual_1 >= {q}" for q in range(0, max_score + 1)}
@@ -2725,39 +3014,39 @@ class SRSNVReport:
                 min_LoD_filter,
                 output_filename=output_LoD_plot,
             )
-            plot_LoD_vs_qual(
-                self.df_mrd_simulation,
-                self.c_lod,
-                output_filename=output_LoD_qual_plot,
-            )
+            # plot_LoD_vs_qual(
+            #     self.df_mrd_simulation,
+            #     self.c_lod,
+            #     output_filename=output_LoD_qual_plot,
+            # )
 
-        plot_ROC_curve(
-            df_X_with_pred_columns,
-            df_tp,
-            df_fp,
-            ML_score="ML_qual_1",
-            adapter_version=self.params["adapter_version"],
-            output_filename=output_roc_plot,
-        )
+        # plot_ROC_curve(
+        #     df_X_with_pred_columns,
+        #     df_tp,
+        #     df_fp,
+        #     ML_score="ML_qual_1",
+        #     adapter_version=self.params["adapter_version"],
+        #     output_filename=output_roc_plot,
+        # )
 
-        plot_confusion_matrix(
-            df_X_with_pred_columns,
-            prediction_column_name="ML_prediction_1",
-            output_filename=output_cm_plot,
-        )
+        # plot_confusion_matrix(
+        #     df_X_with_pred_columns,
+        #     prediction_column_name="ML_prediction_1",
+        #     output_filename=output_cm_plot,
+        # )
 
-        plot_observed_vs_measured_qual(
-            labels_dict,
-            fprs,
-            max_score,
-            output_filename=output_obsereved_qual_plot,
-        )
-        plot_ML_qual_hist(
-            labels_dict,
-            df_X_with_pred_columns,
-            max_score,
-            output_filename=output_ML_qual_hist,
-        )
+        # plot_observed_vs_measured_qual(
+        #     labels_dict,
+        #     fprs,
+        #     max_score,
+        #     output_filename=output_obsereved_qual_plot,
+        # )
+        # plot_ML_qual_hist(
+        #     labels_dict,
+        #     df_X_with_pred_columns,
+        #     max_score,
+        #     output_filename=output_ML_qual_hist,
+        # )
         # plot_qual_per_feature(
         #     labels_dict,
         #     cls_features,
@@ -2765,27 +3054,27 @@ class SRSNVReport:
         #     output_filename=output_qual_per_feature,
         # )
 
-        is_mixed_flag = "is_mixed" in df_X_with_pred_columns
-        df_dict = get_data_subsets(df_X_with_pred_columns, is_mixed_flag)
-        fpr_dict, recall_dict = get_fpr_recalls_subsets(df_dict, max_score)
+        # is_mixed_flag = "is_mixed" in df_X_with_pred_columns
+        # df_dict = get_data_subsets(df_X_with_pred_columns, is_mixed_flag)
+        # fpr_dict, recall_dict = get_fpr_recalls_subsets(df_dict, max_score)
 
-        plot_subsets_hists(
-            labels_dict,
-            df_dict,
-            max_score,
-            output_filename=output_ppmSeq_hists,
-        )
+        # plot_subsets_hists(
+        #     labels_dict,
+        #     df_dict,
+        #     max_score,
+        #     output_filename=output_ppmSeq_hists,
+        # )
 
-        plot_mixed_fpr(
-            fpr_dict,
-            max_score,
-            output_filename=output_ppmSeq_fpr,
-        )
-        plot_mixed_recall(
-            recall_dict,
-            max_score,
-            output_filename=output_ppmSeq_recalls,
-        )
+        # plot_mixed_fpr(
+        #     fpr_dict,
+        #     max_score,
+        #     output_filename=output_ppmSeq_fpr,
+        # )
+        # plot_mixed_recall(
+        #     recall_dict,
+        #     max_score,
+        #     output_filename=output_ppmSeq_recalls,
+        # )
 
         # convert statistics to json
         convert_h5_to_json(
