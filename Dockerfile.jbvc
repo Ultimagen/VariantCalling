@@ -33,6 +33,13 @@ RUN source ~/.bashrc && \
     cd /VariantCalling && \
     pip install .
 
+# Install zip and unzip
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    zip \
+    unzip \
+    ; \
+    apt-get autoclean && rm -rf /var/lib/apt/lists/*
+# Install GATK
 RUN export GATK_VERSION="4.6.0.0" && \
     mkdir -p /gatk && \
     cd /gatk && \
