@@ -24,12 +24,13 @@ from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
-from ugvc.mrd.srsnv_plotting_utils import create_report, default_LoD_filters, retention_noise_and_mrd_lod_simulation
+from ugvc.mrd.srsnv_plotting_utils import SRSNVReport, default_LoD_filters, retention_noise_and_mrd_lod_simulation
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
 ML_QUAL = "ML_QUAL"
 FOLD_ID = "fold_id"
+IS_MIXED = "is_mixed"
 
 NUM_CHROMS_FOR_TEST = 1
 
@@ -1059,10 +1060,14 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             max_score_other = int(np.ceil(self.featuremap_df[ML_qual_col_other].max()))
             max_score = max(max_score, max_score_other)  # Adapted from older report cod, not sure why this is needed
         ML_filters = {f"ML_qual_{q}": f"{ML_qual_col} >= {q}" for q in range(0, max_score + 1)}
+        mixed_ML_filters = {
+            f"mixed_ML_qual_{q}": f"{IS_MIXED} and {ML_qual_col} >= {q}" for q in range(0, max_score + 1)
+        }
 
         self.lod_filters = {
             **lod_basic_filters,
             **ML_filters,
+            **mixed_ML_filters,
         }
 
         if self.fp_regions_bed_file is not None:
@@ -1115,50 +1120,23 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             ).astype(int)
 
     def create_report(self):
-        # # Create dataframes for test and train seperately
-        # pred_cols = (
-        #     [f"ML_prob_{i}" for i in (0, 1)] + [f"ML_qual_{i}" for i in (0, 1)] +
-        #     [f"ML_prediction_{i}" for i in (0, 1)]
-        # )
-        # featuremap_df = {}
-        # for dataset, other_dataset in zip(("test", "train"), ("train", "test")):
-        #     featuremap_df[dataset] = self.featuremap_df.copy()
-        #     featuremap_df[dataset].drop(columns=[f"{col}_{other_dataset}" for col in pred_cols], inplace=True)
-        #     featuremap_df[dataset].rename(columns={f"{col}_{dataset}": col for col in pred_cols}, inplace=True)
-        #     # Make sure to take only reads that are indeed in the "train"/"test" sets:
-        #     featuremap_df[dataset] = featuremap_df[dataset].loc[~featuremap_df[dataset]["ML_prob_1"].isna(), :]
-
-        for (df, statistics_h5_file, statistics_json_file) in zip(
-            [self.featuremap_df],  # [featuremap_df["test"]],
-            [self.test_statistics_h5_file],
-            [self.test_statistics_json_file],
-            # ["test", "train"],
-            # [featuremap_df["test"], featuremap_df["train"]],
-            # [
-            #     self.test_mrd_simulation_dataframe_file,
-            #     self.train_mrd_simulation_dataframe_file,
-            # ],
-            # [self.test_statistics_h5_file, self.train_statistics_h5_file],
-            # [self.test_statistics_json_file, self.train_statistics_json_file],
-            # ["test", "train"],
-        ):
-            create_report(
-                models=self.classifiers,
-                df=df,
-                params=self.get_params(),
-                out_path=self.out_path,
-                base_name=self.out_basename,
-                lod_filters=self.lod_filters_filtered,
-                lod_label=self.lod_label,
-                c_lod=self.c_lod,
-                # min_LoD_filter=self.min_LoD_filter,
-                df_mrd_simulation=self.df_mrd_simulation,
-                ML_qual_to_qual_fn=self.quality_interpolation_function,
-                statistics_h5_file=statistics_h5_file,
-                statistics_json_file=statistics_json_file,
-                rng=self.rng,
-                raise_exceptions=self.raise_exceptions_in_report,
-            )
+        SRSNVReport(
+            models=self.classifiers,
+            data_df=self.featuremap_df,
+            params=self.get_params(),
+            out_path=self.out_path,
+            base_name=self.out_basename,
+            lod_filters=self.lod_filters,
+            lod_label=self.lod_label,
+            c_lod=self.c_lod,
+            # min_LoD_filter=min_LoD_filter,
+            df_mrd_simulation=self.df_mrd_simulation,
+            ML_qual_to_qual_fn=self.quality_interpolation_function,
+            statistics_h5_file=self.test_statistics_h5_file,
+            statistics_json_file=self.test_statistics_json_file,
+            rng=self.rng,
+            raise_exceptions=self.raise_exceptions_in_report,
+        ).create_report()
 
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""

@@ -647,6 +647,7 @@ def plot_LoD(
 
     # TODO: a less patchy solution, perhaps accept ml_filters as a separate input
     ML_filters = {i: filters[i] for i in filters if i[:2] == "ML" and i in df_mrd_sim.index}
+    mixed_ML_filters = {i: filters[i] for i in filters if i[:8] == "mixed_ML" and i in df_mrd_sim.index}
 
     fig = plt.figure(figsize=(20, 12))
 
@@ -664,15 +665,21 @@ def plot_LoD(
     edgecolors_list = ["r", "r", "r"]
     msize_list = [150, 150, 150]
     if adapter_version in [av.value for av in ppmSeqAdapterVersions]:
+        filters_list.append(list(mixed_ML_filters))
+        markers_list.append("s")
+        labels_list.append("ML model, mixed only")
+        edgecolors_list.append("r")
+        msize_list.append(150)
+
         filters_list.append(["HQ_SNV_mixed_only"])
         markers_list.append(">")
-        labels_list.append("HQ_SNV and Edit Dist <= 5 (mixed only)")
+        labels_list.append("HQ_SNV and Edit Dist <= 5, mixed only")
         edgecolors_list.append("r")
         msize_list.append(150)
 
         filters_list.append(["CSKP_mixed_only"])
         markers_list.append("s")
-        labels_list.append("CSKP and Edit Dist <= 5 (mixed only)")
+        labels_list.append("CSKP and Edit Dist <= 5, mixed only")
         edgecolors_list.append("r")
         msize_list.append(150)
 
@@ -1428,7 +1435,10 @@ def calculate_lod_stats(
         name of the filter with the best LoD
     """
     df_mrd_simulation_ml = df_mrd_simulation.loc[df_mrd_simulation.index.str.startswith("ML")]
-    df_mrd_simulation_non_ml = df_mrd_simulation.loc[~df_mrd_simulation.index.str.startswith("ML")]
+    df_mrd_simulation_mixed_ml = df_mrd_simulation.loc[df_mrd_simulation.index.str.startswith("mixed_ML")]
+    df_mrd_simulation_non_ml = df_mrd_simulation.loc[
+        ~df_mrd_simulation.index.str.startswith("ML") & ~df_mrd_simulation.index.str.startswith("mixed_ML")
+    ]
     # Calculate percent of bases over each given quality threshold
     x_interp = -10 * np.log10(df_mrd_simulation_ml["residual_snv_rate"])  # Phred score
     y_interp = df_mrd_simulation_ml["tp_read_retention_ratio"]
@@ -1445,11 +1455,15 @@ def calculate_lod_stats(
     best_lod = df_mrd_simulation.loc[best_LoD_filter, lod_column]
     best_ML_LoD_filter = df_mrd_simulation_ml[lod_column].idxmin()
     best_ML_LoD = df_mrd_simulation_ml.loc[best_ML_LoD_filter, lod_column]
+    best_mixed_ML_LoD_filter = df_mrd_simulation_mixed_ml[lod_column].idxmin()
+    best_mixed_ML_LoD = df_mrd_simulation_mixed_ml.loc[best_mixed_ML_LoD_filter, lod_column]
     lod_stats_dict = {
         "best_LoD_filter": best_LoD_filter,
         "LoD_best": best_lod,
         "best_ML_LoD_filter": best_ML_LoD_filter,
         "LoD_best_ML": best_ML_LoD,
+        "best_mixed_ML_LoD_filter": best_mixed_ML_LoD_filter,
+        "LoD_best_mixed_ML": best_mixed_ML_LoD,
     }
     for column, stat_name in zip(
         (lod_column, RESIDUAL_SNV_RATE, TP_READ_RETENTION_RATIO),
@@ -1464,42 +1478,6 @@ def calculate_lod_stats(
     lod_stats.to_hdf(output_h5, key="lod_stats", mode="a")
 
     return best_LoD_filter
-
-
-def create_report(
-    models,
-    df,
-    params,
-    out_path,
-    base_name,
-    lod_filters,
-    lod_label,
-    c_lod,
-    # min_LoD_filter,
-    df_mrd_simulation,
-    ML_qual_to_qual_fn,
-    statistics_h5_file,
-    statistics_json_file,
-    rng,
-    raise_exceptions=False,
-):
-    SRSNVReport(
-        models=models,
-        data_df=df,
-        params=params,
-        out_path=out_path,
-        base_name=base_name,
-        lod_filters=lod_filters,
-        lod_label=lod_label,
-        c_lod=c_lod,
-        # min_LoD_filter=min_LoD_filter,
-        df_mrd_simulation=df_mrd_simulation,
-        ML_qual_to_qual_fn=ML_qual_to_qual_fn,
-        statistics_h5_file=statistics_h5_file,
-        statistics_json_file=statistics_json_file,
-        rng=rng,
-        raise_exceptions=raise_exceptions,
-    ).create_report()
 
 
 class SRSNVReport:
@@ -1615,6 +1593,65 @@ class SRSNVReport:
                 fig.tight_layout()
             fig.savefig(output_filename, facecolor="w", dpi=300, bbox_inches="tight", **kwargs)
 
+    # pylint: disable=differing-param-doc
+    def _get_snvq_and_recall(
+        self,
+        labels: np.ndarray,
+        ML_quals: np.ndarray,
+        base_snvq: float,
+        base_recall: float,
+        condition: np.ndarray = None,
+        ML_qual_max: int = 25,
+    ):
+        """Get the values of snvq (residual snv rate) and recall (true positive retention rate)
+        for different choices of (integer) ML_qual thresholds. ML_qual_max is the maximum value
+        of ML_qual that is used as threshold.
+        Arguments:
+            labels: np.array: true labels
+            ML_quals: np.array: ML_qual values
+            base_snvq: float: base snvq value
+            base_recall: float: base recall value
+            condition: np.ndarray: a boolean array of same length as labels, to filter the data
+                                 By default, no filtering is done
+            ML_qual_max: int: maximum ML_qual threshold to consider
+            NOTE: can think about choosing ML_qual_max in a more principled way. Initial thoughts:
+                ML_qual_max = np.floor(ML_quals.max()).astype(int) - 5
+                ML_qual_max = np.partition(ML_quals, -1000)[-1000]
+        """
+        if condition is None:
+            condition = np.ones_like(labels, dtype=bool)
+        snvqs = []
+        recalls = []
+        for th in range(ML_qual_max + 1):
+            tpr = ((ML_quals > th) & condition & labels).sum() / labels.sum()
+            fpr = ((ML_quals > th) & condition & ~labels).sum() / (~labels).sum()
+            snvqs.append(prob_to_phred(1 - base_snvq * fpr / tpr))
+            recalls.append(base_recall * tpr)
+        return np.array(snvqs), np.array(recalls)
+
+    def _get_recall_at_snvq(
+        self, snvq: float, condition: np.ndarray = None, label_col: str = LABEL, ML_qual_col: str = ML_QUAL_1_TEST
+    ):
+        """Get the recall rate at a given SNVQ value, by interpolating the recall vs SNVQ curve.
+        Arguments:
+            snvq: float: SNVQ value at which to calculate the recall
+            condition: np.ndarray: condition to filter the data frame. Default is no condition
+            label_col: str: column name with the labels
+            ML_qual_col: str: column name with the ML_qual values
+        """
+        base_snv_rate = self.df_mrd_simulation.loc["no_filter", RESIDUAL_SNV_RATE]
+        base_recall = self.df_mrd_simulation.loc["no_filter", TP_READ_RETENTION_RATIO]
+        data_df = self.data_df
+        snvqs, recalls = self._get_snvq_and_recall(
+            data_df[label_col],
+            data_df[ML_qual_col],
+            base_snvq=base_snv_rate,
+            base_recall=base_recall,
+            condition=condition,
+        )
+        recall_at_snvq = np.interp(snvq, snvqs, recalls)
+        return recall_at_snvq
+
     @exception_handler
     def calc_run_info_table(self):
         """Calculate run_info_table, a table with general run information."""
@@ -1622,8 +1659,6 @@ class SRSNVReport:
         logger.info("Generating Run Info table")
         general_info = {
             ("Sample name", ""): self.base_name[:-1],
-            ("Pre-filter", ""): self.params["pre_filter"],
-            ("Columns for balancing", ""): self.params["balanced_sampling_info_fields"],
             ("Median training read length", ""): np.median(self.data_df["X_LENGTH"]),
             ("Median training coverage", ""): np.median(self.data_df["X_READ_COUNT"]),
             ("% mixed training reads", "TP"): "{}%".format(
@@ -1632,6 +1667,34 @@ class SRSNVReport:
             ("% mixed training reads", "FP"): "{}%".format(
                 signif(100 * (self.data_df["is_mixed"] & ~self.data_df["label"]).mean(), 3)
             ),
+        }
+        # Performance info
+        mixed_data_df = self.data_df[self.data_df["is_mixed"]]
+        median_qual = self.data_df["ML_qual_1_test"].median()
+        median_qual_mixed = mixed_data_df["ML_qual_1_test"].median()
+        recall_at_60 = self._get_recall_at_snvq(snvq=60)
+        recall_at_60_mixed = self._get_recall_at_snvq(snvq=60, condition=self.data_df["is_mixed"])
+        roc_auc_phred = prob_to_phred(roc_auc_score(self.data_df["label"], self.data_df["ML_prob_1_test"]))
+        roc_auc_phred_mixed = prob_to_phred(roc_auc_score(mixed_data_df["label"], mixed_data_df["ML_prob_1_test"]))
+        performance_info = {
+            ("Median ML qual", "All reads"): median_qual,
+            ("Median ML qual", "Mixed only"): median_qual_mixed,
+            ("Recall at SNVQ=60", "All reads"): recall_at_60,
+            ("Recall at SNVQ=60", "Mixed only"): recall_at_60_mixed,
+            ("ROC AUC (Phred)", "All reads"): roc_auc_phred,
+            ("ROC AUC (Phred)", "Mixed only"): roc_auc_phred_mixed,
+        }
+        # Info about versions
+        version_info = {
+            ("Pipeline version", ""): (self.params["pipeline_version"]),
+            ("Docker image", ""): self.params["docker_image"],
+            ("Adapter version", ""): self.params["adapter_version"],
+            ("Report created on", ""): datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        # Training info
+        training_info = {
+            ("Pre-filter", ""): self.params["pre_filter"],
+            ("Columns for balancing", ""): self.params["balanced_sampling_info_fields"],
             ("Number of CV folds", ""): self.params["num_CV_folds"],
         }
         # Info about training set size
@@ -1654,15 +1717,12 @@ class SRSNVReport:
             other_fold_ids = ~self.data_df["fold_id"].isin([-1, 0]).sum()
             if other_fold_ids > 0:
                 dataset_sizes[("dataset size", "other")] = other_fold_ids
-        # Info about versions
-        version_info = {
-            ("Pipeline version", ""): self.params["pipeline_version"],
-            ("Docker image", ""): self.params["docker_image"],
-            ("Adapter version", ""): self.params["adapter_version"],
-            ("Report created on", ""): datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        run_info_table = pd.Series({**general_info, **dataset_sizes, **version_info}, name="")
+        run_info_table = pd.Series({**general_info, **version_info}, name="")
+        run_quality_summary_table = pd.Series({**performance_info}, name="")
+        training_info_table = pd.Series({**training_info, **dataset_sizes}, name="")
         run_info_table.to_hdf(self.output_h5_filename, key="run_info_table", mode="a")
+        run_quality_summary_table.to_hdf(self.output_h5_filename, key="run_quality_summary_table", mode="a")
+        training_info_table.to_hdf(self.output_h5_filename, key="training_info_table", mode="a")
 
     @exception_handler
     def plot_interpolating_function_with_histograms(self, output_filename: str = None):
