@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "methylationqc"
-version = "1.0.4"
+version = "1.0.12"
 description = ""
 authors = ["Gat Krieger <gat.krieger@ultimagen.com>"]
-readme = "README.md"
+# readme = "README.md"
 license = "Apache-2.0"
 packages = [
     { include = "ugvc" }, # necessary for creating a wheel out of the entire repository
@@ -11,13 +11,14 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.10"
-pandas = "^2.2.1"
+pandas = {version = "^2.2.1", extras = ["hdf5"]}
 papermill = "^2.5.0"
 jupyter = "^1.0.0"
 nbconvert = "^7.16.3"
 seaborn = "^0.13.2"
 matplotlib = "^3.8.4"
 ipython = "^8.0.0"
+numpy = "^1.22.3"
 
 
 [build-system]

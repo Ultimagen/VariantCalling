@@ -132,8 +132,8 @@ class TestParsers:
 
     def test_concat_methyldackel_csvs(self, tmpdir):
         output_prefix = f"{tmpdir}/concat_methyldackel_csvs"
-        output_csv_file = output_prefix + ".csv"
-        os.makedirs(os.path.dirname(output_csv_file), exist_ok=True)
+        output_h5_file = output_prefix + ".methyl_seq.applicationQC.h5"
+        os.makedirs(tmpdir, exist_ok=True)
 
         concat_methyldackel_csvs.run(
             [
@@ -152,35 +152,30 @@ class TestParsers:
                 f"{output_prefix}",
             ]
         )
+        input_files = {
+            "Mbias": "ProcessMethylDackelMbias.csv",
+            "MbiasNoCpG": "ProcessMethylDackelMbiasNoCpG.csv",
+            "MergeContext": "ProcessConcatMethylDackelMergeContext.csv",
+            "MergeContextNoCpG": "ProcessMethylDackelMergeContextNoCpG.csv",
+            "PerRead": "ProcessMethylDackelPerRead.csv",
+        }
 
-        result_csv = pd.read_csv(output_csv_file)
+        df_result = pd.DataFrame()
+        with pd.HDFStore(output_h5_file, "r") as store:
+            for key in store.keys():
+                if key == "/keys_to_convert":
+                    continue
+                df = pd.DataFrame(store[key])
+                df = df.reset_index()
+                df_result = pd.concat((df_result, df))
 
-        input_file_name = "ProcessConcatMethylDackelMergeContext.csv"
-        input_file_name = f"{self.inputs_dir}/" + input_file_name
-        input_csv = pd.read_csv(open(input_file_name))
-        total = input_csv.shape[0]
-
-        input_file_name = "ProcessMethylDackelMergeContextNoCpG.csv"
-        input_file_name = f"{self.inputs_dir}/" + input_file_name
-        input_csv = pd.read_csv(open(input_file_name))
-        total += input_csv.shape[0]
-
-        input_file_name = "ProcessMethylDackelPerRead.csv"
-        input_file_name = f"{self.inputs_dir}/" + input_file_name
-        input_csv = pd.read_csv(open(input_file_name))
-        total += input_csv.shape[0]
-
-        input_file_name = "ProcessMethylDackelMbias.csv"
-        input_file_name = f"{self.inputs_dir}/" + input_file_name
-        input_csv = pd.read_csv(input_file_name)
-        total += input_csv.shape[0]
-
-        input_file_name = "ProcessMethylDackelMbiasNoCpG.csv"
-        input_file_name = f"{self.inputs_dir}/" + input_file_name
-        input_csv = pd.read_csv(input_file_name)
-        total += input_csv.shape[0]
-
-        assert result_csv.shape[0] == total
+        df_ref = pd.concat(
+            (
+                pd.read_csv(f"{self.inputs_dir}/{value}", dtype={"metric": str, "value": np.float64, "detail": str})
+                for value in input_files.values()
+            )
+        )
+        assert np.allclose(np.sum(df_ref["value"]), np.ceil(np.sum(df_result["value"])))
 
     # ------------------------------------------------------
 
