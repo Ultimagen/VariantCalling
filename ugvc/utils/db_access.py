@@ -179,7 +179,7 @@ def nexus_metrics_to_df(input_dict: dict) -> pd.DataFrame:
     """
     s = pd.Series(input_dict).drop("_id")
     values = s.values
-    index = pd.MultiIndex.from_tuples([x.split("_") for x in s.index])
+    index = pd.MultiIndex.from_tuples([x.split("_", maxsplit=1) for x in s.index])
     name = s["metadata_sequencingRunId"]
     return pd.DataFrame(columns=[name], index=index, data=values).T
 
