@@ -1,4 +1,4 @@
-FROM python:3.9-bullseye as build
+FROM python:3.9-bullseye AS build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -92,6 +92,18 @@ COPY ./setup/methylationqc/data/meth_hg38-chr20_Lambda_pUC19.interval_list /app/
 
 ENV PATH="/app/gatk:$PATH"
 ENV PATH="/app/bin:$PATH"
+
+# Set MPLCONFIGDIR to /app/.config/matplotlib
+RUN mkdir -p /app/.config/matplotlib && \
+    chmod 777 /app/.config/matplotlib
+
+ENV MPLCONFIGDIR=/app/.config/matplotlib
+
+# Set FONTCONFIG_PATH to /app/.cache/fontconfig
+RUN mkdir -p /app/.cache/fontconfig && \
+    chmod 777 /app/.cache/fontconfig
+
+ENV FONTCONFIG_PATH=/app/.cache/fontconfig
 
 WORKDIR /app/VariantCalling
 
