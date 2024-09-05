@@ -257,16 +257,8 @@ def srsnv_report(
         output_qual_per_feature,
         qual_histogram,
         logit_histogram,
-        link_fn_with_hist,
-        # output_roc_plot,
-        # output_LoD_qual_plot,
-        # output_cm_plot,
-        # output_obsereved_qual_plot,
-        # output_ML_qual_hist,
-        # output_ppmSeq_hists,
-        # output_ppmSeq_fpr,
-        # output_ppmSeq_recalls,
-    ] = _get_plot_paths(report_name, out_path=out_path, out_basename=out_basename)
+        calibration_fn_with_hist,
+    ] = _get_plot_paths(out_path=out_path, out_basename=out_basename)
     srsnv_qc_h5_filename = os.path.join(out_path, f"{out_basename}single_read_snv.applicationQC.h5")
 
     template_notebook = os.path.join(
@@ -274,7 +266,6 @@ def srsnv_report(
         "reports/srsnv_report.ipynb",
     )
     papermill_command = f"papermill {template_notebook} {reportfile} \
--p report_name {report_name} \
 -p model_file {model_file} \
 -p params_file {params_file} \
 -p srsnv_qc_h5_file {srsnv_qc_h5_filename} \
@@ -287,7 +278,7 @@ def srsnv_report(
 -p output_qual_per_feature {output_qual_per_feature} \
 -p qual_histogram {qual_histogram} \
 -p logit_histogram {logit_histogram} \
--p link_fn_with_hist {link_fn_with_hist} \
+-p calibration_fn_with_hist {calibration_fn_with_hist} \
 -k python3"
     preprocessor_name = "ugvc.mrd.toc_preprocessor.TocPreprocessor"
     jupyter_nbconvert_command = (
@@ -297,24 +288,6 @@ def srsnv_report(
 
     print_and_execute(papermill_command, simple_pipeline=simple_pipeline, module_name=__name__)
     print_and_execute(jupyter_nbconvert_command, simple_pipeline=simple_pipeline, module_name=__name__)
-    # # Load the executed notebook
-    # with open(reportfile) as f:
-    #     nb = nbformat.read(f, as_version=4)
-
-    # # Create an HTML exporter
-    # html_exporter = HTMLExporter()
-    # # Configure TagRemovePreprocessor to hide all input cells
-    # tag_remove_preprocessor = TagRemovePreprocessor()
-    # tag_remove_preprocessor.remove_input = True
-    # html_exporter.register_preprocessor(tag_remove_preprocessor, enabled=True)
-    # html_exporter.register_preprocessor(TocPreprocessor, enabled=True)
-
-    # # Export the notebook to HTML
-    # (body, resources) = html_exporter.from_notebook_node(nb)
-
-    # # Write the HTML to a file
-    # with open(reporthtml, 'w') as f:
-    #     f.write(body)
 
 
 def plot_ROC_curve(
@@ -666,7 +639,7 @@ def plot_LoD(
     msize_list = [150, 150, 150]
     if adapter_version in [av.value for av in ppmSeqAdapterVersions]:
         filters_list.append(list(mixed_ML_filters))
-        markers_list.append("s")
+        markers_list.append("P")
         labels_list.append("ML model, mixed only")
         edgecolors_list.append("r")
         msize_list.append(150)
@@ -1061,10 +1034,6 @@ def plot_qual_per_feature(
     """
     set_pyplot_defaults()
 
-    # if "is_mixed" in df:
-    #     df["is_mixed"] = df["is_mixed"].astype(int)
-    # if "is_cycle_skip" in df:
-    #     df["is_cycle_skip"] = df["is_cycle_skip"].astype()
     for feature in cls_features:
         for j, label in enumerate(labels_dict):
             if df[feature].dtype == bool:
@@ -1364,28 +1333,20 @@ def plot_mixed_recall(
     )
 
 
-def _get_plot_paths(report_name, out_path, out_basename):
+def _get_plot_paths(out_path, out_basename):
     outdir = out_path
     basename = out_basename
 
-    output_LoD_plot = os.path.join(outdir, f"{basename}{report_name}.LoD_curve")
-    qual_vs_ppmseq_tags_table = os.path.join(outdir, f"{basename}{report_name}.qual_vs_ppmSeq_tags_table")
-    training_progerss_plot = os.path.join(outdir, f"{basename}{report_name}.training_progress")
-    SHAP_importance_plot = os.path.join(outdir, f"{basename}{report_name}.SHAP_importance")
-    SHAP_beeswarm_plot = os.path.join(outdir, f"{basename}{report_name}.SHAP_beeswarm")
-    trinuc_stats_plot = os.path.join(outdir, f"{basename}{report_name}.trinuc_stats")
-    qual_histogram = os.path.join(outdir, f"{basename}{report_name}.qual_histogram")
-    logit_histogram = os.path.join(outdir, f"{basename}{report_name}.logit_histogram")
-    link_fn_with_hist = os.path.join(outdir, f"{basename}{report_name}.link_fn_with_hist")
-    output_qual_per_feature = os.path.join(outdir, f"{basename}{report_name}.qual_per_")
-    # output_roc_plot = os.path.join(outdir, f"{basename}{report_name}.ROC_curve")
-    # output_LoD_qual_plot = os.path.join(outdir, f"{basename}{report_name}.LoD_qual_curve")
-    # output_cm_plot = os.path.join(outdir, f"{basename}{report_name}.confusion_matrix")
-    # output_obsereved_qual_plot = os.path.join(outdir, f"{basename}{report_name}.observed_qual")
-    # output_ML_qual_hist = os.path.join(outdir, f"{basename}{report_name}.ML_qual_hist")
-    # output_ppmSeq_hists = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_")
-    # output_ppmSeq_fpr = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_fpr")
-    # output_ppmSeq_recalls = os.path.join(outdir, f"{basename}{report_name}.ppmSeq_recalls")
+    output_LoD_plot = os.path.join(outdir, f"{basename}.LoD_curve")
+    qual_vs_ppmseq_tags_table = os.path.join(outdir, f"{basename}.qual_vs_ppmSeq_tags_table")
+    training_progerss_plot = os.path.join(outdir, f"{basename}.training_progress")
+    SHAP_importance_plot = os.path.join(outdir, f"{basename}.SHAP_importance")
+    SHAP_beeswarm_plot = os.path.join(outdir, f"{basename}.SHAP_beeswarm")
+    trinuc_stats_plot = os.path.join(outdir, f"{basename}.trinuc_stats")
+    qual_histogram = os.path.join(outdir, f"{basename}.qual_histogram")
+    logit_histogram = os.path.join(outdir, f"{basename}.logit_histogram")
+    calibration_fn_with_hist = os.path.join(outdir, f"{basename}.calibration_fn_with_hist")
+    output_qual_per_feature = os.path.join(outdir, f"{basename}.qual_per_")
 
     return [
         output_LoD_plot,
@@ -1397,15 +1358,7 @@ def _get_plot_paths(report_name, out_path, out_basename):
         output_qual_per_feature,
         qual_histogram,
         logit_histogram,
-        link_fn_with_hist,
-        # output_roc_plot,
-        # output_LoD_qual_plot,
-        # output_cm_plot,
-        # output_obsereved_qual_plot,
-        # output_ML_qual_hist,
-        # output_ppmSeq_hists,
-        # output_ppmSeq_fpr,
-        # output_ppmSeq_recalls,
+        calibration_fn_with_hist,
     ]
 
 
@@ -1455,8 +1408,12 @@ def calculate_lod_stats(
     best_lod = df_mrd_simulation.loc[best_LoD_filter, lod_column]
     best_ML_LoD_filter = df_mrd_simulation_ml[lod_column].idxmin()
     best_ML_LoD = df_mrd_simulation_ml.loc[best_ML_LoD_filter, lod_column]
-    best_mixed_ML_LoD_filter = df_mrd_simulation_mixed_ml[lod_column].idxmin()
-    best_mixed_ML_LoD = df_mrd_simulation_mixed_ml.loc[best_mixed_ML_LoD_filter, lod_column]
+    if df_mrd_simulation_mixed_ml.shape[0] > 0:
+        best_mixed_ML_LoD_filter = df_mrd_simulation_mixed_ml[lod_column].idxmin()
+        best_mixed_ML_LoD = df_mrd_simulation_mixed_ml.loc[best_mixed_ML_LoD_filter, lod_column]
+    else:
+        best_mixed_ML_LoD_filter = pd.NA
+        best_mixed_ML_LoD = pd.NA
     lod_stats_dict = {
         "best_LoD_filter": best_LoD_filter,
         "LoD_best": best_lod,
@@ -1510,8 +1467,6 @@ class SRSNVReport:
             Dataframe of all fold data, including labels
         params : str
             params dict
-        report_name : str
-            name of data set, should be "train" or "test"
         out_path : str
             path to output directory
         base_name : str, optional
@@ -1662,23 +1617,25 @@ class SRSNVReport:
             ("Median training read length", ""): np.median(self.data_df["X_LENGTH"]),
             ("Median training coverage", ""): np.median(self.data_df["X_READ_COUNT"]),
             ("% mixed training reads", "TP"): "{}%".format(
-                signif(100 * (self.data_df["is_mixed"] & self.data_df["label"]).mean(), 3)
+                signif(100 * (self.data_df[IS_MIXED] & self.data_df[LABEL]).mean(), 3)
             ),
             ("% mixed training reads", "FP"): "{}%".format(
-                signif(100 * (self.data_df["is_mixed"] & ~self.data_df["label"]).mean(), 3)
+                signif(100 * (self.data_df[IS_MIXED] & ~self.data_df[LABEL]).mean(), 3)
             ),
         }
         # Performance info
-        mixed_data_df = self.data_df[self.data_df["is_mixed"]]
-        median_qual = self.data_df["ML_qual_1_test"].median()
-        median_qual_mixed = mixed_data_df["ML_qual_1_test"].median()
+        mixed_df = self.data_df[self.data_df[IS_MIXED]]
+        TP_df = self.data_df[self.data_df[LABEL]]
+        TP_mixed_df = TP_df[TP_df[IS_MIXED]]
+        median_qual = TP_df[QUAL].median()
+        median_qual_mixed = TP_mixed_df[QUAL].median()
         recall_at_60 = self._get_recall_at_snvq(snvq=60)
-        recall_at_60_mixed = self._get_recall_at_snvq(snvq=60, condition=self.data_df["is_mixed"])
-        roc_auc_phred = prob_to_phred(roc_auc_score(self.data_df["label"], self.data_df["ML_prob_1_test"]))
-        roc_auc_phred_mixed = prob_to_phred(roc_auc_score(mixed_data_df["label"], mixed_data_df["ML_prob_1_test"]))
+        recall_at_60_mixed = self._get_recall_at_snvq(snvq=60, condition=self.data_df[IS_MIXED])
+        roc_auc_phred = prob_to_phred(self._safe_roc_auc(self.data_df[LABEL], self.data_df[ML_PROB_1_TEST], name="run info total"))
+        roc_auc_phred_mixed = prob_to_phred(self._safe_roc_auc(mixed_df[LABEL], mixed_df[ML_PROB_1_TEST], name="run info mixed"))
         performance_info = {
-            ("Median ML qual", "All reads"): median_qual,
-            ("Median ML qual", "Mixed only"): median_qual_mixed,
+            ("Median SNVQ", "All reads"): median_qual,
+            ("Median SNVQ", "Mixed only"): median_qual_mixed,
             ("Recall at SNVQ=60", "All reads"): recall_at_60,
             ("Recall at SNVQ=60", "Mixed only"): recall_at_60_mixed,
             ("ROC AUC (Phred)", "All reads"): roc_auc_phred,
@@ -1731,7 +1688,7 @@ class SRSNVReport:
             output_filename: str: path to output file
         """
         logger.info("Generating plot of ML_qual -> SNVQ link function (with histograms)")
-        ml_qual_max_int = np.floor(self.data_df["ML_qual_1_test"].max())
+        ml_qual_max_int = np.floor(self.data_df[ML_QUAL_1_TEST].max())
         x_ml_qual = np.arange(1e-10, ml_qual_max_int, 0.1)
 
         xs = self.ML_qual_to_qual_fn((x_ml_qual[1:] + x_ml_qual[:-1]) / 2).reshape(
@@ -1757,6 +1714,7 @@ class SRSNVReport:
         ax_joint.grid(True)
         ax_joint.set_xlim(xmin, xmax)
         ax_joint.set_ylim(ymin, ymax)
+        ax_joint.set_ylabel("ML_qual")
 
         # X-axis marginal histplot
         ax_marg_x = fig.add_subplot(gs[0:2, 0:3], sharex=ax_joint)
@@ -1813,6 +1771,37 @@ class SRSNVReport:
         self._save_plt(output_filename, fig)
         plt.show()
 
+    def _safe_roc_auc(self, y_true, y_pred, name=None):
+        """
+        Calculate ROC AUC score with checks for cases where the calculation is not possible.
+        
+        Parameters:
+        y_true: array-like, true labels
+        y_pred: array-like, predicted probabilities
+        name: str, name of dataset (for logging). If None, ignore datset name. 
+        
+        Returns:
+        ROC AUC score if calculable, otherwise np.nan
+        """
+        y_true = np.array(y_true) # Convert to numpy array
+        name_for_log = f" ({name=})" if name is not None else ""
+        # Check if the array is empty
+        if y_true.size == 0:
+            logger.warning(f"ROC AUC cannot be calculated: dataset is empty {name_for_log}")
+            return np.nan
+        
+        # Check if all labels are the same
+        if len(np.unique(y_true)) == 1:
+            logger.warning(f"ROC AUC cannot be calculated: dataset has only one class {name_for_log}")
+            return np.nan
+
+        # Calculate the ROC AUC score
+        try:
+            return roc_auc_score(y_true, y_pred)
+        except Exception as e:
+            logger.error(f"An error occurred while calculating ROC AUC{name_for_log}: {e}")
+            return np.nan
+
     @exception_handler
     def calc_roc_auc_table(self, holdout_fold_size_thresh: int = 100):
         """Calculte statistics of ROC AUC
@@ -1823,13 +1812,13 @@ class SRSNVReport:
         logger.info("Generating ROC AUC table")
 
         num_CV_folds = self.params["num_CV_folds"]
-        auc_total = prob_to_phred(roc_auc_score(self.data_df[LABEL], self.data_df[ML_PROB_1_TEST]))
+        auc_total = prob_to_phred(self._safe_roc_auc(self.data_df[LABEL], self.data_df[ML_PROB_1_TEST], name="total"))
         mix_cond = self.data_df[IS_MIXED]
         auc_mixed = prob_to_phred(
-            roc_auc_score(self.data_df.loc[mix_cond, LABEL], self.data_df.loc[mix_cond, ML_PROB_1_TEST])
+            self._safe_roc_auc(self.data_df.loc[mix_cond, LABEL], self.data_df.loc[mix_cond, ML_PROB_1_TEST], name="mixed")
         )
         auc_non_mixed = prob_to_phred(
-            roc_auc_score(self.data_df.loc[~mix_cond, LABEL], self.data_df.loc[~mix_cond, ML_PROB_1_TEST])
+            self._safe_roc_auc(self.data_df.loc[~mix_cond, LABEL], self.data_df.loc[~mix_cond, ML_PROB_1_TEST], name="non-mixed")
         )
 
         auc_per_fold = []
@@ -1838,61 +1827,79 @@ class SRSNVReport:
         auc_on_holdout = []
         auc_on_holdout_mixed = []
         auc_on_holdout_non_mixed = []
+        error_on_holdout = [] # log cases of ROC AUC error on holdout,. Values in ["total", "mixed", "nonmixed"] 
+        holdout_fold_cond = self.data_df[FOLD_ID].isna() 
+        if holdout_fold_cond.sum() > holdout_fold_size_thresh:
+            mix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (self.data_df[IS_MIXED]) 
+            nonmix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (~self.data_df[IS_MIXED]) 
+        all_features = self.params["numerical_features"] + self.params["categorical_features_names"]
         for k in range(num_CV_folds):
             fold_cond = self.data_df[FOLD_ID] == k
             mix_fold_cond = (self.data_df[FOLD_ID] == k) & (self.data_df[IS_MIXED])
             nonmix_fold_cond = (self.data_df[FOLD_ID] == k) & (~self.data_df[IS_MIXED])
             auc_per_fold.append(
                 prob_to_phred(
-                    roc_auc_score(self.data_df.loc[fold_cond, LABEL], self.data_df.loc[fold_cond, "ML_prob_1_test"])
+                    self._safe_roc_auc(self.data_df.loc[fold_cond, LABEL], self.data_df.loc[fold_cond, "ML_prob_1_test"], name=f"fold {k} total")
                 )
             )
             auc_per_fold_mixed.append(
                 prob_to_phred(
-                    roc_auc_score(
-                        self.data_df.loc[mix_fold_cond, LABEL], self.data_df.loc[mix_fold_cond, "ML_prob_1_test"]
+                    self._safe_roc_auc(
+                        self.data_df.loc[mix_fold_cond, LABEL], self.data_df.loc[mix_fold_cond, "ML_prob_1_test"], name=f"fold {k} mixed"
                     )
                 )
             )
             auc_per_fold_non_mixed.append(
                 prob_to_phred(
-                    roc_auc_score(
-                        self.data_df.loc[nonmix_fold_cond, LABEL], self.data_df.loc[nonmix_fold_cond, "ML_prob_1_test"]
+                    self._safe_roc_auc(
+                        self.data_df.loc[nonmix_fold_cond, LABEL], self.data_df.loc[nonmix_fold_cond, "ML_prob_1_test"], name=f"fold {k} non-mixed"
                     )
                 )
             )
-
-            holdout_fold_cond = self.data_df[FOLD_ID].isna()
+            # Calculate ROC AUC on holdout set
             if holdout_fold_cond.sum() > holdout_fold_size_thresh:
-                mix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (self.data_df[IS_MIXED])
-                nonmix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (~self.data_df[IS_MIXED])
-                all_features = self.params["numerical_features"] + self.params["categorical_features_names"]
-                auc_on_holdout.append(
-                    prob_to_phred(
-                        roc_auc_score(
-                            self.data_df.loc[holdout_fold_cond, LABEL],
-                            self.models[k].predict_proba(self.data_df.loc[holdout_fold_cond, all_features])[:, 1],
+                if "total" not in error_on_holdout: # Checked to supress multiple error messages
+                    auc_on_holdout.append(
+                        prob_to_phred(
+                            self._safe_roc_auc(
+                                self.data_df.loc[holdout_fold_cond, LABEL],
+                                self.models[k].predict_proba(self.data_df.loc[holdout_fold_cond, all_features])[:, 1],
+                                name=f"holdout total"
+                            )
                         )
                     )
-                )
-                auc_on_holdout_mixed.append(
-                    prob_to_phred(
-                        roc_auc_score(
-                            self.data_df.loc[mix_holdout_fold_cond, LABEL],
-                            self.models[k].predict_proba(self.data_df.loc[mix_holdout_fold_cond, all_features])[:, 1],
+                    if np.isnan(auc_on_holdout[-1]):
+                        error_on_holdout.append("total")
+                else:
+                    auc_on_holdout.append(np.nan)
+                if "mixed" not in error_on_holdout:
+                    auc_on_holdout_mixed.append(
+                        prob_to_phred(
+                            self._safe_roc_auc(
+                                self.data_df.loc[mix_holdout_fold_cond, LABEL],
+                                self.models[k].predict_proba(self.data_df.loc[mix_holdout_fold_cond, all_features])[:, 1],
+                                name=f"holdout mixed"
+                            )
                         )
                     )
-                )
-                auc_on_holdout_non_mixed.append(
-                    prob_to_phred(
-                        roc_auc_score(
-                            self.data_df.loc[nonmix_holdout_fold_cond, LABEL],
-                            self.models[k].predict_proba(self.data_df.loc[nonmix_holdout_fold_cond, all_features])[
-                                :, 1
-                            ],
+                    if np.isnan(auc_on_holdout_mixed[-1]):
+                        error_on_holdout.append("mixed")
+                else:
+                    auc_on_holdout_mixed.append(np.nan)
+                if "nonmixed" not in error_on_holdout:
+                    auc_on_holdout_non_mixed.append(
+                        prob_to_phred(
+                            self._safe_roc_auc(
+                                self.data_df.loc[nonmix_holdout_fold_cond, LABEL],
+                                self.models[k].predict_proba(self.data_df.loc[nonmix_holdout_fold_cond, all_features])[
+                                    :, 1
+                                ],
+                                name=f"holdout non-mixed"
+                            )
                         )
                     )
-                )
+                    if np.isnan(auc_on_holdout_non_mixed[-1]):
+                        error_on_holdout.append("nonmixed")
 
         auc_table_dict = {
             "ROC AUC": [auc_total, auc_mixed, auc_non_mixed],
@@ -2062,11 +2069,10 @@ class SRSNVReport:
         ax = axes[0]
         train_logloss = list_of_jagged_lists_to_array(
             [result["validation_0"]["mlogloss"] for result in training_results]
-        )  # np.array([result['validation_0']['mlogloss'] for result in training_results])
+        ) 
         val_logloss = list_of_jagged_lists_to_array(
             [result["validation_1"]["mlogloss"] for result in training_results]
-        )  # np.array([result['validation_1']['mlogloss'] for result in training_results])
-        # print(train_logloss.shape, val_logloss.shape)
+        ) 
         for ri, result in enumerate(training_results):
             label = "Individual folds" if ri == 1 else None  # will reach ri==1 iff when using CV
             ax.plot(result["validation_0"]["mlogloss"], c="grey", alpha=0.7, label=label)
@@ -2088,11 +2094,10 @@ class SRSNVReport:
         ax = axes[1]
         train_auc = list_of_jagged_lists_to_array(
             [list_auc_to_qual(result["validation_0"]["auc"]) for result in training_results]
-        )  # np.array([list_auc_to_qual(result['validation_0']['auc']) for result in training_results])
+        )  
         val_auc = list_of_jagged_lists_to_array(
             [list_auc_to_qual(result["validation_1"]["auc"]) for result in training_results]
-        )  # np.array([list_auc_to_qual(result['validation_1']['auc']) for result in training_results])
-        # print(train_auc.shape, val_auc.shape)
+        )  
         for ri, result in enumerate(training_results):
             label = "Individual folds" if ri == 1 else None  # will reach ri==1 iff when using CV
             ax.plot(list_auc_to_qual(result["validation_0"]["auc"]), c="grey", alpha=0.5, label=label)
@@ -2280,9 +2285,6 @@ class SRSNVReport:
         rotated_padding_factor: float = 8.0,  # controls how much extra padding when ticklabels are rotated
     ):
         """Add colorbars to SHAP beeswarm plot"""
-        # Number of groups
-        # num_groups = len(grouped_features)
-        # max_ncat = max(len(k) for k in grouped_features.keys())
         group_labels = []
         for i, (cat_values, features) in enumerate(grouped_features.items()):
             n_cat = len(cat_values)
@@ -2920,13 +2922,10 @@ class SRSNVReport:
         plt.show()
         self._save_plt(output_filename, fig=fig)
 
-    # ### HERE
-
     def create_report(self):
         """Generate plots for report and save data in hdf5 file."""
         logger.info("Creating report")
         # Get filenames for plots
-        # TODO: change report_name
         [
             output_LoD_plot,
             qual_vs_ppmseq_tags_table,
@@ -2937,16 +2936,8 @@ class SRSNVReport:
             output_qual_per_feature,
             qual_histogram,
             logit_histogram,
-            link_fn_with_hist,
-            # output_roc_plot,
-            # output_LoD_qual_plot,
-            # output_cm_plot,
-            # output_obsereved_qual_plot,
-            # output_ML_qual_hist,
-            # output_ppmSeq_hists,
-            # output_ppmSeq_fpr,
-            # output_ppmSeq_recalls,
-        ] = _get_plot_paths("test", out_path=self.params["workdir"], out_basename=self.params["data_name"])
+            calibration_fn_with_hist,
+        ] = _get_plot_paths(out_path=self.params["workdir"], out_basename=self.params["data_name"])
         # General info
         self.calc_run_info_table()
         # Quality stats
@@ -2958,7 +2949,7 @@ class SRSNVReport:
 
         # ML_qual histograms
         self.plot_logit_histograms(output_filename=logit_histogram)
-        self.plot_interpolating_function_with_histograms(output_filename=link_fn_with_hist)
+        self.plot_interpolating_function_with_histograms(output_filename=calibration_fn_with_hist)
 
         # Training progress
         self.training_progress_plot(output_filename=training_progerss_plot)
@@ -2978,93 +2969,16 @@ class SRSNVReport:
         for col in self.params["numerical_features"]:
             self.plot_numerical_feature_hist_and_qual(col, output_filename=output_qual_per_feature + col)
 
-        # ### From here on is the old code
-        # report_name = "test"
-        # Create dataframes for test and train seperately
-        # pred_cols = (
-        #     [f"ML_prob_{i}" for i in (0, 1)] + [f"ML_qual_{i}" for i in (0, 1)] +
-        #     [f"ML_prediction_{i}" for i in (0, 1)]
-        # )
-        # dataset, other_dataset = ("test", "train")
-        # data_df = self.data_df.copy()
-        # data_df.drop(columns=[f"{col}_{other_dataset}" for col in pred_cols], inplace=True)
-        # data_df.rename(columns={f"{col}_{dataset}": col for col in pred_cols}, inplace=True)
-        # # Make sure to take only reads that are indeed in the "train"/"test" sets:
-        # data_df = data_df.loc[~data_df["ML_prob_1"].isna(), :]
-
-        # From what I can tell, fprs is needed only for the calibration plot (reliability diagram)
-        # max_score is used several times when plotting ML_qual.
-        # df_tp, df_fp are used only for percision-recall curve (called here ROC curve)
-        # cls_features is used for plotting qual per feature
-        # (
-        #     df,
-        #     df_tp,
-        #     df_fp,
-        #     max_score,
-        #     _,  # cls_features,
-        #     fprs,
-        #     _,
-        # ) = create_data_for_report(self.models, data_df)
-        # df_X_with_pred_columns = df
-
-        # labels_dict = {1: "TP", 0: "FP"}
-
-        # lod_basic_filters = self.lod_filters or default_LoD_filters
-        # ML_filters = {f"ML_qual_{q}": f"ML_qual_1 >= {q}" for q in range(0, max_score + 1)}
-
-        # lod_filters = {
-        #     **lod_basic_filters,
-        #     **ML_filters,
-        # }
-
-        # sorter_json_stats_file = self.params["sorter_json_stats_file"]
-
-        # [
-        #     output_roc_plot,
-        #     output_LoD_plot,
-        #     qual_vs_ppmseq_tags_table,
-        #     output_LoD_qual_plot,
-        #     output_cm_plot,
-        #     output_obsereved_qual_plot,
-        #     output_ML_qual_hist,
-        #     output_qual_per_feature,
-        #     output_ppmSeq_hists,
-        #     output_ppmSeq_fpr,
-        #     output_ppmSeq_recalls,
-        # ] = _get_plot_paths(report_name, out_path=self.params["workdir"], out_basename=self.params["data_name"])
-
-        # LoD_params = {}
-        # LoD_params["sensitivity_at_lod"] = 0.90
-        # LoD_params["specificity_at_lod"] = 0.99
-        # LoD_params["simulated_signature_size"] = 10_000
-        # LoD_params["simulated_coverage"] = 30
-        # LoD_params["minimum_number_of_read_for_detection"] = 2
-
+        # Create LoD plot
+        # TODO: Update the following to new conform with new report logic
         if self.params["fp_regions_bed_file"] is not None:
-            # (
-            #     df_mrd_simulation,
-            #     lod_filters_filtered,
-            #     lod_label,
-            #     c_lod,
-            #     normalization_factor_dict
-            # ) = retention_noise_and_mrd_lod_simulation(
-            #     df=df_X_with_pred_columns,
-            #     single_sub_regions=self.params["fp_regions_bed_file"],
-            #     sorter_json_stats_file=sorter_json_stats_file,
-            #     fp_featuremap_entry_number=self.params["fp_featuremap_entry_number"],
-            #     lod_filters=lod_filters,
-            #     sensitivity_at_lod=LoD_params["sensitivity_at_lod"],
-            #     specificity_at_lod=LoD_params["specificity_at_lod"],
-            #     simulated_signature_size=LoD_params["simulated_signature_size"],
-            #     simulated_coverage=LoD_params["simulated_coverage"],
-            #     minimum_number_of_read_for_detection=LoD_params["minimum_number_of_read_for_detection"],
-            #     output_dataframe_file=self.mrd_simulation_dataframe_file,
-            # )
+            logger.info("Calculating LoD statistics")
             min_LoD_filter = calculate_lod_stats(
                 df_mrd_simulation=self.df_mrd_simulation,
                 output_h5=self.statistics_h5_file,
                 lod_column=self.c_lod,
             )
+            logger.info("Creating SNVQ-recall-LoD plot")
             plot_LoD(
                 self.df_mrd_simulation,
                 self.lod_label,
@@ -3074,67 +2988,6 @@ class SRSNVReport:
                 min_LoD_filter,
                 output_filename=output_LoD_plot,
             )
-            # plot_LoD_vs_qual(
-            #     self.df_mrd_simulation,
-            #     self.c_lod,
-            #     output_filename=output_LoD_qual_plot,
-            # )
-
-        # plot_ROC_curve(
-        #     df_X_with_pred_columns,
-        #     df_tp,
-        #     df_fp,
-        #     ML_score="ML_qual_1",
-        #     adapter_version=self.params["adapter_version"],
-        #     output_filename=output_roc_plot,
-        # )
-
-        # plot_confusion_matrix(
-        #     df_X_with_pred_columns,
-        #     prediction_column_name="ML_prediction_1",
-        #     output_filename=output_cm_plot,
-        # )
-
-        # plot_observed_vs_measured_qual(
-        #     labels_dict,
-        #     fprs,
-        #     max_score,
-        #     output_filename=output_obsereved_qual_plot,
-        # )
-        # plot_ML_qual_hist(
-        #     labels_dict,
-        #     df_X_with_pred_columns,
-        #     max_score,
-        #     output_filename=output_ML_qual_hist,
-        # )
-        # plot_qual_per_feature(
-        #     labels_dict,
-        #     cls_features,
-        #     df_X_with_pred_columns,
-        #     output_filename=output_qual_per_feature,
-        # )
-
-        # is_mixed_flag = "is_mixed" in df_X_with_pred_columns
-        # df_dict = get_data_subsets(df_X_with_pred_columns, is_mixed_flag)
-        # fpr_dict, recall_dict = get_fpr_recalls_subsets(df_dict, max_score)
-
-        # plot_subsets_hists(
-        #     labels_dict,
-        #     df_dict,
-        #     max_score,
-        #     output_filename=output_ppmSeq_hists,
-        # )
-
-        # plot_mixed_fpr(
-        #     fpr_dict,
-        #     max_score,
-        #     output_filename=output_ppmSeq_fpr,
-        # )
-        # plot_mixed_recall(
-        #     recall_dict,
-        #     max_score,
-        #     output_filename=output_ppmSeq_recalls,
-        # )
 
         # convert statistics to json
         convert_h5_to_json(
