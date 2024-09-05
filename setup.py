@@ -38,6 +38,9 @@ setup(
         "ugbio_utils/src/cnv/ugbio_cnv/annotate_FREEC_segments.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
     ],
+    entry_points={
+        'console_scripts': ['annotate_contig=ugbio_core.annotate_contig:main'],
+    },
     package_data={
         "ugvc": [
             "bash/run_ucsc_command.sh",
