@@ -13,7 +13,8 @@ from ugvc import logger
 from ugvc.dna.format import CYCLE_SKIP, CYCLE_SKIP_STATUS, DEFAULT_FLOW_ORDER
 from ugvc.dna.utils import revcomp
 from ugvc.mrd.coverage_utils import collect_coverage_per_motif
-from ugvc.utils.misc_utils import read_hdf, set_pyplot_defaults
+from ugvc.utils.misc_utils import read_hdf
+from ugbio_core.plotting_utils import set_pyplot_defaults
 from ugvc.vcfbed.variant_annotation import get_cycle_skip_dataframe
 
 set_pyplot_defaults()
