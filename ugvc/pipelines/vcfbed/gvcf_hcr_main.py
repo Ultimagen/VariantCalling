@@ -50,5 +50,5 @@ def run(argv: list) -> None:
             step4_file = args.bed
             logger.info("Step 4: Intersect with calling region")
             bt = pybedtools.BedTool(step3_file)
-            bt = bt.intersect(b=intv.as_bed_file()).saveas(step4_file)
+            bt = bt.intersect(b=intv.as_bed_file(), sorted=True).saveas(step4_file)
             bt.delete_temporary_history(ask=False)
