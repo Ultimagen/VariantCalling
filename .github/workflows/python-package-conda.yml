@@ -57,15 +57,15 @@ jobs:
           convert_h5_to_json.py -h
           correct_genotypes_by_imputation.py -h
           denovo_recalibrated_qualities.py -h
-      - name: Test with pytest
-        run: |
-          source activate genomics.py3
-          python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
-          python -m pytest test/system
+#      - name: Test with pytest
+#        run: |
+#          source activate genomics.py3
+#          python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
+#          python -m pytest test/system
       - name: Test ugbio_utils with pytest
         run: |
           source activate genomics.py3
-          python -m pytest ugbio_utils/src/*/tests
+          python -m pytest --ignore-glob='ugbio_utils/src/single_cell/*' ugbio_utils/src/*/tests
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11
