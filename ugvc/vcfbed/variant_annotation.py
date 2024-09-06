@@ -154,7 +154,7 @@ class VcfAnnotator(ABC):
             logger.info("Getting contigs")
             contigs = list(input_variant_file.header.contigs)
             tmp_output_paths = []
-            sp = SimplePipeline(0, 100)
+            sp = SimplePipeline(0, max(100, len(contigs)))
             commands = []
             ugvc_path = os.path.dirname(os.path.dirname(__file__))
             for contig in contigs:
@@ -335,11 +335,11 @@ def get_motif_around_snv(record: pysam.VariantRecord, size: int, faidx: pyfaidx.
     -------
     """
     assert isinstance(record, pysam.VariantRecord), f"record must be pysam.VariantRecord, got {type(record)}"
-    size = int(size)
-    assert size > 0, f"size must be positive, got {size}"
-
     chrom = faidx[record.chrom]
     pos = record.pos
+    size = int(min(size, pos - 1, len(chrom) - pos))
+    assert size > 0, f"size must be positive, got {size}"
+
     return chrom[pos - size - 1 : pos + size].seq.upper()
 
 
