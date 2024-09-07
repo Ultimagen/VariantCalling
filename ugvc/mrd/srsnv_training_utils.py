@@ -1020,7 +1020,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 self.start_tag_col = None
                 self.end_tag_col = None
         logger.info(f"Using [start_tag, end_tag] = {[self.start_tag_col, self.end_tag_col]}")
-        if (self.start_tag_col, self.end_tag_col) != tag_cols_from_adapter:
+        if self.start_tag_col != tag_cols_from_adapter[0] or self.end_tag_col != tag_cols_from_adapter[1]:
             logger.warning(f"ppmSeq tags are not consistent with respect to {tag_cols_from_adapter=}")
 
     def add_is_mixed_to_featuremap_df(self):

@@ -121,23 +121,41 @@ def plot_extended_step(x, y, ax, **kwargs):
     to fill the first and last "bars" (like in sns.histplot(..., element='step')).
     """
     x = list(x)
-    x_ext = [x[0] - (x[1] - x[0]) / 2] + x + [x[-1] + (x[-1] - x[-2]) / 2]
     y = list(y)
-    y_ext = [y[0]] + y + [y[-1]]
+    if len(x) == 0:
+        x_ext = []
+        y_ext = []
+    elif len(x) == 1:
+        x_ext = [x[0] - 0.5, x[0], x[0] + 0.5]
+        y_ext = [y[0], y[0], y[0]]
+    else:
+        x_ext = [x[0] - (x[1] - x[0]) / 2] + x + [x[-1] + (x[-1] - x[-2]) / 2]
+        y_ext = [y[0]] + y + [y[-1]]
     (line,) = ax.step(x_ext, y_ext, where="mid", **kwargs)
-    ax.set_xlim([x_ext[0], x_ext[-1]])
+    if len(x) > 0:
+        ax.set_xlim([x_ext[0], x_ext[-1]])
     return line
 
 
 def plot_extended_fill_between(x, y1, y2, ax, **kwargs):
     x = list(x)
-    x_ext = [x[0] - (x[1] - x[0]) / 2] + x + [x[-1] + (x[-1] - x[-2]) / 2]
     y1 = list(y1)
-    y1_ext = [y1[0]] + y1 + [y1[-1]]
     y2 = list(y2)
-    y2_ext = [y2[0]] + y2 + [y2[-1]]
+    if len(x) == 0:
+        x_ext = []
+        y1_ext = []
+        y2_ext = []
+    elif len(x) == 1:
+        x_ext = [x[0] - 0.5, x[0], x[0] + 0.5]
+        y1_ext = [y1[0], y1[0], y1[0]]
+        y2_ext = [y2[0], y2[0], y2[0]]
+    else:
+        x_ext = [x[0] - (x[1] - x[0]) / 2] + x + [x[-1] + (x[-1] - x[-2]) / 2]
+        y1_ext = [y1[0]] + y1 + [y1[-1]]
+        y2_ext = [y2[0]] + y2 + [y2[-1]]
     poly = ax.fill_between(x_ext, y1_ext, y2_ext, step="mid", **kwargs)
-    ax.set_xlim([x_ext[0], x_ext[-1]])
+    if len(x) > 0:
+        ax.set_xlim([x_ext[0], x_ext[-1]])
     return poly
 
 
@@ -1337,16 +1355,16 @@ def _get_plot_paths(out_path, out_basename):
     outdir = out_path
     basename = out_basename
 
-    output_LoD_plot = os.path.join(outdir, f"{basename}.LoD_curve")
-    qual_vs_ppmseq_tags_table = os.path.join(outdir, f"{basename}.qual_vs_ppmSeq_tags_table")
-    training_progerss_plot = os.path.join(outdir, f"{basename}.training_progress")
-    SHAP_importance_plot = os.path.join(outdir, f"{basename}.SHAP_importance")
-    SHAP_beeswarm_plot = os.path.join(outdir, f"{basename}.SHAP_beeswarm")
-    trinuc_stats_plot = os.path.join(outdir, f"{basename}.trinuc_stats")
-    qual_histogram = os.path.join(outdir, f"{basename}.qual_histogram")
-    logit_histogram = os.path.join(outdir, f"{basename}.logit_histogram")
-    calibration_fn_with_hist = os.path.join(outdir, f"{basename}.calibration_fn_with_hist")
-    output_qual_per_feature = os.path.join(outdir, f"{basename}.qual_per_")
+    output_LoD_plot = os.path.join(outdir, f"{basename}LoD_curve")
+    qual_vs_ppmseq_tags_table = os.path.join(outdir, f"{basename}qual_vs_ppmSeq_tags_table")
+    training_progerss_plot = os.path.join(outdir, f"{basename}training_progress")
+    SHAP_importance_plot = os.path.join(outdir, f"{basename}SHAP_importance")
+    SHAP_beeswarm_plot = os.path.join(outdir, f"{basename}SHAP_beeswarm")
+    trinuc_stats_plot = os.path.join(outdir, f"{basename}trinuc_stats")
+    qual_histogram = os.path.join(outdir, f"{basename}qual_histogram")
+    logit_histogram = os.path.join(outdir, f"{basename}logit_histogram")
+    calibration_fn_with_hist = os.path.join(outdir, f"{basename}calibration_fn_with_hist")
+    output_qual_per_feature = os.path.join(outdir, f"{basename}qual_per_")
 
     return [
         output_LoD_plot,
@@ -1631,8 +1649,12 @@ class SRSNVReport:
         median_qual_mixed = TP_mixed_df[QUAL].median()
         recall_at_60 = self._get_recall_at_snvq(snvq=60)
         recall_at_60_mixed = self._get_recall_at_snvq(snvq=60, condition=self.data_df[IS_MIXED])
-        roc_auc_phred = prob_to_phred(self._safe_roc_auc(self.data_df[LABEL], self.data_df[ML_PROB_1_TEST], name="run info total"))
-        roc_auc_phred_mixed = prob_to_phred(self._safe_roc_auc(mixed_df[LABEL], mixed_df[ML_PROB_1_TEST], name="run info mixed"))
+        roc_auc_phred = prob_to_phred(
+            self._safe_roc_auc(self.data_df[LABEL], self.data_df[ML_PROB_1_TEST], name="run info total")
+        )
+        roc_auc_phred_mixed = prob_to_phred(
+            self._safe_roc_auc(mixed_df[LABEL], mixed_df[ML_PROB_1_TEST], name="run info mixed")
+        )
         performance_info = {
             ("Median SNVQ", "All reads"): median_qual,
             ("Median SNVQ", "Mixed only"): median_qual_mixed,
@@ -1774,22 +1796,22 @@ class SRSNVReport:
     def _safe_roc_auc(self, y_true, y_pred, name=None):
         """
         Calculate ROC AUC score with checks for cases where the calculation is not possible.
-        
+
         Parameters:
         y_true: array-like, true labels
         y_pred: array-like, predicted probabilities
-        name: str, name of dataset (for logging). If None, ignore datset name. 
-        
+        name: str, name of dataset (for logging). If None, ignore datset name.
+
         Returns:
         ROC AUC score if calculable, otherwise np.nan
         """
-        y_true = np.array(y_true) # Convert to numpy array
+        y_true = np.array(y_true)  # Convert to numpy array
         name_for_log = f" ({name=})" if name is not None else ""
         # Check if the array is empty
         if y_true.size == 0:
             logger.warning(f"ROC AUC cannot be calculated: dataset is empty {name_for_log}")
             return np.nan
-        
+
         # Check if all labels are the same
         if len(np.unique(y_true)) == 1:
             logger.warning(f"ROC AUC cannot be calculated: dataset has only one class {name_for_log}")
@@ -1798,7 +1820,7 @@ class SRSNVReport:
         # Calculate the ROC AUC score
         try:
             return roc_auc_score(y_true, y_pred)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.error(f"An error occurred while calculating ROC AUC{name_for_log}: {e}")
             return np.nan
 
@@ -1815,10 +1837,14 @@ class SRSNVReport:
         auc_total = prob_to_phred(self._safe_roc_auc(self.data_df[LABEL], self.data_df[ML_PROB_1_TEST], name="total"))
         mix_cond = self.data_df[IS_MIXED]
         auc_mixed = prob_to_phred(
-            self._safe_roc_auc(self.data_df.loc[mix_cond, LABEL], self.data_df.loc[mix_cond, ML_PROB_1_TEST], name="mixed")
+            self._safe_roc_auc(
+                self.data_df.loc[mix_cond, LABEL], self.data_df.loc[mix_cond, ML_PROB_1_TEST], name="mixed"
+            )
         )
         auc_non_mixed = prob_to_phred(
-            self._safe_roc_auc(self.data_df.loc[~mix_cond, LABEL], self.data_df.loc[~mix_cond, ML_PROB_1_TEST], name="non-mixed")
+            self._safe_roc_auc(
+                self.data_df.loc[~mix_cond, LABEL], self.data_df.loc[~mix_cond, ML_PROB_1_TEST], name="non-mixed"
+            )
         )
 
         auc_per_fold = []
@@ -1827,11 +1853,11 @@ class SRSNVReport:
         auc_on_holdout = []
         auc_on_holdout_mixed = []
         auc_on_holdout_non_mixed = []
-        error_on_holdout = [] # log cases of ROC AUC error on holdout,. Values in ["total", "mixed", "nonmixed"] 
-        holdout_fold_cond = self.data_df[FOLD_ID].isna() 
+        error_on_holdout = []  # log cases of ROC AUC error on holdout,. Values in ["total", "mixed", "nonmixed"]
+        holdout_fold_cond = self.data_df[FOLD_ID].isna()
         if holdout_fold_cond.sum() > holdout_fold_size_thresh:
-            mix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (self.data_df[IS_MIXED]) 
-            nonmix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (~self.data_df[IS_MIXED]) 
+            mix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (self.data_df[IS_MIXED])
+            nonmix_holdout_fold_cond = self.data_df[FOLD_ID].isna() & (~self.data_df[IS_MIXED])
         all_features = self.params["numerical_features"] + self.params["categorical_features_names"]
         for k in range(num_CV_folds):
             fold_cond = self.data_df[FOLD_ID] == k
@@ -1839,32 +1865,40 @@ class SRSNVReport:
             nonmix_fold_cond = (self.data_df[FOLD_ID] == k) & (~self.data_df[IS_MIXED])
             auc_per_fold.append(
                 prob_to_phred(
-                    self._safe_roc_auc(self.data_df.loc[fold_cond, LABEL], self.data_df.loc[fold_cond, "ML_prob_1_test"], name=f"fold {k} total")
+                    self._safe_roc_auc(
+                        self.data_df.loc[fold_cond, LABEL],
+                        self.data_df.loc[fold_cond, "ML_prob_1_test"],
+                        name=f"fold {k} total",
+                    )
                 )
             )
             auc_per_fold_mixed.append(
                 prob_to_phred(
                     self._safe_roc_auc(
-                        self.data_df.loc[mix_fold_cond, LABEL], self.data_df.loc[mix_fold_cond, "ML_prob_1_test"], name=f"fold {k} mixed"
+                        self.data_df.loc[mix_fold_cond, LABEL],
+                        self.data_df.loc[mix_fold_cond, "ML_prob_1_test"],
+                        name=f"fold {k} mixed",
                     )
                 )
             )
             auc_per_fold_non_mixed.append(
                 prob_to_phred(
                     self._safe_roc_auc(
-                        self.data_df.loc[nonmix_fold_cond, LABEL], self.data_df.loc[nonmix_fold_cond, "ML_prob_1_test"], name=f"fold {k} non-mixed"
+                        self.data_df.loc[nonmix_fold_cond, LABEL],
+                        self.data_df.loc[nonmix_fold_cond, "ML_prob_1_test"],
+                        name=f"fold {k} non-mixed",
                     )
                 )
             )
             # Calculate ROC AUC on holdout set
             if holdout_fold_cond.sum() > holdout_fold_size_thresh:
-                if "total" not in error_on_holdout: # Checked to supress multiple error messages
+                if "total" not in error_on_holdout:  # Checked to supress multiple error messages
                     auc_on_holdout.append(
                         prob_to_phred(
                             self._safe_roc_auc(
                                 self.data_df.loc[holdout_fold_cond, LABEL],
                                 self.models[k].predict_proba(self.data_df.loc[holdout_fold_cond, all_features])[:, 1],
-                                name=f"holdout total"
+                                name="holdout total",
                             )
                         )
                     )
@@ -1877,8 +1911,10 @@ class SRSNVReport:
                         prob_to_phred(
                             self._safe_roc_auc(
                                 self.data_df.loc[mix_holdout_fold_cond, LABEL],
-                                self.models[k].predict_proba(self.data_df.loc[mix_holdout_fold_cond, all_features])[:, 1],
-                                name=f"holdout mixed"
+                                self.models[k].predict_proba(self.data_df.loc[mix_holdout_fold_cond, all_features])[
+                                    :, 1
+                                ],
+                                name="holdout mixed",
                             )
                         )
                     )
@@ -1894,7 +1930,7 @@ class SRSNVReport:
                                 self.models[k].predict_proba(self.data_df.loc[nonmix_holdout_fold_cond, all_features])[
                                     :, 1
                                 ],
-                                name=f"holdout non-mixed"
+                                name="holdout non-mixed",
                             )
                         )
                     )
@@ -2069,10 +2105,8 @@ class SRSNVReport:
         ax = axes[0]
         train_logloss = list_of_jagged_lists_to_array(
             [result["validation_0"]["mlogloss"] for result in training_results]
-        ) 
-        val_logloss = list_of_jagged_lists_to_array(
-            [result["validation_1"]["mlogloss"] for result in training_results]
-        ) 
+        )
+        val_logloss = list_of_jagged_lists_to_array([result["validation_1"]["mlogloss"] for result in training_results])
         for ri, result in enumerate(training_results):
             label = "Individual folds" if ri == 1 else None  # will reach ri==1 iff when using CV
             ax.plot(result["validation_0"]["mlogloss"], c="grey", alpha=0.7, label=label)
@@ -2094,10 +2128,10 @@ class SRSNVReport:
         ax = axes[1]
         train_auc = list_of_jagged_lists_to_array(
             [list_auc_to_qual(result["validation_0"]["auc"]) for result in training_results]
-        )  
+        )
         val_auc = list_of_jagged_lists_to_array(
             [list_auc_to_qual(result["validation_1"]["auc"]) for result in training_results]
-        )  
+        )
         for ri, result in enumerate(training_results):
             label = "Individual folds" if ri == 1 else None  # will reach ri==1 iff when using CV
             ax.plot(list_auc_to_qual(result["validation_0"]["auc"]), c="grey", alpha=0.5, label=label)
