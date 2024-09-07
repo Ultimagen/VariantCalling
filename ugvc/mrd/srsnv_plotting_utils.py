@@ -2097,7 +2097,7 @@ class SRSNVReport:
         if ylims is None:
             ylims = [None, None]
 
-        set_default_plt_rc_params()
+        set_pyplot_defaults()
 
         training_results = [clf.evals_result() for clf in self.models]
         num_folds = len(training_results)
@@ -2201,7 +2201,7 @@ class SRSNVReport:
         xlims=None,
     ):
         """Plot a SHAP feature importance plot."""
-        set_default_plt_rc_params()
+        set_pyplot_defaults()
 
         fig, ax = plt.subplots(figsize=(20, 10))
         X_val_plot = self._X_to_display(X_val)
@@ -2236,7 +2236,7 @@ class SRSNVReport:
         xlims=None,
     ):
         """Plot a SHAP beeswarm plot."""
-        set_default_plt_rc_params()
+        set_pyplot_defaults()
 
         # Prepare data df
         grouped_features = self._group_categorical_features(self.params["categorical_features_dict"])
