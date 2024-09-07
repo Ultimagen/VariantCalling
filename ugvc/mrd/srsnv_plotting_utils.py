@@ -1963,7 +1963,7 @@ class SRSNVReport:
                 np.array(auc_on_holdout_non_mixed).std(),
             ]
 
-        pd.DataFrame(auc_table_dict, index=["Total", "Mixed only", "Non-mixed only"]).to_hdf(
+        pd.DataFrame(auc_table_dict, index=["Total", "Mixed only", "Non-mixed only"]).T.to_hdf(
             self.output_h5_filename, key="roc_auc_table", mode="a"
         )
 
@@ -2024,7 +2024,7 @@ class SRSNVReport:
         run_quality_table_display = run_quality_table.loc[:, col_order].copy()
         run_quality_table_display.columns = pd.MultiIndex.from_tuples(display_columns)
         # Log in hdf5
-        run_quality_table.to_hdf(self.output_h5_filename, key="run_quality_table", mode="a")
+        run_quality_table.T.to_hdf(self.output_h5_filename, key="run_quality_table", mode="a")
         run_quality_table_display.to_hdf(self.output_h5_filename, key="run_quality_table_display", mode="a")
 
     @exception_handler
@@ -2058,8 +2058,10 @@ class SRSNVReport:
         ppmseq_category_quantity_table.columns = ppmseq_category_quantity_table.columns.astype(str)
 
         # Save to hdf5
-        ppmseq_category_quality_table.to_hdf(self.output_h5_filename, key="ppmseq_category_quality_table", mode="a")
-        ppmseq_category_quantity_table.to_hdf(self.output_h5_filename, key="ppmseq_category_quantity_table", mode="a")
+        ppmseq_category_quality_table_for_h5 = ppmseq_category_quality_table.T.unstack(level=0)
+        ppmseq_category_quantity_table_for_h5 = ppmseq_category_quantity_table.T.unstack(level=0)
+        ppmseq_category_quality_table_for_h5.to_hdf(self.output_h5_filename, key="ppmseq_category_quality_table", mode="a")
+        ppmseq_category_quantity_table_for_h5.to_hdf(self.output_h5_filename, key="ppmseq_category_quantity_table", mode="a")
         # Generate heatmap
         ppmseq_category_combined_table = (
             ppmseq_category_quality_table.apply(lambda x: signif(x, 3)).astype(str)
@@ -2166,7 +2168,7 @@ class SRSNVReport:
                 ),
             ],
             axis=1,
-        ).to_hdf(self.output_h5_filename, key="training_progress", mode="a")
+        ).T.to_hdf(self.output_h5_filename, key="training_progress", mode="a")
 
     def _X_to_display(self, X_val: pd.DataFrame, cat_features_dict: dict = None):
         """Rename categorical feature values as numbers, for SHAP plots."""
@@ -2456,7 +2458,9 @@ class SRSNVReport:
     ):
         logger.info("Calculating trinuc context statistics")
         trinuc_stats = self._get_trinuc_stats(q1=0.1, q2=0.9)
-        trinuc_stats.to_hdf(self.output_h5_filename, key="trinuc_stats", mode="a")
+        trinuc_stats.set_index([
+            'trinuc_context_with_alt', 'label', 'is_forward', 'is_mixed'
+        ]).to_hdf(self.output_h5_filename, key="trinuc_stats", mode="a")
         # get trinuc_with_context in right order
         trinuc_symmetric_ref_alt, symmetric_index, snv_labels = self._get_trinuc_with_alt_in_order(order=order)
         snv_positions = [8, 24, 40, 56, 72, 88]  # Midpoint for each SNV titles in plot
@@ -3013,6 +3017,7 @@ class SRSNVReport:
                 lod_column=self.c_lod,
             )
             logger.info("Creating SNVQ-recall-LoD plot")
+            self.df_mrd_simulation.unstack().to_hdf(self.output_h5_filename, key="SNV_recall_LoD", mode="a")
             plot_LoD(
                 self.df_mrd_simulation,
                 self.lod_label,
@@ -3022,6 +3027,21 @@ class SRSNVReport:
                 min_LoD_filter,
                 output_filename=output_LoD_plot,
             )
+
+        # Adding keys_to_convert to h5
+        keys_to_convert = pd.Series([
+            'mean_abs_SHAP_scores', 
+            'ppmseq_category_quality_table', 
+            'ppmseq_category_quantity_table', 
+            'roc_auc_table', 
+            'run_quality_summary_table',
+            'run_quality_table',
+            'training_info_table',
+            'training_progress',
+            'trinuc_stats',
+            'SNV_recall_LoD'
+        ])
+        keys_to_convert.to_hdf(self.output_h5_filename, key="keys_to_convert", mode="a")
 
         # convert statistics to json
         convert_h5_to_json(
