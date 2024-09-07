@@ -23,14 +23,13 @@ from sklearn.metrics import confusion_matrix, precision_score, recall_score, roc
 from tqdm import tqdm
 from ugbio_core.exec_utils import print_and_execute
 from ugbio_core.filter_bed import count_bases_in_bed_file
+from ugbio_core.plotting_utils import set_pyplot_defaults
 
 from ugvc import logger
 from ugvc.mrd.featuremap_utils import FeatureMapFields
 from ugvc.mrd.ppmSeq_utils import ppmSeqAdapterVersions
 from ugvc.utils.metrics_utils import convert_h5_to_json, read_effective_coverage_from_sorter_json
 from ugvc.utils.misc_utils import filter_valid_queries
-from ugbio_core.plotting_utils import set_pyplot_defaults
-from ugbio_core.filter_bed import count_bases_in_bed_file
 
 # featuremap_df column names. TODO: make more generic?
 ML_PROB_1_TEST = "ML_prob_1_test"
@@ -1893,11 +1892,13 @@ class SRSNVReport:
             # Calculate ROC AUC on holdout set
             if holdout_fold_cond.sum() > holdout_fold_size_thresh:
                 if "total" not in error_on_holdout:  # Checked to supress multiple error messages
+                    preds = self.models[k].predict_proba(self.data_df.loc[holdout_fold_cond, all_features])
+                    preds = preds[:, 1] if preds.shape[1] == 2 else preds
                     auc_on_holdout.append(
                         prob_to_phred(
                             self._safe_roc_auc(
                                 self.data_df.loc[holdout_fold_cond, LABEL],
-                                self.models[k].predict_proba(self.data_df.loc[holdout_fold_cond, all_features])[:, 1],
+                                preds,
                                 name="holdout total",
                             )
                         )
@@ -1907,13 +1908,13 @@ class SRSNVReport:
                 else:
                     auc_on_holdout.append(np.nan)
                 if "mixed" not in error_on_holdout:
+                    preds = self.models[k].predict_proba(self.data_df.loc[mix_holdout_fold_cond, all_features])
+                    preds = preds[:, 1] if preds.shape[1] == 2 else preds
                     auc_on_holdout_mixed.append(
                         prob_to_phred(
                             self._safe_roc_auc(
                                 self.data_df.loc[mix_holdout_fold_cond, LABEL],
-                                self.models[k].predict_proba(self.data_df.loc[mix_holdout_fold_cond, all_features])[
-                                    :, 1
-                                ],
+                                preds,
                                 name="holdout mixed",
                             )
                         )
@@ -1923,13 +1924,13 @@ class SRSNVReport:
                 else:
                     auc_on_holdout_mixed.append(np.nan)
                 if "nonmixed" not in error_on_holdout:
+                    preds = self.models[k].predict_proba(self.data_df.loc[nonmix_holdout_fold_cond, all_features])
+                    preds = preds[:, 1] if preds.shape[1] == 2 else preds
                     auc_on_holdout_non_mixed.append(
                         prob_to_phred(
                             self._safe_roc_auc(
                                 self.data_df.loc[nonmix_holdout_fold_cond, LABEL],
-                                self.models[k].predict_proba(self.data_df.loc[nonmix_holdout_fold_cond, all_features])[
-                                    :, 1
-                                ],
+                                preds,
                                 name="holdout non-mixed",
                             )
                         )
@@ -2060,8 +2061,12 @@ class SRSNVReport:
         # Save to hdf5
         ppmseq_category_quality_table_for_h5 = ppmseq_category_quality_table.T.unstack(level=0)
         ppmseq_category_quantity_table_for_h5 = ppmseq_category_quantity_table.T.unstack(level=0)
-        ppmseq_category_quality_table_for_h5.to_hdf(self.output_h5_filename, key="ppmseq_category_quality_table", mode="a")
-        ppmseq_category_quantity_table_for_h5.to_hdf(self.output_h5_filename, key="ppmseq_category_quantity_table", mode="a")
+        ppmseq_category_quality_table_for_h5.to_hdf(
+            self.output_h5_filename, key="ppmseq_category_quality_table", mode="a"
+        )
+        ppmseq_category_quantity_table_for_h5.to_hdf(
+            self.output_h5_filename, key="ppmseq_category_quantity_table", mode="a"
+        )
         # Generate heatmap
         ppmseq_category_combined_table = (
             ppmseq_category_quality_table.apply(lambda x: signif(x, 3)).astype(str)
@@ -2458,9 +2463,9 @@ class SRSNVReport:
     ):
         logger.info("Calculating trinuc context statistics")
         trinuc_stats = self._get_trinuc_stats(q1=0.1, q2=0.9)
-        trinuc_stats.set_index([
-            'trinuc_context_with_alt', 'label', 'is_forward', 'is_mixed'
-        ]).to_hdf(self.output_h5_filename, key="trinuc_stats", mode="a")
+        trinuc_stats.set_index(["trinuc_context_with_alt", "label", "is_forward", "is_mixed"]).to_hdf(
+            self.output_h5_filename, key="trinuc_stats", mode="a"
+        )
         # get trinuc_with_context in right order
         trinuc_symmetric_ref_alt, symmetric_index, snv_labels = self._get_trinuc_with_alt_in_order(order=order)
         snv_positions = [8, 24, 40, 56, 72, 88]  # Midpoint for each SNV titles in plot
@@ -3029,18 +3034,20 @@ class SRSNVReport:
             )
 
         # Adding keys_to_convert to h5
-        keys_to_convert = pd.Series([
-            'mean_abs_SHAP_scores', 
-            'ppmseq_category_quality_table', 
-            'ppmseq_category_quantity_table', 
-            'roc_auc_table', 
-            'run_quality_summary_table',
-            'run_quality_table',
-            'training_info_table',
-            'training_progress',
-            'trinuc_stats',
-            'SNV_recall_LoD'
-        ])
+        keys_to_convert = pd.Series(
+            [
+                "mean_abs_SHAP_scores",
+                "ppmseq_category_quality_table",
+                "ppmseq_category_quantity_table",
+                "roc_auc_table",
+                "run_quality_summary_table",
+                "run_quality_table",
+                "training_info_table",
+                "training_progress",
+                "trinuc_stats",
+                "SNV_recall_LoD",
+            ]
+        )
         keys_to_convert.to_hdf(self.output_h5_filename, key="keys_to_convert", mode="a")
 
         # convert statistics to json
