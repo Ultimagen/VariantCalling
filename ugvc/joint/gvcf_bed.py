@@ -36,6 +36,10 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
         start = extent
 
         for record in tqdm.tqdm(vcf.fetch()):
+            # If the record is a reference block, write the entire block to the bed file
+            # however, if the record is a "refCall" deletion, it will only write the first base
+            # The other bases will be marked as "uncertain" because they will be taken from the
+            # reference blocks of the gVCF that the efficient deepVariant outputs
             if len(str(record.ref)) > 1 and (
                 ("GQ" not in record.samples[0])
                 or record.samples[0]["GT"] == (0, 0)
@@ -57,10 +61,6 @@ def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool 
                 extent = end
 
             if gt:
-                # If the record is a reference block, write the entire block to the bed file
-                # however, if the record is a "refCall" deletion, it will only write the first base
-                # The other bases will be marked as "uncertain" because they will be taken from the
-                # reference blocks of the gVCF that the efficient deepVariant outputs
                 if "GQ" in record.samples[0] and record.samples[0]["GQ"] >= gq_threshold:
                     bed.write(chrom, start, end)
             elif not gt:

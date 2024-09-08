@@ -16,12 +16,8 @@ def test_gvcf_hcr(tmpdir):
             f"{inputs_dir}/calls.g.vcf.gz",
             "--bed",
             f"{tmpdir}/calls.observed.bed",
-            "--genome_file",
-            f"{inputs_dir}/chr9.fasta.fai",
             "--gq_threshold",
             "20",
-            "--calling_region",
-            f"{inputs_dir}/chr9.calling_regions.interval_list",
         ]
     )
     filecmp.cmp(f"{tmpdir}/calls.observed.bed", f"{inputs_dir}/hcr.expected.bed")
