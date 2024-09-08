@@ -94,6 +94,8 @@ class HistogramColumnNames(Enum):
     LOOP_SEQUENCE_START = "loop_sequence_start"
     LOOP_SEQUENCE_END = "loop_sequence_end"
     DUMBBELL_LEFTOVER_START = "Dumbbell_leftover_start"
+    ST = "st"  # STRAND_RATIO_CATEGORY_START in ppmSeq V1
+    ET = "et"  # STRAND_RATIO_CATEGORY_END in ppmSeq V1
 
 
 # Input parameter defaults for legacy_v5
@@ -247,6 +249,27 @@ class ppmSeqStrandVcfAnnotator(VcfAnnotator):
                         self.sr_lower,
                         self.sr_upper,
                     )  # this works for nan values as well - returns UNDETERMINED
+            if self.adapter_version in (
+                ppmSeqAdapterVersions.V1.value,
+                ppmSeqAdapterVersions.DMBL.value,
+            ):  # legacy_v5_start has start tags only
+                record.info[HistogramColumnNames.ST.value] = record.info.get(
+                    HistogramColumnNames.ST.value, ppmSeqCategories.UNDETERMINED.value
+                )
+                is_end_reached = (
+                    ppmSeq_tags[TrimmerSegmentTags.NATIVE_ADAPTER.value] >= 1
+                    or ppmSeq_tags[TrimmerSegmentTags.STEM_END.value] >= self.min_stem_end_matched_length
+                )
+                record.info[HistogramColumnNames.ET.value] = record.info.get(
+                    HistogramColumnNames.ET.value, ppmSeqCategories.UNDETERMINED.value
+                )
+                #  TODO: Check cases where not is_end_reached and et==UNDETERMINED. Make v5 logic conform with this
+                if (
+                    not is_end_reached
+                    and record.info[HistogramColumnNames.ET.value] == ppmSeqCategories.UNDETERMINED.value
+                ):
+                    record.info[HistogramColumnNames.ET.value] = ppmSeqCategories.END_UNREACHED.value
+
             records_out[j] = record
 
         return records_out

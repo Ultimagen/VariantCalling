@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import subprocess
 from collections import defaultdict
 from datetime import datetime
 from os.path import basename, isfile
@@ -22,13 +24,15 @@ from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
-from ugvc.mrd.srsnv_plotting_utils import create_report
+from ugvc.mrd.srsnv_plotting_utils import SRSNVReport, default_LoD_filters, retention_noise_and_mrd_lod_simulation
 from ugvc.utils.consts import FileExtension
 from ugvc.utils.metrics_utils import read_effective_coverage_from_sorter_json
 
 ML_QUAL = "ML_QUAL"
 FOLD_ID = "fold_id"
+IS_MIXED = "is_mixed"
 
+NUM_CHROMS_FOR_TEST = 1
 
 default_xgboost_model_params = {
     "n_estimators": 200,
@@ -148,7 +152,7 @@ def set_categorical_columns(df: pd.DataFrame, cat_dict: dict[str, list]):
     return df
 
 
-def partition_into_folds(series_of_sizes, k_folds, alg="greedy"):
+def partition_into_folds(series_of_sizes, k_folds, alg="greedy", n_test=0):
     """Returns a partition of the indices of the series series_of_sizes
     into k_fold groups whose total size is approximately the same.
     Returns a dictionary that maps the indices (keys) of series_of_sizes into
@@ -165,12 +169,16 @@ def partition_into_folds(series_of_sizes, k_folds, alg="greedy"):
         - k_folds [int]: the number of folds into which series_of_sizes should be partitioned.
         - alg ['greedy']: the algorithm used. For the time being only the greedy algorithm
             is implemented.
+        - n_test [int]: The n_test smallest chroms are not assigned to any fold (they are excluded
+            from the indices_to_folds dict). These are excluded from training all together, and
+            are used for test only.
     Returns:
         - indices_to_folds [dict]: a dictionary that maps indices to the corresponding
             fold numbers.
     """
     assert alg == "greedy", "Only greedy algorithm implemented at this time"
     series_of_sizes = series_of_sizes.sort_values(ascending=False)
+    series_of_sizes = series_of_sizes.iloc[: series_of_sizes.shape[0] - n_test]  # Removing the n_test smallest sizes
     partitions = [[] for _ in range(k_folds)]  # an empty partition
     partition_sums = np.zeros(k_folds)  # The running sum of partitions
     for idx, s in series_of_sizes.items():
@@ -481,7 +489,7 @@ def prepare_featuremap_for_model(
     if rng is None:
         random_seed = int(datetime.now().timestamp())
         rng = np.random.default_rng(seed=random_seed)
-        logger.info(f"Initializing random numer generator with {random_seed=}")
+        logger.info(f"Featuremap preparation: Initializing random numer generator with {random_seed=}")
     if do_motif_balancing_in_tp:
         # determine sampling rate per group (defined by a combination of info fields)
         number_of_groups = len(balanced_sampling_info_fields_counter)
@@ -617,6 +625,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         test_set_size: int = MIN_TEST_SIZE,
         k_folds: int = 1,
         split_folds_by_chrom: bool = True,
+        num_chroms_for_test: int = None,
         reference_dict: str = None,
         numerical_features: list[str] = None,
         categorical_features: dict[str, list] = None,
@@ -629,9 +638,15 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         balanced_sampling_info_fields: list[str] = None,
         lod_filters: str = None,
         ppmSeq_adapter_version: str = None,
+        start_tag_col: str = None,
+        end_tag_col: str = None,
+        pipeline_version: str = None,
+        docker_image: str = None,
         pre_filter: str = None,
         random_seed: int = None,
         simple_pipeline: SimplePipeline = None,
+        load_dataset_and_model: bool = False,
+        raise_exceptions_in_report: bool = False,
     ):
         """
         Train a classifier on FP and TP featuremaps
@@ -653,6 +668,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         k_folds: int, optional
             The number of cross-validation folds to use. By default 1 (no CV).
             If k_folds != 1, ignores test_set_size (there's no test set).
+        num_chroms_for_test : int, optional
+            Number of chromosomes to exclude from training and include exclusively in test set.
         numerical_features : list[str], optional
             List of numerical features to use, default (None): [X_SCORE,X_EDIST,X_LENGTH,X_INDEX,MAX_SOFTCLIP_LENGTH]
         categorical_features : dict[str, list], optional
@@ -689,6 +706,16 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             json file with a dict of format 'filter name':'query' for LoD simulation, by default None
         ppmSeq_adapter_version : str, optional
             adapter version, indicates if input featuremap is from balanced ePCR data, by default None
+        start_tag_col : str, optional
+            column name for ppmSeq start tag, by default None. If None, value is inferred
+            from ppmSeq_adapter_version, featuremap, and categorical features
+        end_tag_col : str, optional
+            column name for ppmSeq end tag, by default None. If None, value is inferred
+            from ppmSeq_adapter_version, featuremap, and categorical features
+        pipeline_version : str, optional
+            pipeline version, by default None
+        docker_image : str, optional
+            docker image, by default None
         pre_filter : str, optional
             bcftools include filter to apply as part of a "bcftools view <vcf> -i 'pre_filter'"
             before sampling, by default None
@@ -696,6 +723,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             Random seed to use for sampling, by default None, If None, use system time.
         simple_pipeline : SimplePipeline, optional
             SimplePipeline object to use for printing and running commands, by default None
+        load_dataset_and_model : bool, optional
+            Load the dataset and model from files in output_path. by default False
 
         Raises
         ------
@@ -754,14 +783,18 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
                 if chrom_to_exclude in chrom_list:
                     chrom_list.remove(chrom_to_exclude)
                     logger.warning(f"Excluding {chrom_to_exclude} from the list of chromosomes")
-            if len(chrom_list) < self.k_folds:
+            self.num_chroms_for_test = num_chroms_for_test or NUM_CHROMS_FOR_TEST
+            if len(chrom_list) - self.num_chroms_for_test < self.k_folds:
                 logger.warning(
                     f"Number of chromosomes ({len(chrom_list)}) is less than the number of folds ({self.k_folds})!"
                 )
             chrom_sizes_filt = {chrom: size for chrom, size in chrom_sizes.items() if chrom in chrom_list}
-            self.chroms_to_folds = partition_into_folds(pd.Series(chrom_sizes_filt), self.k_folds)
+            self.chroms_to_folds = partition_into_folds(
+                pd.Series(chrom_sizes_filt), self.k_folds, n_test=self.num_chroms_for_test
+            )
         else:
             self.chroms_to_folds = None
+            self.num_chroms_for_test = None
 
         # determine output paths
         os.makedirs(out_path, exist_ok=True)
@@ -782,6 +815,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.train_statistics_json_file,
         ) = self._get_file_paths()
         self.save_model_jsons = save_model_jsons
+        self.load_dataset_and_model = load_dataset_and_model
 
         # set up classifier
         assert sklearn.base.is_classifier(
@@ -807,9 +841,10 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         self.pre_filter = pre_filter
         if random_seed is None:
             random_seed = int(datetime.now().timestamp())
-            logger.info(f"Initializing random numer generator with {random_seed=}")
+            logger.info(f"SRSNVTrain: Initializing random numer generator with {random_seed=}")
         self.random_seed = random_seed
         self.rng = np.random.default_rng(seed=self.random_seed)
+        self.raise_exceptions_in_report = raise_exceptions_in_report
 
         # misc
         if isinstance(lod_filters, str) and isfile(lod_filters) and lod_filters.endswith(".json"):
@@ -821,9 +856,14 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             self.lod_filters = lod_filters
         else:
             raise ValueError("lod_filters should be json_file | dictionary | None")
+        self.normalization_factors_dict = None
 
         self.flow_order = flow_order
         self.ppmSeq_adapter_version = ppmSeq_adapter_version
+        self.start_tag_col = start_tag_col
+        self.end_tag_col = end_tag_col
+        self.pipeline_version = pipeline_version
+        self.docker_image = docker_image
         self.sp = simple_pipeline
 
         # set and check train and test sizes
@@ -882,12 +922,18 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             "tp_train_set_size": self.tp_train_set_size,
             "lod_filters": self.lod_filters,
             "adapter_version": self.ppmSeq_adapter_version,
+            "start_tag_col": self.start_tag_col,
+            "end_tag_col": self.end_tag_col,
+            "pipeline_version": self.pipeline_version,
+            "docker_image": self.docker_image,
             "columns": self.columns,
             "featuremap_df_save_path": self.featuremap_df_save_path,
             "pre_filter": self.pre_filter,
             "random_seed": self.random_seed,
             "chroms_to_folds": self.chroms_to_folds,
+            "num_chroms_for_test": self.num_chroms_for_test,
             "num_CV_folds": self.k_folds,
+            "normalization_factors_dict": self.normalization_factors_dict,
         }
 
     def save_model_and_data(self):
@@ -899,21 +945,160 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         params_to_save = self.get_params()
         with open(self.params_save_path, "w", encoding="utf-8") as f:
             json.dump(params_to_save, f)
+        logger.info(f"Saved params to {self.params_save_path}")
         # save model joblib (includes params and interpolation)
         joblib.dump(
             {
                 "models": self.classifiers,
                 "params": params_to_save,
-                "quality_interpolation_function": self.quality_interpolation_function,
+                "quality_interpolation_function": getattr(self, "quality_interpolation_function", None),
             },
             self.model_joblib_save_path,
         )
+        logger.info(f"Saved model to {self.model_joblib_save_path}")
         # save data
         for data, savename in ((self.featuremap_df, self.featuremap_df_save_path),):
             data.to_parquet(savename)
+            logger.info(f"Saved featuremap_df to {savename}")
+
+    def _get_ppmseq_tags_column_names(self):
+        """Get the column names for the ppmSeq start and end tags.
+        If these are provided as arguments/parameters, use them.
+        Otherwise, infer them using the following logic:
+        - If they can be unambiguously inferred from the featuremap, use this value.
+          If the are absent, set them to None.
+        - If both versions are in the featuremap, use the one from the categorical features dict.
+        - If categorical features dict does not disambiguate, use the ppmSeq_adapter_version.
+        Raise warnings if any of the values above are inconsistent.
+        """
+        ppmSeq_adapter_version = self.ppmSeq_adapter_version
+        strand_ratio_in_featuremap = (
+            "strand_ratio_category_end" in self.featuremap_df and "strand_ratio_category_start" in self.featuremap_df
+        )
+        strand_ratio_in_categorical = (
+            "strand_ratio_category_end" in self.categorical_features_names
+            and "strand_ratio_category_start" in self.categorical_features_names
+        )
+        cram_tags_in_featuremap = "st" in self.featuremap_df and "et" in self.featuremap_df
+        cram_tags_in_categorical = "st" in self.categorical_features_names and "et" in self.categorical_features_names
+        if cram_tags_in_categorical and strand_ratio_in_categorical:
+            logger.warning("categorical_features_dict contains both legacy_v5 and v1 ppmSeq tags")
+        if self.ppmSeq_adapter_version == "v1":
+            tag_cols_from_adapter = ["st", "et"]
+        elif self.ppmSeq_adapter_version == "legacy_v5":
+            tag_cols_from_adapter = ["strand_ratio_category_start", "strand_ratio_category_end"]
+        else:
+            tag_cols_from_adapter = [None, None]
+
+        if self.start_tag_col is None and self.end_tag_col is None:
+            if strand_ratio_in_featuremap and cram_tags_in_featuremap:
+                logger.warning("featuremap_df contains both legacy_v5 and v1 ppmSeq tags")
+                # Both versions in featuremap, need to check further
+                if (strand_ratio_in_categorical and cram_tags_in_categorical) or (
+                    not strand_ratio_in_categorical and not cram_tags_in_categorical
+                ):
+                    # Categorical features do not disambiguate, use ppmSeq_adapter_version
+                    self.start_tag_col, self.end_tag_col = tag_cols_from_adapter
+                    logger.info(f"Using {tag_cols_from_adapter=} (inferred from {ppmSeq_adapter_version=})")
+                elif strand_ratio_in_categorical:
+                    self.start_tag_col = "strand_ratio_category_start"
+                    self.end_tag_col = "strand_ratio_category_end"
+                elif cram_tags_in_categorical:
+                    self.start_tag_col = "st"
+                    self.end_tag_col = "et"
+            elif strand_ratio_in_featuremap:
+                self.start_tag_col = "strand_ratio_category_start"
+                self.end_tag_col = "strand_ratio_category_end"
+                if not strand_ratio_in_categorical:
+                    logger.warning("ppmSeq tags not in categorica_features_dict")
+            elif cram_tags_in_featuremap:
+                self.start_tag_col = "st"
+                self.end_tag_col = "et"
+                if not cram_tags_in_categorical:
+                    logger.warning("ppmSeq tags not in categorica_features_dict")
+            else:  # No ppmSeq tags in featuremap
+                self.start_tag_col = None
+                self.end_tag_col = None
+        logger.info(f"Using [start_tag, end_tag] = {[self.start_tag_col, self.end_tag_col]}")
+        if self.start_tag_col != tag_cols_from_adapter[0] or self.end_tag_col != tag_cols_from_adapter[1]:
+            logger.warning(f"ppmSeq tags are not consistent with respect to {tag_cols_from_adapter=}")
+
+    def add_is_mixed_to_featuremap_df(self):
+        """Add is_mixed column to self.featuremap_df"""
+        logger.info("Adding is_mixed column to featuremap")
+        # TODO: use the information from adapter_version instead of this patch
+        self._get_ppmseq_tags_column_names()
+        if self.start_tag_col is not None and self.end_tag_col is not None:
+            self.featuremap_df["is_mixed"] = np.logical_and(
+                (self.featuremap_df[self.start_tag_col] == "MIXED"),
+                (self.featuremap_df[self.end_tag_col] == "MIXED"),
+            )
+        else:  # If no strand ratio information is available, set is_mixed to False
+            self.featuremap_df["is_mixed"] = False
+            logger.warning("No ppmSeq tags in data, setting is_mixed to False")
+
+    def calc_qual_and_mrd_simulation(self, ML_qual_col: str = "ML_qual_1_test"):
+        """Calibrate ML_qual to qual, get the interpolating function,
+        then run MRD simulation."""
+        # Set up LoD simulation params. TODO: Make params configurable
+        self.LoD_params = {}
+        self.LoD_params["sensitivity_at_lod"] = 0.90  # self.params.get("sensitivity_at_lod", 0.90)
+        self.LoD_params["specificity_at_lod"] = 0.99  # self.params.get("specificity_at_lod", 0.99)
+        self.LoD_params["simulated_signature_size"] = 10_000  # self.params.get("simulated_signature_size", 10_000)
+        self.LoD_params["simulated_coverage"] = 30  # self.params.get("simulated_coverage", 30)
+        self.LoD_params[
+            "minimum_number_of_read_for_detection"
+        ] = 2  # self.params.get("minimum_number_of_read_for_detection", 2)
+
+        # LoD Filters
+        lod_basic_filters = self.lod_filters or default_LoD_filters
+        max_score = int(np.ceil(self.featuremap_df[ML_qual_col].max()))
+        ML_qual_col_other = re.sub(
+            r"_(0|1)_", lambda m: f"_{1 - int(m.group(1))}_", ML_qual_col
+        )  # Replace 0 with 1 and vice versa
+        if ML_qual_col_other in self.featuremap_df.columns:
+            max_score_other = int(np.ceil(self.featuremap_df[ML_qual_col_other].max()))
+            max_score = max(max_score, max_score_other)  # Adapted from older report cod, not sure why this is needed
+        ML_filters = {f"ML_qual_{q}": f"{ML_qual_col} >= {q}" for q in range(0, max_score + 1)}
+        mixed_ML_filters = {
+            f"mixed_ML_qual_{q}": f"{IS_MIXED} and {ML_qual_col} >= {q}" for q in range(0, max_score + 1)
+        }
+
+        self.lod_filters = {
+            **lod_basic_filters,
+            **ML_filters,
+            **mixed_ML_filters,
+        }
+
+        if self.fp_regions_bed_file is not None:
+            (
+                self.df_mrd_simulation,
+                self.lod_filters_filtered,
+                self.lod_label,
+                self.c_lod,
+                self.normalization_factors_dict,
+            ) = retention_noise_and_mrd_lod_simulation(
+                df=self.featuremap_df,
+                single_sub_regions=self.fp_regions_bed_file,
+                sorter_json_stats_file=self.sorter_json_stats_file,
+                fp_featuremap_entry_number=self.fp_featuremap_entry_number,
+                lod_filters=self.lod_filters,
+                sensitivity_at_lod=self.LoD_params["sensitivity_at_lod"],
+                specificity_at_lod=self.LoD_params["specificity_at_lod"],
+                simulated_signature_size=self.LoD_params["simulated_signature_size"],
+                simulated_coverage=self.LoD_params["simulated_coverage"],
+                minimum_number_of_read_for_detection=self.LoD_params["minimum_number_of_read_for_detection"],
+                output_dataframe_file=self.test_mrd_simulation_dataframe_file,
+            )
+            # self.min_LoD_filter = calculate_lod_stats(
+            #     df_mrd_simulation=self.df_mrd_simulation,
+            #     output_h5=self.test_statistics_h5_file,
+            #     lod_column=self.c_lod,
+            # )
 
     def add_predictions_to_featuremap_df(self, return_train=True):
         """Add model predictions to self.featuremap_df. Use only if models were trained!"""
+        logger.info("Adding predictions to featuremap")
         all_predictions = k_fold_predict_proba(
             self.classifiers,
             self.featuremap_df,
@@ -935,40 +1120,23 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             ).astype(int)
 
     def create_report(self):
-        # Create dataframes for test and train seperately
-        pred_cols = (
-            [f"ML_prob_{i}" for i in (0, 1)] + [f"ML_qual_{i}" for i in (0, 1)] + [f"ML_prediction_{i}" for i in (0, 1)]
-        )
-        featuremap_df = {}
-        for dataset, other_dataset in zip(("test", "train"), ("train", "test")):
-            featuremap_df[dataset] = self.featuremap_df.copy()
-            featuremap_df[dataset].drop(columns=[f"{col}_{other_dataset}" for col in pred_cols], inplace=True)
-            featuremap_df[dataset].rename(columns={f"{col}_{dataset}": col for col in pred_cols}, inplace=True)
-            # Make sure to take only reads that are indeed in the "train"/"test" sets:
-            featuremap_df[dataset] = featuremap_df[dataset].loc[~featuremap_df[dataset]["ML_prob_1"].isna(), :]
-
-        for (df, mrd_simulation_dataframe_file, statistics_h5_file, statistics_json_file, name,) in zip(
-            [featuremap_df["test"], featuremap_df["train"]],
-            [
-                self.test_mrd_simulation_dataframe_file,
-                self.train_mrd_simulation_dataframe_file,
-            ],
-            [self.test_statistics_h5_file, self.train_statistics_h5_file],
-            [self.test_statistics_json_file, self.train_statistics_json_file],
-            ["test", "train"],
-        ):
-            create_report(
-                models=self.classifiers,
-                df=df,
-                params=self.get_params(),
-                report_name=name,
-                out_path=self.out_path,
-                base_name=self.out_basename,
-                lod_filters=self.lod_filters,
-                mrd_simulation_dataframe_file=mrd_simulation_dataframe_file,
-                statistics_h5_file=statistics_h5_file,
-                statistics_json_file=statistics_json_file,
-            )
+        SRSNVReport(
+            models=self.classifiers,
+            data_df=self.featuremap_df,
+            params=self.get_params(),
+            out_path=self.out_path,
+            base_name=self.out_basename,
+            lod_filters=self.lod_filters,
+            lod_label=self.lod_label,
+            c_lod=self.c_lod,
+            # min_LoD_filter=min_LoD_filter,
+            df_mrd_simulation=self.df_mrd_simulation,
+            ML_qual_to_qual_fn=self.quality_interpolation_function,
+            statistics_h5_file=self.test_statistics_h5_file,
+            statistics_json_file=self.test_statistics_json_file,
+            rng=self.rng,
+            raise_exceptions=self.raise_exceptions_in_report,
+        ).create_report()
 
     def prepare_featuremap_for_model(self):
         """create FeatureMaps, downsampled and potentially balanced by features, to be used as train and test"""
@@ -1030,7 +1198,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         )
         if self.use_CV:
             if self.split_folds_by_chrom:
-                self.featuremap_df[FOLD_ID] = self.featuremap_df["chrom"].map(self.chroms_to_folds)
+                self.featuremap_df[FOLD_ID] = self.featuremap_df["chrom"].map(self.chroms_to_folds).astype("Int64")
             else:
                 # rng = np.random.default_rng(seed=14)
                 N_train = self.featuremap_df.shape[0]
@@ -1070,33 +1238,60 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
             )
 
     def process(self):
-        # prepare featuremaps
-        self.prepare_featuremap_for_model()
-
-        # load training data
-        self.create_dataframes()
-
-        # fit classifiers
-        for k in range(self.k_folds):
-            # datasets for k'th fold
-            train_cond = np.logical_and(
-                self.featuremap_df[FOLD_ID] != k,  # Reads that are not in current test fold
-                ~self.featuremap_df[FOLD_ID].isna(),  # Reads that are not in any fold.
+        if self.load_dataset_and_model:
+            # Check that that environment is set up correctly
+            logger.info("Verifying papermill in environment")
+            subprocess.run(
+                "papermill --version", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
             )
-            val_cond = self.featuremap_df[FOLD_ID] == k  # Reads that are in current test fold
-            X_train = self.featuremap_df.loc[train_cond, self.columns]
-            y_train = self.featuremap_df.loc[train_cond, ["label"]]
-            X_val = self.featuremap_df.loc[val_cond, self.columns]
-            y_val = self.featuremap_df.loc[val_cond, ["label"]]
-            # fit classifier of k'th fold
-            eval_set = [(X_train, y_train), (X_val, y_val)]
-            self.classifiers[k].fit(X_train, y_train, eval_set=eval_set)
+            # load data and model
+            model_data = joblib.load(self.model_joblib_save_path)
+            self.classifiers = model_data["models"]
+            params = model_data["params"]
+            keys_to_remove = [
+                "featuremap_df_save_path",
+                "test_mrd_simulation_dataframe_file",
+                "train_mrd_simulation_dataframe_file",
+                "test_statistics_h5_file",
+                "train_statistics_h5_file",
+                "test_statistics_json_file",
+                "train_statistics_json_file",
+                "lod_filters",
+            ]
+            for key in keys_to_remove:
+                params.pop(key, None)
+            self.__dict__.update(params)
+            self.featuremap_df = pd.read_parquet(self.featuremap_df_save_path)
+        else:
+            # prepare featuremaps
+            self.prepare_featuremap_for_model()
 
-        # add predictions to dataframe
+            # load training data
+            self.create_dataframes()
+
+            # fit classifiers
+            for k in range(self.k_folds):
+                # datasets for k'th fold
+                train_cond = np.logical_and(
+                    self.featuremap_df[FOLD_ID] != k,  # Reads that are not in current test fold
+                    ~self.featuremap_df[FOLD_ID].isna(),  # Reads that are not in any fold.
+                )
+                val_cond = self.featuremap_df[FOLD_ID] == k  # Reads that are in current test fold
+                X_train = self.featuremap_df.loc[train_cond, self.columns]
+                y_train = self.featuremap_df.loc[train_cond, ["label"]]
+                X_val = self.featuremap_df.loc[val_cond, self.columns]
+                y_val = self.featuremap_df.loc[val_cond, ["label"]]
+                # fit classifier of k'th fold
+                eval_set = [(X_train, y_train), (X_val, y_val)]
+                self.classifiers[k].fit(X_train, y_train, eval_set=eval_set)
+
+        # add is_mixed and predictions to dataframe
+        self.add_is_mixed_to_featuremap_df()
         self.add_predictions_to_featuremap_df()
 
-        # create training and test reports
-        self.create_report()
+        self.save_model_and_data()  # In case the run fails
+        # run MRD simulation
+        self.calc_qual_and_mrd_simulation()
 
         # Calculate vector of quality scores for the test set
         self.quality_interpolation_function = get_quality_interpolation_function(
@@ -1104,6 +1299,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         )
 
         # Add interpolated qualities
+        logger.info("Adding 'qual' column to featuremap_df")
         self.featuremap_df["qual"] = (
             self.featuremap_df["ML_qual_1_test"]
             .apply(self.quality_interpolation_function)
@@ -1112,5 +1308,8 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
 
         # save classifier and data, generate plots for report
         self.save_model_and_data()
+
+        # create training and test reports
+        self.create_report()
 
         return self

@@ -83,6 +83,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""Number of cross-validation folds to use. Default=1 (no CV)""",
     )
     parser.add_argument(
+        "--num_chroms_for_test",
+        type=int,
+        required=False, 
+        default=None,
+        help="""Number chromosomes to exclude from training and use exclusively for test set""",
+    )
+    parser.add_argument(
         "--split_folds_randomly",
         action="store_true",
         help="""by default the training data is split into folds by chromosomes,
@@ -170,6 +177,36 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="""adapter version, indicates if input featuremap is from balanced ePCR data """,
     )
     parser.add_argument(
+        "--start_tag_col",
+        type=str,
+        required=False,
+        default=None,
+        help="""Name of column in featuremap that contains ppmSeq start tag.
+        When not provided, value is inferred from the featuremap and categorial features""",
+    )
+    parser.add_argument(
+        "--end_tag_col",
+        type=str,
+        required=False,
+        default=None,
+        help="""Name of column in featuremap that contains ppmSeq end tag.
+        When not provided, value is inferred from the featuremap and categorial features""",
+    )
+    parser.add_argument(
+        "--pipeline_version",
+        type=str,
+        required=False,
+        default=None,
+        help="""Pipeline version""",
+    )
+    parser.add_argument(
+        "--docker",
+        type=str,
+        required=False,
+        default=None,
+        help="""docker used to run the pipeline""",
+    )
+    parser.add_argument(
         "--pre_filter",
         type=str,
         required=False,
@@ -182,6 +219,21 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         required=False,
         default=None,
         help="""random seed for reproducibility""",
+    )
+    parser.add_argument(
+        "--load_dataset_and_model",
+        action="store_true",
+        help="""If flag is provided, skip dataset genenration and model training.
+        Output folder should contain featuremap_df.parquet and model.joblib,
+        and all other relevant files.""",
+    )
+    parser.add_argument(
+        "--raise_exceptions_in_report",
+        action="store_true",
+        help="""If flag is provided, raise exceptions when creating report.
+        Otherwise, suprress the exceptions (exceptions are logged, and correspoding
+        error messages appear in the report).
+        """,
     )
     return parser.parse_args(argv[1:])
 
@@ -201,11 +253,16 @@ def read_dataset_params(args):
     dataset_params = {
         "train_set_size": args.train_set_size,
         "test_set_size": args.test_set_size,
+        "num_chroms_for_test": args.num_chroms_for_test,
         "numerical_features": args.numerical_features,
         "categorical_features": args.categorical_features,
         "balanced_sampling_info_fields": args.balanced_sampling_info_fields,
         "pre_filter": args.pre_filter,
         "ppmSeq_adapter_version": args.ppmSeq_adapter_version,
+        "start_tag_col": args.start_tag_col,
+        "end_tag_col": args.end_tag_col,
+        "pipeline_version": args.pipeline_version,
+        "docker": args.docker,
         "random_seed": args.random_seed,
         "num_CV_folds": args.num_CV_folds,
     }
@@ -244,6 +301,11 @@ def read_dataset_params(args):
     if args.split_folds_randomly:  # override json file
         dataset_params["split_folds_by_chrom"] = False
 
+    ppmseq_tags_consistent = (dataset_params["start_tag_col"] and dataset_params["end_tag_col"]) or (
+        dataset_params["start_tag_col"] is None and dataset_params["end_tag_col"] is None
+    )
+    assert ppmseq_tags_consistent, "Both start_tag_col and end_tag_col must be provided or neither."
+
     return dataset_params
 
 
@@ -262,7 +324,6 @@ def run(argv: list[str]):
     # TODO add to args         classifier_class=xgb.XGBClassifier,
 
     dataset_params = read_dataset_params(args)
-
     s = SRSNVTrain(
         tp_featuremap=args.hom_snv_featuremap,
         fp_featuremap=args.single_substitution_featuremap,
@@ -278,15 +339,22 @@ def run(argv: list[str]):
         test_set_size=dataset_params["test_set_size"],
         k_folds=dataset_params["num_CV_folds"],
         split_folds_by_chrom=dataset_params["split_folds_by_chrom"],
+        num_chroms_for_test=dataset_params["num_chroms_for_test"],
         model_params=args.model_params,
         reference_dict=args.reference_dict,
         out_path=args.output,
         out_basename=args.basename,
         lod_filters=args.lod_filters,
         save_model_jsons=args.save_model_jsons,
+        load_dataset_and_model=args.load_dataset_and_model,
         ppmSeq_adapter_version=dataset_params["ppmSeq_adapter_version"],
+        start_tag_col=dataset_params["start_tag_col"],
+        end_tag_col=dataset_params["end_tag_col"],
+        pipeline_version=dataset_params["pipeline_version"],
+        docker_image=dataset_params["docker"],
         pre_filter=dataset_params["pre_filter"],
         random_seed=dataset_params["random_seed"],
+        raise_exceptions_in_report=args.raise_exceptions_in_report,
         simple_pipeline=sp,
     ).process()
 
@@ -300,11 +368,11 @@ def run(argv: list[str]):
         simple_pipeline=None,
     )
 
-    srsnv_report(
-        out_path=args.output,
-        out_basename=args.basename,
-        report_name="train",
-        model_file=s.model_joblib_save_path,
-        params_file=s.params_save_path,
-        simple_pipeline=None,
-    )
+    # srsnv_report(
+    #     out_path=args.output,
+    #     out_basename=args.basename,
+    #     report_name="train",
+    #     model_file=s.model_joblib_save_path,
+    #     params_file=s.params_save_path,
+    #     simple_pipeline=None,
+    # )

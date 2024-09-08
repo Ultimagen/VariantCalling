@@ -186,7 +186,7 @@ class MLQualAnnotator(VcfAnnotator):
         elif self.chrom_folds is None:
             df[FOLD_ID] = np.nan  # For the case where fold-splitting was done randomly
         else:
-            df[FOLD_ID] = df["chrom"].map(self.chrom_folds, na_action="ignore")
+            df[FOLD_ID] = df["chrom"].map(self.chrom_folds, na_action="ignore").astype('Int64')
         predicted_probability = k_fold_predict_proba(
             self.models, df, features_for_model, self.num_folds, kfold_col=FOLD_ID
         ).values
