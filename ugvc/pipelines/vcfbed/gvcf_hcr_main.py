@@ -23,11 +23,12 @@ def run(argv: list) -> None:
     logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
     logger = logging.getLogger(__name__)
     args = argparse_gvcf_to_bed().parse_args(argv[1:])
-    logger.info("Step 1: Create intervals of low confidence")
+    logger.info("Step 1: Create intervals of high confidence")
     with tempfile.TemporaryDirectory(dir=dirname(args.bed)) as tmp_dir:
         step1_file = os.path.join(tmp_dir, "high_confidence.bed")
         mb.gvcf_to_bed(args.gvcf, step1_file, args.gq_threshold, gt=True)
-        logger.info("Step 2: Merge intervals of high confidence")
+        logger.info("Step 2: Merge intervals")
         bt = pybedtools.BedTool(step1_file)
         bt = bt.merge().saveas(args.bed)  # type: ignore - issues in pybedtools in vscode
         bt.delete_temporary_history(ask=False)
+        os.unlink(step1_file)
