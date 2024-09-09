@@ -248,6 +248,7 @@ def run(argv: list[str]):
     argv: list[str]
         Input parameters of the script
     """
+    set_pyplot_defaults()
     cmd = argv[1]
     assert cmd in {
         "full_analysis",

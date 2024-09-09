@@ -34,6 +34,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
+          lfs: true
 
       # setup python and update the version in pyproject.toml
       - uses: actions/setup-python@v4

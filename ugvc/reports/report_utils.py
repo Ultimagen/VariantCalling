@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from IPython.display import Markdown, display
 from matplotlib.ticker import FormatStrFormatter
+from scipy.interpolate import interp1d
 
 from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
 

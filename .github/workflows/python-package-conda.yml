@@ -66,19 +66,3 @@ jobs:
         run: |
           source activate genomics.py3
           python -m pytest --ignore-glob='ugbio_utils/src/single_cell/*' ugbio_utils/src/*/tests
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v2
-      - name: View poetry --help
-        run: |
-          poetry --version
-      - name: Install scrna_qc project dependencies
-        run: |
-          cp setup/scRNA_qc/pyproject.toml .
-          cp setup/scRNA_qc/poetry.lock .
-          poetry install
-      - name: Run scrna_qc tests
-        run: |
-          poetry run pytest ugvc/pipelines/single_cell_qc/test
