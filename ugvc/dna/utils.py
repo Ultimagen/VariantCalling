@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from os.path import isfile
 
 import numpy as np
 import pyfaidx
@@ -72,7 +73,8 @@ def get_chr_sizes(sizes_file: str) -> dict:
     ----------
     sizes_file: str
         .sizes file (use e.g.  cut -f1,2 Homo_sapiens_assembly19.fasta.fai > Homo_sapiens_
-        assembly19.fasta.sizes to generate)
+        assembly19.fasta.sizes to generate), .fai file or .dict file.
+        Any file which doesnot end with fai or dict will be considered .sizes
 
     Returns
     -------
@@ -80,7 +82,22 @@ def get_chr_sizes(sizes_file: str) -> dict:
         Dictionary from name to size
     """
 
-    return dict([x.strip().split() for x in open(sizes_file, encoding="ascii")])
+    assert isfile(sizes_file), f"Input_file {sizes_file} not found"
+    if sizes_file.endswith("dict"):
+        chrom_sizes = {}
+        with open(sizes_file, "r", encoding="utf-8") as file:
+            for line in file:
+                if line.startswith("@SQ"):
+                    fields = line[3:].strip().split("\t")
+                    row = {}  # Dict of all fields in the row
+                    for field in fields:
+                        key, value = field.split(":", 1)
+                        row[key] = value
+                    chrom_sizes[row["SN"]] = int(row["LN"])
+        return chrom_sizes
+    with open(sizes_file, encoding="ascii") as sizes:
+        tmp = [x.strip().split()[:2] for x in sizes]
+    return dict((x[0], int(x[1])) for x in tmp)
 
 
 def get_max_softclip_len(cigar):

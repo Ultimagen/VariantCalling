@@ -336,6 +336,7 @@ dependencies:
   - pyarrow-hotfix=0.6=pyhd8ed1ab_0
   - pyasn1=0.6.0=pyhd8ed1ab_0
   - pyasn1-modules=0.4.0=pyhd8ed1ab_0
+  - pybedtools=0.10.0=py310ha025fb0_2
   - pybigwig=0.3.22=py310hdea46e4_3
   - pycparser=2.22=pyhd8ed1ab_0
   - pyfaidx=0.8.1.1=pyhdfd78af_0

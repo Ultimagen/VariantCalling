@@ -22,6 +22,7 @@ from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import logger
 from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugvc.dna.utils import get_chr_sizes
 from ugvc.mrd.featuremap_utils import FeatureMapFields, filter_featuremap_with_bcftools_view
 from ugvc.mrd.mrd_utils import featuremap_to_dataframe
 from ugvc.mrd.srsnv_plotting_utils import SRSNVReport, default_LoD_filters, retention_noise_and_mrd_lod_simulation
@@ -92,30 +93,6 @@ CHROM_SIZES_HG38 = {
     "chr22": 50818468,
     "chr21": 46709983,
 }
-
-
-def get_chrom_sizes(reference_dict: str):
-    """Read reference_dict file and get the lengths of all contigs.
-    Arguments:
-        - reference_dict [str]: the path to the reference .dict file containing contig lengths.
-    Returns:
-        - chrom_sizes [dict]: dictionary of chr, length pairs, where chr is the contig name (e.g, 'chr1')
-                              and length is its length.
-    """
-    assert isfile(reference_dict), f"reference_dict {reference_dict} not found"
-
-    chrom_sizes = {}
-    with open(reference_dict, "r", encoding="utf-8") as file:
-        for line in file:
-            if line.startswith("@SQ"):
-                fields = line[3:].strip().split("\t")
-                row = {}  # Dict of all fields in the row
-                for field in fields:
-                    key, value = field.split(":", 1)
-                    row[key] = value
-                chrom_sizes[row["SN"]] = int(row["LN"])
-
-    return chrom_sizes
 
 
 def get_intervals(tp_regions_bed_file: str):
@@ -765,7 +742,7 @@ class SRSNVTrain:  # pylint: disable=too-many-instance-attributes
         if self.split_folds_by_chrom:
             # get chromosome sizes
             if reference_dict:
-                chrom_sizes = get_chrom_sizes(reference_dict)
+                chrom_sizes = get_chr_sizes(reference_dict)
             else:
                 logger.warning("No reference dictionary provided, using hg38 chromosome sizes")
                 chrom_sizes = CHROM_SIZES_HG38
