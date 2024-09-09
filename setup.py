@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="ugvc",
-    version="0.22",
+    version="0.24",
     packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"],
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
