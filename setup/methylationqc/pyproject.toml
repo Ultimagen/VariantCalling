@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "methylationqc"
-version = "1.0.12"
+version = "1.0.13"
 description = ""
 authors = ["Gat Krieger <gat.krieger@ultimagen.com>"]
 # readme = "README.md"
