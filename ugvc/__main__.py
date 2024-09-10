@@ -60,7 +60,7 @@ from ugbio_srsnv import (
 )
 from ugbio_core import annotate_contig, intersect_bed_regions
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
-from ugvc.pipelines.vcfbed import calibrate_bridging_snvs
+from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, gvcf_hcr
 from ugvc.scripts import sorter_to_h5
 from ugvc.utils import cloud_sync
 
