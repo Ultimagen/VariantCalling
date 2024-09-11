@@ -111,7 +111,7 @@ def cloud_sync(
     else:
         try:
             if print_output:
-                sys.stdout.write(f"Downloading to {local_path}\n")
+                sys.stdout.write(local_path + os.linesep)
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             if cloud_service == "gs":
                 download_from_gs(bucket, blob, local_path)
@@ -149,3 +149,7 @@ def run(argv: list[str]):
     if not os.path.isdir(local_dir):
         raise ValueError(f"local_dir {local_dir} does not exist")
     cloud_sync(cloud_path, local_dir, print_output=True)
+
+
+if __name__ == "__main__":
+    run(sys.argv)
