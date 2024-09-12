@@ -52,6 +52,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=3,
     )
     parser.add_argument("--max_hmer_length", type=int, default=20)
+    parser.add_argument(
+        "-@",
+        "--process_number",
+        type=int,
+        default=0,
+        help="""Number of processes to use for parallelization.
+             If N < 1, use all-available - abs(N) cores. Default 0""",
+    )
 
     return parser.parse_args(argv[1:])
 
@@ -68,4 +76,5 @@ def run(argv: list[str]):
         flow_order=args.flow_order,
         motif_length_to_annotate=args.motif_length_to_annotate,
         max_hmer_length=args.max_hmer_length,
+        process_number=args.process_number,
     )

@@ -81,9 +81,9 @@ def get_hmer_of_central_base(sequence: str) -> int:
     assert isinstance(sequence, str)
     assert len(sequence) % 2 == 1
     assert len(sequence) >= 1
-    hmer_lengths = [sum(1 for _ in x[1]) for x in itertools.groupby(sequence)]
+    hmer_lengths = np.array([sum(1 for _ in x[1]) for x in itertools.groupby(sequence)])
     central_hmer = hmer_lengths[np.argmax(np.cumsum(hmer_lengths) > len(sequence) // 2)]
-    return central_hmer
+    return int(central_hmer)
 
 
 def is_biallelic_snv(record: pysam.VariantRecord) -> bool:
@@ -359,7 +359,7 @@ class RefContextVcfAnnotator(VcfAnnotator):
                     field_name = f"prev_{index}"
                     record.info[field_name] = ref_around_snv[central_base_ind - index]
 
-                is_cycle_skip = self.cycle_skip_dataframe.loc[(trinuc_ref, trinuc_alt), IS_CYCLE_SKIP]
+                is_cycle_skip = self.cycle_skip_dataframe.at[(trinuc_ref, trinuc_alt), IS_CYCLE_SKIP]
                 record.info[self.CYCLE_SKIP_FLAG] = is_cycle_skip
 
                 # make sure all the info fields are present
