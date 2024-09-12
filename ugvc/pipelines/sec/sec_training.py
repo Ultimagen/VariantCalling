@@ -24,7 +24,7 @@ from simppl.simple_pipeline import SimplePipeline
 
 from ugvc import base_dir as ugvc_pkg
 from ugvc.sec.sec_pipeline_utils import extract_relevant_gvcfs, read_sec_pipelines_inputs_table
-from ugvc.utils.consts import FileExtension
+from ugbio_core.consts import FileExtension
 
 
 def parse_args(argv):

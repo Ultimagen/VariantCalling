@@ -16,7 +16,7 @@ from simppl.simple_pipeline import SimplePipeline
 import ugvc.comparison.flow_based_concordance as fbc
 import ugbio_core.variant_annotation as annotation
 from ugvc import logger
-from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
+from ugbio_core.consts import DEFAULT_FLOW_ORDER
 from ugbio_core.exec_utils import print_and_execute
 from ugvc.vcfbed import vcftools
 from ugbio_core import bed_writer

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.stats import binomtest
 
-from ugbio_core.strand_direction import StrandDirection
+from ugvc.dna.strand_direction import StrandDirection
 from ugvc.sec.conditional_allele_distribution import ConditionalAlleleDistribution, get_allele_counts_list
 from ugvc.sec.read_counts import ReadCounts
 from ugvc.utils.stats_utils import multinomial_likelihood_ratio, scale_contingency_table

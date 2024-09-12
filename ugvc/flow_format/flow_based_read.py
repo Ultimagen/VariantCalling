@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 import pysam
 
-from ugbio_core import dna_utils as dnautils
-from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
+from ugbio_core import dna_sequence_utils as dnautils
+from ugbio_core.consts import DEFAULT_FLOW_ORDER
 from ugbio_core.flow_based_read import generate_key_from_sequence
 from ugvc.flow_format import error_model, simulator
 from ugvc.utils import math_utils as phred

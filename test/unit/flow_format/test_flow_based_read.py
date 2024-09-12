@@ -6,7 +6,7 @@ import numpy as np
 import pysam
 
 import ugvc.flow_format.flow_based_read as fbr
-from ugbio_core.dna_format import DEFAULT_FLOW_ORDER
+from ugbio_core.consts import DEFAULT_FLOW_ORDER
 
 input_dir = get_resource_dir(__file__)
 

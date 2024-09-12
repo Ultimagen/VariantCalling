@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pysam import PileupColumn, VariantRecord
 
-from ugbio_core.strand_direction import StrandDirection, is_forward_strand
+from ugvc.dna.strand_direction import StrandDirection, is_forward_strand
 from ugvc.sec.read_counts import ReadCounts
 from ugvc.vcfbed.pysam_utils import get_filtered_alleles_list
 
