@@ -31,7 +31,7 @@ import pandas as pd
 from ugvc import logger
 from ugvc.filtering import transformers, variant_filtering_utils
 from ugvc.filtering.tprep_constants import GtType, VcfType
-from ugbio_core.metrics_utils import read_hdf
+from ugbio_core.h5_utils import read_hdf
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

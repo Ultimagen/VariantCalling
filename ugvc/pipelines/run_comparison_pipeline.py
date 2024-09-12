@@ -34,7 +34,7 @@ from ugvc import logger
 from ugvc.comparison import vcf_pipeline_utils
 from ugvc.comparison.comparison_pipeline import ComparisonPipeline
 from ugbio_core.consts import DEFAULT_FLOW_ORDER
-from ugbio_core.metrics_utils import read_hdf
+from ugbio_core.h5_utils import read_hdf
 from ugvc.vcfbed import vcftools
 from ugvc.vcfbed.interval_file import IntervalFile
 

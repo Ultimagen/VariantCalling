@@ -10,7 +10,7 @@ import pysam
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils, _fix_errors, bed_file_length, vcf2concordance, close_to_hmer_run
-from ugbio_core.metrics_utils import read_hdf
+from ugbio_core.h5_utils import read_hdf
 from ugvc.vcfbed import vcftools
 from ugvc.vcfbed.interval_file import IntervalFile
 
