@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from simppl.simple_pipeline import SimplePipeline
 
@@ -72,4 +73,5 @@ class IntervalFile:
 
     def __del__(self):
         for file in self.files_to_clean:
-            os.remove(file)
+            if Path(file).is_file():
+                os.remove(file)
