@@ -45,7 +45,7 @@ from ugvc.pipelines.comparison import quick_fingerprinting
 from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
 from ugbio_featuremap import annotate_featuremap, create_hom_snv_featuremap, featuremap_to_dataframe, \
-    pileup_featuremap, sorter_stats_to_mean_coverage
+    pileup_featuremap
 from ugbio_mrd import (
     generate_synthetic_signatures,
     intersect_featuremap_with_signature,
@@ -58,7 +58,7 @@ from ugbio_srsnv import (
     srsnv_inference,
     srsnv_training
 )
-from ugbio_core import annotate_contig, intersect_bed_regions
+from ugbio_core import annotate_contig, intersect_bed_regions, sorter_stats_to_mean_coverage
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, gvcf_hcr
 from ugvc.scripts import sorter_to_h5
