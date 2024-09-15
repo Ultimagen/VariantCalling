@@ -1,7 +1,7 @@
 #!/env/python
 import argparse
 
-from ugbio_core import metrics_utils
+from ugbio_core import h5_utils
 
 ap = argparse.ArgumentParser(
     prog="convert_h5_to_json.py",
@@ -23,7 +23,7 @@ output_json_filename = args.output_json
 ignored_h5_key_substring = args.ignored_h5_key_substring
 root_element = args.root_element
 
-json_string = metrics_utils.convert_h5_to_json(input_h5_filename, root_element, ignored_h5_key_substring)
+json_string = h5_utils.convert_h5_to_json(input_h5_filename, root_element, ignored_h5_key_substring)
 with open(output_json_filename, "w", encoding="utf-8") as f:
     f.write(json_string)
     f.close()
