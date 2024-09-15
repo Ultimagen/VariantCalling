@@ -1,9 +1,17 @@
 from setuptools import find_packages, setup
 
+packages = []
+packages += find_packages(where="ugbio_utils/src/core", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/cnv", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/featuremap", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/mrd", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/ppmseq", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/srsnv", exclude=["tests"])
+
 setup(
     name="ugvc",
     version="0.24.1",
-    packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"] + ["ugbio_mrd"] + ["ugbio_ppmseq"] + ["ugbio_srsnv"] + ["ugbio_featuremap"],
+    packages=find_packages(exclude=["ugbio_utils*", "tests"]) + packages,
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
         "ugbio_cnv": "ugbio_utils/src/cnv/ugbio_cnv",
@@ -40,7 +48,7 @@ setup(
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
     ],
     entry_points={
-        'console_scripts': ['annotate_contig=ugbio_core.annotate_contig:main'],
+        "console_scripts": ["annotate_contig=ugbio_core.annotate_contig:main"],
     },
     package_data={
         "ugvc": [
@@ -50,7 +58,7 @@ setup(
             "bash/index_vcf_file.sh",
             "bash/find_adapter_coords.sh",
         ],
-        "": ["**/reports/*.ipynb"]
+        "": ["**/reports/*.ipynb"],
     },
     install_package_data=True,
 )
