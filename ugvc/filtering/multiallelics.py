@@ -7,7 +7,7 @@ import pysam
 
 import ugvc.comparison.flow_based_concordance as fbc
 import ugvc.filtering.training_prep as tprep
-import ugbio_core.flow_based_read as fbr
+import ugbio_core.flow_format.flow_based_read as fbr
 from ugvc.filtering.tprep_constants import SPAN_DEL
 from ugvc.vcfbed import vcftools
 
