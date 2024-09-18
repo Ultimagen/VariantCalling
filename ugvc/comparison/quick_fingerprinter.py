@@ -92,13 +92,11 @@ class QuickFingerprinter:
                 match_to_expected_truth = None
                 cram_base_name = os.path.basename(cram)
 
-                self.sp.print_and_run(f"samtools index {cram}")
                 called_vcf = f"{self.out_dir}/{cram_base_name}.calls.vcf.gz"
-                local_cram = f"{self.out_dir}/{cram_base_name}"
-                self.sp.print_and_run(f"samtools view {cram} {self.region} -C -o {local_cram}")
-                self.sp.print_and_run(f"samtools index {local_cram}")
+                local_bam = f"{self.out_dir}/{cram_base_name}.bam"
+                self.sp.print_and_run(f"samtools view {cram} {self.region} -b -o {local_bam}")
 
-                self.vc.call_variants(local_cram, called_vcf, self.region, min_af=self.min_af_snps)
+                self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps)
 
                 potential_error = f"{cram} - {sample_id} "
                 for ground_truth_id, ground_truth_to_check_vcf in self.ground_truths_to_check.items():
