@@ -302,13 +302,13 @@ def pileup_featuremap(  # pylint: disable=too-many-branches
                     cons_dict[rec_id][FeatureMapFields.X_QUAL.value], rec.qual
                 )
                 for field in fields_to_collect["numeric_array_fields"]:
-                    cons_dict[rec_id][field] = np.append(cons_dict[rec_id][field], rec.info[field])
+                    cons_dict[rec_id][field] = np.append(cons_dict[rec_id][field], rec.info.get(field, np.nan))
                 for field in fields_to_collect["string_list_fields"]:
                     cons_dict[rec_id][field] += [rec.info.get(field, ".")]
                 for field in fields_to_collect["boolean_fields"]:
                     cons_dict[rec_id][field] += [rec.info.get(field, False)]
                 for field in fields_to_collect["fields_to_write_once"]:
-                    cons_dict[rec_id][field] += [rec.info[field]]
+                    cons_dict[rec_id][field] += [rec.info.get(field, None)]
                 for field in fields_to_collect["boolean_fields_to_write_once"]:
                     cons_dict[rec_id][field] += [rec.info.get(field, False)]
                 prev_key = rec_id
