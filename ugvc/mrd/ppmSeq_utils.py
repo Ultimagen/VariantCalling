@@ -12,13 +12,13 @@ import numpy as np
 import pandas as pd
 import pysam
 import seaborn as sns
+from ugbio_core.plotting_utils import set_pyplot_defaults
+from ugbio_core.report_utils import modify_jupyter_notebook_html
+from ugbio_core.sorter_utils import read_sorter_statistics_csv
+from ugbio_core.trimmer_utils import merge_trimmer_histograms, read_trimmer_failure_codes
 
 from ugvc.flow_format.flow_based_read import generate_key_from_sequence
 from ugvc.reports.report_utils import plot_read_length_histogram
-from ugbio_core.plotting_utils import set_pyplot_defaults
-from ugbio_core.sorter_utils import read_sorter_statistics_csv
-from ugbio_core.report_utils import modify_jupyter_notebook_html
-from ugbio_core.trimmer_utils import merge_trimmer_histograms, read_trimmer_failure_codes
 from ugvc.vcfbed.variant_annotation import VcfAnnotator
 
 # Display defaults
@@ -145,37 +145,50 @@ class ppmSeqStrandVcfAnnotator(VcfAnnotator):
 
         """
         header.add_line(f"##ppmSeq_adapter_version={self.adapter_version}")
-        header.add_line(
-            f"##python_cmd:add_strand_ratios_and_categories_to_featuremap=MIXED is {self.sr_lower}-{self.sr_upper}"
-        )
-        header.info.add(
-            id=HistogramColumnNames.STRAND_RATIO_START.value,
-            type="Float",
-            number=1,
-            description="Ratio of MINUS and PLUS strands measured from the tag in the start of the read",
-        )
-        header.info.add(
-            id=HistogramColumnNames.STRAND_RATIO_END.value,
-            type="Float",
-            number=1,
-            description="Ratio of MINUS and PLUS strands measured from the tag in the end of the read",
-        )
-        header.info.add(
-            id=HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
-            type="String",
-            number=1,
-            description="ppmSeq read category derived from the ratio of MINUS and PLUS strands "
-            "measured from the tag in the start of the read, options: "
-            f'{", ".join(ppmSeq_category_list)}',
-        )
-        header.info.add(
-            id=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
-            type="String",
-            number=1,
-            description="ppmSeq read category derived from the ratio of MINUS and PLUS strands "
-            "measured from the tag in the end of the read, options: "
-            f'{", ".join(ppmSeq_category_list)}',
-        )
+        if self.adapter_version in (
+            ppmSeqAdapterVersions.LEGACY_V5_START.value,
+            ppmSeqAdapterVersions.LEGACY_V5.value,
+            ppmSeqAdapterVersions.LEGACY_V5_END.value,
+        ):
+            header.add_line(
+                f"##python_cmd:add_strand_ratios_and_categories_to_featuremap=MIXED is {self.sr_lower}-{self.sr_upper}"
+            )
+        if self.adapter_version in (
+            ppmSeqAdapterVersions.LEGACY_V5_START.value,
+            ppmSeqAdapterVersions.LEGACY_V5.value,
+        ):
+            header.info.add(
+                id=HistogramColumnNames.STRAND_RATIO_START.value,
+                type="Float",
+                number=1,
+                description="Ratio of MINUS and PLUS strands measured from the tag in the start of the read",
+            )
+            header.info.add(
+                id=HistogramColumnNames.STRAND_RATIO_CATEGORY_START.value,
+                type="String",
+                number=1,
+                description="ppmSeq read category derived from the ratio of MINUS and PLUS strands "
+                "measured from the tag in the start of the read, options: "
+                f'{", ".join(ppmSeq_category_list)}',
+            )
+        if self.adapter_version in (
+            ppmSeqAdapterVersions.LEGACY_V5_END.value,
+            ppmSeqAdapterVersions.LEGACY_V5.value,
+        ):
+            header.info.add(
+                id=HistogramColumnNames.STRAND_RATIO_END.value,
+                type="Float",
+                number=1,
+                description="Ratio of MINUS and PLUS strands measured from the tag in the end of the read",
+            )
+            header.info.add(
+                id=HistogramColumnNames.STRAND_RATIO_CATEGORY_END.value,
+                type="String",
+                number=1,
+                description="ppmSeq read category derived from the ratio of MINUS and PLUS strands "
+                "measured from the tag in the end of the read, options: "
+                f'{", ".join(ppmSeq_category_list)}',
+            )
         return header
 
     def process_records(self, records: list[pysam.VariantRecord]) -> list[pysam.VariantRecord]:
