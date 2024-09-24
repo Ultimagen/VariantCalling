@@ -22,7 +22,7 @@ class VariantHitFractionCaller:
 
     def call_variants(self, cram: str, output_vcf: str, region: str, min_af: float) -> None:
         self.sp.print_and_run(
-            f"bcftools mpileup {cram} -f {self.ref} -r {region} -a ad,format/dp --skip-indels -d 500 "
+            f"bcftools mpileup {cram} -f {self.ref} -a ad,format/dp --skip-indels -d 500 "
             + f"| bcftools view -i 'AD[0:1] / format/DP >= {min_af}' -Oz -o {output_vcf}"
         )
         self.sp.print_and_run(f"bcftools index -t {output_vcf}")
