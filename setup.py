@@ -1,12 +1,25 @@
 from setuptools import find_packages, setup
 
+packages = []
+packages += find_packages(where="ugbio_utils/src/core", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/cnv", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/featuremap", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/mrd", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/ppmseq", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/srsnv", exclude=["tests"])
+
+
 setup(
     name="ugvc",
     version="0.24.1",
-    packages=find_packages(exclude=["ugbio_utils*"]) + ["ugbio_core"] + ["ugbio_cnv"],
+    packages=find_packages(exclude=["ugbio_utils*", "tests"]) + packages,
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
         "ugbio_cnv": "ugbio_utils/src/cnv/ugbio_cnv",
+        "ugbio_ppmseq": "ugbio_utils/src/ppmseq/ugbio_ppmseq",
+        "ugbio_featuremap": "ugbio_utils/src/featuremap/ugbio_featuremap",
+        "ugbio_srsnv": "ugbio_utils/src/srsnv/ugbio_srsnv",
+        "ugbio_mrd": "ugbio_utils/src/mrd/ugbio_mrd",
     },
     install_requires=[],
     scripts=[
@@ -14,14 +27,11 @@ setup(
         "ugvc/pipelines/run_comparison_pipeline.py",
         "ugvc/pipelines/coverage_analysis.py",
         "ugvc/pipelines/collect_existing_metrics.py",
-        "ugvc/pipelines/mrd/substitution_error_rate.py",
-        "ugvc/pipelines/mrd/positional_error_rate_profile.py",
-        "ugvc/pipelines/mrd/collect_coverage_per_motif.py",
-        "ugvc/pipelines/mrd/concat_dataframes.py",
-        "ugvc/pipelines/mrd/sorter_stats_to_mean_coverage.py",
-        "ugvc/pipelines/mrd/featuremap_to_dataframe.py",
-        "ugvc/pipelines/mrd/intersect_featuremap_with_signature.py",
-        "ugvc/pipelines/mrd/prepare_data_from_mrd_pipeline.py",
+        "ugbio_utils/src/core/ugbio_core/annotate_contig.py",
+        "ugbio_utils/src/core/ugbio_core/sorter_stats_to_mean_coverage.py",
+        "ugbio_utils/src/featuremap/ugbio_featuremap/featuremap_to_dataframe.py",
+        "ugbio_utils/src/mrd/ugbio_mrd/intersect_featuremap_with_signature.py",
+        "ugbio_utils/src/mrd/ugbio_mrd/prepare_data_from_mrd_pipeline.py",
         "ugvc/pipelines/training_prep_pipeline.py",
         "ugvc/pipelines/train_models_pipeline.py",
         "ugvc/pipelines/filter_variants_pipeline.py",
@@ -38,6 +48,9 @@ setup(
         "ugbio_utils/src/cnv/ugbio_cnv/annotate_FREEC_segments.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
     ],
+    entry_points={
+        'console_scripts': ['annotate_contig=ugbio_core.annotate_contig:main'],
+    },
     package_data={
         "ugvc": [
             "bash/run_ucsc_command.sh",
@@ -45,7 +58,8 @@ setup(
             "bash/remove_empty_files.sh",
             "bash/index_vcf_file.sh",
             "bash/find_adapter_coords.sh",
-        ]
+        ],
+        "": ["**/reports/*.ipynb"]
     },
     install_package_data=True,
 )

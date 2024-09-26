@@ -30,8 +30,8 @@ from simppl.cli import get_parser
 from ugvc import logger
 from ugvc.comparison.concordance_utils import apply_filter, calc_accuracy_metrics, validate_preprocess_concordance
 from ugvc.comparison.vcf_pipeline_utils import annotate_concordance
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.utils.misc_utils import read_hdf
+from ugbio_core.consts import DEFAULT_FLOW_ORDER
+from ugbio_core.h5_utils import read_hdf
 from ugvc.utils.stats_utils import get_precision, get_recall
 
 

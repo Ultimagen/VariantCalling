@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 
-from ugvc.utils import metrics_utils
+from ugvc.utils import picard_metrics_utils
 
 ap = argparse.ArgumentParser(
     prog="collect_existing_picard_metrics.py",
@@ -50,8 +50,8 @@ args = ap.parse_args()
 if args.metric_files is not None:
     for metric_file in args.metric_files:
         if os.path.getsize(metric_file) > 0:
-            metric_class, stats, histogram = metrics_utils.parse_cvg_metrics(metric_file)
-            metric_class = metric_class[metric_class.find("$") + 1 :]
+            metric_class, stats, histogram = picard_metrics_utils.parse_cvg_metrics(metric_file)
+            metric_class = metric_class[metric_class.find("$") + 1:]
             stats.to_hdf(args.output_h5, key=metric_class, mode="a")
             if histogram is not None:
                 histogram.to_hdf(args.output_h5, key="histogram_" + metric_class, mode="a")

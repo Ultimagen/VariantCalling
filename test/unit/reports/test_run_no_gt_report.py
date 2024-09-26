@@ -6,7 +6,7 @@ import mock
 import pandas as pd
 
 from ugvc.pipelines import run_no_gt_report
-from ugvc.utils.consts import FileExtension
+from ugbio_core.consts import FileExtension
 
 inputs_dir = get_resource_dir(__file__)
 general_inputs_dir = f"{test_dir}/resources/general/"

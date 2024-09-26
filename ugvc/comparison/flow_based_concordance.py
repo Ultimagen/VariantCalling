@@ -37,9 +37,9 @@ import numpy as np
 import pandas as pd
 import pyfaidx
 
-import ugvc.flow_format.flow_based_read as fbr
+import ugbio_core.flow_format.flow_based_read as fbr
 import ugvc.utils.misc_utils as utils
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugbio_core.consts import DEFAULT_FLOW_ORDER
 from ugvc.vcfbed import vcftools
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os.path
 import shutil
 from collections import defaultdict
+import os
 
 import numpy as np
 import pandas as pd
@@ -13,11 +14,12 @@ import pysam
 from simppl.simple_pipeline import SimplePipeline
 
 import ugvc.comparison.flow_based_concordance as fbc
-import ugvc.vcfbed.variant_annotation as annotation
+import ugbio_core.variant_annotation as annotation
 from ugvc import logger
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
+from ugbio_core.consts import DEFAULT_FLOW_ORDER
 from ugbio_core.exec_utils import print_and_execute
 from ugvc.vcfbed import vcftools
+from ugbio_core import bed_writer
 
 
 class VcfPipelineUtils:
@@ -727,6 +729,34 @@ def bed_file_length(input_bed: str) -> int:
     df.columns = ["chr", "pos_start", "pos_end"]
     return np.sum(df["pos_end"] - df["pos_start"] + 1)
 
+def close_to_hmer_run(
+    df: pd.DataFrame,
+    runfile: str,
+    min_hmer_run_length: int = 10,
+    max_distance: int = 10,
+) -> pd.DataFrame:
+    """Adds column is_close_to_hmer_run and inside_hmer_run that is T/F"""
+    df["close_to_hmer_run"] = False
+    df["inside_hmer_run"] = False
+    run_df = bed_writer.parse_intervals_file(runfile, min_hmer_run_length)
+    gdf = df.groupby("chrom")
+    grun_df = run_df.groupby("chromosome")
+    for chrom in gdf.groups.keys():
+        gdf_ix = gdf.groups[chrom]
+        grun_ix = grun_df.groups[chrom]
+        pos1 = np.array(df.loc[gdf_ix, "pos"])
+        pos2 = np.array(run_df.loc[grun_ix, "start"])
+        pos1_closest_pos2_start = np.searchsorted(pos2, pos1) - 1
+        close_dist = abs(pos1 - pos2[np.clip(pos1_closest_pos2_start, 0, None)]) < max_distance
+        close_dist |= abs(pos2[np.clip(pos1_closest_pos2_start + 1, None, len(pos2) - 1)] - pos1) < max_distance
+        pos2 = np.array(run_df.loc[grun_ix, "end"])
+        pos1_closest_pos2_end = np.searchsorted(pos2, pos1)
+        close_dist |= abs(pos1 - pos2[np.clip(pos1_closest_pos2_end - 1, 0, None)]) < max_distance
+        close_dist |= abs(pos2[np.clip(pos1_closest_pos2_end, None, len(pos2) - 1)] - pos1) < max_distance
+        is_inside = pos1_closest_pos2_start == pos1_closest_pos2_end
+        df.loc[gdf_ix, "inside_hmer_run"] = is_inside
+        df.loc[gdf_ix, "close_to_hmer_run"] = close_dist & (~is_inside)
+    return df
 
 def annotate_concordance(
     df: pd.DataFrame,
@@ -784,7 +814,7 @@ def annotate_concordance(
     if runfile is not None:
         length, dist = hmer_run_length_dist
         logger.info("Marking homopolymer runs")
-        df = annotation.close_to_hmer_run(df, runfile, min_hmer_run_length=length, max_distance=dist)
+        df = close_to_hmer_run(df, runfile, min_hmer_run_length=length, max_distance=dist)
     annots = []
     if annotate_intervals is not None:
         for annotation_file in annotate_intervals:

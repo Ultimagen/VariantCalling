@@ -62,4 +62,7 @@ jobs:
           source activate genomics.py3
           python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system
+      - name: Test ugbio_utils with pytest
+        run: |
+          source activate genomics.py3
           python -m pytest --ignore-glob='ugbio_utils/src/single_cell/*' ugbio_utils/src/*/tests

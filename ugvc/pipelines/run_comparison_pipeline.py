@@ -33,8 +33,8 @@ from tqdm import tqdm
 from ugvc import logger
 from ugvc.comparison import vcf_pipeline_utils
 from ugvc.comparison.comparison_pipeline import ComparisonPipeline
-from ugvc.dna.format import DEFAULT_FLOW_ORDER
-from ugvc.utils.misc_utils import read_hdf
+from ugbio_core.consts import DEFAULT_FLOW_ORDER
+from ugbio_core.h5_utils import read_hdf
 from ugvc.vcfbed import vcftools
 from ugvc.vcfbed.interval_file import IntervalFile
 

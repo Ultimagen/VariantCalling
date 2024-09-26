@@ -12,7 +12,6 @@ from ugvc.pipelines.coverage_analysis import generate_stats_from_histogram
 from ugbio_core.sorter_utils import read_sorter_statistics_csv
 
 
-
 def sorter_to_h5(
     input_csv_file: str,
     input_json_file: str,
