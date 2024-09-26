@@ -53,12 +53,16 @@ def test_variant_eval_statistics(mocked_subprocess):
             "extended_exome",
             "--selectNames",
             "high_conf",
+            "--selectNames",
+            "CONFIDENT_CALLS(Q20)",
             "--select",
             'vc.hasAttribute("exome")',
             "--select",
             'vc.hasAttribute("extended_exome")',
             "--select",
             'vc.hasAttribute("high_conf")',
+            "--select",
+            "GQ>=20",
         ]
     )
     for name in [

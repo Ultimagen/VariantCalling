@@ -27,6 +27,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 import sigProfilerPlotting as sigPlt
+import ugbio_core.filter_bed as fb
 from SigProfilerAssignment import Analyzer as Analyze
 from SigProfilerMatrixGenerator import install as genInstall
 from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
@@ -179,7 +180,9 @@ def variant_eval_statistics(  # pylint: disable=dangerous-default-value
     annotation_names=[],
 ):
     annotation_names_str = [f"--selectNames {x}" for x in annotation_names]
+    annotation_names_str += ["--selectNames CONFIDENT_CALLS(Q20)"]
     annotation_conditions_str = [f'--select vc.hasAttribute("{x}")' for x in annotation_names]
+    annotation_conditions_str += ["--select GQ>=20"]
     cmd = (
         [
             "gatk",
@@ -257,6 +260,10 @@ def run_eval_tables_only(arg_values):
 
 
 def run_full_analysis(arg_values):
+    if arg_values.callable_region is not None:
+        callable_size = fb.count_bases_in_bed_file(arg_values.callable_region)
+        callable_size_series = pd.Series(callable_size, index=["callable_size"])
+        callable_size_series.to_hdf(f"{arg_values.output_prefix}.h5", key="callable_size")
     eval_tables = variant_eval_statistics(
         arg_values.input_file,
         arg_values.reference,
@@ -594,6 +601,10 @@ if __name__ == "__main__":
     full_analysis.add_argument(
         "--sample_name", help="sample name (useful in case there is more than one in the vcf)", required=False, type=str
     )
+    full_analysis.add_argument(
+        "--callable_region", help="callable region bed file", required=False, type=str, default=None
+    )
+
     full_analysis.set_defaults(func=run_full_analysis)
 
     # Run variant eval only - for JC report
