@@ -16,6 +16,7 @@
 #    Collect statistics for a report
 # CHANGELOG in reverse chronological order
 
+from __future__ import annotations
 
 import argparse
 import itertools
@@ -28,13 +29,13 @@ import numpy as np
 import pandas as pd
 import sigProfilerPlotting as sigPlt
 import ugbio_core.filter_bed as fb
+import ugbio_core.variant_annotation as annotation
 from SigProfilerAssignment import Analyzer as Analyze
 from SigProfilerMatrixGenerator import install as genInstall
 from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
-
-import ugbio_core.variant_annotation as annotation
-from ugvc.comparison import vcf_pipeline_utils
 from ugbio_core.dna_sequence_utils import revcomp
+
+from ugvc.comparison import vcf_pipeline_utils
 from ugvc.vcfbed import vcftools
 
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
@@ -172,17 +173,26 @@ def snp_statistics(df, ref_fasta):
     return motifs
 
 
-def variant_eval_statistics(  # pylint: disable=dangerous-default-value
-    vcf_input,
-    reference,
-    dbsnp,
-    output_prefix,
-    annotation_names=[],
+def variant_eval_statistics(
+    vcf_input: str,
+    reference: str,
+    dbsnp: str,
+    output_prefix: str,
+    sample_id_or_name: str | int = 0,
+    annotation_names: list | None = None,
+    append_confident_calls: bool = False,
 ):
+    if annotation_names is None:
+        annotation_names = []
     annotation_names_str = [f"--selectNames {x}" for x in annotation_names]
-    annotation_names_str += ["--selectNames CONFIDENT_CALLS(Q20)"]
+    if append_confident_calls:
+        annotation_names_str += ["--selectNames CONFIDENT_CALLS_GQ20"]
     annotation_conditions_str = [f'--select vc.hasAttribute("{x}")' for x in annotation_names]
-    annotation_conditions_str += ["--select GQ>=20"]
+    if append_confident_calls:
+        if isinstance(sample_id_or_name, int):
+            annotation_conditions_str += [f"--select vc.getGenotype({sample_id_or_name}).getGQ()>=20"]
+        elif isinstance(sample_id_or_name, int) == str:
+            annotation_conditions_str += [f'--select vc.getGenotype("{sample_id_or_name}").getGQ()>=20']
     cmd = (
         [
             "gatk",
@@ -248,12 +258,20 @@ def _parse_single_report(report):
 
 
 def run_eval_tables_only(arg_values):
+    if arg_values.sample_name is not None:
+        sample_id = arg_values.sample_name
+    elif arg_values.sample_id is not None:
+        sample_id = arg_values.sample_id
+    else:
+        sample_id = 0
     eval_tables = variant_eval_statistics(
         arg_values.input_file,
         arg_values.reference,
         arg_values.dbsnp,
         arg_values.output_prefix,
+        sample_id,
         arg_values.annotation_names,
+        append_confident_calls=True,
     )
     for eval_table_name, eval_table in eval_tables.items():
         eval_table.to_hdf(f"{arg_values.output_prefix}.h5", key=f"eval_{eval_table_name}")
@@ -269,7 +287,7 @@ def run_full_analysis(arg_values):
         arg_values.reference,
         arg_values.dbsnp,
         arg_values.output_prefix,
-        [],
+        annotation_names=[],
     )
 
     FIELDS_TO_IGNORE = [
@@ -578,7 +596,7 @@ def run_somatic_analysis(arg_values):  # pylint: disable=too-many-branches, too-
         sig_profile_dbs.to_hdf(f"{arg_values.output_prefix}.h5", key="DBS78_profile")
 
 
-if __name__ == "__main__":
+def run():
     ap = argparse.ArgumentParser(
         prog="run_no_gt_report.py",
         description="Collect metrics for runs without ground truth",
@@ -613,6 +631,13 @@ if __name__ == "__main__":
     parser_eval_tables.add_argument("--dbsnp", help="dbsnp vcf file", required=True, type=str)
     parser_eval_tables.add_argument("--reference", help="Reference genome", required=True, type=str)
     parser_eval_tables.add_argument("--output_prefix", help="output file", required=True, type=str)
+    parser_eval_tables.add_argument(
+        "--sample_name", help="Name of the sample to fetch from the VCF", required=False, type=str
+    )
+    parser_eval_tables.add_argument(
+        "--sample_id", help="Number of the sample to fetch from the VCF", required=False, type=int
+    )
+
     parser_eval_tables.add_argument(
         "--annotation_names",
         help="annotation name to filter on",
