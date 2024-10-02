@@ -4,9 +4,9 @@ import os
 from pathlib import Path
 
 from simppl.simple_pipeline import SimplePipeline
+from ugbio_core.exec_utils import print_and_execute
 
 from ugvc import logger
-from ugbio_core.exec_utils import print_and_execute
 
 
 class IntervalFile:
@@ -42,7 +42,7 @@ class IntervalFile:
                 ref_dict = f"{ref}.dict"
             if not os.path.isfile(ref_dict):
                 logger.error(f"dict file does not exist: {ref_dict}")
-
+                return
             # create the interval list file
             if not os.path.exists(f"{os.path.splitext(interval)[0]}.interval_list"):
                 self.__execute(
