@@ -186,7 +186,7 @@ def variant_eval_statistics(
         annotation_names = []
     annotation_names_str = [f"--selectNames {x}" for x in annotation_names]
     if append_confident_calls:
-        annotation_names_str += ["--selectNames CONFIDENT_CALLS_GQ20"]
+        annotation_names_str += ["--selectNames HIGHCONF"]
     annotation_conditions_str = [f'--select vc.hasAttribute("{x}")' for x in annotation_names]
     if append_confident_calls:
         if isinstance(sample_id_or_name, int):

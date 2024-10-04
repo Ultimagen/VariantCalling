@@ -54,7 +54,7 @@ def test_variant_eval_statistics(mocked_subprocess):
             "--selectNames",
             "high_conf",
             "--selectNames",
-            "CONFIDENT_CALLS_GQ20",
+            "HIGHCONF",
             "--select",
             'vc.hasAttribute("exome")',
             "--select",
