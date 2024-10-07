@@ -1,7 +1,0 @@
-read group,code,format,segment,reason,failed read count,total read count
-Z0016,2,ppmSeq_v2,start,sequence was too long,685437,790534078
-Z0016,103,ppmSeq_v2,First_C,no match,4,790534078
-Z0016,402,ppmSeq_v2,Unrecognized_Start_loop,sequence was too long,1248073,790534078
-Z0016,503,ppmSeq_v2,Stem_start,no match,1992060,790534078
-Z0016,601,ppmSeq_v2,insert,sequence was too short,7499999,790534078
-Z0016,1002,ppmSeq_v2,Unrecognized_End_loop,sequence was too long,1987628,790534078
