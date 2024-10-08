@@ -1,4 +1,0 @@
-read group,code,format,segment,reason,failed read count,total read count
-UGAv3-168,2,ppmSeq_v1,start,sequence was too long,431041,579776760
-UGAv3-168,403,ppmSeq_v1,Stem_start,no match,1101422,579776760
-UGAv3-168,501,ppmSeq_v1,insert,sequence was too short,100659,579776760
