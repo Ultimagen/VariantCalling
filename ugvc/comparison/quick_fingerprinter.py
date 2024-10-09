@@ -21,8 +21,9 @@ class QuickFingerprinter:
         min_af_snps: int,
         min_af_germline_snps: int,
         min_hit_fraction_target: float,
+        add_aws_auth_command: bool,
         out_dir: str,
-        sp: SimplePipeline,
+        sp: SimplePipeline
     ):
         self.crams = sample_crams
         self.ground_truth_vcfs = ground_truth_vcfs
@@ -34,6 +35,7 @@ class QuickFingerprinter:
         self.min_af_germline_snps = min_af_germline_snps
         self.min_hit_fraction_target = min_hit_fraction_target
         self.sp = sp
+        self.add_aws_auth_command = add_aws_auth_command
         self.vc = VariantHitFractionCaller(self.ref, self.out_dir, self.sp, self.min_af_snps, region)
 
         os.makedirs(out_dir, exist_ok=True)
@@ -94,7 +96,10 @@ class QuickFingerprinter:
 
                 called_vcf = f"{self.out_dir}/{cram_base_name}.calls.vcf.gz"
                 local_bam = f"{self.out_dir}/{cram_base_name}.bam"
-                self.sp.print_and_run(f"samtools view {cram} {self.region} -b -o {local_bam}")
+                if self.add_aws_auth_command:
+                    self.sp.print_and_run(f"eval $(aws configure export-credentials --format env-no-export) samtools view {cram} {self.region} -b -o {local_bam}")
+                else:
+                    self.sp.print_and_run(f"samtools view {cram} {self.region} -b -o {local_bam}")
 
                 self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps)
 
