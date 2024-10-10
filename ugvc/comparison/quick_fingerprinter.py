@@ -118,7 +118,7 @@ class QuickFingerprinter:
                     print(f"{cram} - {sample_id} vs. {ground_truth_id} hit_fraction={hit_fraction}")
                 if best_match != sample_id:
                     if match_to_expected_truth is None:
-                        print(f"best_match={best_match} hit_fraction={max_hit_fraction}")
+                        print(f"{cram} best_match={best_match} hit_fraction={max_hit_fraction}")
                     else:
                         potential_error += f"max_hit_fraction = {max(hit_fractions)}"
                 if potential_error != f"{cram} - {sample_id} ":
