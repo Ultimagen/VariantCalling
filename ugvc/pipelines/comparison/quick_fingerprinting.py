@@ -27,6 +27,11 @@ def __get_parser() -> argparse.ArgumentParser:
         default="chr15:26000000-26200000",
         help="region subset string, compare variants only in this region",
     )
+    parser.add_argument(
+        "--add_aws_auth_command", 
+        action="store_true", 
+        help="add aws auth command to samtools commands"
+    )
     
     VariantHitFractionCaller.add_args_to_parser(parser)
     parser.add_argument("--out_dir", type=str, required=True, help="output directory")
@@ -67,6 +72,7 @@ def run(argv):
         min_af_snps,
         min_af_germline_snps,
         min_hit_fraction_target,
+        args.add_aws_auth_command,
         args.out_dir,
         sp
     ).check()
