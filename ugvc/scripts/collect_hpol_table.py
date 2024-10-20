@@ -1,5 +1,6 @@
 #!/bin/env python
 import argparse
+import sys
 
 import numpy as np
 import pyfaidx
@@ -13,7 +14,7 @@ from ugvc.vcfbed import interval_file
 
 # this code goes over reference genome and collects the table of homopolymers
 # it is used to generate the table of homopolymers for the reference genome
-def run():
+def run(argv: list):
     parser = argparse.ArgumentParser(description="Collect homopolymer locations")
     parser.add_argument("--reference", help="Reference genome", required=True, type=str)
     parser.add_argument(
@@ -30,7 +31,7 @@ def run():
         help="Maximum number of homopolymer type (nucleotide, length) to collect",
         type=int,
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv[1:])
 
     sampling_fractions = plan_sampling(args.collection_regions)
 
@@ -101,7 +102,7 @@ def collect_homopolymers(
             print("Skipping due to non-standard nucleotides")
             continue
         k2base = np.cumsum(key)
-
+        k2base = np.insert(k2base, 0, 0)[:-1]
         for h in range(1, max_hpol_length + 1):
             for j in range(len("TGCA")):
                 mask = np.zeros(len(key), dtype=bool)
@@ -135,4 +136,4 @@ def write_hpol_table(hpol_list: list[tuple], output: str):
 
 
 if __name__ == "__main__":
-    run()
+    run(sys.argv)
