@@ -72,10 +72,15 @@ class ReportDataLoader:
             "gq",
         ]
         if self.reference_version == "hg38":
-            return common_columns + ["LCR-hs38", "mappability.0", "ug_hcr"]
+            return common_columns + ["LCR-hs38", "mappability.0", "ug_hcr", "callable"]
 
         if self.reference_version == "hg19":
-            return common_columns + ["LCR-hg19_tab_no_chr", "mappability.hg19.0_tab_no_chr", "ug_hcr_hg19_no_chr"]
+            return common_columns + [
+                "LCR-hg19_tab_no_chr",
+                "mappability.hg19.0_tab_no_chr",
+                "ug_hcr_hg19_no_chr",
+                "callable",
+            ]
 
         return common_columns
 

@@ -4,9 +4,9 @@ from test import get_resource_dir, test_dir
 
 import mock
 import pandas as pd
+from ugbio_core.consts import FileExtension
 
 from ugvc.pipelines import run_no_gt_report
-from ugbio_core.consts import FileExtension
 
 inputs_dir = get_resource_dir(__file__)
 general_inputs_dir = f"{test_dir}/resources/general/"
@@ -33,7 +33,7 @@ def test_allele_freq_hist():
 def test_variant_eval_statistics(mocked_subprocess):
     output_prefix = pjoin(inputs_dir, "collect_stats_unfiltered")
     data = run_no_gt_report.variant_eval_statistics(
-        "vcf", "ref", "db_snp", output_prefix, ["exome", "extended_exome", "high_conf"]
+        "vcf", "ref", "db_snp", output_prefix, 0, ["exome", "extended_exome", "high_conf"], append_confident_calls=True
     )
     subprocess.check_call.assert_called_once_with(
         [
@@ -53,12 +53,16 @@ def test_variant_eval_statistics(mocked_subprocess):
             "extended_exome",
             "--selectNames",
             "high_conf",
+            "--selectNames",
+            "HIGHCONF",
             "--select",
             'vc.hasAttribute("exome")',
             "--select",
             'vc.hasAttribute("extended_exome")',
             "--select",
             'vc.hasAttribute("high_conf")',
+            "--select",
+            "vc.getGenotype(0).getGQ()>=20",
         ]
     )
     for name in [
