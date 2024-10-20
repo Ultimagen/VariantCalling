@@ -12,8 +12,7 @@ from ugbio_core.flow_format import flow_based_read as fbr
 from ugvc.vcfbed import interval_file
 
 
-# this code goes over reference genome and collects the table of homopolymers
-# it is used to generate the table of homopolymers for the reference genome
+# this code goes over reference genome and collects the table of a random sample of locations of homopolymers
 def run(argv: list):
     parser = argparse.ArgumentParser(description="Collect homopolymer locations")
     parser.add_argument("--reference", help="Reference genome", required=True, type=str)
