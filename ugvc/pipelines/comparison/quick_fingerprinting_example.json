@@ -3,9 +3,7 @@
         "HG001":
             [
             "s3://ultimagen-pipelines-503496316425-us-east-1-bioinfo-resources/deepvariant/training-data/wgs/08_2024/034257-NA12878-Z0113-CAGTTCATCTGTGAT.cram",
-            "s3://ultimagen-pipelines-503496316425-us-east-1-bioinfo-resources/deepvariant/training-data/wgs/08_2024/039272-NA12878-Z0008-CACATCCTGCATGTGAT.cram",
             "s3://ultimagen-pipelines-503496316425-us-east-1-bioinfo-resources/deepvariant/training-data/wgs/08_2024/039272-NA12878-Z0025-CTCGAGATTGATGAT.cram",
-            "s3://ultimagen-pipelines-503496316425-us-east-1-bioinfo-resources/deepvariant/training-data/wgs/08_2024/039272-NA12878-Z0114-CAACATACATCAGAT.cram"
 
             ],
         "HG002":
