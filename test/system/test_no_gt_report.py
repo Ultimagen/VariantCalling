@@ -13,8 +13,6 @@ def test_no_gt_report(tmpdir):
     shutil.copy(pjoin(report_path, "nexusplt.py"), tmpdir)
     shutil.copy(pjoin(datadir, "014790-NA12878.filt.no_gt_stats.h5"), tmpdir)
     shutil.copy(pjoin(datadir, "014790-NA12878.filt.no_gt_stats_wgs.h5"), tmpdir)
-    shutil.copy(pjoin(datadir, "014790-NA12878.unfilt.no_gt_stats.h5"), tmpdir)
-    shutil.copy(pjoin(datadir, "014790-NA12878.unfilt.no_gt_stats_wgs.h5"), tmpdir)
     shutil.copy(pjoin(datadir, "somatic_test.cosmic_signatures_v3.3.json"), tmpdir)
     shutil.copy(pjoin(report_path, "nexusplt.py"), tmpdir)
     shutil.copytree(pjoin(datadir, "signature_plots_folder"), pjoin(tmpdir, "signature_plots_folder"))
@@ -23,10 +21,8 @@ def test_no_gt_report(tmpdir):
 [NOGTReport]
 run_id = 014790-NA12878-UGAv3-205-CGATTCATGCTCGAT
 pipeline_version = 1.1.0
-filtered_h5_statistics = 014790-NA12878.filt.no_gt_stats.h5
-filtered_h5_statistics_wgs = 014790-NA12878.filt.no_gt_stats_wgs.h5
-h5_statistics = 014790-NA12878.unfilt.no_gt_stats.h5
-h5_statistics_wgs = 014790-NA12878.unfilt.no_gt_stats_wgs.h5
+h5_statistics = 014790-NA12878.filt.no_gt_stats.h5
+h5_statistics_wgs = 014790-NA12878.filt.no_gt_stats_wgs.h5
 annotation_intervals_names = LCR,EXOME,MAP_UNIQUE,LONG_HMER
 filtered_vcf = 014790-NA12878.chr1_head.vcf.gz
 interval_list = {test_dir}/resources/general/chr1_head/wgs_calling_regions.hg38.interval_list
@@ -62,6 +58,7 @@ h5_output = 014790-NA12878_no_gt_report.h5
         "no_gt_report.html",
     ]
     assert subprocess.check_call(cmd, cwd=tmpdir) == 0
+
 
 def test_no_gt_report_somatic(tmpdir):
     path = test_dir

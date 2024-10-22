@@ -36,7 +36,6 @@ setup(
         "ugvc/pipelines/train_models_pipeline.py",
         "ugvc/pipelines/filter_variants_pipeline.py",
         "ugvc/pipelines/evaluate_concordance.py",
-        "ugvc/pipelines/run_no_gt_report.py",
         "ugvc/pipelines/sec/correct_systematic_errors.py",
         "ugvc/pipelines/sec/sec_training.py",
         "ugvc/pipelines/vcfbed/gvcf_hcr.py",
@@ -49,7 +48,10 @@ setup(
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
     ],
     entry_points={
-        'console_scripts': ['annotate_contig=ugbio_core.annotate_contig:main'],
+        "console_scripts": [
+            "run_no_gt_report = ugvc.pipelines.run_no_gt_report:run",
+            "annotate_contig  = ugbio_core.annotate_contig:main",
+        ],
     },
     package_data={
         "ugvc": [
@@ -59,7 +61,7 @@ setup(
             "bash/index_vcf_file.sh",
             "bash/find_adapter_coords.sh",
         ],
-        "": ["**/reports/*.ipynb"]
+        "": ["**/reports/*.ipynb"],
     },
     install_package_data=True,
 )
