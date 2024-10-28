@@ -1,6 +1,5 @@
 name: ucsc
 channels:
-  - defaults
   - conda-forge
   - bioconda
 dependencies:
