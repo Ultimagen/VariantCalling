@@ -93,7 +93,7 @@ class FlowBasedAlignmentFile(pysam.AlignmentFile):
 
     Methods
     -------
-    pileup(contig, start, end):
+    pileup(contig, start, end, mq):
         similar to pysam.AlignmentFile.pileup, but returns FlowBasedPileupColumn objects.
         Works only in `truncate` mode and min_base_quality = 0
 
@@ -102,6 +102,25 @@ class FlowBasedAlignmentFile(pysam.AlignmentFile):
     pysam.AlignmentFile
     """
 
-    def pileup(self, contig, start, end):
-        pup = super().pileup(contig, start, end, truncate=True, min_base_quality=0)
+    def pileup(self, contig, start, end, mq) -> FlowBasedIteratorColumn:
+        """Return a generator of FlowBasedPileupColumn objects.
+        Parameters
+        ----------
+        contig : str
+            Reference sequence name
+        start : int
+            Start position (1-based)
+        end : int
+            End position (1-based)
+        mq : int
+            Minimum mapping quality
+
+        Returns
+        -------
+        FlowBasedIteratorColumn
+            Iterator of FlowBasedPileupColumn objects
+        """
+        pup = super().pileup(
+            contig, start, end, truncate=True, min_base_quality=0, flag_filter=3844, min_mapping_quality=mq
+        )
         return FlowBasedIteratorColumn(pup)
