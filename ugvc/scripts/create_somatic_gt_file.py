@@ -87,6 +87,19 @@ logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
 
 
+cmd = [
+    "bcftools",
+    "index",
+    "-t",  # Create a CSI index for compressed VCF files
+    pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
+    ),
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+
 # CMP_INTERVALS CREATION
 # exact_match intersect
 cmd = [
