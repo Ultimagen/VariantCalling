@@ -74,10 +74,7 @@ cmd = [
     "bcftools",
     "isec",
     "-p",
-    pjoin(
-        args.output_folder,
-        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
-    ),
+    args.output_folder,
     args.gt_tumor,
     args.gt_normal,
     "-Oz"
