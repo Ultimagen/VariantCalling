@@ -102,7 +102,7 @@ cmd = [
 ]
 logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
-# 0002.vcf.gz for records from HG002 shared by both
+# 0002.vcf.gz for records from tumor shared by both
 cmd = [
     "mv",
     pjoin(args.output_folder, "0002.vcf.gz"),
@@ -140,7 +140,7 @@ cmd = [
 ]
 logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
-# 0002.vcf.gz	for records from HG002 shared by both
+# 0002.vcf.gz	for records from tumor shared by both
 cmd = [
     "mv",
     pjoin(args.output_folder, "0002.vcf.gz"),
@@ -221,8 +221,8 @@ logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
 
 cmd = ["convert2bed", "--input=vcf", "--output=bed"]
-with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
-    pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.bed"),
+with open(pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
+    pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.bed"),
     "w",
     encoding="utf-8",
 ) as outfile:
@@ -231,10 +231,10 @@ with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_
 
 # deletions in a separate bed file for the deletion because they are not converted with the correct positions
 cmd = ["convert2bed", "--input=vcf", "--output=bed", "--deletions"]
-with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
+with open(pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_deletions.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_deletions.bed",
     ),
     "w",
     encoding="utf-8",
@@ -246,16 +246,16 @@ with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_
 # union the 2 bed files
 cmd = [
     "cat",
-    pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.bed"),
+    pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.bed"),
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_deletions.bed",
+        f"gt_{args.gt_tumor_name}2_minus_{args.gt_normal_name}_intersect_position_no_exact_match_deletions.bed",
     ),
 ]
 with open(
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion.bed",
     ),
     "w",
     encoding="utf-8",
@@ -270,13 +270,13 @@ cmd = [
     "-i",
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion.bed",
     ),
 ]
 with open(
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion_sorted.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion_sorted.bed",
     ),
     "w",
     encoding="utf-8",
@@ -295,7 +295,7 @@ cmd = [
     "-b",
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion_sorted.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion_sorted.bed",
     ),
 ]
 outputfile = (
