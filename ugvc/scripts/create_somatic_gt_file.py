@@ -299,9 +299,9 @@ cmd = [
     ),
 ]
 outputfile = (
-    f"{prefix_cmp_interval}_no_problematic_positions.bed"
+    f"OUTPUT_{prefix_cmp_interval}_no_problematic_positions.bed"
     if args.regions_bed is None
-    else f"OUTPUT_{prefix_cmp_interval}_no_problematic_positions.bed"
+    else f"{prefix_cmp_interval}_no_problematic_positions.bed"
 )
 with open(pjoin(args.output_folder, outputfile), "w", encoding="utf-8") as outfile:
     logger.info(" ".join(cmd))
