@@ -69,23 +69,6 @@ logger = logging.getLogger(__name__ if __name__ != "__main__" else "create_somat
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 
-# GT_VCF FILE
-cmd = [
-    "bcftools",
-    "isec",
-    "--complement",
-    args.gt_tumor,
-    args.gt_normal,
-    "-Oz",
-    "-o",
-    pjoin(
-        args.output_folder,
-        f"OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
-    ),
-]
-logger.info(" ".join(cmd))
-subprocess.check_call(cmd)
-
 
 # CMP_INTERVALS CREATION
 # exact_match intersect
@@ -143,7 +126,7 @@ subprocess.check_call(cmd)
 # 0002.vcf.gz	for records from tumor shared by both
 cmd = [
     "mv",
-    pjoin(args.output_folder, "0002.vcf.gz"),
+    pjoin(args.output_folder, "0000.vcf.gz"),
     pjoin(
         args.output_folder,
         f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_position.vcf.gz",
@@ -154,7 +137,7 @@ subprocess.check_call(cmd)
 
 cmd = [
     "mv",
-    pjoin(args.output_folder, "0002.vcf.gz.tbi"),
+    pjoin(args.output_folder, "0000.vcf.gz.tbi"),
     pjoin(
         args.output_folder,
         f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_position.vcf.gz.tbi",
