@@ -249,7 +249,7 @@ cmd = [
     pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.bed"),
     pjoin(
         args.output_folder,
-        f"gt_{args.gt_tumor_name}2_minus_{args.gt_normal_name}_intersect_position_no_exact_match_deletions.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_deletions.bed",
     ),
 ]
 with open(
@@ -327,3 +327,36 @@ if args.regions_bed is not None:
     ) as outfile:
         logger.info(" ".join(cmd))
         subprocess.check_call(cmd, stdout=outfile)
+
+
+
+## het only variants
+file_path =     pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.vcf.gz",
+    )
+output_path =     pjoin(
+        args.output_folder,
+        f'/data/mutect2/data_simulation/mutect_again/gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_het_only.vcf.gz',
+    )
+import pysam
+vcf_in = pysam.VariantFile(file_path,"r")
+vcf_out = pysam.VariantFile(output_path, "w", header=vcf_in.header)
+
+dd = []
+for read in vcf_in:
+    dd.append(read.samples[0]['GT'])
+    if read.samples[0]['GT'] == (1,1):
+        read.samples[0]['GT'] = (0,1)
+    vcf_out.write(read)
+vcf_in.close()
+vcf_out.close()
+
+cmd = [
+    "bcftools",
+    "index",
+    "-t",
+    output_path,
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
