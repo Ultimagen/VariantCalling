@@ -337,7 +337,7 @@ file_path =     pjoin(
     )
 output_path =     pjoin(
         args.output_folder,
-        f'gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_het_only.vcf.gz',
+        f'OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_het_only.vcf.gz',
     )
 import pysam
 vcf_in = pysam.VariantFile(file_path,"r")
