@@ -358,7 +358,9 @@ output_path =     pjoin(
         f'OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_het_only.vcf.gz',
     )
 import pysam
+new_sample_name = f"{args.gt_tumor_name}_minus_{args.gt_normal_name}"
 vcf_in = pysam.VariantFile(file_path,"r")
+vcf_in.header.samples = [new_sample_name]
 vcf_out = pysam.VariantFile(output_path, "w", header=vcf_in.header)
 
 dd = []
