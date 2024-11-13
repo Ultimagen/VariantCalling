@@ -333,7 +333,7 @@ if args.regions_bed is not None:
 ## het only variants
 file_path =     pjoin(
         args.output_folder,
-        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.vcf.gz",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.vcf",
     )
 output_path =     pjoin(
         args.output_folder,
