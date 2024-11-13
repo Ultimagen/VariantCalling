@@ -361,6 +361,7 @@ import pysam
 new_sample_name = f"{args.gt_tumor_name}_minus_{args.gt_normal_name}"
 vcf_in = pysam.VariantFile(file_path,"r")
 header = vcf_in.header.copy()
+header.samples.clear()
 header.add_sample(new_sample_name)
 vcf_out = pysam.VariantFile(output_path, "w", header=header)
 
