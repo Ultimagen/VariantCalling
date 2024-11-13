@@ -73,11 +73,21 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 cmd = [
     "bcftools",
     "isec",
-    "--complement",
+    "-p",
+    pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
+    ),
     args.gt_tumor,
     args.gt_normal,
-    "-Oz",
-    "-o",
+    "-Oz"
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+cmd = [
+    "mv",
+    pjoin(args.output_folder, "0000.vcf.gz"),
     pjoin(
         args.output_folder,
         f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
@@ -86,14 +96,12 @@ cmd = [
 logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
 
-
 cmd = [
-    "bcftools",
-    "index",
-    "-t",  # Create a CSI index for compressed VCF files
+    "mv",
+    pjoin(args.output_folder, "0000.vcf.gz.tbi"),
     pjoin(
         args.output_folder,
-        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz.tbi",
     ),
 ]
 logger.info(" ".join(cmd))
