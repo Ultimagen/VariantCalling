@@ -69,40 +69,6 @@ logger = logging.getLogger(__name__ if __name__ != "__main__" else "create_somat
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 
-# GT_VCF FILE
-cmd = [
-    "bcftools",
-    "isec",
-    "-p",
-    args.output_folder,
-    args.gt_tumor,
-    args.gt_normal,
-    "-Oz"
-]
-logger.info(" ".join(cmd))
-subprocess.check_call(cmd)
-
-cmd = [
-    "mv",
-    pjoin(args.output_folder, "0000.vcf.gz"),
-    pjoin(
-        args.output_folder,
-        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
-    ),
-]
-logger.info(" ".join(cmd))
-subprocess.check_call(cmd)
-
-cmd = [
-    "mv",
-    pjoin(args.output_folder, "0000.vcf.gz.tbi"),
-    pjoin(
-        args.output_folder,
-        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz.tbi",
-    ),
-]
-logger.info(" ".join(cmd))
-subprocess.check_call(cmd)
 
 
 # CMP_INTERVALS CREATION
@@ -348,26 +314,79 @@ if args.regions_bed is not None:
 
 
 
-## het only variants
+# GT_VCF FILE
+cmd = [
+    "bcftools",
+    "isec",
+    "-p",
+    args.output_folder,
+    args.gt_tumor,
+    args.gt_normal,
+    "-Oz"
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+cmd = [
+    "mv",
+    pjoin(args.output_folder, "0000.vcf.gz"),
+    pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
+    ),
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+cmd = [
+    "mv",
+    pjoin(args.output_folder, "0000.vcf.gz.tbi"),
+    pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz.tbi",
+    ),
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+
+
+# Write the rename file with old and new sample names
 file_path =     pjoin(
         args.output_folder,
         f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
     )
 output_path =     pjoin(
         args.output_folder,
+        f'gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_rename.vcf.gz',
+    )
+# rename sample name
+old_sample_name = subprocess.check_output(["bcftools", "query", "-l", file_path]).decode().strip()
+new_sample_name = f"{args.gt_tumor_name}_minus_{args.gt_normal_name}"
+sample_rename_file = pjoin(args.output_folder, "sample_rename.txt")
+with open(sample_rename_file, "w") as f:
+    f.write(f"{old_sample_name}\t{new_sample_name}\n")
+
+# Run the reheader command
+cmd_reheader = [
+    "bcftools", "reheader", "--samples", sample_rename_file,
+    "-o", output_path, file_path
+]
+logger.info(" ".join(cmd_reheader))
+subprocess.check_call(cmd_reheader)
+
+## het only variants
+file_path =     pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_rename.vcf.gz",
+    )
+output_path =     pjoin(
+        args.output_folder,
         f'OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_het_only.vcf.gz',
     )
 import pysam
-new_sample_name = f"{args.gt_tumor_name}_minus_{args.gt_normal_name}"
 vcf_in = pysam.VariantFile(file_path,"r")
-header = vcf_in.header.copy()
-header_samples = list(header.samples)
-for sample in header_samples:
-    header.samples.remove(sample)
-
-header.add_sample(new_sample_name)
-
-vcf_out = pysam.VariantFile(output_path, "w", header=header)
+vcf_out = pysam.VariantFile(output_path, "w", header=vcf_in.header)
 
 dd = []
 for read in vcf_in:
