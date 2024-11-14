@@ -368,12 +368,21 @@ with open(sample_rename_file, "w") as f:
     f.write(f"{old_sample_name}\t{new_sample_name}\n")
 
 # Run the reheader command
-cmd_reheader = [
+cmd = [
     "bcftools", "reheader", "--samples", sample_rename_file,
     "-o", output_path, file_path
 ]
-logger.info(" ".join(cmd_reheader))
-subprocess.check_call(cmd_reheader)
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+cmd = [
+    "bcftools",
+    "index",
+    "-t",
+    output_path,
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
 
 ## het only variants
 file_path =     pjoin(
