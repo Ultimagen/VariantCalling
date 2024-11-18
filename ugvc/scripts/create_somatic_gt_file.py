@@ -69,22 +69,6 @@ logger = logging.getLogger(__name__ if __name__ != "__main__" else "create_somat
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 
-# GT_VCF FILE
-cmd = [
-    "bcftools",
-    "isec",
-    "--complement",
-    args.gt_tumor,
-    args.gt_normal,
-    "-Oz",
-    "-o",
-    pjoin(
-        args.output_folder,
-        f"OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
-    ),
-]
-logger.info(" ".join(cmd))
-subprocess.check_call(cmd)
 
 
 # CMP_INTERVALS CREATION
@@ -102,7 +86,7 @@ cmd = [
 ]
 logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
-# 0002.vcf.gz for records from HG002 shared by both
+# 0002.vcf.gz for records from tumor shared by both
 cmd = [
     "mv",
     pjoin(args.output_folder, "0002.vcf.gz"),
@@ -140,7 +124,7 @@ cmd = [
 ]
 logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
-# 0002.vcf.gz	for records from HG002 shared by both
+# 0002.vcf.gz	for records from tumor shared by both
 cmd = [
     "mv",
     pjoin(args.output_folder, "0002.vcf.gz"),
@@ -221,8 +205,8 @@ logger.info(" ".join(cmd))
 subprocess.check_call(cmd)
 
 cmd = ["convert2bed", "--input=vcf", "--output=bed"]
-with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
-    pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.bed"),
+with open(pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
+    pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.bed"),
     "w",
     encoding="utf-8",
 ) as outfile:
@@ -231,10 +215,10 @@ with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_
 
 # deletions in a separate bed file for the deletion because they are not converted with the correct positions
 cmd = ["convert2bed", "--input=vcf", "--output=bed", "--deletions"]
-with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
+with open(pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.vcf"), "rb",) as fd, open(
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_deletions.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_deletions.bed",
     ),
     "w",
     encoding="utf-8",
@@ -246,16 +230,16 @@ with open(pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_
 # union the 2 bed files
 cmd = [
     "cat",
-    pjoin(args.output_folder, "gt_HG002_minus_HG001_intersect_position_no_exact_match.bed"),
+    pjoin(args.output_folder, f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match.bed"),
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_deletions.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_deletions.bed",
     ),
 ]
 with open(
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion.bed",
     ),
     "w",
     encoding="utf-8",
@@ -270,13 +254,13 @@ cmd = [
     "-i",
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion.bed",
     ),
 ]
 with open(
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion_sorted.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion_sorted.bed",
     ),
     "w",
     encoding="utf-8",
@@ -295,13 +279,13 @@ cmd = [
     "-b",
     pjoin(
         args.output_folder,
-        "gt_HG002_minus_HG001_intersect_position_no_exact_match_with_deletion_sorted.bed",
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_intersect_position_no_exact_match_with_deletion_sorted.bed",
     ),
 ]
 outputfile = (
-    f"{prefix_cmp_interval}_no_problematic_positions.bed"
+    f"OUTPUT_{prefix_cmp_interval}_no_problematic_positions.bed"
     if args.regions_bed is None
-    else f"OUTPUT_{prefix_cmp_interval}_no_problematic_positions.bed"
+    else f"{prefix_cmp_interval}_no_problematic_positions.bed"
 )
 with open(pjoin(args.output_folder, outputfile), "w", encoding="utf-8") as outfile:
     logger.info(" ".join(cmd))
@@ -327,3 +311,106 @@ if args.regions_bed is not None:
     ) as outfile:
         logger.info(" ".join(cmd))
         subprocess.check_call(cmd, stdout=outfile)
+
+
+
+# GT_VCF FILE
+cmd = [
+    "bcftools",
+    "isec",
+    "-p",
+    args.output_folder,
+    args.gt_tumor,
+    args.gt_normal,
+    "-Oz"
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+cmd = [
+    "mv",
+    pjoin(args.output_folder, "0000.vcf.gz"),
+    pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
+    ),
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+cmd = [
+    "mv",
+    pjoin(args.output_folder, "0000.vcf.gz.tbi"),
+    pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz.tbi",
+    ),
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+
+
+# Write the rename file with old and new sample names
+file_path =     pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}.vcf.gz",
+    )
+output_path =     pjoin(
+        args.output_folder,
+        f'gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_rename.vcf.gz',
+    )
+# rename sample name
+old_sample_name = subprocess.check_output(["bcftools", "query", "-l", file_path]).decode().strip()
+new_sample_name = f"{args.gt_tumor_name}_minus_{args.gt_normal_name}"
+sample_rename_file = pjoin(args.output_folder, "sample_rename.txt")
+with open(sample_rename_file, "w") as f:
+    f.write(f"{old_sample_name}\t{new_sample_name}\n")
+
+# Run the reheader command
+cmd = [
+    "bcftools", "reheader", "--samples", sample_rename_file,
+    "-o", output_path, file_path
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+cmd = [
+    "bcftools",
+    "index",
+    "-t",
+    output_path,
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
+
+## het only variants
+file_path =     pjoin(
+        args.output_folder,
+        f"gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_rename.vcf.gz",
+    )
+output_path =     pjoin(
+        args.output_folder,
+        f'OUTPUT_gt_{args.gt_tumor_name}_minus_{args.gt_normal_name}_het_only.vcf.gz',
+    )
+import pysam
+vcf_in = pysam.VariantFile(file_path,"r")
+vcf_out = pysam.VariantFile(output_path, "w", header=vcf_in.header)
+
+dd = []
+for read in vcf_in:
+    dd.append(read.samples[0]['GT'])
+    if read.samples[0]['GT'] == (1,1):
+        read.samples[0]['GT'] = (0,1)
+    vcf_out.write(read)
+vcf_in.close()
+vcf_out.close()
+
+cmd = [
+    "bcftools",
+    "index",
+    "-t",
+    output_path,
+]
+logger.info(" ".join(cmd))
+subprocess.check_call(cmd)
