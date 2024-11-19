@@ -1,0 +1,32 @@
+name: CI Workflow
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+        # Checkout the repository with submodules
+        - name: Checkout repository
+          uses: actions/checkout@v3
+          with:
+            submodules: recursive # Ensures submodules are fetched
+
+        # Run the submodule validation script
+
+        - name: Validate submodule state
+          run: |
+            cd ugbio_utils
+            git fetch origin main
+            LATEST_MASTER_COMMIT=$(git rev-parse origin/main)
+            CURRENT_SUBMODULE_COMMIT=$(git rev-parse HEAD)
+            if [ "$LATEST_MASTER_COMMIT" != "$CURRENT_SUBMODULE_COMMIT" ]; then
+                echo "Submodule ugbio_utils is not up-to-date with the master branch."
+                echo "Expected: $LATEST_MASTER_COMMIT, Found: $CURRENT_SUBMODULE_COMMIT"
+                exit 1
+            fi
+            echo "Submodule is up-to-date."
