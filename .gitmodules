@@ -2,3 +2,4 @@
 [submodule "ugbio_utils"]
 	path = ugbio_utils
 	url = git@github.com:Ultimagen/ugbio-utils.git
+	update = merge
