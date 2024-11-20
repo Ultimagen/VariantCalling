@@ -15,7 +15,9 @@ In addition, the code provides
 ## Setup
 1. Make sure git-lfs is installed on your system if you want to clone test resources along with the code (https://git-lfs.github.com/)
 1. Clone VariantCalling repository to e.g. `software/VariantCalling`
-2. Install ugbio_utils sub-module using `git submodule update --init --recursive` (Alternatively, if you want the git will always update repositories submodules you can run: `git config --global submodule.recurse true` in your home folder (this will effect all repositories) or in VariantCalling folder (to turn it on only for this repo)
+2. Install ugbio_utils sub-module using `git submodule update --init --recursive`
+
+  If you want the git to always update submodules - run: `git config --global submodule.recurse true`. Alternatively, run `git config --local submodule.recurse true` in VariantCalling folder (to turn this behavior on for a single repo only)
 
 1. Create the four conda environments:
    * `conda env create -f setup/environment.yml`
