@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
+import pandas as pd
 
 from simppl.simple_pipeline import SimplePipeline
-
 from ugvc.vcfbed.vcftools import get_vcf_df
 
 
@@ -32,9 +32,16 @@ class VariantHitFractionCaller:
         gt_base_name = os.path.basename(ground_truth_vcf).replace(".vcf.gz", "")
         ground_truth_variants = get_vcf_df(ground_truth_vcf)
         called_variants = get_vcf_df(called_vcf)
+        # keep only major alt
+        called_variants['major_alt'] = called_variants.apply(lambda x: x["alleles"][1], axis=1)
+        ground_truth_variants['major_alt'] = ground_truth_variants.apply(lambda x: x["alleles"][1], axis=1)
+        
         ground_truth_count = len(ground_truth_variants)
-        hit_count = len(called_variants[called_variants.index.isin(ground_truth_variants.index)])
+        hits = pd.merge(ground_truth_variants, called_variants, how="inner", on=["chrom", "pos", "ref", "major_alt"])
+        hit_count = len(hits)
         hit_fraction = hit_count / (ground_truth_count + 0.001)
+        if hit_fraction < 0.05:
+            print(hits[['chrom', 'pos', 'ref', 'major_alt', 'alleles_x', 'alleles_y']])
         with open(f"{self.out_dir}/{called_base_name}_{gt_base_name}.hit.txt", "w", encoding="utf-8") as fh:
             fh.write(f"hit_count {hit_count}\n")
             fh.write(f"hit_fraction {hit_fraction}\n")

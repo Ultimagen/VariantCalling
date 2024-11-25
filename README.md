@@ -120,6 +120,7 @@ git-lfs track "*.new_suffix"
 4. Open a pull-request through github
    1. Add at least one code reviewer
    2. Wait for CI tests to pass (green V sign)
+5. to avoid submodule sync issues, cd ugbbio_utils; git checkout main; cd ..; git commit -a -m "update submodules"; git push
 5. scripts that you want to be available on the path should be added to `setup.py`
 6. scripts that you want to be available to `ugvc` should be added to `__main__.py`
 7. Code changes should pass all pre-commit hooks
