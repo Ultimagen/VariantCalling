@@ -37,6 +37,7 @@ class QuickFingerprinter:
         self.sp = sp
         self.add_aws_auth_command = add_aws_auth_command
         self.vc = VariantHitFractionCaller(self.ref, self.out_dir, self.sp, self.min_af_snps, region)
+        self.output_file = open(f"{self.out_dir}/quick_fingerprinting_results.txt", "w")
 
         os.makedirs(out_dir, exist_ok=True)
 
@@ -74,20 +75,22 @@ class QuickFingerprinter:
             ground_truths_to_check[sample_id] = ground_truth_to_check_vcf
         return ground_truths_to_check
 
+    def print(self, msg: str):
+        self.output_file.write(msg + "\n")
+
     def check(self):
         errors = []
 
         for sample_id in self.crams:
-            print(f"Check consistency for {sample_id}:")
+            self.print(f"Check consistency for {sample_id}:")
             crams = self.crams[sample_id]
-
-            print("    crams = \n\t" + "\n\t".join(self.crams[sample_id]))
-            print(f"    hcrs = {self.hcrs}")
-            print(f"    ground_truth_vcfs = {self.ground_truth_vcfs}")
+            self.print("    crams = \n\t" + "\n\t".join(self.crams[sample_id]))
+            self.print(f"    hcrs = {self.hcrs}")
+            self.print(f"    ground_truth_vcfs = {self.ground_truth_vcfs}")
 
             for cram in crams:
                 # Validate that each cram correlates to the ground-truth
-                print("")
+                self.print("")
                 hit_fractions = []
                 max_hit_fraction = 0
                 best_match = None
@@ -115,13 +118,14 @@ class QuickFingerprinter:
                         potential_error += f"does not match it's ground truth: hit_fraction={hit_fraction} "
                     elif sample_id != ground_truth_id and hit_fraction > self.min_hit_fraction_target:
                         potential_error += f"matched ground truth of {ground_truth_id}: hit_fraction={hit_fraction} "
-                    print(f"{cram} - {sample_id} vs. {ground_truth_id} hit_fraction={hit_fraction}")
+                    self.print(f"{cram} - {sample_id} vs. {ground_truth_id} hit_fraction={hit_fraction}")
                 if best_match != sample_id:
                     if match_to_expected_truth is None:
-                        print(f"{cram} best_match={best_match} hit_fraction={max_hit_fraction}")
+                        self.print(f"{cram} best_match={best_match} hit_fraction={max_hit_fraction}")
                     else:
                         potential_error += f"max_hit_fraction = {max(hit_fractions)}"
                 if potential_error != f"{cram} - {sample_id} ":
                     errors.append(potential_error)
         if len(errors) > 0:
             raise RuntimeError("\n".join(errors))
+        self.output_file.close()

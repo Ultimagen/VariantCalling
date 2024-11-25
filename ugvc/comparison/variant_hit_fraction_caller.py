@@ -35,6 +35,7 @@ class VariantHitFractionCaller:
         # keep only major alt
         called_variants['major_alt'] = called_variants.apply(lambda x: x["alleles"][1], axis=1)
         ground_truth_variants['major_alt'] = ground_truth_variants.apply(lambda x: x["alleles"][1], axis=1)
+        
         ground_truth_count = len(ground_truth_variants)
         hits = pd.merge(ground_truth_variants, called_variants, how="inner", on=["chrom", "pos", "ref", "major_alt"])
         hit_count = len(hits)
