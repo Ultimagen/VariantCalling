@@ -6,7 +6,7 @@ import numpy as np
 import pyfaidx
 import tqdm.auto as tqdm
 from numpy import random
-from ugbio_core.bed_writer import parse_intervals_file
+from ugbio_core.vcfbed.bed_writer import parse_intervals_file
 from ugbio_core.flow_format import flow_based_read as fbr
 
 from ugvc.vcfbed import interval_file

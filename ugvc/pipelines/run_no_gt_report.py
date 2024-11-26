@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 import sigProfilerPlotting as sigPlt
 import ugbio_core.filter_bed as fb
-import ugbio_core.variant_annotation as annotation
+import ugbio_core.vcfbed.variant_annotation as annotation
 from SigProfilerAssignment import Analyzer as Analyze
 from SigProfilerMatrixGenerator import install as genInstall
 from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen

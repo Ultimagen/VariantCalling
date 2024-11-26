@@ -40,7 +40,7 @@ from ugvc.filtering.variant_filtering_utils import VariantSelectionFunctions
 from ugvc.sec.systematic_error_correction_call import SECCall, SECCallType
 from ugvc.sec.systematic_error_correction_caller import SECCaller
 from ugvc.sec.systematic_error_correction_record import SECRecord
-from ugbio_core.bed_writer import BedWriter
+from ugbio_core.vcfbed.bed_writer import BedWriter
 from ugvc.vcfbed.buffered_variant_reader import BufferedVariantReader
 from ugvc.vcfbed.pysam_utils import get_filtered_alleles_list, get_filtered_alleles_str, get_genotype
 

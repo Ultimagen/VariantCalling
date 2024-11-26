@@ -3,7 +3,7 @@ from __future__ import annotations
 import pysam
 import tqdm.auto as tqdm
 
-from ugbio_core.bed_writer import BedWriter
+from ugbio_core.vcfbed.bed_writer import BedWriter
 
 
 def gvcf_to_bed(gvcf_file: str, bed_file: str, gq_threshold: int = 20, gt: bool = True) -> int:
