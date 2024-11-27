@@ -46,6 +46,7 @@ setup(
         "ugbio_utils/src/cnv/ugbio_cnv/plot_cnv_results.py",
         "ugbio_utils/src/cnv/ugbio_cnv/annotate_FREEC_segments.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
+        "ugvc/utils/cloud_sync.py",
     ],
     entry_points={
         "console_scripts": [

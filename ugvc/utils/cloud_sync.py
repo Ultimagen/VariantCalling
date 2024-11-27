@@ -1,3 +1,5 @@
+#!/env/python
+
 from __future__ import annotations
 
 import argparse
@@ -48,7 +50,12 @@ def optional_cloud_sync(
 ):
     if cloud_path_in.startswith("gs://") or cloud_path_in.startswith("s3://"):
         return cloud_sync(
-            cloud_path_in, local_dir_in, print_output, force_download, raise_error_is_file_exists, dry_run
+            cloud_path_in,
+            local_dir_in,
+            print_output,
+            force_download,
+            raise_error_is_file_exists,
+            dry_run,
         )
     return cloud_path_in
 
@@ -60,6 +67,7 @@ def cloud_sync(
     force_download=False,
     raise_error_is_file_exists=False,
     dry_run=False,
+    verbose=False,
 ):
     """Download a file from the cloud to a respective local directory with the same name
 
@@ -77,6 +85,9 @@ def cloud_sync(
         If True and local file already exists, raise ValueError (default False)
     dry_run: bool, optional
         If True, return local path without downloading (default False)
+    verbose: bool, optional
+        If True, print more log messages (default False)
+
     :raises NotADirectoryError: Not a directory
     :raises FileExistsError: Target local file exists
     :raises NotImplementedError: Unsupported cloud service
@@ -105,13 +116,15 @@ def cloud_sync(
         return local_path
     if not force_download and os.path.isfile(local_path):
         if raise_error_is_file_exists:
-            raise FileExistsError(f"target local file {local_path} exists")
+            raise FileExistsError(f"target local file {local_path} exists\n")
         if print_output:
-            sys.stdout.write(f"Local file {local_path} already exists, skipping...\n")
+            sys.stdout.write(
+                f"Local file {local_path} already exists, skipping...\n" if verbose else local_path + os.linesep
+            )
     else:
         try:
             if print_output:
-                sys.stdout.write(f"Downloading to {local_path}\n")
+                sys.stdout.write(("Downloading to " if verbose else "") + local_path + os.linesep)
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
             if cloud_service == "gs":
                 download_from_gs(bucket, blob, local_path)
@@ -121,7 +134,8 @@ def cloud_sync(
                 raise NotImplementedError()
         except KeyboardInterrupt:
             if os.path.isfile(local_path):
-                sys.stdout.write(f"Keyboard Interrupt - removing incomplete file {local_path}\n")
+                if verbose:
+                    sys.stdout.write(f"Keyboard Interrupt - removing incomplete file {local_path}\n")
                 os.remove(local_path)
             raise
 
@@ -137,6 +151,13 @@ def parse_args(argv):
         default="/data",
         help="local directory the files will sync to",
     )
+    parser.add_argument(
+        "--no-output",
+        action="store_false",
+        dest="print_output",
+        help="do not print output",
+    )
+    parser.add_argument("--verbose", action="store_true", help="print more log messages")
     args = parser.parse_args(argv[1:])
     return args
 
@@ -146,6 +167,12 @@ def run(argv: list[str]):
     args = parse_args(argv)
     cloud_path = args.cloud_path
     local_dir = args.local_dir
+    print_output = args.print_output
+    verbose = args.verbose and print_output
     if not os.path.isdir(local_dir):
         raise ValueError(f"local_dir {local_dir} does not exist")
-    cloud_sync(cloud_path, local_dir, print_output=True)
+    cloud_sync(cloud_path, local_dir, print_output=print_output, verbose=verbose)
+
+
+if __name__ == "__main__":
+    run(sys.argv)
