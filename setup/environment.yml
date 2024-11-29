@@ -476,5 +476,4 @@ dependencies:
       - sigprofilermatrixgenerator==1.2.31
       - sigprofilerplotting==1.3.24
       - simppl==1.0.7
-      - ugvc==0.24.1
 prefix: /home/ilyas/anaconda3/envs/genomics.py3
