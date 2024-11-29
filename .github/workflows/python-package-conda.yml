@@ -29,7 +29,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install flake8
-          conda config --remove channels defaults
           conda env create --file setup/other_envs/ucsc.yml --name ucsc
           conda env create -f setup/other_envs/cutadaptenv.yml --name cutadaptenv
           conda env create --file setup/environment.yml --name genomics.py3
