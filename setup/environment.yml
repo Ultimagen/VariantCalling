@@ -190,6 +190,7 @@ dependencies:
   - libarrow-substrait=16.1.0=h5c8f2c3_45_cpu
   - libasprintf=0.22.5=he8f35ee_3
   - libasprintf-devel=0.22.5=he8f35ee_3
+  - libbigwig=0.4.7=h09f99ed_6
   - libblas=3.9.0=25_linux64_openblas
   - libbrotlicommon=1.1.0=hb9d3cd8_2
   - libbrotlidec=1.1.0=hb9d3cd8_2
@@ -279,6 +280,7 @@ dependencies:
   - matplotlib=3.7.1=py310hff52083_0
   - matplotlib-base=3.7.1=py310he60537e_0
   - matplotlib-inline=0.1.7=pyhd8ed1ab_0
+  - methyldackel=0.6.1=he4a0461_7
   - mistune=3.0.2=pyhd8ed1ab_0
   - mock=5.1.0=pyhd8ed1ab_0
   - mpg123=1.32.9=hc50e24c_0
@@ -426,6 +428,7 @@ dependencies:
   - unicodedata2=15.1.0=py310ha75aee5_1
   - uri-template=1.3.0=pyhd8ed1ab_0
   - urllib3=2.2.3=pyhd8ed1ab_0
+  - vcfanno=0.3.5=h9ee0642_1
   - virtualenv=20.28.0=pyhd8ed1ab_0
   - wcwidth=0.2.13=pyhd8ed1ab_0
   - webcolors=24.8.0=pyhd8ed1ab_0
@@ -478,4 +481,5 @@ dependencies:
       - sigprofilermatrixgenerator==1.2.31
       - sigprofilerplotting==1.3.24
       - simppl==1.0.7
+      - ugvc==0.24.1
 prefix: /home/ilyas/anaconda3/envs/genomics.py3
