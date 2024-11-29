@@ -1,37 +1,46 @@
 name: cutadaptenv
 channels:
+  - nodefaults
   - conda-forge
   - bioconda
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
-  - bzip2=1.0.8=h7f98852_4
-  - ca-certificates=2022.6.15=ha878542_0
-  - cutadapt=4.1=py310h1425a21_1
-  - dnaio=0.9.1=py310h1425a21_1
-  - isa-l=2.30.0=ha770c72_4
-  - ld_impl_linux-64=2.36.1=hea4e1c9_2
+  - bzip2=1.0.8=h4bc722e_7
+  - ca-certificates=2024.8.30=hbcca054_0
+  - cffi=1.17.1=py310h8deb56e_0
+  - cutadapt=4.9=py310h7c593f9_2
+  - dnaio=1.2.2=py310h7c593f9_0
+  - isa-l=2.31.0=h4bc722e_2
+  - ld_impl_linux-64=2.43=h712a8e2_2
   - libffi=3.4.2=h7f98852_5
-  - libgcc-ng=12.1.0=h8d9b700_16
-  - libgomp=12.1.0=h8d9b700_16
-  - libnsl=2.0.0=h7f98852_0
-  - libsqlite=3.39.2=h753d276_1
-  - libuuid=2.32.1=h7f98852_1000
-  - libzlib=1.2.12=h166bdaf_2
-  - ncurses=6.3=h27087fc_1
-  - openssl=3.0.5=h166bdaf_1
-  - pbzip2=1.1.13=0
-  - pigz=2.6=h27826a3_0
-  - pip=22.2.2=pyhd8ed1ab_0
+  - libgcc=14.2.0=h77fa898_1
+  - libgcc-ng=14.2.0=h69a702a_1
+  - libgomp=14.2.0=h77fa898_1
+  - libnsl=2.0.1=hd590300_0
+  - libsqlite=3.47.0=hadc24fc_1
+  - libstdcxx=14.2.0=hc0a3c3a_1
+  - libstdcxx-ng=14.2.0=h4852527_1
+  - libuuid=2.38.1=h0b41bf4_0
+  - libzlib=1.3.1=hb9d3cd8_2
+  - ncurses=6.5=he02047a_1
+  - openssl=3.4.0=hb9d3cd8_0
+  - pbzip2=1.1.13=h1fcc475_2
+  - pigz=2.8=h2797004_0
+  - pip=24.3.1=pyh8b19718_0
+  - pycparser=2.22=pyhd8ed1ab_0
   - python=3.10.6=ha86cf86_0_cpython
-  - python-isal=1.0.1=py310h5764c6d_0
-  - python_abi=3.10=2_cp310
-  - readline=8.1.2=h0f457ee_0
-  - setuptools=65.3.0=pyhd8ed1ab_1
-  - tk=8.6.12=h27826a3_0
-  - tzdata=2022c=h191b570_0
-  - wheel=0.37.1=pyhd8ed1ab_0
-  - xopen=1.6.0=py310hff52083_0
+  - python-isal=1.7.1=py310ha75aee5_0
+  - python-zlib-ng=0.5.1=py310h62b3d1f_0
+  - python_abi=3.10=5_cp310
+  - readline=8.2=h8228510_1
+  - setuptools=75.6.0=pyhff2d567_1
+  - tk=8.6.13=noxft_h4845f30_101
+  - tzdata=2024b=hc8b5060_0
+  - wheel=0.45.1=pyhd8ed1ab_0
+  - xopen=2.0.2=pyh707e725_1
   - xz=5.2.6=h166bdaf_0
-  - zlib=1.2.12=h166bdaf_2
-prefix: /home/ubuntu/miniconda3/envs/cutadaptenv
+  - zlib-ng=2.2.2=h5888daf_0
+  - zstandard=0.23.0=py310ha39cb0e_1
+  - zstd=1.5.6=ha6fb4c9_0
+prefix: /home/ilyas/anaconda3/envs/cutadaptenv

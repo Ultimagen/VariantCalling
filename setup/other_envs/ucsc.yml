@@ -1,21 +1,26 @@
 name: ucsc
 channels:
+  - nodefaults
   - conda-forge
   - bioconda
 dependencies:
-  - _libgcc_mutex=0.1=main
-  - _openmp_mutex=4.5=1_gnu
-  - ca-certificates=2021.7.5=h06a4308_1
-  - libgcc=7.2.0=h69d50b8_2
-  - libgcc-ng=9.3.0=h5101ec6_17
-  - libgomp=9.3.0=h5101ec6_17
-  - libpng=1.6.37=hbc83047_0
-  - libstdcxx-ng=9.3.0=hd4cf53a_17
-  - libuuid=2.32.1=h7f98852_1000
-  - mysql-connector-c=6.1.6=2
-  - openssl=1.0.2u=h7b6447c_0
-  - ucsc-bedgraphtobigwig=377=h199ee4e_0
-  - ucsc-bigwigtobedgraph=377=h199ee4e_0
-  - zlib=1.2.11=h7b6447c_3
-  - bedtools=2.30.0=h7d7f7ad_1
-prefix: /home/ec2-user/miniconda3/envs/ucsc
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - bedtools=2.31.1=hf5e1c6e_2
+  - bzip2=1.0.8=h4bc722e_7
+  - ca-certificates=2024.8.30=hbcca054_0
+  - libgcc=14.2.0=h77fa898_1
+  - libgcc-ng=14.2.0=h69a702a_1
+  - libgomp=14.2.0=h77fa898_1
+  - libpng=1.6.43=h2797004_0
+  - libstdcxx=14.2.0=hc0a3c3a_1
+  - libstdcxx-ng=14.2.0=h4852527_1
+  - libuuid=2.38.1=h0b41bf4_0
+  - libzlib=1.2.13=h4ab18f5_6
+  - mysql-connector-c=6.1.11=h6eb9d5d_1007
+  - openssl=1.1.1w=hd590300_0
+  - ucsc-bedgraphtobigwig=377=ha8a8165_3
+  - ucsc-bigwigtobedgraph=377=ha8a8165_6
+  - xz=5.2.6=h166bdaf_0
+  - zlib=1.2.13=h4ab18f5_6
+prefix: /home/ilyas/anaconda3/envs/ucsc
