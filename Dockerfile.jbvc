@@ -12,7 +12,9 @@ COPY setup/environment.yml /VariantCalling/setup/
 COPY setup/other_envs/cutadaptenv.yml /VariantCalling/setup/other_envs/
 COPY setup/other_envs/ucsc.yml /VariantCalling/setup/other_envs/
 
-RUN conda env create -f /VariantCalling/setup/environment.yml && \
+RUN conda config --remove channels default && \
+    conda config --remove channels r && \
+    conda env create -f /VariantCalling/setup/environment.yml && \
     conda env create -f /VariantCalling/setup/other_envs/cutadaptenv.yml && \
     conda env create -f /VariantCalling/setup/other_envs/ucsc.yml && \
     conda init --all && conda clean -a -y

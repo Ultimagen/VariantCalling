@@ -18,7 +18,7 @@ jobs:
       - uses: s-weigand/setup-conda@v1.1.1
         with:
           activate-conda: true
-          conda-channels: conda-forge, bioconda, r, defaults
+          conda-channels: conda-forge, bioconda
       - name: Setup file system
         run: |
           sudo mkdir -p /data && \
