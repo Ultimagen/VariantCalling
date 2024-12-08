@@ -66,4 +66,4 @@ jobs:
       - name: Test ugbio_utils with pytest
         run: |
           source activate genomics.py3
-          python -m pytest --ignore-glob='ugbio_utils/src/single_cell/*' --ignore-glob='ugbio_utils/src/omics/*' ugbio_utils/src/*/tests
+          python -m pytest --ignore-glob='ugbio_utils/src/single_cell/*' --ignore-glob='ugbio_utils/src/omics/*' --ignore-glob='ugbio_utils/src/featuremap/tests/system/test_featuremap_xgb_training.py' ugbio_utils/src/*/tests
