@@ -7,6 +7,7 @@ packages += find_packages(where="ugbio_utils/src/featuremap", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/mrd", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/ppmseq", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/srsnv", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/methylation", exclude=["tests"])
 
 
 setup(
@@ -20,6 +21,7 @@ setup(
         "ugbio_featuremap": "ugbio_utils/src/featuremap/ugbio_featuremap",
         "ugbio_srsnv": "ugbio_utils/src/srsnv/ugbio_srsnv",
         "ugbio_mrd": "ugbio_utils/src/mrd/ugbio_mrd",
+        "ugbio_methylation": "ugbio_utils/src/methylation/ugbio_methylation",
     },
     install_requires=[],
     scripts=[
