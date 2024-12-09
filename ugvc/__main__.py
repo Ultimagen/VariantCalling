@@ -22,12 +22,12 @@ from ugbio_cnv import (
 )
 
 from ugvc.joint import compress_gvcf
-from ugvc.methylation import (
+from ugbio_methylation import (
     concat_methyldackel_csvs,
-    process_Mbias,
-    process_mergeContext,
-    process_mergeContextNoCpG,
-    process_perRead,
+    process_mbias,
+    process_merge_context,
+    process_merge_context_no_cp_g,
+    process_per_read,
 )
 from ugvc.pipelines import (
     convert_haploid_regions,
@@ -103,10 +103,10 @@ mrd_modules = [
 
 methylation_modules = [
     concat_methyldackel_csvs,
-    process_Mbias,
-    process_mergeContext,
-    process_mergeContextNoCpG,
-    process_perRead,
+    process_mbias,
+    process_merge_context,
+    process_merge_context_no_cp_g,
+    process_per_read,
 ]
 
 joint_modules = [compress_gvcf, denovo_recalibrated_qualities]
