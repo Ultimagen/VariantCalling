@@ -41,7 +41,6 @@ import numpy as np
 import pandas as pd
 import pyBigWig as pbw
 from joblib import Parallel, delayed
-from scipy.interpolate import interp1d
 from tqdm import tqdm
 
 import ugbio_core.dna_sequence_utils as dnautils
@@ -53,7 +52,7 @@ from ugvc.utils.cloud_sync import cloud_sync
 from ugbio_core.consts import FileExtension
 from ugbio_core.plotting_utils import set_pyplot_defaults
 from ugbio_core.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
-
+from ugbio_core.coverage_analysis_utils import generate_stats_from_histogram
 MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
 MIN_LENGTH_TO_SHOW = 10000000  # contigs that are shorter than that won't be shown on coverage plot
 COVERAGE = "coverage"
@@ -950,80 +949,6 @@ def _get_output_file_name(
         region_str = "" if region is None else "." + region.replace(":", "_")
         f_out = f"{out_basename}{region_str}{extra_extensions}.w{window}.{output_format}"
     return f_out
-
-
-def generate_stats_from_histogram(
-    val_count,
-    quantiles=np.array([0.05, 0.1, 0.25, 0.5, 0.75, 0.95]),
-    out_path=None,
-    verbose=True,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    if isinstance(val_count, str) and os.path.isfile(val_count):
-        val_count = pd.read_hdf(val_count, key="histogram")
-    if val_count.shape[0] == 0:  # empty input
-        raise ValueError("Empty dataframe - most likely bed files were not created, bam/cram index possibly missing")
-    df_percentiles = pd.concat(
-        (
-            val_count.apply(lambda x: interp1d(np.cumsum(x), val_count.index, bounds_error=False)(quantiles)),
-            val_count.apply(
-                lambda x: np.sum(val_count.index.values * x.values) / np.sum(x.values)  # np.average gave strange bug
-                if not x.isnull().all() and x.sum() > 0
-                else np.nan
-            )
-            .to_frame()
-            .T,
-        ),
-        sort=False,
-    ).fillna(
-        0
-    )  # extrapolation below 0 yields NaN
-    df_percentiles.index = pd.Index(data=[f"Q{int(qq * 100)}" for qq in quantiles] + ["mean"], name="statistic")
-
-    genome_median = df_percentiles.loc["Q50"].filter(regex="Genome").values[0]
-    selected_percentiles = (
-        df_percentiles.loc[[f"Q{q}" for q in (5, 10, 50)]]
-        .rename(index={"Q50": "median_coverage"})
-        .rename(index={f"Q{q}": f"percentile_{q}" for q in (5, 10, 50)})
-    )
-    selected_percentiles.loc["median_coverage_normalized"] = selected_percentiles.loc["median_coverage"] / genome_median
-    df_stats = pd.concat(
-        (
-            selected_percentiles,
-            pd.concat(
-                (
-                    (val_count[val_count.index >= (genome_median * 0.5)] * 100)
-                    .sum()
-                    .rename("percent_larger_than_05_of_genome_median")
-                    .to_frame()
-                    .T,
-                    (val_count[val_count.index >= (genome_median * 0.25)] * 100)
-                    .sum()
-                    .rename("percent_larger_than_025_of_genome_median")
-                    .to_frame()
-                    .T,
-                    (val_count[val_count.index >= 10] * 100).sum().rename("percent_over_or_equal_to_10x").to_frame().T,
-                    (val_count[val_count.index >= 20] * 100).sum().rename("percent_over_or_equal_to_20x").to_frame().T,
-                )
-            ),
-        )
-    )
-    if verbose:
-        logger.debug("Generated stats:\n%s", df_stats.iloc[:, :10].to_string())
-
-    if out_path is not None:
-        os.makedirs(out_path, exist_ok=True)
-        logger.debug("Saving data")
-        if "." in basename(out_path):
-            coverage_stats_dataframes = out_path
-        else:
-            coverage_stats_dataframes = pjoin(out_path, "coverage_stats.h5")
-        if verbose:
-            logger.debug("Saving dataframes to %s", coverage_stats_dataframes)
-        df_stats.to_hdf(coverage_stats_dataframes, key="stats", mode="a")
-        df_percentiles.to_hdf(coverage_stats_dataframes, key="percentiles", mode="a")
-        return coverage_stats_dataframes
-
-    return df_percentiles, df_stats
 
 
 def generate_coverage_boxplot(df_percentiles: pd.DataFrame, color_group=None, out_path=None, title=""):
