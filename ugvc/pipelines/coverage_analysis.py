@@ -48,7 +48,7 @@ from ugvc import logger
 from ugbio_core.consts import CHROM_DTYPE
 from ugvc.utils import misc_utils as utils
 from ugvc.utils.cloud_auth import get_gcs_token
-from ugvc.utils.cloud_sync import cloud_sync
+from ugbio_cloud_utils.cloud_sync import cloud_sync
 from ugbio_core.consts import FileExtension
 from ugbio_core.plotting_utils import set_pyplot_defaults
 from ugbio_core.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
