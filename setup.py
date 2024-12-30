@@ -8,6 +8,7 @@ packages += find_packages(where="ugbio_utils/src/mrd", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/ppmseq", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/srsnv", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/methylation", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/cloud_utils", exclude=["tests"])
 
 
 setup(
@@ -22,6 +23,7 @@ setup(
         "ugbio_srsnv": "ugbio_utils/src/srsnv/ugbio_srsnv",
         "ugbio_mrd": "ugbio_utils/src/mrd/ugbio_mrd",
         "ugbio_methylation": "ugbio_utils/src/methylation/ugbio_methylation",
+        "ugbio_cloud_utils": "ugbio_utils/src/cloud_utils/ugbio_cloud_utils",
     },
     install_requires=[],
     scripts=[
