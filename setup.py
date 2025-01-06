@@ -13,7 +13,7 @@ packages += find_packages(where="ugbio_utils/src/cloud_utils", exclude=["tests"]
 
 setup(
     name="ugvc",
-    version="0.24.1",
+    version="0.26.1",
     packages=find_packages(exclude=["ugbio_utils*", "tests"]) + packages,
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
