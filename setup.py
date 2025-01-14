@@ -35,7 +35,6 @@ setup(
         "ugbio_utils/src/core/ugbio_core/sorter_stats_to_mean_coverage.py",
         "ugbio_utils/src/featuremap/ugbio_featuremap/featuremap_to_dataframe.py",
         "ugbio_utils/src/mrd/ugbio_mrd/intersect_featuremap_with_signature.py",
-        "ugbio_utils/src/mrd/ugbio_mrd/prepare_data_from_mrd_pipeline.py",
         "ugvc/pipelines/training_prep_pipeline.py",
         "ugvc/pipelines/train_models_pipeline.py",
         "ugvc/pipelines/filter_variants_pipeline.py",
