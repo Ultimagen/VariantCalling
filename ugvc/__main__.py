@@ -11,6 +11,8 @@ path = f"{dirname(dirname(__file__))}"
 if path not in sys.path:
     sys.path.insert(0, path)
 
+from ugbio_cloud_utils import cloud_sync
+
 # import pipeline modules implementing run(argv) method
 from ugbio_cnv import (
     annotate_FREEC_segments,
@@ -18,10 +20,11 @@ from ugbio_cnv import (
     convert_cnv_results_to_vcf,
     filter_sample_cnvs,
     plot_cnv_results,
-    plot_FREEC_neutral_AF
+    plot_FREEC_neutral_AF,
 )
-
-from ugvc.joint import compress_gvcf
+from ugbio_core import intersect_bed_regions, sorter_stats_to_mean_coverage, sorter_to_h5
+from ugbio_core.vcfbed import annotate_contig
+from ugbio_featuremap import annotate_featuremap, create_hom_snv_featuremap, featuremap_to_dataframe, pileup_featuremap
 from ugbio_methylation import (
     concat_methyldackel_csvs,
     process_mbias,
@@ -29,6 +32,11 @@ from ugbio_methylation import (
     process_merge_context_no_cp_g,
     process_per_read,
 )
+from ugbio_mrd import generate_synthetic_signatures, intersect_featuremap_with_signature
+from ugbio_ppmseq import ppmSeq_qc_analysis
+from ugbio_srsnv import srsnv_inference, srsnv_training
+
+from ugvc.joint import compress_gvcf
 from ugvc.pipelines import (
     convert_haploid_regions,
     correct_genotypes_by_imputation,
@@ -44,25 +52,8 @@ from ugvc.pipelines import (
 from ugvc.pipelines.comparison import quick_fingerprinting
 from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
-from ugbio_featuremap import annotate_featuremap, create_hom_snv_featuremap, featuremap_to_dataframe, \
-    pileup_featuremap
-from ugbio_mrd import (
-    generate_synthetic_signatures,
-    intersect_featuremap_with_signature,
-    prepare_data_from_mrd_pipeline
-)
-from ugbio_ppmseq import (
-    ppmSeq_qc_analysis
-)
-from ugbio_srsnv import (
-    srsnv_inference,
-    srsnv_training
-)
-from ugbio_core.vcfbed import annotate_contig
-from ugbio_core import intersect_bed_regions, sorter_stats_to_mean_coverage, sorter_to_h5
 from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, gvcf_hcr
-from ugbio_cloud_utils import cloud_sync
 
 # create a list of imported pipeline modules
 modules = [
@@ -81,7 +72,7 @@ modules = [
     vcfeval_flavors,
     bicseq2_post_processing,
     annotate_FREEC_segments,
-    plot_FREEC_neutral_AF
+    plot_FREEC_neutral_AF,
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
@@ -91,7 +82,6 @@ mrd_modules = [
     sorter_stats_to_mean_coverage,
     featuremap_to_dataframe,
     intersect_featuremap_with_signature,
-    prepare_data_from_mrd_pipeline,
     generate_synthetic_signatures,
     annotate_featuremap,
     srsnv_training,
