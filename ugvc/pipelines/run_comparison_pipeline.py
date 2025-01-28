@@ -79,7 +79,7 @@ def _contig_concordance_annotate_reinterpretation(
 
     if not disable_reinterpretation:
         annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-            annotated_concordance, reference, ignore_low_quality_fps
+            annotated_concordance, reference, ignore_low_quality_fps=ignore_low_quality_fps
         )
     logger.debug("%s: %s", contig, annotated_concordance.shape)
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
