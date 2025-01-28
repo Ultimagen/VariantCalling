@@ -5,7 +5,7 @@ from os.path import basename, dirname
 from os.path import join as pjoin
 from os.path import splitext
 
-from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils
+from ugbio_comparison.vcf_pipeline_utils import VcfPipelineUtils
 from ugvc.vcfbed.interval_file import IntervalFile
 
 
