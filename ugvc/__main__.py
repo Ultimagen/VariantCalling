@@ -35,12 +35,10 @@ from ugvc.pipelines import (
     coverage_analysis,
     denovo_recalibrated_qualities,
     evaluate_concordance,
-    filter_variants_pipeline,
     run_comparison_pipeline,
-    train_models_pipeline,
-    training_prep_pipeline,
     vcfeval_flavors,
 )
+from ugbio_filtering import filter_variants_pipeline, train_models_pipeline, training_prep_pipeline
 from ugvc.pipelines.comparison import quick_fingerprinting
 from ugvc.pipelines.deepvariant import training_set_consistency_check
 from ugvc.pipelines.lpr import filter_vcf_with_lib_prep_recalibration_model, train_lib_prep_recalibration_model
@@ -60,9 +58,9 @@ from ugbio_srsnv import (
 )
 from ugbio_core.vcfbed import annotate_contig
 from ugbio_core import intersect_bed_regions, sorter_stats_to_mean_coverage, sorter_to_h5
-from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
+from ugbio_filtering.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, gvcf_hcr
-from ugvc.utils import cloud_sync
+from ugbio_cloud_utils import cloud_sync
 
 # create a list of imported pipeline modules
 modules = [
