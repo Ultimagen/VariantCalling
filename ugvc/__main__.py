@@ -46,8 +46,7 @@ from ugbio_featuremap import annotate_featuremap, create_hom_snv_featuremap, fea
     pileup_featuremap
 from ugbio_mrd import (
     generate_synthetic_signatures,
-    intersect_featuremap_with_signature,
-    prepare_data_from_mrd_pipeline
+    intersect_featuremap_with_signature
 )
 from ugbio_ppmseq import (
     ppmSeq_qc_analysis
