@@ -35,7 +35,7 @@ from SigProfilerMatrixGenerator import install as genInstall
 from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
 from ugbio_core.dna_sequence_utils import revcomp
 
-from ugbio_comparison.comparison import vcf_pipeline_utils
+from ugbio_comparison import vcf_pipeline_utils
 from ugbio_core.vcfbed import vcftools
 
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
