@@ -18,7 +18,7 @@ from ugbio_cnv import (
     convert_cnv_results_to_vcf,
     filter_sample_cnvs,
     plot_cnv_results,
-    plot_FREEC_neutral_AF
+    plot_FREEC_neutral_AF,
 )
 
 from ugvc.joint import compress_gvcf
@@ -79,7 +79,7 @@ modules = [
     vcfeval_flavors,
     bicseq2_post_processing,
     annotate_FREEC_segments,
-    plot_FREEC_neutral_AF
+    plot_FREEC_neutral_AF,
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]
@@ -89,7 +89,6 @@ mrd_modules = [
     sorter_stats_to_mean_coverage,
     featuremap_to_dataframe,
     intersect_featuremap_with_signature,
-    prepare_data_from_mrd_pipeline,
     generate_synthetic_signatures,
     annotate_featuremap,
     srsnv_training,
