@@ -9,7 +9,7 @@ import pysam
 import tqdm.auto as tqdm
 
 import ugvc.comparison.vcf_pipeline_utils as vpu
-from ugvc.vcfbed import vcftools
+from ugbio_core.vcfbed import vcftools
 
 
 def get_parental_vcf_df(maternal_vcfs: dict, paternal_vcfs: dict) -> pd.DataFrame:

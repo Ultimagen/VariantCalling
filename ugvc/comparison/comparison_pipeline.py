@@ -6,7 +6,7 @@ from os.path import join as pjoin
 from os.path import splitext
 
 from ugbio_comparison.vcf_pipeline_utils import VcfPipelineUtils
-from ugvc.vcfbed.interval_file import IntervalFile
+from ugbio_core.vcfbed.interval_file import IntervalFile
 
 
 class ComparisonPipeline:  # pylint: disable=too-many-instance-attributes

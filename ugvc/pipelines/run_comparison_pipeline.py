@@ -31,12 +31,12 @@ from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
-from ugvc.comparison import vcf_pipeline_utils
+from ugbio_comparison import vcf_pipeline_utils
 from ugvc.comparison.comparison_pipeline import ComparisonPipeline
 from ugbio_core.consts import DEFAULT_FLOW_ORDER
 from ugbio_core.h5_utils import read_hdf
-from ugvc.vcfbed import vcftools
-from ugvc.vcfbed.interval_file import IntervalFile
+from ugbio_core.vcfbed import vcftools
+from ugbio_core.vcfbed.interval_file import IntervalFile
 
 MIN_CONTIG_LENGTH = 100000
 
