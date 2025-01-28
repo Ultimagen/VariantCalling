@@ -8,7 +8,7 @@ import pandas as pd
 import pysam
 import tqdm.auto as tqdm
 
-import ugvc.comparison.vcf_pipeline_utils as vpu
+import ugbio_comparison.vcf_pipeline_utils as vpu
 from ugbio_core.vcfbed import vcftools
 
 
