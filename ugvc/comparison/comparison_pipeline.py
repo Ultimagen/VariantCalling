@@ -105,16 +105,16 @@ class ComparisonPipeline:  # pylint: disable=too-many-instance-attributes
         select_intervals_fn = self.__select_comparison_intervals(revert_fn)
 
         concordance_vcf = self.vpu.run_vcfeval_concordance(
-            select_intervals_fn,
-            self.truth_file,
-            self.output_prefix,
-            self.ref_genome,
-            self.highconf_intervals.as_bed_file(),
-            self.cmp_intervals.as_bed_file(),
-            self.call_sample,
-            self.truth_sample,
-            self.ignore_filter,
-            mode = "combine",
+            input_file=select_intervals_fn,
+            truth_file=self.truth_file,
+            output_prefix=self.output_prefix,
+            ref_genome=self.ref_genome,
+            evaluation_regions=self.highconf_intervals.as_bed_file(),
+            comparison_intervals=self.cmp_intervals.as_bed_file(),
+            input_sample=self.call_sample,
+            truth_sample=self.truth_sample,
+            ignore_filter=self.ignore_filter,
+            mode="combine"
         )
         annotated_concordance_vcf = self.vpu.annotate_tandem_repeats(concordance_vcf, self.ref_genome)
 
