@@ -58,7 +58,7 @@ from ugbio_srsnv import (
 )
 from ugbio_core.vcfbed import annotate_contig
 from ugbio_core import intersect_bed_regions, sorter_stats_to_mean_coverage, sorter_to_h5
-from ugbio_filtering.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
+from ugvc.pipelines.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, gvcf_hcr
 from ugbio_cloud_utils import cloud_sync
 

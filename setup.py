@@ -8,9 +8,7 @@ packages += find_packages(where="ugbio_utils/src/mrd", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/ppmseq", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/srsnv", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/methylation", exclude=["tests"])
-packages += find_packages(where="ugbio_utils/src/cloud_utils", exclude=["tests"])
-packages += find_packages(where="ugbio_utils/src/filtering", exclude=["tests"])
-packages += find_packages(where="ugbio_utils/src/comparison", exclude=["tests"])
+
 
 setup(
     name="ugvc",
@@ -24,9 +22,6 @@ setup(
         "ugbio_srsnv": "ugbio_utils/src/srsnv/ugbio_srsnv",
         "ugbio_mrd": "ugbio_utils/src/mrd/ugbio_mrd",
         "ugbio_methylation": "ugbio_utils/src/methylation/ugbio_methylation",
-        "ugbio_cloud_utils": "ugbio_utils/src/cloud_utils/ugbio_cloud_utils",
-        "ugbio_filtering": "ugbio_utils/src/filtering/ugbio_filtering",
-        "ugbio_comparison": "ugbio_utils/src/comparison/ugbio_comparison",
     },
     install_requires=[],
     scripts=[
@@ -39,12 +34,12 @@ setup(
         "ugbio_utils/src/featuremap/ugbio_featuremap/featuremap_to_dataframe.py",
         "ugbio_utils/src/mrd/ugbio_mrd/intersect_featuremap_with_signature.py",
         "ugbio_utils/src/mrd/ugbio_mrd/prepare_data_from_mrd_pipeline.py",
-        "ugbio_utils/src/filtering/ugbio_filtering/training_prep_pipeline.py",
-        "ugbio_utils/src/filtering/ugbio_filtering/train_models_pipeline.py",
-        "ugbio_utils/src/filtering/ugbio_filtering/filter_variants_pipeline.py",
+        "ugvc/pipelines/training_prep_pipeline.py",
+        "ugvc/pipelines/train_models_pipeline.py",
+        "ugvc/pipelines/filter_variants_pipeline.py",
         "ugvc/pipelines/evaluate_concordance.py",
-        "ugbio_utils/src/filtering/ugbio_filtering/sec/correct_systematic_errors.py",
-        "ugbio_utils/src/filtering/ugbio_filtering/sec/sec_training.py",
+        "ugvc/pipelines/sec/correct_systematic_errors.py",
+        "ugvc/pipelines/sec/sec_training.py",
         "ugvc/pipelines/vcfbed/gvcf_hcr.py",
         "ugvc/pipelines/denovo_recalibrated_qualities.py",
         "ugbio_utils/src/core/ugbio_core/convert_h5_to_json.py",

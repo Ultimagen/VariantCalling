@@ -7,7 +7,7 @@ import os
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.comparison.variant_hit_fraction_caller import VariantHitFractionCaller
-from ugvc.utils.cloud_sync import cloud_sync
+from ugbio_cloud_utils.cloud_sync import cloud_sync
 
 
 def __get_parser() -> argparse.ArgumentParser:
