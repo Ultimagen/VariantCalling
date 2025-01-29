@@ -67,7 +67,7 @@ setup(
             "bash/index_vcf_file.sh",
             "bash/find_adapter_coords.sh",
         ],
-        "": ["**/reports/*.ipynb", "**/reports/*.csv"],
+        "": ["**/reports/*.ipynb", "**/reports/*.csv", "**/scripts/*.sh"],
     },
     install_package_data=True,
 )
