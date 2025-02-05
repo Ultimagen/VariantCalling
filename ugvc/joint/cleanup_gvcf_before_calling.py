@@ -5,7 +5,7 @@ import sys
 import tqdm
 from pysam import VariantFile
 
-import ugvc.vcfbed.pysam_utils as pu
+import ugbio_core.vcfbed.pysam_utils as pu
 
 
 def filterOverlappingNoneGVCFs(input_gvcf: str, output_gvcf: str) -> tuple[int, int]:

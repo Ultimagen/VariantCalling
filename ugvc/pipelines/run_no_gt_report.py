@@ -35,8 +35,8 @@ from SigProfilerMatrixGenerator import install as genInstall
 from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
 from ugbio_core.dna_sequence_utils import revcomp
 
-from ugvc.comparison import vcf_pipeline_utils
-from ugvc.vcfbed import vcftools
+from ugbio_comparison import vcf_pipeline_utils
+from ugbio_core.vcfbed import vcftools
 
 logging.basicConfig(format="%(asctime)s %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__ if __name__ != "__main__" else "run_no_gt_report")

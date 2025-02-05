@@ -1,7 +1,7 @@
 import numpy as np
 
 from ugvc.pipelines import correct_genotypes_by_imputation as corgen
-from ugvc.vcfbed.vcftools import genotype_ordering
+from ugbio_core.vcfbed.vcftools import genotype_ordering
 
 
 class TestCorrectGenotypesByImputation:

@@ -35,8 +35,8 @@ from tqdm import tqdm
 
 from ugvc import logger
 from ugvc.utils.math_utils import phred, unphred
-from ugvc.vcfbed.genotype import different_gt
-from ugvc.vcfbed.vcftools import genotype_ordering, replace_data_in_specific_chromosomes
+from ugbio_core.vcfbed.genotype import different_gt
+from ugbio_core.vcfbed.vcftools import genotype_ordering, replace_data_in_specific_chromosomes
 
 
 def get_parser() -> argparse.ArgumentParser:

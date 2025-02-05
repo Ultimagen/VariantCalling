@@ -24,9 +24,9 @@ import subprocess
 
 from simppl.simple_pipeline import SimplePipeline
 
-from ugvc.comparison import vcf_pipeline_utils as vpu
+from ugbio_comparison import vcf_pipeline_utils as vpu
 from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
-from ugvc.vcfbed.interval_file import IntervalFile
+from ugbio_core.vcfbed.interval_file import IntervalFile
 
 
 def get_parser():
