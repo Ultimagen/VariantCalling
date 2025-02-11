@@ -31,7 +31,7 @@ from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
-from ugbio_comparison import vcf_pipeline_utils
+from ugbio_comparison import comparison_utils
 from ugvc.comparison.comparison_pipeline import ComparisonPipeline
 from ugbio_core.consts import DEFAULT_FLOW_ORDER
 from ugbio_core.h5_utils import read_hdf
@@ -262,12 +262,12 @@ def run(argv: list[str]):
     # single interval-file concordance - will be saved in a single dataframe
 
     if not cmp_intervals.is_none():
-        concordance_df = vcf_pipeline_utils.vcf2concordance(
+        concordance_df = comparison_utils.vcf2concordance(
             raw_calls_vcf,
             concordance_vcf,
             scoring_field=args.scoring_field,
         )
-        annotated_concordance_df, _ = vcf_pipeline_utils.annotate_concordance(
+        annotated_concordance_df, _ = comparison_utils.annotate_concordance(
             concordance_df,
             args.reference,
             args.coverage_bw_high_quality,
