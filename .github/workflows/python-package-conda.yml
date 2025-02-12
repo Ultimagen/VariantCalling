@@ -13,6 +13,7 @@ jobs:
           token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
       - uses: conda-incubator/setup-miniconda@v3
         with:
+            conda-remove-defaults: true
             auto-activate-base: true
             activate-environment: ""
       - name: Setup file system
