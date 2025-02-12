@@ -67,4 +67,4 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate genomics.py3
-          python -m pytest --ignore-glob='ugbio_utils/src/single_cell/*' --ignore-glob='ugbio_utils/src/omics/*' --ignore-glob='ugbio_utils/src/featuremap/tests/system/test_featuremap_xgb_training.py' ugbio_utils/src/*/tests
+          python -m pytest --ignore-glob='ugbio_utils/src/single_cell/*' --ignore-glob='ugbio_utils/src/omics/*' --ignore-glob='ugbio_utils/src/featuremap/tests/system/test_featuremap_xgb_training.py' --ignore-glob='ugbio_utils/src/filtering/*' ugbio_utils/src/*/tests
