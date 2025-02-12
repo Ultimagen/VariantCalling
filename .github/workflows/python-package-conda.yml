@@ -11,9 +11,10 @@ jobs:
           lfs: true
           submodules: true
           token: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
-      - uses: s-weigand/setup-conda@v1
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-conda: true
+            auto-activate-base: true
+            activate-environment: ""
       - name: Setup file system
         run: |
           sudo mkdir -p /data && \
