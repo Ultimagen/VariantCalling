@@ -31,7 +31,7 @@ jobs:
           conda env create --file setup/environment.yml --name genomics.py3
       - name: Install as a package
         run: |
-          source activate genomics.py3
+          conda activate genomics.py3
           pip install .
       - name: Lint with flake8
         run: |
