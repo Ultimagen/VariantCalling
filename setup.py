@@ -9,7 +9,8 @@ packages += find_packages(where="ugbio_utils/src/ppmseq", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/srsnv", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/methylation", exclude=["tests"])
 packages += find_packages(where="ugbio_utils/src/cloud_utils", exclude=["tests"])
-
+packages += find_packages(where="ugbio_utils/src/filtering", exclude=["tests"])
+packages += find_packages(where="ugbio_utils/src/comparison", exclude=["tests"])
 
 setup(
     name="ugvc",
@@ -24,6 +25,8 @@ setup(
         "ugbio_mrd": "ugbio_utils/src/mrd/ugbio_mrd",
         "ugbio_methylation": "ugbio_utils/src/methylation/ugbio_methylation",
         "ugbio_cloud_utils": "ugbio_utils/src/cloud_utils/ugbio_cloud_utils",
+        "ugbio_filtering": "ugbio_utils/src/filtering/ugbio_filtering",
+        "ugbio_comparison": "ugbio_utils/src/comparison/ugbio_comparison",        
     },
     install_requires=[],
     scripts=[
@@ -48,6 +51,7 @@ setup(
         "ugbio_utils/src/cnv/ugbio_cnv/convert_cnv_results_to_vcf.py",
         "ugbio_utils/src/cnv/ugbio_cnv/plot_cnv_results.py",
         "ugbio_utils/src/cnv/ugbio_cnv/annotate_FREEC_segments.py",
+        "ugbio_utils/src/filtering/ugbio_filtering/filter_variants_pipeline.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
         "ugbio_utils/src/cnv/ugbio_cnv/run_cnvpytor.py",
     ],
