@@ -1,8 +1,7 @@
 name: genomics.py3
 channels:
-  - nodefaults
-  - conda-forge
   - bioconda
+  - conda-forge
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
@@ -62,17 +61,19 @@ dependencies:
   - bzip2=1.0.8=h4bc722e_7
   - c-ares=1.34.3=hb9d3cd8_1
   - c-blosc2=2.15.2=h68e2383_0
-  - ca-certificates=2024.8.30=hbcca054_0
+  - ca-certificates=2025.1.31=hbcca054_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
   - cachetools=5.5.0=pyhd8ed1ab_0
   - cairo=1.18.0=hebfffa5_3
-  - certifi=2024.8.30=pyhd8ed1ab_0
+  - certifi=2024.12.14=pyhd8ed1ab_0
   - cffi=1.17.1=py310h8deb56e_0
   - cfgv=3.3.1=pyhd8ed1ab_0
+  - chardet=5.2.0=py310hff52083_2
   - charset-normalizer=3.4.0=pyhd8ed1ab_0
   - click=8.1.7=unix_pyh707e725_0
   - cloudpickle=3.1.0=pyhd8ed1ab_1
+  - cnvpytor=1.3.1=pyhdfd78af_1
   - colorama=0.4.6=pyhd8ed1ab_0
   - comm=0.2.2=pyhd8ed1ab_0
   - contourpy=1.3.1=py310h3788b33_0
@@ -308,7 +309,7 @@ dependencies:
   - numpy=1.26.4=py310hb13e2d6_0
   - openjdk=17.0.13=he018374_0
   - openjpeg=2.5.2=h488ebb8_0
-  - openssl=3.4.0=hb9d3cd8_0
+  - openssl=3.4.1=h7b32b05_0
   - orc=2.0.3=he039a57_0
   - overrides=7.7.0=pyhd8ed1ab_0
   - packaging=24.2=pyhff2d567_1
@@ -318,6 +319,7 @@ dependencies:
   - pango=1.54.0=h4c5309f_1
   - papermill=2.5.0=pyhd8ed1ab_0
   - parso=0.8.4=pyhd8ed1ab_0
+  - pathlib=1.0.1=py310hff52083_7
   - pathspec=0.12.1=pyhd8ed1ab_0
   - patsy=1.0.1=pyhff2d567_0
   - pcre2=10.44=hba22ea6_2
@@ -443,6 +445,7 @@ dependencies:
   - xcb-util-wm=0.4.2=hb711507_0
   - xgboost=2.1.2=cpu_pyhac85b48_2
   - xkeyboard-config=2.43=hb9d3cd8_0
+  - xlsxwriter=3.2.2=pyhd8ed1ab_0
   - xorg-libice=1.1.1=hb9d3cd8_1
   - xorg-libsm=1.2.4=he73a12e_1
   - xorg-libx11=1.8.10=h4f16b4b_0
@@ -468,10 +471,10 @@ dependencies:
   - zlib-ng=2.2.2=h5888daf_0
   - zstandard=0.23.0=py310ha39cb0e_1
   - zstd=1.5.6=ha6fb4c9_0
+  - cnvpytor==1.3.1
   - pip:
       - about-time==4.2.1
       - alive-progress==3.2.0
-      - chardet==5.2.0
       - grapheme==0.6.0
       - pdf2image==1.17.0
       - pymupdf==1.24.14
@@ -480,5 +483,4 @@ dependencies:
       - sigprofilerassignment==0.1.7
       - sigprofilermatrixgenerator==1.2.31
       - sigprofilerplotting==1.3.24
-      - simppl==1.0.7
-prefix: /home/ilyas/anaconda3/envs/genomics.py3
+      - simppl==1.0.7 

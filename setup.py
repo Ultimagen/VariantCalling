@@ -51,7 +51,9 @@ setup(
         "ugbio_utils/src/cnv/ugbio_cnv/convert_cnv_results_to_vcf.py",
         "ugbio_utils/src/cnv/ugbio_cnv/plot_cnv_results.py",
         "ugbio_utils/src/cnv/ugbio_cnv/annotate_FREEC_segments.py",
+        "ugbio_utils/src/filtering/ugbio_filtering/filter_variants_pipeline.py",
         "ugvc/pipelines/correct_genotypes_by_imputation.py",
+        "ugbio_utils/src/cnv/ugbio_cnv/run_cnvpytor.py",
     ],
     entry_points={
         "console_scripts": [
