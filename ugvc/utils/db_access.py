@@ -3,8 +3,6 @@ Command line access to PAPYRUS mongoDB.
 See documentation in
 https://ultimagen.atlassian.net/wiki/spaces/AG/pages/1428914739/Papyrus+Metrics+Infrastructure+Proof+of+Concept#Command-Line-Access
 """
-from __future__ import annotations
-
 import json
 import os
 import warnings

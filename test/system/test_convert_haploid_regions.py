@@ -5,7 +5,7 @@ import pysam
 
 from ugvc.pipelines import convert_haploid_regions
 from ugvc.pipelines.convert_haploid_regions import load_regions_from_bed, in_regions
-from ugvc.comparison.vcf_pipeline_utils import VcfPipelineUtils
+from ugbio_comparison.vcf_pipeline_utils import VcfPipelineUtils
 
 
 class TestConvertHaploidRegions:
