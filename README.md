@@ -89,11 +89,6 @@ This script will validate that test resources were correctly cloned, and only th
 ```
 python -m pytest
 ```
-Notice that test_db_access needs your machine to have access credentials to mongoDB.
-To ignore this test, run:
-```
-python -m pytest --ignore test/unit/test_db_access.py
-```
 
 ### Run unit-tests
 ```
