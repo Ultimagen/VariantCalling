@@ -4,7 +4,7 @@ import os
 import pandas as pd
 
 from simppl.simple_pipeline import SimplePipeline
-from ugvc.vcfbed.vcftools import get_vcf_df
+from ugbio_core.vcfbed.vcftools import get_vcf_df
 
 
 def read_count(in_file: str) -> int:

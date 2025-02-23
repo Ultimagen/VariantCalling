@@ -4,7 +4,7 @@ from test import get_resource_dir
 import pybedtools
 
 import ugvc.pipelines.vcfbed.gvcf_hcr_main as gvcf_hcr
-import ugvc.vcfbed.interval_file as interval_file
+import ugbio_core.vcfbed.interval_file as interval_file
 
 
 def test_gvcf_hcr(tmpdir):
