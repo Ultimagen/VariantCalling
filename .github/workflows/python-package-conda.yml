@@ -63,7 +63,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate genomics.py3
-          python -m pytest -n auto --ignore test/unit/utils/test_db_access.py test/unit
+          python -m pytest --ignore test/unit/utils/test_db_access.py test/unit
           python -m pytest test/system
       - name: Test ugbio_utils with pytest
         shell: bash -l {0}
