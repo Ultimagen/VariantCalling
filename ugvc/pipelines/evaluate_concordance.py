@@ -24,9 +24,9 @@ import sys
 from pandas import DataFrame
 
 from ugvc import logger
-from ugvc.comparison.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve
+from ugbio_core.concordance.concordance_utils import calc_accuracy_metrics, calc_recall_precision_curve
 from ugbio_core.h5_utils import read_hdf
-from ugvc.vcfbed import vcftools
+from ugbio_core.vcfbed import vcftools
 
 
 def parse_args(argv: list[str]):

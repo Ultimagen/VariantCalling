@@ -31,12 +31,12 @@ from simppl.simple_pipeline import SimplePipeline
 from tqdm import tqdm
 
 from ugvc import logger
-from ugvc.comparison import vcf_pipeline_utils
+from ugbio_comparison import comparison_utils, vcf_pipeline_utils
 from ugvc.comparison.comparison_pipeline import ComparisonPipeline
 from ugbio_core.consts import DEFAULT_FLOW_ORDER
 from ugbio_core.h5_utils import read_hdf
-from ugvc.vcfbed import vcftools
-from ugvc.vcfbed.interval_file import IntervalFile
+from ugbio_core.vcfbed import vcftools
+from ugbio_core.vcfbed.interval_file import IntervalFile
 
 MIN_CONTIG_LENGTH = 100000
 
@@ -59,14 +59,14 @@ def _contig_concordance_annotate_reinterpretation(
     scoring_field,
 ):
     logger.info("Reading %s", contig)
-    concordance = vcf_pipeline_utils.vcf2concordance(
+    concordance = comparison_utils.vcf2concordance(
         raw_calls_vcf,
         concordance_vcf,
         contig,
         scoring_field=scoring_field,
     )
 
-    annotated_concordance, _ = vcf_pipeline_utils.annotate_concordance(
+    annotated_concordance, _ = comparison_utils.annotate_concordance(
         concordance,
         reference,
         bw_high_quality,
@@ -78,8 +78,8 @@ def _contig_concordance_annotate_reinterpretation(
     )
 
     if not disable_reinterpretation:
-        annotated_concordance = vcf_pipeline_utils.reinterpret_variants(
-            annotated_concordance, reference, ignore_low_quality_fps
+        annotated_concordance = comparison_utils.reinterpret_variants(
+            annotated_concordance, reference, ignore_low_quality_fps=ignore_low_quality_fps
         )
     logger.debug("%s: %s", contig, annotated_concordance.shape)
     annotated_concordance.to_hdf(f"{base_name_outputfile}{contig}.h5", key=contig)
@@ -262,12 +262,12 @@ def run(argv: list[str]):
     # single interval-file concordance - will be saved in a single dataframe
 
     if not cmp_intervals.is_none():
-        concordance_df = vcf_pipeline_utils.vcf2concordance(
+        concordance_df = comparison_utils.vcf2concordance(
             raw_calls_vcf,
             concordance_vcf,
             scoring_field=args.scoring_field,
         )
-        annotated_concordance_df, _ = vcf_pipeline_utils.annotate_concordance(
+        annotated_concordance_df, _ = comparison_utils.annotate_concordance(
             concordance_df,
             args.reference,
             args.coverage_bw_high_quality,
@@ -279,7 +279,7 @@ def run(argv: list[str]):
         )
 
         if not args.disable_reinterpretation:
-            annotated_concordance_df = vcf_pipeline_utils.reinterpret_variants(
+            annotated_concordance_df = comparison_utils.reinterpret_variants(
                 annotated_concordance_df,
                 args.reference,
                 ignore_low_quality_fps=args.is_mutect,

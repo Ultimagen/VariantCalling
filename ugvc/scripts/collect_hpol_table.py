@@ -9,7 +9,7 @@ from numpy import random
 from ugbio_core.vcfbed.bed_writer import parse_intervals_file
 from ugbio_core.flow_format import flow_based_read as fbr
 
-from ugvc.vcfbed import interval_file
+from ugbio_core.vcfbed import interval_file
 
 
 # this code goes over reference genome and collects the table of a random sample of locations of homopolymers
