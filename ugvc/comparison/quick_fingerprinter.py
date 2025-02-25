@@ -100,9 +100,9 @@ class QuickFingerprinter:
                 called_vcf = f"{self.out_dir}/{cram_base_name}.calls.vcf.gz"
                 local_bam = f"{self.out_dir}/{cram_base_name}.bam"
                 if self.add_aws_auth_command:
-                    self.sp.print_and_run(f"eval $(aws configure export-credentials --format env-no-export) samtools view {cram} {self.region} -b -o {local_bam}")
+                    self.sp.print_and_run(f"eval $(aws configure export-credentials --format env-no-export) samtools view {cram} -T {self.ref} {self.region} -b -o {local_bam}")
                 else:
-                    self.sp.print_and_run(f"samtools view {cram} {self.region} -b -o {local_bam}")
+                    self.sp.print_and_run(f"samtools view {cram} -T {self.ref} {self.region} -b -o {local_bam}")
 
                 self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps)
 
