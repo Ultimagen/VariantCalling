@@ -31,7 +31,7 @@ setup(
     install_requires=[],
     scripts=[
         "ugvc/__main__.py",
-        "ugvc/pipelines/run_comparison_pipeline.py",
+        "ugbio_utils/src/comparison/run_comparison_pipeline.py",
         "ugvc/pipelines/coverage_analysis.py",
         "ugbio_utils/src/core/ugbio_core/collect_existing_metrics.py",
         "ugbio_utils/src/core/ugbio_core/vcfbed/annotate_contig.py",
