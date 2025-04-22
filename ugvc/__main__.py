@@ -35,7 +35,6 @@ from ugvc.pipelines import (
     coverage_analysis,
     denovo_recalibrated_qualities,
     evaluate_concordance,
-    run_comparison_pipeline,
     vcfeval_flavors,
 )
 from ugbio_filtering import filter_variants_pipeline, train_models_pipeline, training_prep_pipeline
@@ -57,6 +56,7 @@ from ugbio_srsnv import (
 )
 from ugbio_core.vcfbed import annotate_contig
 from ugbio_core import intersect_bed_regions, sorter_stats_to_mean_coverage, sorter_to_h5
+from ugbio_comparison import run_comparison_pipeline
 from ugbio_filtering.sec import assess_sec_concordance, correct_systematic_errors, sec_training, sec_validation
 from ugvc.pipelines.vcfbed import calibrate_bridging_snvs, gvcf_hcr
 from ugbio_cloud_utils import cloud_sync
