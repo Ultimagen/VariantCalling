@@ -1,7 +1,8 @@
 import numpy as np
+import pandas as pd
+from ugbio_core.h5_utils import read_hdf
 
 from ugvc.reports.report_utils import ErrorType
-from ugbio_core.h5_utils import read_hdf
 
 
 class ReportDataLoader:
@@ -32,6 +33,22 @@ class ReportDataLoader:
         df["error_type"] = genotypes.apply(self.get_error_type)
         df.rename(columns={"hmer_indel_length": "hmer_length"}, inplace=True)
         return df
+
+    def load_sv_concordance_df(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Loads BASE/CALL dataframes from SV concordance for the analyses
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        tuple[pd.DataFrame,pd.DataFrame]
+            BASE and CALL dataframes
+        """
+        df_base = pd.read_hdf(self.concordance_file, key="base")
+        df_calls = pd.read_hdf(self.concordance_file, key="calls")
+        return df_base, df_calls
 
     def __get_rename_dict(self):
         if self.reference_version == "hg38":
