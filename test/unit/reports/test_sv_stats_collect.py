@@ -1,9 +1,15 @@
 from io import StringIO
 
 import pandas as pd
+from ugbio_core import stats_utils
 from ugbio_core.vcfbed import vcftools
 
-from ugvc.pipelines.sv_stats_collect import collect_size_type_histograms, concordance_with_gt, concordance_with_gt_roc
+from ugvc.pipelines.sv_stats_collect import (
+    collect_size_type_histograms,
+    collect_sv_stats,
+    concordance_with_gt,
+    concordance_with_gt_roc,
+)
 
 
 class TestCollectSizeTypeHistograms:
@@ -155,16 +161,114 @@ class TestCollectSizeTypeHistograms:
 
         # Mock `stats_utils.precision_recall_curve`
         def mock_precision_recall_curve(gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
-            return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6]
+            return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6], []
 
         from ugbio_core import stats_utils
 
         stats_utils.precision_recall_curve = mock_precision_recall_curve
 
         # Call the function
-        precision, recall, thresholds = concordance_with_gt_roc(df_base, df_calls)
+        df = concordance_with_gt_roc(df_base, df_calls)
+        precision = df["precision"]
+        recall = df["recall"]
+        thresholds = df["thresholds"]
 
         # Assertions
         assert precision == [0.8, 0.9]
         assert recall == [0.7, 0.8]
         assert thresholds == [0.5, 0.6]
+
+    def test_collect_sv_stats_without_concordance(self):
+        # Mock VCF data
+        vcf_data = """
+        #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO
+        1       1000    .       A       <DEL>   .       PASS    SVLEN=-500;SVTYPE=DEL
+        1       2000    .       A       <INS>   .       PASS    SVLEN=300;SVTYPE=INS
+        1       3000    .       A       <DEL>   .       PASS    SVLEN=-1000;SVTYPE=DEL
+        1       4000    .       A       <INS>   .       PASS    SVLEN=700;SVTYPE=INS
+        1       5000    .       A       <DUP>   .       PASS    SVLEN=2000;SVTYPE=DUP
+        """
+
+        # Mock the `vcftools.get_vcf_df` function
+        def mock_get_vcf_df(*args, **kwargs):
+            vcf_df = pd.read_csv(
+                StringIO(vcf_data),
+                sep=r"\s+",
+                comment="#",
+                names=["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info"],
+            )
+            vcf_df["svlen"] = vcf_df["info"].str.extract(r"SVLEN=(-?\d+)").astype(float)
+            vcf_df["svtype"] = vcf_df["info"].str.extract(r"SVTYPE=([A-Z]+)")
+            return vcf_df
+
+        vcftools.get_vcf_df = mock_get_vcf_df
+
+        # Call the function
+        sv_stats, concordance_stats = collect_sv_stats("mock_path")
+
+        # Assertions
+        assert "type_counts" in sv_stats
+        assert "length_counts" in sv_stats
+        assert "length_by_type_counts" in sv_stats
+        assert concordance_stats == {}
+
+    def test_collect_sv_stats_with_concordance(self):
+        # Mock VCF data
+        vcf_data = """
+        #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO
+        1       1000    .       A       <DEL>   10       PASS    SVLEN=-500;SVTYPE=DEL
+        1       2000    .       A       <INS>   11       PASS    SVLEN=300;SVTYPE=INS
+        """
+        # Mock concordance HDF5 data
+        df_base = pd.DataFrame(
+            {"label": ["TP", "FN"], "svlen": [-500, 300], "svtype": ["DEL", "INS"], "qual": [10, 11]}
+        )
+        df_calls = pd.DataFrame(
+            {"label": ["TP", "FP"], "svlen": [-500, 300], "svtype": ["DEL", "INS"], "qual": [10, 11]}
+        )
+
+        # Mock the `vcftools.get_vcf_df` function
+        def mock_get_vcf_df(*args, **kwargs):
+            vcf_df = pd.read_csv(
+                StringIO(vcf_data),
+                sep=r"\s+",
+                comment="#",
+                names=["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info"],
+            )
+            vcf_df["svlen"] = vcf_df["info"].str.extract(r"SVLEN=(-?\d+)").astype(float)
+            vcf_df["svtype"] = vcf_df["info"].str.extract(r"SVTYPE=([A-Z]+)")
+            return vcf_df
+
+        vcftools.get_vcf_df = mock_get_vcf_df
+
+        # Mock `pd.read_hdf`
+        def mock_read_hdf(filepath, key):
+            if key == "base":
+                return df_base
+            elif key == "calls":
+                return df_calls
+
+        pd.read_hdf = mock_read_hdf
+
+        # Mock `stats_utils.precision_recall_curve`
+        def mock_precision_recall_curve(gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
+            return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6], []
+
+        stats_utils.precision_recall_curve = mock_precision_recall_curve
+
+        # Call the function
+        sv_stats, concordance_stats = collect_sv_stats("mock_path", "mock_concordance.h5")
+
+        # Assertions
+        assert "type_counts" in sv_stats
+        assert "length_counts" in sv_stats
+        assert "length_by_type_counts" in sv_stats
+        assert "ALL_concordance" in concordance_stats
+        assert "ALL_roc" in concordance_stats
+        assert concordance_stats["ALL_concordance"]["TP_base"] == 1
+        assert concordance_stats["ALL_concordance"]["TP_calls"] == 1
+        assert concordance_stats["ALL_concordance"]["FN"] == 1
+        assert concordance_stats["ALL_concordance"]["FP"] == 1
+        assert concordance_stats["ALL_roc"]["precision"] == [0.8, 0.9]
+        assert concordance_stats["ALL_roc"]["recall"] == [0.7, 0.8]
+        assert concordance_stats["ALL_roc"]["thresholds"] == [0.5, 0.6]
