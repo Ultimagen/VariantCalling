@@ -3,7 +3,7 @@ from ugbio_core import stats_utils
 from ugbio_core.vcfbed import vcftools
 
 
-def collect_size_type_histograms(svcall_vcf: str) -> dict[pd.DataFrame]:
+def collect_size_type_histograms(svcall_vcf):
     """
     Collect size and type histograms from SV call VCF.
 
@@ -17,28 +17,31 @@ def collect_size_type_histograms(svcall_vcf: str) -> dict[pd.DataFrame]:
     dict[pd.DataFrame]
         Dictionary containing size and type histograms.
     """
-    result = {}
     # Read the VCF file
     vcf_df = vcftools.get_vcf_df(svcall_vcf, custom_info_fields=["SVLEN", "SVTYPE"]).query("filter=='PASS'")
 
-    type_counts = vcf_df["svtype"].value_counts()
-    result["type_counts"] = type_counts
-    # collect a histogram of svlens of all variants, of deletions and of insertions with power-law spaced bins
-    vcf_df["svlen"] = vcf_df["svlen"].abs()
-    vcf_df["svlen"].fillna(10e6, inplace=True)
     vcf_df["binned_svlens"] = pd.cut(
-        vcf_df["svlen"],
-        bins=[50, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, 10000000],
+        vcf_df["svlen"].abs(),
+        bins=[0, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, float("inf")],
         labels=["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"],
-        include_lowest=False,
+        right=False,
     )
-    svlens_counts = vcf_df["binned_svlens"].value_counts().sort_index()
-    result["length_counts"] = svlens_counts
-    # count binned_svlens by svtype
-    svlens_counts_by_type = vcf_df.groupby(["svtype", "binned_svlens"]).size().unstack().fillna(0).drop("CTX")
-    result["length_by_type_counts"] = svlens_counts_by_type
+    type_counts = vcf_df["svtype"].value_counts()
+    length_counts = vcf_df["binned_svlens"].value_counts().sort_index()
 
-    return result
+    svlens_counts_by_type = vcf_df.groupby(["svtype", "binned_svlens"]).size().unstack().fillna(0)
+    svlens_counts_by_type = svlens_counts_by_type.reindex(
+        columns=["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"],
+        fill_value=0,
+    )
+    # Only drop "CTX" if it exists
+    svlens_counts_by_type = svlens_counts_by_type.drop("CTX", errors="ignore")
+
+    return {
+        "type_counts": type_counts,
+        "length_counts": length_counts,
+        "length_by_type_counts": svlens_counts_by_type,
+    }
 
 
 def concordance_with_gt(df_base: pd.DataFrame, df_calls: pd.DataFrame) -> pd.Series:
@@ -95,7 +98,7 @@ def concordance_with_gt_roc(df_base: pd.DataFrame, df_calls: pd.DataFrame) -> tu
         precision, recall, thresholds
     """
     gt = pd.concat((df_base.query("label=='FN'"), df_calls))
-    predictions = gt["qual"].fillna()
+    predictions = gt["qual"].fillna(0)
     fn_mask = gt == "FN"
     gt = gt["label"]
     gt = gt.replace({"FN": "TP"})
