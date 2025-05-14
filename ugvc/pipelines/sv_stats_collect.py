@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 
 import pandas as pd
@@ -190,15 +191,16 @@ def run(args: list):
         Command line arguments.
     """
     parser = argparse.ArgumentParser(description="Collect SV statistics from a VCF file.")
-    parser.add_argument("svcall_vcf", type=str, help="Path to the SV call VCF file.", required=True)
+    parser.add_argument("svcall_vcf", type=str, help="Path to the SV call VCF file.")
+    parser.add_argument("output_file", type=str, help="Output JSON file.")
     parser.add_argument(
         "--concordance_h5", type=str, help="Path to the concordance HDF5 file.", default=None, required=False
     )
-    parser.add_argument("--output_file", type=str, help="Output HDF5 file.", required=True)
 
     args = parser.parse_args(args[1:])
 
     sv_stats, concordance_stats = collect_sv_stats(args.svcall_vcf, args.concordance_h5)
+    results = {}
     if concordance_stats:
         concordance_df = pd.DataFrame({k: v for k, v in concordance_stats.items() if "concordance" in k}).T
         df = pd.DataFrame(
@@ -213,9 +215,18 @@ def run(args: list):
         roc_df = pd.concat([df, roc_df.reset_index().drop("index", axis=1)], axis=1).set_index(["SV type", "SV length"])
         roc_df = roc_df.rename(columns={"precision": "precision roc", "recall": "recall roc"})
         concordance_df = pd.concat((concordance_df, roc_df), axis=1)
-        concordance_df.to_hdf(args.output_file, key="concordance", mode="w")
-    for k in sv_stats.items():
-        k[1].to_hdf(args.output_file, key=k[0], mode="a")
+        results["concordance"] = concordance_df.reset_index().to_dict(orient="list")
+
+    for k, v in sv_stats.items():
+        if isinstance(v, pd.DataFrame):
+            results[k] = v.reset_index().to_dict(orient="list")
+        elif isinstance(v, pd.Series):
+            results[k] = v.to_dict()
+        else:
+            results[k] = v
+
+    with open(args.output_file, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, default=str)
 
 
 def main():
