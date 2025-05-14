@@ -59,6 +59,7 @@ setup(
         "console_scripts": [
             "run_no_gt_report = ugvc.pipelines.run_no_gt_report:run",
             "annotate_contig  = ugbio_core.vcfbed.annotate_contig:main",
+            "collect_sv_stats = ugvc.pipelines.sv_stats_collect:main",
         ],
     },
     package_data={
