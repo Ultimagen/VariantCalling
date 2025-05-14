@@ -14,7 +14,7 @@ packages += find_packages(where="ugbio_utils/src/comparison", exclude=["tests"])
 
 setup(
     name="ugvc",
-    version="0.26.1",
+    version="0.27.0",
     packages=find_packages(exclude=["ugbio_utils*", "tests"]) + packages,
     package_dir={
         "ugbio_core": "ugbio_utils/src/core/ugbio_core",
