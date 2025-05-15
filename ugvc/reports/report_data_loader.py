@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pandas as pd
 from ugbio_core.h5_utils import read_hdf
@@ -34,21 +36,33 @@ class ReportDataLoader:
         df.rename(columns={"hmer_indel_length": "hmer_length"}, inplace=True)
         return df
 
-    def load_sv_concordance_df(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Loads BASE/CALL dataframes from SV concordance for the analyses
+    def load_sv_concordance_df(self) -> tuple[dict, dict]:
+        """
+        Read a JSON file and convert it to a dictionary of DataFrames.
 
         Parameters
         ----------
-        None
-
         Returns
         -------
-        tuple[pd.DataFrame,pd.DataFrame]
-            BASE and CALL dataframes
+        tuple[dict,dict]
+            No GT statistics and GT statistics dictionaries.
         """
-        df_base = pd.read_hdf(self.concordance_file, key="base")
-        df_calls = pd.read_hdf(self.concordance_file, key="calls")
-        return df_base, df_calls
+        with open(self.concordance_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        dfs = {}
+        for k, v in data.items():
+            if isinstance(v, dict):
+                # If all values are scalars, wrap in a list to make a single-row DataFrame
+                if all(not isinstance(val, (list, dict, np.ndarray)) for val in v.values()):
+                    dfs[k] = pd.DataFrame([v])
+                else:
+                    dfs[k] = pd.DataFrame.from_dict(v)
+            else:
+                dfs[k] = v
+        dfs_no_gt = dict((k, v) for k, v in dfs.items() if k.endswith("counts"))
+        dfs_with_gt = dict((k, v) for k, v in dfs.items() if not k.endswith("counts"))
+
+        return dfs_no_gt, dfs_with_gt
 
     def __get_rename_dict(self):
         if self.reference_version == "hg38":
