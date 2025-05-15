@@ -1,7 +1,7 @@
 import argparse
-import json
 import sys
 
+import dill as pickle
 import pandas as pd
 from ugbio_core import stats_utils
 from ugbio_core.vcfbed import vcftools
@@ -192,7 +192,7 @@ def run(args: list):
     """
     parser = argparse.ArgumentParser(description="Collect SV statistics from a VCF file.")
     parser.add_argument("svcall_vcf", type=str, help="Path to the SV call VCF file.")
-    parser.add_argument("output_file", type=str, help="Output JSON file.")
+    parser.add_argument("output_file", type=str, help="Output PKL file.")
     parser.add_argument(
         "--concordance_h5", type=str, help="Path to the concordance HDF5 file.", default=None, required=False
     )
@@ -215,18 +215,13 @@ def run(args: list):
         roc_df = pd.concat([df, roc_df.reset_index().drop("index", axis=1)], axis=1).set_index(["SV type", "SV length"])
         roc_df = roc_df.rename(columns={"precision": "precision roc", "recall": "recall roc"})
         concordance_df = pd.concat((concordance_df, roc_df), axis=1)
-        results["concordance"] = concordance_df.reset_index().to_dict(orient="list")
+        results["concordance"] = concordance_df
 
     for k, v in sv_stats.items():
-        if isinstance(v, pd.DataFrame):
-            results[k] = v.reset_index().to_dict(orient="list")
-        elif isinstance(v, pd.Series):
-            results[k] = v.to_dict()
-        else:
-            results[k] = v
+        results[k] = v
 
-    with open(args.output_file, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2, default=str)
+    with open(args.output_file, "wb") as f:
+        pickle.dump(results, f)
 
 
 def main():

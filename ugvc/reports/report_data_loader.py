@@ -1,7 +1,5 @@
-import json
-
+import dill as pickle
 import numpy as np
-import pandas as pd
 from ugbio_core.h5_utils import read_hdf
 
 from ugvc.reports.report_utils import ErrorType
@@ -38,7 +36,7 @@ class ReportDataLoader:
 
     def load_sv_concordance_df(self) -> tuple[dict, dict]:
         """
-        Read a JSON file and convert it to a dictionary of DataFrames.
+        Read a pickle file and convert it to a dictionary of DataFrames.
 
         Parameters
         ----------
@@ -47,20 +45,10 @@ class ReportDataLoader:
         tuple[dict,dict]
             No GT statistics and GT statistics dictionaries.
         """
-        with open(self.concordance_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        dfs = {}
-        for k, v in data.items():
-            if isinstance(v, dict):
-                # If all values are scalars, wrap in a list to make a single-row DataFrame
-                if all(not isinstance(val, (list, dict, np.ndarray)) for val in v.values()):
-                    dfs[k] = pd.DataFrame([v])
-                else:
-                    dfs[k] = pd.DataFrame.from_dict(v)
-            else:
-                dfs[k] = v
-        dfs_no_gt = dict((k, v) for k, v in dfs.items() if k.endswith("counts"))
-        dfs_with_gt = dict((k, v) for k, v in dfs.items() if not k.endswith("counts"))
+        with open(self.concordance_file, "rb") as f:
+            data = pickle.load(f)
+        dfs_no_gt = dict((k, v) for k, v in data.items() if k.endswith("counts"))
+        dfs_with_gt = dict((k, v) for k, v in data.items() if not k.endswith("counts"))
 
         return dfs_no_gt, dfs_with_gt
 
