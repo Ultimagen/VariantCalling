@@ -114,7 +114,7 @@ def concordance_with_gt_roc(df_base: pd.DataFrame, df_calls: pd.DataFrame) -> pd
     return pd.Series(dict(zip(["precision", "recall", "thresholds"], [precision, recall, thresholds])))
 
 
-def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> dict:
+def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> tuple[dict, dict]:
     """
     Collect SV statistics from a VCF file. Optionally, collect also statistics about concordance with the ground truth
 
@@ -127,8 +127,8 @@ def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> dict:
 
     Returns
     -------
-    dict[pd.DataFrame]
-        Dictionary containing SV statistics.
+    tuple[dict, dict]
+        Dictionaries containing SV statistics with and without ground truth.
     """
     sv_stats = collect_size_type_histograms(svcall_vcf)
     concordance_stats = {}
@@ -159,8 +159,8 @@ def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> dict:
                 df_base_c = df_base.query(f"svtype == '{c}'")
                 df_calls_c = df_calls.query(f"svtype == '{c}'")
 
-            concordance_stats[f"{c}_concordance"] = concordance_with_gt(df_base_c, df_calls_c)
-            concordance_stats[f"{c}_roc"] = concordance_with_gt_roc(df_base_c, df_calls_c)
+            concordance_stats[f"{c}_concordance"] = concordance_with_gt(df_base_c, df_calls_c)  # type: ignore
+            concordance_stats[f"{c}_roc"] = concordance_with_gt_roc(df_base_c, df_calls_c)  # type: ignore
 
         category = ["ALL", "DEL", "INS"]
         bins = ["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"]
@@ -181,13 +181,13 @@ def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> dict:
     return sv_stats, concordance_stats
 
 
-def run(args: list):
+def run(args: list[str]):
     """
     Run the SV statistics collection pipeline.
 
     Parameters
     ----------
-    args : list
+    args : list[str]
         Command line arguments.
     """
     parser = argparse.ArgumentParser(description="Collect SV statistics from a VCF file.")
@@ -197,9 +197,9 @@ def run(args: list):
         "--concordance_h5", type=str, help="Path to the concordance HDF5 file.", default=None, required=False
     )
 
-    args = parser.parse_args(args[1:])
+    p_args = parser.parse_args(args[1:])
 
-    sv_stats, concordance_stats = collect_sv_stats(args.svcall_vcf, args.concordance_h5)
+    sv_stats, concordance_stats = collect_sv_stats(p_args.svcall_vcf, p_args.concordance_h5)
     results = {}
     if concordance_stats:
         concordance_df = pd.DataFrame({k: v for k, v in concordance_stats.items() if "concordance" in k}).T
@@ -220,7 +220,7 @@ def run(args: list):
     for k, v in sv_stats.items():
         results[k] = v
 
-    with open(args.output_file, "wb") as f:
+    with open(p_args.output_file, "wb") as f:
         pickle.dump(results, f)
 
 
