@@ -35,9 +35,6 @@ RUN source ~/.bashrc && \
     cd /VariantCalling && \
     pip install .
 
-#download cnvpytor additional necessary files (described here: https://github.com/abyzovlab/CNVpytor?tab=readme-ov-file#install-using-pip)
-RUN cnvpytor -download
-
 # Include licenses
 COPY ["Ultima UGVC - EULA.pdf", "./"]
 COPY ["Third Party Licenses/", "./Third Party Licenses/"]
