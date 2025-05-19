@@ -23,7 +23,7 @@ def collect_size_type_histograms(svcall_vcf):
     """
     # Read the VCF file
     vcf_df = vcftools.get_vcf_df(svcall_vcf, custom_info_fields=["SVLEN", "SVTYPE"]).query("filter=='PASS'")
-
+    vcf_df["svlen"] = vcf_df["svlen"].apply(lambda x: x[0] if isinstance(x, tuple) else x).fillna(0)
     vcf_df["binned_svlens"] = pd.cut(
         vcf_df["svlen"].abs(),
         bins=[0, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, float("inf")],
