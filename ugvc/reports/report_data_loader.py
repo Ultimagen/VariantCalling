@@ -1,7 +1,8 @@
+import dill as pickle
 import numpy as np
+from ugbio_core.h5_utils import read_hdf
 
 from ugvc.reports.report_utils import ErrorType
-from ugbio_core.h5_utils import read_hdf
 
 
 class ReportDataLoader:
@@ -32,6 +33,24 @@ class ReportDataLoader:
         df["error_type"] = genotypes.apply(self.get_error_type)
         df.rename(columns={"hmer_indel_length": "hmer_length"}, inplace=True)
         return df
+
+    def load_sv_concordance_df(self) -> tuple[dict, dict]:
+        """
+        Read a pickle file and convert it to a dictionary of DataFrames.
+
+        Parameters
+        ----------
+        Returns
+        -------
+        tuple[dict,dict]
+            No GT statistics and GT statistics dictionaries.
+        """
+        with open(self.concordance_file, "rb") as f:
+            data = pickle.load(f)
+        dfs_no_gt = {k: v for k, v in data.items() if k.endswith("counts")}
+        dfs_with_gt = {k: v for k, v in data.items() if not k.endswith("counts")}
+
+        return dfs_no_gt, dfs_with_gt
 
     def __get_rename_dict(self):
         if self.reference_version == "hg38":

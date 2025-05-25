@@ -24,7 +24,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Make space
@@ -57,7 +57,7 @@ jobs:
           else
             echo "imageTag=test_${{ steps.short-sha.outputs.sha }}" >>$GITHUB_OUTPUT;
           fi
-          
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
