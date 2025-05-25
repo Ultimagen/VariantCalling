@@ -23,7 +23,7 @@ class TestCollectSizeTypeHistograms:
         1       5000    .       A       <DUP>   .       PASS    SVLEN=2000;SVTYPE=DUP
         """
 
-    def mock_precision_recall_curve(gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
+    def mock_precision_recall_curve(self, gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
         return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6], []
 
     def test_collect_size_type_histograms(self):
