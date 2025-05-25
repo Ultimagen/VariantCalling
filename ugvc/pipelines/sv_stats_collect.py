@@ -9,6 +9,9 @@ import pandas as pd
 from ugbio_core import stats_utils
 from ugbio_core.vcfbed import vcftools
 
+SVBINS = [0, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, float("inf")]
+SVLABELS = ["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"]
+
 
 def collect_size_type_histograms(svcall_vcf):
     """
@@ -29,8 +32,8 @@ def collect_size_type_histograms(svcall_vcf):
     vcf_df["svlen"] = vcf_df["svlen"].apply(lambda x: x[0] if isinstance(x, tuple) else x).fillna(0)
     vcf_df["binned_svlens"] = pd.cut(
         vcf_df["svlen"].abs(),
-        bins=[0, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, float("inf")],
-        labels=["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"],
+        bins=SVBINS,
+        labels=SVLABELS,
         right=False,
     )
     type_counts = vcf_df["svtype"].value_counts()
@@ -38,7 +41,7 @@ def collect_size_type_histograms(svcall_vcf):
 
     svlens_counts_by_type = vcf_df.groupby(["svtype", "binned_svlens"]).size().unstack().fillna(0)
     svlens_counts_by_type = svlens_counts_by_type.reindex(
-        columns=["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"],
+        columns=SVLABELS,
         fill_value=0,
     )
     # Only drop "CTX" if it exists
@@ -148,43 +151,43 @@ def collect_sv_stats(svcall_vcf: str, concordance_h5: str | None = None) -> tupl
         df_calls = pd.read_hdf(concordance_h5, key="calls")
         df_base["binned_svlens"] = pd.cut(
             df_base["svlen"].abs(),
-            bins=[0, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, float("inf")],
-            labels=["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"],
+            bins=SVBINS,
+            labels=SVLABELS,
             right=False,
         )
         df_calls["binned_svlens"] = pd.cut(
             df_calls["svlen"].abs(),
-            bins=[0, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, float("inf")],
-            labels=["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"],
+            bins=SVBINS,
+            labels=SVLABELS,
             right=False,
         )
         # Collect concordance statistics
 
         category = ["ALL", "DEL", "DUP", "INV", "INS", "CTX"]
-        for c in category:
-            if c == "ALL":
+        for svtype in category:
+            if svtype == "ALL":
                 df_base_c = df_base
                 df_calls_c = df_calls
             else:
-                df_base_c = df_base.query(f"svtype == '{c}'")
-                df_calls_c = df_calls.query(f"svtype == '{c}'")
+                df_base_c = df_base.query(f"svtype == '{svtype}'")
+                df_calls_c = df_calls.query(f"svtype == '{svtype}'")
 
-            concordance_stats[f"{c}_concordance"] = concordance_with_gt(df_base_c, df_calls_c)  # type: ignore
-            concordance_stats[f"{c}_roc"] = concordance_with_gt_roc(df_base_c, df_calls_c)  # type: ignore
+            concordance_stats[f"{svtype}_concordance"] = concordance_with_gt(df_base_c, df_calls_c)  # type: ignore
+            concordance_stats[f"{svtype}_roc"] = concordance_with_gt_roc(df_base_c, df_calls_c)  # type: ignore
 
         category = ["ALL", "DEL", "INS"]
-        bins = ["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"]
-        for c in category:
+        bins = SVLABELS
+        for svtype in category:
             for len_bin in bins:
-                if c == "ALL":
+                if svtype == "ALL":
                     df_base_c = df_base
                     df_calls_c = df_calls
                 else:
-                    df_base_c = df_base.query(f"svtype == '{c}'")
-                    df_calls_c = df_calls.query(f"svtype == '{c}'")
+                    df_base_c = df_base.query(f"svtype == '{svtype}'")
+                    df_calls_c = df_calls.query(f"svtype == '{svtype}'")
                 df_base_c = df_base_c.query(f"binned_svlens == '{len_bin}'")
                 df_calls_c = df_calls_c.query(f"binned_svlens == '{len_bin}'")
-                concordance_stats[f"{c}_{len_bin}_concordance"] = concordance_with_gt(df_base_c, df_calls_c).drop(
+                concordance_stats[f"{svtype}_{len_bin}_concordance"] = concordance_with_gt(df_base_c, df_calls_c).drop(
                     ["FP", "Precision", "F1"]
                 )
         fp_stats = (

@@ -47,8 +47,8 @@ class ReportDataLoader:
         """
         with open(self.concordance_file, "rb") as f:
             data = pickle.load(f)
-        dfs_no_gt = dict((k, v) for k, v in data.items() if k.endswith("counts"))
-        dfs_with_gt = dict((k, v) for k, v in data.items() if not k.endswith("counts"))
+        dfs_no_gt = {k: v for k, v in data.items() if k.endswith("counts")}
+        dfs_with_gt = {k: v for k, v in data.items() if not k.endswith("counts")}
 
         return dfs_no_gt, dfs_with_gt
 
