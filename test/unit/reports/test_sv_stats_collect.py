@@ -204,13 +204,14 @@ class TestCollectSizeTypeHistograms:
         vcftools.get_vcf_df = mock_get_vcf_df
 
         # Call the function
-        sv_stats, concordance_stats = collect_sv_stats("mock_path")
+        sv_stats, concordance_stats, fp_stats = collect_sv_stats("mock_path")
 
         # Assertions
         assert "type_counts" in sv_stats
         assert "length_counts" in sv_stats
         assert "length_by_type_counts" in sv_stats
         assert concordance_stats == {}
+        assert isinstance(fp_stats, pd.Series) and fp_stats.empty
 
     def test_collect_sv_stats_with_concordance(self):
         # Mock VCF data
@@ -257,7 +258,7 @@ class TestCollectSizeTypeHistograms:
         stats_utils.precision_recall_curve = mock_precision_recall_curve
 
         # Call the function
-        sv_stats, concordance_stats = collect_sv_stats("mock_path", "mock_concordance.h5")
+        sv_stats, concordance_stats, fp_stats = collect_sv_stats("mock_path", "mock_concordance.h5")
 
         # Assertions
         assert "type_counts" in sv_stats
@@ -272,3 +273,4 @@ class TestCollectSizeTypeHistograms:
         assert concordance_stats["ALL_roc"]["precision"] == [0.8, 0.9]
         assert concordance_stats["ALL_roc"]["recall"] == [0.7, 0.8]
         assert concordance_stats["ALL_roc"]["thresholds"] == [0.5, 0.6]
+        assert isinstance(fp_stats, pd.Series) and fp_stats.values[0] == 1

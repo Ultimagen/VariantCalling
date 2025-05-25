@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import argparse
 import sys
 
 import dill as pickle
+import numpy as np
 import pandas as pd
 from ugbio_core import stats_utils
 from ugbio_core.vcfbed import vcftools
@@ -109,12 +112,16 @@ def concordance_with_gt_roc(df_base: pd.DataFrame, df_calls: pd.DataFrame) -> pd
     pos_label = "TP"
     min_class_counts_to_output = 20
     precision, recall, thresholds, _ = stats_utils.precision_recall_curve(
-        gt, predictions, fn_mask, pos_label=pos_label, min_class_counts_to_output=min_class_counts_to_output
+        np.array(gt),
+        np.array(predictions),
+        np.array(fn_mask),
+        pos_label=pos_label,
+        min_class_counts_to_output=min_class_counts_to_output,
     )
     return pd.Series(dict(zip(["precision", "recall", "thresholds"], [precision, recall, thresholds])))
 
 
-def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> tuple[dict, dict]:
+def collect_sv_stats(svcall_vcf: str, concordance_h5: str | None = None) -> tuple[dict, dict, pd.Series]:
     """
     Collect SV statistics from a VCF file. Optionally, collect also statistics about concordance with the ground truth
 
@@ -127,11 +134,14 @@ def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> tuple[dict,
 
     Returns
     -------
-    tuple[dict, dict]
-        Dictionaries containing SV statistics with and without ground truth.
+    tuple[dict, dict, pd.Series]
+        Dictionaries containing SV statistics with and without ground truth
+        and false positive statistics seris (number of false positives
+        per variant type and length)
     """
     sv_stats = collect_size_type_histograms(svcall_vcf)
     concordance_stats = {}
+    fp_stats = pd.Series(dtype="int64")
     if concordance_h5 is not None:
         # Read the concordance HDF5 file
         df_base = pd.read_hdf(concordance_h5, key="base")
@@ -177,8 +187,11 @@ def collect_sv_stats(svcall_vcf: str, concordance_h5: str = None) -> tuple[dict,
                 concordance_stats[f"{c}_{len_bin}_concordance"] = concordance_with_gt(df_base_c, df_calls_c).drop(
                     ["FP", "Precision", "F1"]
                 )
+        fp_stats = (
+            df_calls.query("label=='FP'")[["svtype", "binned_svlens"]].value_counts().sort_index().astype("int64")
+        )
 
-    return sv_stats, concordance_stats
+    return sv_stats, concordance_stats, fp_stats
 
 
 def run(args: list[str]):
@@ -199,7 +212,7 @@ def run(args: list[str]):
 
     p_args = parser.parse_args(args[1:])
 
-    sv_stats, concordance_stats = collect_sv_stats(p_args.svcall_vcf, p_args.concordance_h5)
+    sv_stats, concordance_stats, fp_stats_df = collect_sv_stats(p_args.svcall_vcf, p_args.concordance_h5)
     results = {}
     if concordance_stats:
         concordance_df = pd.DataFrame({k: v for k, v in concordance_stats.items() if "concordance" in k}).T
@@ -220,6 +233,7 @@ def run(args: list[str]):
     for k, v in sv_stats.items():
         results[k] = v
 
+    results["fp_stats"] = fp_stats_df
     with open(p_args.output_file, "wb") as f:
         pickle.dump(results, f)
 
