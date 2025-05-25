@@ -113,13 +113,13 @@ def concordance_with_gt_roc(df_base: pd.DataFrame, df_calls: pd.DataFrame) -> pd
     gt = gt["label"]
     gt = gt.replace({"FN": "TP"})
     pos_label = "TP"
-    min_class_counts_to_output = 20
+    MIN_CLASS_COUNTS_TO_OUTPUT = 20
     precision, recall, thresholds, _ = stats_utils.precision_recall_curve(
         np.array(gt),
         np.array(predictions),
         np.array(fn_mask),
         pos_label=pos_label,
-        min_class_counts_to_output=min_class_counts_to_output,
+        min_class_counts_to_output=MIN_CLASS_COUNTS_TO_OUTPUT,
     )
     return pd.Series(dict(zip(["precision", "recall", "thresholds"], [precision, recall, thresholds])))
 
@@ -206,7 +206,10 @@ def run(args: list[str]):
     args : list[str]
         Command line arguments.
     """
-    parser = argparse.ArgumentParser(description="Collect SV statistics from a VCF file.")
+    parser = argparse.ArgumentParser(
+        description="Collect SV statistics from a VCF file and (optionally) concordance H5."
+        "See ugbio_comparison.sv_comparison_pipeline to get concordance between SV callsets"
+    )
     parser.add_argument("svcall_vcf", type=str, help="Path to the SV call VCF file.")
     parser.add_argument("output_file", type=str, help="Output PKL file.")
     parser.add_argument(

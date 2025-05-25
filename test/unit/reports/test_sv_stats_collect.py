@@ -13,9 +13,8 @@ from ugvc.pipelines.sv_stats_collect import (
 
 
 class TestCollectSizeTypeHistograms:
-    def test_collect_size_type_histograms(self):
-        # Mock VCF data
-        vcf_data = """
+    # Mock VCF data
+    mock_vcf_data = """
         #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO
         1       1000    .       A       <DEL>   .       PASS    SVLEN=-500;SVTYPE=DEL
         1       2000    .       A       <INS>   .       PASS    SVLEN=300;SVTYPE=INS
@@ -23,10 +22,12 @@ class TestCollectSizeTypeHistograms:
         1       4000    .       A       <INS>   .       PASS    SVLEN=700;SVTYPE=INS
         1       5000    .       A       <DUP>   .       PASS    SVLEN=2000;SVTYPE=DUP
         """
+
+    def test_collect_size_type_histograms(self):
         # read the csv into pandas dataframe vcf_df using whitespace as separator
 
         vcf_df = pd.read_csv(
-            StringIO(vcf_data),
+            StringIO(self.mock_vcf_data),
             sep=r"\s+",
             comment="#",
             names=["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info"],
@@ -163,8 +164,6 @@ class TestCollectSizeTypeHistograms:
         def mock_precision_recall_curve(gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
             return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6], []
 
-        from ugbio_core import stats_utils
-
         stats_utils.precision_recall_curve = mock_precision_recall_curve
 
         # Call the function
@@ -179,20 +178,11 @@ class TestCollectSizeTypeHistograms:
         assert thresholds == [0.5, 0.6]
 
     def test_collect_sv_stats_without_concordance(self):
-        # Mock VCF data
-        vcf_data = """
-        #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO
-        1       1000    .       A       <DEL>   .       PASS    SVLEN=-500;SVTYPE=DEL
-        1       2000    .       A       <INS>   .       PASS    SVLEN=300;SVTYPE=INS
-        1       3000    .       A       <DEL>   .       PASS    SVLEN=-1000;SVTYPE=DEL
-        1       4000    .       A       <INS>   .       PASS    SVLEN=700;SVTYPE=INS
-        1       5000    .       A       <DUP>   .       PASS    SVLEN=2000;SVTYPE=DUP
-        """
 
         # Mock the `vcftools.get_vcf_df` function
         def mock_get_vcf_df(*args, **kwargs):
             vcf_df = pd.read_csv(
-                StringIO(vcf_data),
+                StringIO(self.mock_vcf_data),
                 sep=r"\s+",
                 comment="#",
                 names=["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info"],
