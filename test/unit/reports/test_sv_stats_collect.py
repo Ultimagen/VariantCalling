@@ -23,6 +23,9 @@ class TestCollectSizeTypeHistograms:
         1       5000    .       A       <DUP>   .       PASS    SVLEN=2000;SVTYPE=DUP
         """
 
+    def mock_precision_recall_curve(gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
+        return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6], []
+
     def test_collect_size_type_histograms(self):
         # read the csv into pandas dataframe vcf_df using whitespace as separator
 
@@ -161,10 +164,8 @@ class TestCollectSizeTypeHistograms:
         df_calls = pd.DataFrame({"label": ["TP", "FP", "FP"], "qual": [0.95, 0.6, 0.5]})
 
         # Mock `stats_utils.precision_recall_curve`
-        def mock_precision_recall_curve(gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
-            return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6], []
 
-        stats_utils.precision_recall_curve = mock_precision_recall_curve
+        stats_utils.precision_recall_curve = self.mock_precision_recall_curve
 
         # Call the function
         df = concordance_with_gt_roc(df_base, df_calls)
@@ -242,10 +243,8 @@ class TestCollectSizeTypeHistograms:
         pd.read_hdf = mock_read_hdf
 
         # Mock `stats_utils.precision_recall_curve`
-        def mock_precision_recall_curve(gt, predictions, fn_mask, pos_label, min_class_counts_to_output):
-            return [0.8, 0.9], [0.7, 0.8], [0.5, 0.6], []
 
-        stats_utils.precision_recall_curve = mock_precision_recall_curve
+        stats_utils.precision_recall_curve = self.mock_precision_recall_curve
 
         # Call the function
         sv_stats, concordance_stats, fp_stats = collect_sv_stats("mock_path", "mock_concordance.h5")
