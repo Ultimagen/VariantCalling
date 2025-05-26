@@ -235,11 +235,11 @@ def run(args: list[str]):
         roc_df = roc_df.rename(columns={"precision": "precision roc", "recall": "recall roc"})
         concordance_df = pd.concat((concordance_df, roc_df), axis=1)
         results["concordance"] = concordance_df
+        results["fp_stats"] = fp_stats_df
 
     for k, v in sv_stats.items():
         results[k] = v
 
-    results["fp_stats"] = fp_stats_df
     with open(p_args.output_file, "wb") as f:
         pickle.dump(results, f)
 
