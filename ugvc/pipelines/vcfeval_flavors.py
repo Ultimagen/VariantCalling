@@ -23,10 +23,10 @@ import argparse
 import subprocess
 
 from simppl.simple_pipeline import SimplePipeline
-
-from ugbio_comparison import vcf_pipeline_utils as vpu
-from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
+from ugbio_core import vcf_pipeline_utils as vpu
 from ugbio_core.vcfbed.interval_file import IntervalFile
+
+from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
 
 
 def get_parser():
