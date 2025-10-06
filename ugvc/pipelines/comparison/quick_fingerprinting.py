@@ -12,6 +12,10 @@ from ugbio_cloud_utils.cloud_sync import optional_cloud_sync
 
 
 def __get_parser() -> argparse.ArgumentParser:
+    """
+    Create and return the argument parser for the script.
+    Adds arguments for configuration, region, AWS auth, output directory, and variant caller options.
+    """
     parser = argparse.ArgumentParser(
         prog="quick fingerprinting (finding sample identity of crams, " "given a known list of ground-truth files)",
         description=run.__doc__,
@@ -32,7 +36,7 @@ def __get_parser() -> argparse.ArgumentParser:
         action="store_true", 
         help="add aws auth command to samtools commands"
     )
-    
+    # Add arguments from VariantHitFractionCaller
     VariantHitFractionCaller.add_args_to_parser(parser)
     parser.add_argument("--out_dir", type=str, required=True, help="output directory")
     return parser
@@ -41,12 +45,15 @@ def __get_parser() -> argparse.ArgumentParser:
 def run(argv):
     """quick fingerprinting to identify known samples in crams"""
     parser = __get_parser()
+    # Add pipeline-specific arguments
     SimplePipeline.add_parse_args(parser)
     args = parser.parse_args(argv[1:])
 
+    # Load configuration from JSON file
     with open(args.json_conf, encoding="utf-8") as fh:
         conf = json.load(fh)
 
+    # Sync reference files from cloud if needed
     ref = optional_cloud_sync(conf["references"]["ref_fasta"], args.out_dir)
     optional_cloud_sync(conf["references"]["ref_dict"], args.out_dir)
     optional_cloud_sync(conf["references"]["ref_fasta_index"], args.out_dir)
@@ -54,15 +61,18 @@ def run(argv):
     ground_truth_vcf_files = conf["ground_truth_vcf_files"]  # dict sample-id -> bed
     hcr_files = conf["ground_truth_hcr_files"]  # dict sample-id -> bed
 
+    # Extract region and variant calling parameters
     region = args.region_str
     min_af_snps = args.min_af_snps
     min_af_germline_snps = args.min_af_germline_snps
     min_hit_fraction_target = args.min_hit_fraction_target
 
+    # Initialize the pipeline
     sp = SimplePipeline(args.fc, args.lc, debug=args.d)
     os.makedirs(args.out_dir, exist_ok=True)
     errors = []
 
+    # Run the quick fingerprinting check
     QuickFingerprinter(
         cram_files_list,
         ground_truth_vcf_files,
@@ -77,6 +87,7 @@ def run(argv):
         sp
     ).check()
 
+    # Raise errors if any occurred
     if len(errors) > 0:
         raise RuntimeError("\n".join(errors))
 
