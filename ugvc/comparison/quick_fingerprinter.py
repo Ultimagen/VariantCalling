@@ -109,7 +109,6 @@ class QuickFingerprinter:
         for sample_id in self.crams:
             crams = self.crams[sample_id]
             for cram in crams:
-                hit_fractions = []
                 max_hit_fraction = 0
                 best_match = None
                 cram_base_name = os.path.basename(cram)
