@@ -40,12 +40,12 @@ def test_quick_fingerprinting(tmpdir):
         ]
     )
 
-    output = f'{tmpdir}/quick_fingerprinting_results.txt'
-    import sys
+    output = f'{tmpdir}/quick_fingerprinting_results.csv'
     with open(output) as out:
         lines = out.readlines()
-        last_line = lines[-1]
-        arr = last_line.split(' ')
-        key, val = arr[-1].split('=')
-        assert key == 'hit_fraction'
-        assert float(val) > 0.99, 'hit fraction of HG001 vs itself is less than 0.99'
+        # Skip header line
+        data_line = lines[1]
+        # CSV format: full_path,cram_filename,sample_id,ground_truth_id,hit_fraction,best_match,mean_depth
+        fields = data_line.strip().split(',')
+        hit_fraction = float(fields[4])
+        assert hit_fraction > 0.99, f'hit fraction of HG001 vs itself is {hit_fraction}, less than 0.99'
