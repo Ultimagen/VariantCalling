@@ -23,10 +23,11 @@ import argparse
 import subprocess
 
 from simppl.simple_pipeline import SimplePipeline
-
-from ugbio_comparison import vcf_pipeline_utils as vpu
-from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
+from ugbio_comparison import vcf_comparison_utils as vpc
+from ugbio_core import vcf_utils as vpu
 from ugbio_core.vcfbed.interval_file import IntervalFile
+
+from ugvc.utils.stats_utils import get_f1, get_precision, get_recall
 
 
 def get_parser():
@@ -101,7 +102,8 @@ def run(argv: list[str]):
 
     first_eval_regions_file = eval_regions_files[0]
     intersected_eval_regions = first_eval_regions_file
-    vpe = vpu.VcfPipelineUtils(sp)
+    vpe = vpu.VcfUtils(sp)
+    vpcp = vpc.VcfComparisonUtils(sp)
 
     for i, eval_regions_file in enumerate(eval_regions_files[1:]):
         intersected_eval_regions = f"{out_dir}/eval_regions.{i}.bed"
@@ -113,7 +115,7 @@ def run(argv: list[str]):
     vpe.index_vcf(f"{out_dir}/input_in_hcr.pass.vcf.gz")
     sp.print_and_run(f"bcftools view {baseline} -R {eval_reg} -Oz > {out_dir}/gtr_in_hcr.vcf.gz")
     vpe.index_vcf(f"{out_dir}/gtr_in_hcr.vcf.gz")
-    vpe.run_vcfeval(
+    vpcp.run_vcfeval(
         f"{out_dir}/input_in_hcr.pass.vcf.gz", f"{out_dir}/gtr_in_hcr.vcf.gz", eval_reg, f"{out_dir}/vcfeval", sdf
     )
     result.append("type tp fp fn precision recall f1")

@@ -37,7 +37,6 @@ setup(
         "ugbio_utils/src/core/ugbio_core/vcfbed/annotate_contig.py",
         "ugbio_utils/src/core/ugbio_core/sorter_stats_to_mean_coverage.py",
         "ugbio_utils/src/featuremap/ugbio_featuremap/featuremap_to_dataframe.py",
-        "ugbio_utils/src/mrd/ugbio_mrd/intersect_featuremap_with_signature.py",
         "ugbio_utils/src/filtering/ugbio_filtering/training_prep_pipeline.py",
         "ugbio_utils/src/filtering/ugbio_filtering/train_models_pipeline.py",
         "ugbio_utils/src/filtering/ugbio_filtering/filter_variants_pipeline.py",

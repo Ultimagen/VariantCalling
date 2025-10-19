@@ -40,19 +40,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyBigWig as pbw
+import ugbio_core.dna_sequence_utils as dnautils
 from joblib import Parallel, delayed
 from tqdm import tqdm
-
-import ugbio_core.dna_sequence_utils as dnautils
-from ugvc import logger
-from ugbio_core.consts import CHROM_DTYPE
-from ugvc.utils import misc_utils as utils
-from ugvc.utils.cloud_auth import get_gcs_token
 from ugbio_cloud_utils.cloud_sync import cloud_sync
-from ugbio_core.consts import FileExtension
-from ugbio_core.plotting_utils import set_pyplot_defaults
-from ugbio_core.vcfbed.bed_writer import BED_COLUMN_CHROM, BED_COLUMN_CHROM_END, BED_COLUMN_CHROM_START, parse_intervals_file
+from ugbio_core import misc_utils as utils
+from ugbio_core.consts import CHROM_DTYPE, FileExtension
 from ugbio_core.coverage_analysis_utils import generate_stats_from_histogram
+from ugbio_core.plotting_utils import set_pyplot_defaults
+from ugbio_core.vcfbed.bed_writer import (
+    BED_COLUMN_CHROM,
+    BED_COLUMN_CHROM_END,
+    BED_COLUMN_CHROM_START,
+    parse_intervals_file,
+)
+
+import ugvc.utils.exec_utils as e_utils
+from ugvc import logger
+from ugvc.utils.cloud_auth import get_gcs_token
+
 MIN_CONTIG_LENGTH = 1000000  # contigs that are shorter than that won't be analyzed
 MIN_LENGTH_TO_SHOW = 10000000  # contigs that are shorter than that won't be shown on coverage plot
 COVERAGE = "coverage"
@@ -696,7 +702,7 @@ def depth_to_bigwig(input_depth_file: str, output_bw_file: str, sizes_file: str)
     """
 
     cmd = [
-        pjoin(utils.find_scripts_path(), "run_ucsc_command.sh"),
+        pjoin(e_utils.find_scripts_path(), "run_ucsc_command.sh"),
         "bedGraphToBigWig",
         input_depth_file,
         sizes_file,

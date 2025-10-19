@@ -7,8 +7,7 @@ import numpy as np
 import pandas as pd
 import pysam
 import tqdm.auto as tqdm
-
-import ugbio_comparison.vcf_pipeline_utils as vpu
+import ugbio_core.vcf_utils as vpu
 from ugbio_core.vcfbed import vcftools
 
 
@@ -96,7 +95,7 @@ def write_recalibrated_vcf(denovo_vcf: str, output_vcf_name: str, recalibrated_d
                     mq = recs["pair_qual"].min()
                     rec.info["DENOVO_QUAL"] = mq
                 output_vcf.write(rec)
-    vpu.VcfPipelineUtils(None).index_vcf(output_vcf_name)
+    vpu.VcfUtils(None).index_vcf(output_vcf_name)
 
 
 def main(argv: list[str]):

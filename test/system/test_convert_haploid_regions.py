@@ -1,11 +1,12 @@
 import os
 from os.path import dirname
 from test import get_resource_dir
+
 import pysam
+from ugbio_core.vcf_utils import VcfUtils
 
 from ugvc.pipelines import convert_haploid_regions
-from ugvc.pipelines.convert_haploid_regions import load_regions_from_bed, in_regions
-from ugbio_comparison.vcf_pipeline_utils import VcfPipelineUtils
+from ugvc.pipelines.convert_haploid_regions import in_regions, load_regions_from_bed
 
 
 class TestConvertHaploidRegions:
@@ -17,18 +18,25 @@ class TestConvertHaploidRegions:
         haploid_regions_file = f"{self.inputs_dir}/haploid_regions.bed"
         os.makedirs(dirname(output_file), exist_ok=True)
 
-        convert_haploid_regions.run(["prog_name",
-                                     "--input_vcf", input_file,
-                                     "--output_vcf", output_file,
-                                     "--haploid_regions", haploid_regions_file])
+        convert_haploid_regions.run(
+            [
+                "prog_name",
+                "--input_vcf",
+                input_file,
+                "--output_vcf",
+                output_file,
+                "--haploid_regions",
+                haploid_regions_file,
+            ]
+        )
 
         haploid_regions = load_regions_from_bed(haploid_regions_file)
-        vpu = VcfPipelineUtils()
+        vpu = VcfUtils()
         vpu.index_vcf(output_file)
         vcf_reader = pysam.VariantFile(output_file)
         tp, fp, fn, tn = (0, 0, 0, 0)
         for variant in vcf_reader:
-            genotype = variant.samples[0]['GT']
+            genotype = variant.samples[0]["GT"]
             if in_regions(variant.chrom, variant.pos, haploid_regions):
 
                 if len(genotype) == 1:
@@ -43,8 +51,5 @@ class TestConvertHaploidRegions:
 
         assert tp == 16  # converted 16 variants to haploid, in haploid_regions
         assert tn == 93  # Left 93 variants as diploid
-        assert fp == 0   # All haploid variants are in haploid_region
-        assert fn == 0   # No diploid variants are left in haploid_region
-
-
-
+        assert fp == 0  # All haploid variants are in haploid_region
+        assert fn == 0  # No diploid variants are left in haploid_region
