@@ -3,7 +3,7 @@ from os.path import dirname
 from test import get_resource_dir
 
 import pysam
-from ugbio_core.vcf_pipeline_utils import VcfPipelineUtils
+from ugbio_core.vcf_utils import VcfUtils
 
 from ugvc.pipelines import convert_haploid_regions
 from ugvc.pipelines.convert_haploid_regions import in_regions, load_regions_from_bed
@@ -31,7 +31,7 @@ class TestConvertHaploidRegions:
         )
 
         haploid_regions = load_regions_from_bed(haploid_regions_file)
-        vpu = VcfPipelineUtils()
+        vpu = VcfUtils()
         vpu.index_vcf(output_file)
         vcf_reader = pysam.VariantFile(output_file)
         tp, fp, fn, tn = (0, 0, 0, 0)

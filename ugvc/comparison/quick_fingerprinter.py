@@ -4,7 +4,7 @@ import os
 
 from simppl.simple_pipeline import SimplePipeline
 from ugbio_cloud_utils.cloud_sync import optional_cloud_sync
-from ugbio_core.vcf_pipeline_utils import VcfPipelineUtils
+from ugbio_core.vcf_utils import VcfUtils
 
 from ugvc.comparison.variant_hit_fraction_caller import VariantHitFractionCaller
 
@@ -13,7 +13,7 @@ from ugvc.comparison.variant_hit_fraction_caller import VariantHitFractionCaller
 class QuickFingerprinter:
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        sample_crams: dict[list[str]],
+        sample_crams: dict[str, list[str]],
         ground_truth_vcfs: dict[str, str],
         hcrs: dict[str, str],
         ref: str,
@@ -37,7 +37,7 @@ class QuickFingerprinter:
         self.sp = sp
         self.add_aws_auth_command = add_aws_auth_command
         self.vc = VariantHitFractionCaller(self.ref, self.out_dir, self.sp, self.min_af_snps, region)
-        self.vpu = VcfPipelineUtils(self.sp)
+        self.vpu = VcfUtils(self.sp)
         os.makedirs(out_dir, exist_ok=True)
 
         self.ground_truths_to_check = self.prepare_ground_truth()
