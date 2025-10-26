@@ -19,14 +19,14 @@ def collect_size_type_histograms(svcall_vcf, ignore_filter: bool = False) -> dic
 
     Parameters
     ----------
-    svcall_vcf : str
+    svcall_vcf: str
         Path to the SV call VCF file.
-    ignore_filter : bool, optional
+    ignore_filter: bool, optional
         Whether to ignore the FILTER field in the VCF file, by default False
 
     Returns
     -------
-    dict[str,pd.DataFrame]
+    dict[str, pd.DataFrame]
         Dictionary containing size and type histograms.
     """
     # Read the VCF file
