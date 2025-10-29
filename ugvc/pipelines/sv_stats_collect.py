@@ -159,13 +159,13 @@ def collect_sv_stats(
         df_base = pd.read_hdf(concordance_h5, key="base")
         df_calls = pd.read_hdf(concordance_h5, key="calls")
         df_base["binned_svlens"] = pd.cut(
-            df_base["svlen"].abs(),
+            df_base["svlen_int"].abs(),
             bins=SVBINS,
             labels=SVLABELS,
             right=False,
         )
         df_calls["binned_svlens"] = pd.cut(
-            df_calls["svlen"].abs(),
+            df_calls["svlen_int"].abs(),
             bins=SVBINS,
             labels=SVLABELS,
             right=False,

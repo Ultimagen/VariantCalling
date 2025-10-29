@@ -213,10 +213,10 @@ class TestCollectSizeTypeHistograms:
         """
         # Mock concordance HDF5 data
         df_base = pd.DataFrame(
-            {"label": ["TP", "FN"], "svlen": [-500, 300], "svtype": ["DEL", "INS"], "qual": [10, 11]}
+            {"label": ["TP", "FN"], "svlen_int": [-500, 300], "svtype": ["DEL", "INS"], "qual": [10, 11]}
         )
         df_calls = pd.DataFrame(
-            {"label": ["TP", "FP"], "svlen": [-500, 300], "svtype": ["DEL", "INS"], "qual": [10, 11]}
+            {"label": ["TP", "FP"], "svlen_int": [-500, 300], "svtype": ["DEL", "INS"], "qual": [10, 11]}
         )
 
         # Mock the `vcftools.get_vcf_df` function
