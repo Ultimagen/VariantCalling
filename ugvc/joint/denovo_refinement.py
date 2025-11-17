@@ -66,7 +66,7 @@ def add_parental_qualities_to_denovo_vcf(denovo_vcf: str, parental_vcf_df: pd.Da
         df_denovo_exp.shape[0] > 0
     ), "No denovo calls found in the VCF or no overlap between the de novo vcf and the somatic calls"
     df_denovo_exp["pair_qual"] = df_denovo_exp.apply(
-        lambda x: min(x[x["denovosample"] + "-father"], x[x["denovosample"] + "-mother"]), axis=1
+        lambda x: min(x[x["denovosample"] + "-father"].fillna(0), x[x["denovosample"] + "-mother"].fillna(0)), axis=1
     )
     df_denovo_exp["pair_qual"].fillna(0, inplace=True)
     return df_denovo_exp
