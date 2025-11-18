@@ -27,14 +27,21 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Make space
-      # As suggested here: https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
-        run: |
-          df -h
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 4096
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          build-mount-path: /var/lib/docker/
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+      - name: Restart docker
+        run: sudo service docker restart
+      - name: Check space
+        run:
           df -h
 
       - uses: actions/checkout@v4
