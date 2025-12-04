@@ -2,7 +2,7 @@ import filecmp
 from test import get_resource_dir
 
 import pybedtools
-from ugbio_core.filter_bed import count_bases_in_bed_file
+from ugbio_core.bed_utils import BedUtils
 
 from ugvc.joint.gvcf_bed import gvcf_to_bed
 
@@ -17,7 +17,7 @@ def test_gvcf_to_bed_gt(tmpdir):
     assert filecmp.cmp(output_file, f"{inputs_dir}/calls.expected.bed")
     output_file_mrg = str(tmpdir.join("calls.observed.mrg.bed"))
     pybedtools.BedTool(output_file).merge().saveas(output_file_mrg)
-    assert count_bases_in_bed_file(output_file_mrg) == count_bases_in_bed_file(output_file)
+    assert BedUtils().count_bases_in_bed_file(output_file_mrg) == BedUtils().count_bases_in_bed_file(output_file)
 
 
 def test_gvcf_to_bed_lt(tmpdir):
@@ -28,4 +28,4 @@ def test_gvcf_to_bed_lt(tmpdir):
     assert filecmp.cmp(output_file, f"{inputs_dir}/calls.expected.lt.bed")
     output_file_mrg = str(tmpdir.join("calls.observed.mrg.bed"))
     pybedtools.BedTool(output_file).merge(d=-1).saveas(output_file_mrg)
-    assert count_bases_in_bed_file(output_file_mrg) == count_bases_in_bed_file(output_file)
+    assert BedUtils().count_bases_in_bed_file(output_file_mrg) == BedUtils().count_bases_in_bed_file(output_file)
