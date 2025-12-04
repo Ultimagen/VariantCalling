@@ -17,7 +17,6 @@ from ugbio_cloud_utils import cloud_sync
 from ugbio_cnv import (
     annotate_FREEC_segments,
     bicseq2_post_processing,
-    convert_cnv_results_to_vcf,
     filter_sample_cnvs,
     plot_cnv_results,
     plot_FREEC_neutral_AF,
@@ -59,7 +58,6 @@ modules = [
     run_comparison_pipeline,
     train_models_pipeline,
     filter_sample_cnvs,
-    convert_cnv_results_to_vcf,
     plot_cnv_results,
     convert_haploid_regions,
     correct_genotypes_by_imputation,
