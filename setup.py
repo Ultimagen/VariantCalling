@@ -47,7 +47,6 @@ setup(
         "ugvc/pipelines/denovo_recalibrated_qualities.py",
         "ugbio_utils/src/core/ugbio_core/convert_h5_to_json.py",
         "ugbio_utils/src/cnv/ugbio_cnv/filter_sample_cnvs.py",
-        "ugbio_utils/src/cnv/ugbio_cnv/convert_cnv_results_to_vcf.py",
         "ugbio_utils/src/cnv/ugbio_cnv/plot_cnv_results.py",
         "ugbio_utils/src/cnv/ugbio_cnv/annotate_FREEC_segments.py",
         "ugbio_utils/src/filtering/ugbio_filtering/filter_variants_pipeline.py",
