@@ -20,7 +20,7 @@ class TestCollectSizeTypeHistograms:
         1       2000    .       A       <INS>   .       PASS    SVLEN=300;SVTYPE=INS
         1       3000    .       A       <DEL>   .       PASS    SVLEN=-1000;SVTYPE=DEL
         1       4000    .       A       <INS>   .       PASS    SVLEN=700;SVTYPE=INS
-        1       5000    .       A       <DUP>   .       PASS    SVLEN=2000;SVTYPE=DUP
+        1       5000    .       A       <DUP>   .       .       SVLEN=2000;SVTYPE=DUP
         """
 
     def mock_precision_recall_curve(self, gt, predictions, fn_mask, pos_label, min_class_counts_to_output):

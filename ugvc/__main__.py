@@ -12,16 +12,6 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 from ugbio_cloud_utils import cloud_sync
-
-# import pipeline modules implementing run(argv) method
-from ugbio_cnv import (
-    annotate_FREEC_segments,
-    bicseq2_post_processing,
-    convert_cnv_results_to_vcf,
-    filter_sample_cnvs,
-    plot_cnv_results,
-    plot_FREEC_neutral_AF,
-)
 from ugbio_comparison import run_comparison_pipeline
 from ugbio_core import intersect_bed_regions, sorter_to_h5
 from ugbio_core.vcfbed import annotate_contig
@@ -58,15 +48,9 @@ modules = [
     training_prep_pipeline,
     run_comparison_pipeline,
     train_models_pipeline,
-    filter_sample_cnvs,
-    convert_cnv_results_to_vcf,
-    plot_cnv_results,
     convert_haploid_regions,
     correct_genotypes_by_imputation,
     vcfeval_flavors,
-    bicseq2_post_processing,
-    annotate_FREEC_segments,
-    plot_FREEC_neutral_AF,
 ]
 
 sec_modules = [correct_systematic_errors, sec_training, sec_validation]

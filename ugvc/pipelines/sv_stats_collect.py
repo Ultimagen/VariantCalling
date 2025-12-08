@@ -33,7 +33,8 @@ def collect_size_type_histograms(svcall_vcf, ignore_filter: bool = False) -> dic
     if ignore_filter:
         vcf_df = vcftools.get_vcf_df(svcall_vcf, custom_info_fields=["SVLEN", "SVTYPE"])
     else:
-        vcf_df = vcftools.get_vcf_df(svcall_vcf, custom_info_fields=["SVLEN", "SVTYPE"]).query("filter=='PASS'")
+        vcf_df = vcftools.get_vcf_df(svcall_vcf, custom_info_fields=["SVLEN", "SVTYPE"])
+        vcf_df = vcf_df.query("(filter=='PASS') | (filter=='') | (filter == '.')")
     vcf_df["svlen"] = vcf_df["svlen"].apply(lambda x: x[0] if isinstance(x, tuple) else x).fillna(0)
     vcf_df["binned_svlens"] = pd.cut(
         vcf_df["svlen"].abs(),

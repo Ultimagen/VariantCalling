@@ -28,7 +28,7 @@ import subprocess
 import numpy as np
 import pandas as pd
 import sigProfilerPlotting as sigPlt
-import ugbio_core.filter_bed as fb
+import ugbio_core.bed_utils as bu
 import ugbio_core.vcfbed.variant_annotation as annotation
 from SigProfilerAssignment import Analyzer as Analyze
 from SigProfilerMatrixGenerator import install as genInstall
@@ -278,7 +278,7 @@ def run_eval_tables_only(arg_values):
 
 def run_full_analysis(arg_values):
     if arg_values.callable_region is not None:
-        callable_size = fb.count_bases_in_bed_file(arg_values.callable_region)
+        callable_size = bu.BedUtils().count_bases_in_bed_file(arg_values.callable_region)
         callable_size_series = pd.Series(callable_size, index=["callable_size"])
         callable_size_series.to_hdf(f"{arg_values.output_prefix}.h5", key="callable_size")
     eval_tables = variant_eval_statistics(
