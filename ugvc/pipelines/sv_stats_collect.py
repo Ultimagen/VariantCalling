@@ -9,8 +9,8 @@ import pandas as pd
 from ugbio_core import stats_utils
 from ugbio_core.vcfbed import vcftools
 
-SVBINS = [0, 100, 300, 500, 1000, 5000, 10000, 100000, 1000000, float("inf")]
-SVLABELS = ["50-100", "100-300", "300-500", "0.5-1k", "1k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"]
+SVBINS = [0, 100, 300, 500, 1000, 2000, 3000, 5000, 10000, 100000, 1000000, float("inf")]
+SVLABELS = ["50-100", "100-300", "300-500", "0.5-1k", "1k-2k", "2k-3k", "3k-5k", "5k-10k", "10k-100k", "100k-1M", ">1M"]
 
 
 def collect_size_type_histograms(svcall_vcf, ignore_filter: bool = False) -> dict[str, pd.DataFrame]:
