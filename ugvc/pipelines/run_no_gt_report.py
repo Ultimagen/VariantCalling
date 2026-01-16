@@ -94,7 +94,7 @@ def snp_statistics(df, ref_fasta):
     df = annotation.get_motif_around(df, 5, ref_fasta)
     df = df.set_index(["chrom", "pos"])
 
-    df["af"] = df["af"].apply(lambda x: x[0])
+    df["af"] = df["af"].apply(lambda x: x[0] if isinstance(x, tuple) else x)
     df["alt_1"] = df["alleles"].apply(lambda x: x[1])
     df["alt_2"] = df["alleles"].apply(lambda x: x[2] if len(x) > 2 else None)
 
