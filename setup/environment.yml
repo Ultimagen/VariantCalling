@@ -62,12 +62,12 @@ dependencies:
   - bzip2=1.0.8=h4bc722e_7
   - c-ares=1.34.3=hb9d3cd8_1
   - c-blosc2=2.15.2=h68e2383_0
-  - ca-certificates=2026.1.4=hbd8a1cb_0
+  - ca-certificates=2025.8.3=hbd8a1cb_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
   - cachetools=5.5.0=pyhd8ed1ab_0
   - cairo=1.18.0=hebfffa5_3
-  - certifi=2026.1.4=pyhd8ed1ab_0
+  - certifi=2025.8.3=pyhd8ed1ab_0
   - cffi=1.17.1=py310h8deb56e_0
   - cfgv=3.3.1=pyhd8ed1ab_0
   - chardet=5.2.0=py310hff52083_2
@@ -181,8 +181,6 @@ dependencies:
   - keyutils=1.6.1=h166bdaf_0
   - kiwisolver=1.4.7=py310h3788b33_0
   - krb5=1.21.3=h659f571_0
-  - k8=1.2=he8db53b_6
-  - kmc=3.2.4=h5ca1c30_4
   - lame=3.100=h166bdaf_1003
   - lcms2=2.16=hb7c19ff_0
   - ld_impl_linux-64=2.43=h712a8e2_2
@@ -286,7 +284,6 @@ dependencies:
   - matplotlib-base=3.7.1=py310he60537e_0
   - matplotlib-inline=0.1.7=pyhd8ed1ab_0
   - methyldackel=0.6.1=he4a0461_7
-  - minimap2=2.30=h577a1d6_0
   - mistune=3.0.2=pyhd8ed1ab_0
   - mock=5.1.0=pyhd8ed1ab_0
   - mpg123=1.32.9=hc50e24c_0
@@ -314,7 +311,7 @@ dependencies:
   - numpy=1.26.4=py310hb13e2d6_0
   - openjdk=17.0.13=he018374_0
   - openjpeg=2.5.2=h488ebb8_0
-  - openssl=3.6.0=h26f9b46_0
+  - openssl=3.5.2=h26f9b46_0
   - orc=2.0.3=he039a57_0
   - overrides=7.7.0=pyhd8ed1ab_0
   - packaging=24.2=pyhff2d567_1
@@ -405,7 +402,6 @@ dependencies:
   - seaborn-base=0.13.2=pyhd8ed1ab_2
   - sed=4.8=he412f7d_0
   - send2trash=1.8.3=pyh0d859eb_0
-  - seqkit=2.12.0=he881be0_1
   - setuptools=75.6.0=pyhff2d567_1
   - shap=0.46.0=cpu_py310h377a755_1
   - sip=6.7.12=py310hc6cd4ac_0
