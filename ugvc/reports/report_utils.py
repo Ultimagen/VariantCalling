@@ -529,6 +529,8 @@ class ReportUtils:
             result = data[(data["indel"]) & (data["hmer_length"] > 14) & (data["hmer_length"] <= 19)]
         elif cat == "hmer Indel >=20":
             result = data[(data["indel"]) & (data["hmer_length"] >= 20)]
+        elif cat == "non-hmer Indel + hmer Indel <=12":
+            result = data[(data["indel"]) & (data["hmer_length"] <= 12)]            
         for i in range(1, 10):
             if cat == "hmer Indel {0:d}".format(i):
                 result = data[(data["indel"]) & (data["hmer_length"] == i)]
