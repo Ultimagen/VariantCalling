@@ -32,6 +32,9 @@ class VariantHitFractionCaller:
         gt_base_name = os.path.basename(ground_truth_vcf).replace(".vcf.gz", "")
         ground_truth_variants = get_vcf_df(ground_truth_vcf)
         called_variants = get_vcf_df(called_vcf)
+        if "dp" not in called_variants.columns:
+            called_variants["dp"] = pd.NA
+        called_variants["dp"] = pd.to_numeric(called_variants["dp"], errors="coerce")
         # keep only major alt
         called_variants['major_alt'] = called_variants.apply(lambda x: x["alleles"][1], axis=1)
         ground_truth_variants['major_alt'] = ground_truth_variants.apply(lambda x: x["alleles"][1], axis=1)
@@ -47,6 +50,16 @@ class VariantHitFractionCaller:
             fh.write(f"hit_fraction {hit_fraction}\n")
 
         return hit_fraction, hit_count, ground_truth_count
+
+    def get_mean_depth(self, called_vcf: str) -> float:
+        called_variants = get_vcf_df(called_vcf)
+        if "dp" not in called_variants.columns:
+            called_variants["dp"] = pd.NA
+        called_variants["dp"] = pd.to_numeric(called_variants["dp"], errors="coerce")
+        mean_depth = called_variants["dp"].mean(skipna=True)
+        if pd.isna(mean_depth):
+            return 0.0
+        return round(float(mean_depth), 1)
 
     def count_lines(self, in_file: str, out_file: str):
         self.sp.print_and_run(f"wc -l {in_file} " + "| awk '{print $1}' " + f" > {out_file}")
