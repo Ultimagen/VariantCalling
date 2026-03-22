@@ -21,7 +21,13 @@ class VariantHitFractionCaller:
         self.region = region
 
     def call_variants(self, cram: str, output_vcf: str, region: str, min_af: float, regions_bed: str | None = None) -> None:
-        regions_arg = f"-R {regions_bed}" if regions_bed is not None else (f"-r {region}" if region else "")
+        if regions_bed is not None:
+            regions_arg = f"-R {regions_bed}"
+        elif region and (region.endswith(".bed") or region.endswith(".bed.gz")):
+            # Backward compatibility: some callers pass a BED path in `region`.
+            regions_arg = f"-R {region}"
+        else:
+            regions_arg = f"-r {region}" if region else ""
         self.sp.print_and_run(
             f"bcftools mpileup {cram} -f {self.ref} -a ad,format/dp --skip-indels -d 500 {regions_arg} "
             + f"| bcftools view -i 'AD[0:1] / format/DP >= {min_af}' -Oz -o {output_vcf}"

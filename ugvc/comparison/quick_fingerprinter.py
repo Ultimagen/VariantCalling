@@ -46,8 +46,16 @@ class QuickFingerprinter:
 
     def prepare_ground_truth(self):
         ground_truths_to_check = {}
-        if self.regions_bed is None:
-            self.sp.print_and_run(f"echo {self.region} | sed 's/:/\t/' | sed 's/-/\t/' > {self.out_dir}/region.bed")
+        region_bed = f"{self.out_dir}/region.bed"
+        regions_bed_in_region = None
+        if self.region != "":
+            self.sp.print_and_run(f"echo {self.region} | sed 's/:/\t/' | sed 's/-/\t/' > {region_bed}")
+        if self.regions_bed is not None and self.region != "":
+            regions_bed_in_region = f"{self.out_dir}/regions_bed_in_region.bed"
+            self.sp.print_and_run(
+                f"bedtools intersect -a {self.regions_bed} -b {region_bed} | "
+                f"sort -k 1,1 -k 2,2n > {regions_bed_in_region}"
+            )
 
         for sample_id in self.ground_truth_vcfs:
             ground_truth_vcf = optional_cloud_sync(self.ground_truth_vcfs[sample_id], self.out_dir)
@@ -62,8 +70,9 @@ class QuickFingerprinter:
             )
             self.vpu.index_vcf(ground_truth_in_hcr)
             if self.regions_bed is not None:
+                regions_to_use = regions_bed_in_region if regions_bed_in_region is not None else self.regions_bed
                 self.sp.print_and_run(
-                    f"bcftools view {ground_truth_in_hcr} -R {self.regions_bed} -Oz -o {ground_truth_to_check_vcf}"
+                    f"bcftools view {ground_truth_in_hcr} -R {regions_to_use} -Oz -o {ground_truth_to_check_vcf}"
                 )
             else:
                 self.sp.print_and_run(
@@ -78,7 +87,7 @@ class QuickFingerprinter:
                 )
             elif self.region != "":
                 self.sp.print_and_run(
-                    f"bedtools intersect -a {hcr} -b {self.out_dir}/region.bed | "
+                    f"bedtools intersect -a {hcr} -b {region_bed} | "
                     f"sort -k 1,1 -k 2,2n > {hcr_in_region}"
                 )
             else:
