@@ -20,9 +20,10 @@ class VariantHitFractionCaller:
         self.min_af_snps = min_af_snps
         self.region = region
 
-    def call_variants(self, cram: str, output_vcf: str, region: str, min_af: float) -> None:
+    def call_variants(self, cram: str, output_vcf: str, region: str, min_af: float, regions_bed: str | None = None) -> None:
+        regions_arg = f"-R {regions_bed}" if regions_bed is not None else (f"-r {region}" if region else "")
         self.sp.print_and_run(
-            f"bcftools mpileup {cram} -f {self.ref} -a ad,format/dp --skip-indels -d 500 "
+            f"bcftools mpileup {cram} -f {self.ref} -a ad,format/dp --skip-indels -d 500 {regions_arg} "
             + f"| bcftools view -i 'AD[0:1] / format/DP >= {min_af}' -Oz -o {output_vcf}"
         )
         self.sp.print_and_run(f"bcftools index -t {output_vcf}")
@@ -33,8 +34,8 @@ class VariantHitFractionCaller:
         ground_truth_variants = get_vcf_df(ground_truth_vcf)
         called_variants = get_vcf_df(called_vcf)
         # keep only major alt
-        called_variants['major_alt'] = called_variants.apply(lambda x: x["alleles"][1], axis=1)
-        ground_truth_variants['major_alt'] = ground_truth_variants.apply(lambda x: x["alleles"][1], axis=1)
+        called_variants['major_alt'] = called_variants['alleles'].apply(lambda x: x[1])
+        ground_truth_variants['major_alt'] = ground_truth_variants['alleles'].apply(lambda x: x[1])
         
         ground_truth_count = len(ground_truth_variants)
         hits = pd.merge(ground_truth_variants, called_variants, how="inner", on=["chrom", "pos", "ref", "major_alt"])

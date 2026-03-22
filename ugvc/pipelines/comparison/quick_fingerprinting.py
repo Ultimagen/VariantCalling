@@ -25,12 +25,19 @@ def __get_parser() -> argparse.ArgumentParser:
         "--region_str",
         type=str,
         default="chr15:26000000-26200000",
-        help="region subset string, compare variants only in this region",
+        help="region subset string, compare variants only within region",
     )
     parser.add_argument(
         "--add_aws_auth_command", 
         action="store_true", 
         help="add aws auth command to samtools commands"
+    )
+    parser.add_argument(
+        "--regions_bed",
+        type=str,
+        default=None,
+        help="BED file of regions to intersect ground truth and calls with (e.g. exome capture regions). "
+             "Results will refer to the intersection of these regions with region_str. Give an entire chromosome for WES data",
     )
     
     VariantHitFractionCaller.add_args_to_parser(parser)
@@ -55,6 +62,7 @@ def run(argv):
     hcr_files = conf["ground_truth_hcr_files"]  # dict sample-id -> bed
 
     region = args.region_str
+    regions_bed = args.regions_bed
     min_af_snps = args.min_af_snps
     min_af_germline_snps = args.min_af_germline_snps
     min_hit_fraction_target = args.min_hit_fraction_target
@@ -74,7 +82,8 @@ def run(argv):
         min_hit_fraction_target,
         args.add_aws_auth_command,
         args.out_dir,
-        sp
+        sp,
+        regions_bed=regions_bed,
     ).check()
 
     if len(errors) > 0:

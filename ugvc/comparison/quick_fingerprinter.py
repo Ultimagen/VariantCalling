@@ -24,12 +24,14 @@ class QuickFingerprinter:
         add_aws_auth_command: bool,
         out_dir: str,
         sp: SimplePipeline,
+        regions_bed: str | None = None,
     ):
         self.crams = sample_crams
         self.ground_truth_vcfs = ground_truth_vcfs
         self.hcrs = hcrs
         self.ref = ref
         self.region = region
+        self.regions_bed = regions_bed
         self.out_dir = out_dir
         self.min_af_snps = min_af_snps
         self.min_af_germline_snps = min_af_germline_snps
@@ -44,7 +46,8 @@ class QuickFingerprinter:
 
     def prepare_ground_truth(self):
         ground_truths_to_check = {}
-        self.sp.print_and_run(f"echo {self.region} | sed 's/:/\t/' | sed 's/-/\t/' > {self.out_dir}/region.bed")
+        if self.regions_bed is None:
+            self.sp.print_and_run(f"echo {self.region} | sed 's/:/\t/' | sed 's/-/\t/' > {self.out_dir}/region.bed")
 
         for sample_id in self.ground_truth_vcfs:
             ground_truth_vcf = optional_cloud_sync(self.ground_truth_vcfs[sample_id], self.out_dir)
@@ -58,12 +61,22 @@ class QuickFingerprinter:
                 + f"bcftools view --type snps -Oz -o  {ground_truth_in_hcr}"
             )
             self.vpu.index_vcf(ground_truth_in_hcr)
-            self.sp.print_and_run(
-                f"bcftools view {ground_truth_in_hcr} -r {self.region} -Oz -o {ground_truth_to_check_vcf}"
-            )
+            if self.regions_bed is not None:
+                self.sp.print_and_run(
+                    f"bcftools view {ground_truth_in_hcr} -R {self.regions_bed} -Oz -o {ground_truth_to_check_vcf}"
+                )
+            else:
+                self.sp.print_and_run(
+                    f"bcftools view {ground_truth_in_hcr} -r {self.region} -Oz -o {ground_truth_to_check_vcf}"
+                )
             self.vpu.index_vcf(ground_truth_to_check_vcf)
 
-            if self.region != "":
+            if self.regions_bed is not None:
+                self.sp.print_and_run(
+                    f"bedtools intersect -a {hcr} -b {self.regions_bed} | "
+                    f"sort -k 1,1 -k 2,2n > {hcr_in_region}"
+                )
+            elif self.region != "":
                 self.sp.print_and_run(
                     f"bedtools intersect -a {hcr} -b {self.out_dir}/region.bed | "
                     f"sort -k 1,1 -k 2,2n > {hcr_in_region}"
@@ -99,6 +112,7 @@ class QuickFingerprinter:
 
                     called_vcf = f"{self.out_dir}/{cram_base_name}.calls.vcf.gz"
                     local_bam = f"{self.out_dir}/{cram_base_name}.bam"
+    
                     if self.add_aws_auth_command:
                         self.sp.print_and_run(
                             f"eval $(aws configure export-credentials --format env-no-export) \
@@ -107,7 +121,9 @@ class QuickFingerprinter:
                     else:
                         self.sp.print_and_run(f"samtools view {cram} -T {self.ref} {self.region} -b -o {local_bam}")
 
-                    self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps)
+                    self.sp.print_and_run(f"samtools index {local_bam}")
+
+                    self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps, regions_bed=self.regions_bed)
 
                     potential_error = f"{cram} - {sample_id} "
                     for ground_truth_id, ground_truth_to_check_vcf in self.ground_truths_to_check.items():
