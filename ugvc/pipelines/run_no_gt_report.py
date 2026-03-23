@@ -33,7 +33,7 @@ import ugbio_core.vcfbed.variant_annotation as annotation
 from SigProfilerAssignment import Analyzer as Analyze
 from SigProfilerMatrixGenerator import install as genInstall
 from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
-from ugbio_comparison import comparison_utils
+from ugbio_comparison import vcf_comparison_utils as comparison_utils
 from ugbio_core.dna_sequence_utils import revcomp
 from ugbio_core.vcfbed import vcftools
 
