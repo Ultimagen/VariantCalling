@@ -7,7 +7,6 @@ import os
 from simppl.simple_pipeline import SimplePipeline
 
 from ugvc.comparison.quick_fingerprinter import QuickFingerprinter
-from ugvc.comparison.variant_hit_fraction_caller import VariantHitFractionCaller
 from ugbio_cloud_utils.cloud_sync import optional_cloud_sync
 
 
@@ -40,8 +39,31 @@ def __get_parser() -> argparse.ArgumentParser:
              "Results will refer to the intersection of these regions with region_str. Give an entire chromosome for WES data",
     )
     
-    VariantHitFractionCaller.add_args_to_parser(parser)
+    parser.add_argument(
+        "--min_af_snps",
+        type=float,
+        default=0.03,
+        help="min allele frequency to count as a ground-truth hit",
+    )
+    parser.add_argument(
+        "--min_af_germline_snps",
+        type=float,
+        default=0.1,
+        help="min allele frequency to count a snp as germline snp, for normal-in-tumor <-> normal matching",
+    )
+    parser.add_argument(
+        "--min_hit_fraction_target",
+        type=float,
+        default=0.99,
+        help="fraction of ground-truth variants which has hits in target samples",
+    )
     parser.add_argument("--out_dir", type=str, required=True, help="output directory")
+    parser.add_argument(
+        "--output_prefix",
+        type=str,
+        default="fingerprint",
+        help="prefix for output plot PNG filenames",
+    )
     return parser
 
 
@@ -84,6 +106,7 @@ def run(argv):
         args.out_dir,
         sp,
         regions_bed=regions_bed,
+        output_prefix=args.output_prefix,
     ).check()
 
     if len(errors) > 0:
