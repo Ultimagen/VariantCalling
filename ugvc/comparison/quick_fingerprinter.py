@@ -174,7 +174,7 @@ class QuickFingerprinter:
 
                     self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps, regions_bed=self.regions_bed_in_region or self.regions_bed)
 
-                    potential_error = None
+                    potential_errors = []
                     ground_truth_ids = []
                     cram_hit_fractions = []
                     for ground_truth_id, ground_truth_to_check_vcf in self.ground_truths_to_check.items():
@@ -187,12 +187,12 @@ class QuickFingerprinter:
                         hit_fractions.append(hit_fraction)
                         if sample_id == ground_truth_id and hit_fraction < self.min_hit_fraction_target:
                             match_to_expected_truth = hit_fraction
-                            potential_error = (
+                            potential_errors.append(
                                 f"{cram_base_name} [{sample_id}] does not match its ground truth: "
                                 f"hit_fraction={hit_fraction:.3f} (target={self.min_hit_fraction_target})"
                             )
                         elif sample_id != ground_truth_id and hit_fraction > self.min_hit_fraction_target:
-                            potential_error = (
+                            potential_errors.append(
                                 f"{cram_base_name} [{sample_id}] unexpectedly matched "
                                 f"{ground_truth_id}: hit_fraction={hit_fraction:.3f}"
                             )
@@ -200,18 +200,20 @@ class QuickFingerprinter:
                     if best_match != sample_id:
                         if match_to_expected_truth is None:
                             self.print(f"{cram} best_match={best_match} hit_fraction={max_hit_fraction}")
-                            if potential_error is None:
-                                potential_error = (
+                            if not potential_errors:
+                                potential_errors.append(
                                     f"{cram_base_name} [{sample_id}] best match is {best_match} "
                                     f"(hit_fraction={max_hit_fraction:.3f}), not the expected sample"
                                 )
                         else:
                             self.print(f"{cram} max_hit_fraction={max(hit_fractions)}")
 
+                    potential_error = " | ".join(potential_errors) if potential_errors else None
                     if potential_error is not None:
                         errors.append(potential_error)
+                        hit_score = match_to_expected_truth if match_to_expected_truth is not None else max_hit_fraction
                         all_results.append((sample_id, cram_base_name, ground_truth_ids, cram_hit_fractions,
-                                            potential_error, match_to_expected_truth or max_hit_fraction))
+                                            potential_error, hit_score))
                     else:
                         own_hit = next(
                             (hf for gt_id, hf in zip(ground_truth_ids, cram_hit_fractions) if gt_id == sample_id),

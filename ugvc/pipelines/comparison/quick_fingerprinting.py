@@ -92,7 +92,6 @@ def run(argv) -> list[str]:
 
     sp = SimplePipeline(args.fc, args.lc, debug=args.d)
     os.makedirs(args.out_dir, exist_ok=True)
-    errors = []
 
     return QuickFingerprinter(
         cram_files_list,
