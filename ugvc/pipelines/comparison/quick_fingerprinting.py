@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 
 from simppl.simple_pipeline import SimplePipeline
 
@@ -21,15 +22,15 @@ def __get_parser() -> argparse.ArgumentParser:
         help="json file with sample-names, crams, and ground truth files see 'quick_fingerprinting_example.json'",
     )
     parser.add_argument(
-        "--region_str",
-        type=str,
-        default="chr15:26000000-26200000",
-        help="region subset string, compare variants only within region",
-    )
-    parser.add_argument(
         "--add_aws_auth_command", 
         action="store_true", 
         help="add aws auth command to samtools commands"
+    )
+    parser.add_argument(
+        "--region_str",
+        type=str,
+        default="chr15:26000000-26200000",
+        help="region subset string, compare variants only within region (recommended to use 'chr22' for WES data)",
     )
     parser.add_argument(
         "--regions_bed",
@@ -67,7 +68,7 @@ def __get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run(argv):
+def run(argv) -> list[str]:
     """quick fingerprinting to identify known samples in crams"""
     parser = __get_parser()
     SimplePipeline.add_parse_args(parser)
@@ -93,7 +94,7 @@ def run(argv):
     os.makedirs(args.out_dir, exist_ok=True)
     errors = []
 
-    QuickFingerprinter(
+    return QuickFingerprinter(
         cram_files_list,
         ground_truth_vcf_files,
         hcr_files,
@@ -109,11 +110,8 @@ def run(argv):
         output_prefix=args.output_prefix,
     ).check()
 
-    if len(errors) > 0:
-        raise RuntimeError("\n".join(errors))
-
 
 if __name__ == "__main__":
-    import sys
-
-    run(sys.argv)
+    errors = run(sys.argv)
+    if errors:
+        sys.exit(1)

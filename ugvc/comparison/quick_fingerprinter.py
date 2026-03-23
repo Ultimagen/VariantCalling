@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 
 import matplotlib
 matplotlib.use("Agg")
@@ -10,6 +11,18 @@ from ugbio_cloud_utils.cloud_sync import optional_cloud_sync
 from ugbio_core.vcf_utils import VcfUtils
 
 from ugvc.comparison.variant_hit_fraction_caller import VariantHitFractionCaller
+
+_GREEN = "\033[32m"
+_RED = "\033[31m"
+_RESET = "\033[0m"
+
+
+def _green(text: str) -> str:
+    return f"{_GREEN}{text}{_RESET}"
+
+
+def _red(text: str) -> str:
+    return f"{_RED}{text}{_RESET}"
 
 
 # pylint: disable=too-many-instance-attributes
@@ -49,18 +62,32 @@ class QuickFingerprinter:
 
         self.ground_truths_to_check = self.prepare_ground_truth()
 
+    def _is_chrom_only(self) -> bool:
+        """Return True if region_str is a bare chromosome name (no coordinates)."""
+        return self.region != "" and ":" not in self.region
+
     def prepare_ground_truth(self):
         ground_truths_to_check = {}
         region_bed = f"{self.out_dir}/region.bed"
-        regions_bed_in_region = None
+        self.regions_bed_in_region = None
         if self.region != "":
-            self.sp.print_and_run(f"echo {self.region} | sed 's/:/\t/' | sed 's/-/\t/' > {region_bed}")
+            if self._is_chrom_only():
+                # just filter the bed to the chromosome — no need to create a region.bed
+                pass
+            else:
+                self.sp.print_and_run(f"echo {self.region} | sed 's/:/\t/' | sed 's/-/\t/' > {region_bed}")
         if self.regions_bed is not None and self.region != "":
-            regions_bed_in_region = f"{self.out_dir}/regions_bed_in_region.bed"
-            self.sp.print_and_run(
-                f"bedtools intersect -a {self.regions_bed} -b {region_bed} | "
-                f"sort -k 1,1 -k 2,2n > {regions_bed_in_region}"
-            )
+            self.regions_bed_in_region = f"{self.out_dir}/regions_bed_in_region.bed"
+            if self._is_chrom_only():
+                self.sp.print_and_run(
+                    f"grep -P '^{self.region}\\t' {self.regions_bed} | "
+                    f"sort -k 1,1 -k 2,2n > {self.regions_bed_in_region}"
+                )
+            else:
+                self.sp.print_and_run(
+                    f"bedtools intersect -a {self.regions_bed} -b {region_bed} | "
+                    f"sort -k 1,1 -k 2,2n > {self.regions_bed_in_region}"
+                )
 
         for sample_id in self.ground_truth_vcfs:
             ground_truth_vcf = optional_cloud_sync(self.ground_truth_vcfs[sample_id], self.out_dir)
@@ -75,7 +102,7 @@ class QuickFingerprinter:
             )
             self.vpu.index_vcf(ground_truth_in_hcr)
             if self.regions_bed is not None:
-                regions_to_use = regions_bed_in_region if regions_bed_in_region is not None else self.regions_bed
+                regions_to_use = self.regions_bed_in_region if self.regions_bed_in_region is not None else self.regions_bed
                 self.sp.print_and_run(
                     f"bcftools view {ground_truth_in_hcr} -R {regions_to_use} -Oz -o {ground_truth_to_check_vcf}"
                 )
@@ -91,10 +118,16 @@ class QuickFingerprinter:
                     f"sort -k 1,1 -k 2,2n > {hcr_in_region}"
                 )
             elif self.region != "":
-                self.sp.print_and_run(
-                    f"bedtools intersect -a {hcr} -b {region_bed} | "
-                    f"sort -k 1,1 -k 2,2n > {hcr_in_region}"
-                )
+                if self._is_chrom_only():
+                    self.sp.print_and_run(
+                        f"grep -P '^{self.region}\\t' {hcr} | "
+                        f"sort -k 1,1 -k 2,2n > {hcr_in_region}"
+                    )
+                else:
+                    self.sp.print_and_run(
+                        f"bedtools intersect -a {hcr} -b {region_bed} | "
+                        f"sort -k 1,1 -k 2,2n > {hcr_in_region}"
+                    )
             else:
                 self.sp.print_and_run(f"cp {hcr} {hcr_in_region}")
 
@@ -104,7 +137,8 @@ class QuickFingerprinter:
     def print(self, msg: str):
         self.output_file.write(msg + "\n")
 
-    def check(self):
+    def check(self) -> list[str]:
+        """Run fingerprinting checks. Returns list of error messages (empty = all passed)."""
         errors = []
         all_results = []  # list of (sample_id, cram_base_name, ground_truth_ids, hit_fractions)
         with open(f"{self.out_dir}/quick_fingerprinting_results.txt", "w", encoding="utf-8") as of:
@@ -138,9 +172,9 @@ class QuickFingerprinter:
 
                     self.sp.print_and_run(f"samtools index {local_bam}")
 
-                    self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps, regions_bed=self.regions_bed)
+                    self.vc.call_variants(local_bam, called_vcf, self.region, min_af=self.min_af_snps, regions_bed=self.regions_bed_in_region or self.regions_bed)
 
-                    potential_error = f"{cram} - {sample_id} "
+                    potential_error = None
                     ground_truth_ids = []
                     cram_hit_fractions = []
                     for ground_truth_id, ground_truth_to_check_vcf in self.ground_truths_to_check.items():
@@ -153,25 +187,54 @@ class QuickFingerprinter:
                         hit_fractions.append(hit_fraction)
                         if sample_id == ground_truth_id and hit_fraction < self.min_hit_fraction_target:
                             match_to_expected_truth = hit_fraction
-                            potential_error += f"does not match it's ground truth: hit_fraction={hit_fraction} "
+                            potential_error = (
+                                f"{cram_base_name} [{sample_id}] does not match its ground truth: "
+                                f"hit_fraction={hit_fraction:.3f} (target={self.min_hit_fraction_target})"
+                            )
                         elif sample_id != ground_truth_id and hit_fraction > self.min_hit_fraction_target:
-                            potential_error += (
-                                f"matched ground truth of {ground_truth_id}: hit_fraction={hit_fraction} "
+                            potential_error = (
+                                f"{cram_base_name} [{sample_id}] unexpectedly matched "
+                                f"{ground_truth_id}: hit_fraction={hit_fraction:.3f}"
                             )
                         self.print(f"{cram} - {sample_id} vs. {ground_truth_id} hit_fraction={hit_fraction}")
                     if best_match != sample_id:
                         if match_to_expected_truth is None:
                             self.print(f"{cram} best_match={best_match} hit_fraction={max_hit_fraction}")
+                            if potential_error is None:
+                                potential_error = (
+                                    f"{cram_base_name} [{sample_id}] best match is {best_match} "
+                                    f"(hit_fraction={max_hit_fraction:.3f}), not the expected sample"
+                                )
                         else:
-                            potential_error += f"max_hit_fraction = {max(hit_fractions)}"
-                    if potential_error != f"{cram} - {sample_id} ":
-                        errors.append(potential_error)
+                            self.print(f"{cram} max_hit_fraction={max(hit_fractions)}")
 
-                    all_results.append((sample_id, cram_base_name, ground_truth_ids, cram_hit_fractions))
+                    if potential_error is not None:
+                        errors.append(potential_error)
+                        all_results.append((sample_id, cram_base_name, ground_truth_ids, cram_hit_fractions,
+                                            potential_error, match_to_expected_truth or max_hit_fraction))
+                    else:
+                        own_hit = next(
+                            (hf for gt_id, hf in zip(ground_truth_ids, cram_hit_fractions) if gt_id == sample_id),
+                            max_hit_fraction,
+                        )
+                        all_results.append((sample_id, cram_base_name, ground_truth_ids, cram_hit_fractions,
+                                            None, own_hit))
 
         self._save_combined_plot(all_results)
-        if len(errors) > 0:
-            raise RuntimeError("\n".join(errors))
+
+        print()
+        print("=" * 72)
+        print("  Fingerprinting summary")
+        print("=" * 72)
+        for sample_id, cram_base_name, _, _, potential_error, hit in all_results:
+            if potential_error is not None:
+                print(_red(f"  FAIL  {cram_base_name}  [{sample_id}]  hit_fraction={hit:.3f}"), file=sys.stderr)
+                print(_red(f"        {potential_error}"), file=sys.stderr)
+            else:
+                print(_green(f"  PASS  {cram_base_name}  [{sample_id}]  hit_fraction={hit:.3f}"))
+        print("=" * 72)
+
+        return errors
 
     def _save_combined_plot(self, all_results: list[tuple]):
         """Save all CRAM hit-fraction bar charts as subplots in a single PNG."""
@@ -183,7 +246,7 @@ class QuickFingerprinter:
         n_gt = len(all_results[0][2])  # number of ground-truth samples
         subplot_w = max(4, n_gt * 0.9)
         fig, axes = plt.subplots(nrows, ncols, figsize=(subplot_w * ncols, 5 * nrows), squeeze=False)
-        for idx, (sample_id, cram_base_name, ground_truth_ids, hit_fractions) in enumerate(all_results):
+        for idx, (sample_id, cram_base_name, ground_truth_ids, hit_fractions, *_) in enumerate(all_results):
             ax = axes[idx // ncols][idx % ncols]
             colors = []
             for gt_id, hf in zip(ground_truth_ids, hit_fractions):
