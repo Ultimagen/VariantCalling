@@ -68,7 +68,7 @@ def __get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run(argv) -> list[str]:
+def run(argv):
     """quick fingerprinting to identify known samples in crams"""
     parser = __get_parser()
     SimplePipeline.add_parse_args(parser)
@@ -93,7 +93,7 @@ def run(argv) -> list[str]:
     sp = SimplePipeline(args.fc, args.lc, debug=args.d)
     os.makedirs(args.out_dir, exist_ok=True)
 
-    return QuickFingerprinter(
+    errors = QuickFingerprinter(
         cram_files_list,
         ground_truth_vcf_files,
         hcr_files,
@@ -108,9 +108,9 @@ def run(argv) -> list[str]:
         regions_bed=regions_bed,
         output_prefix=args.output_prefix,
     ).check()
+    if errors:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    errors = run(sys.argv)
-    if errors:
-        sys.exit(1)
+    run(sys.argv)

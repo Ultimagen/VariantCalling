@@ -1,8 +1,6 @@
 from test import get_resource_dir, test_dir
 
 import os
-import pysam
-import pytest
 import json
 
 from ugvc.pipelines.comparison import quick_fingerprinting
