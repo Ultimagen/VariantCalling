@@ -33,7 +33,7 @@ import ugbio_core.vcfbed.variant_annotation as annotation
 from SigProfilerAssignment import Analyzer as Analyze
 from SigProfilerMatrixGenerator import install as genInstall
 from SigProfilerMatrixGenerator.scripts import SigProfilerMatrixGeneratorFunc as matGen
-from ugbio_comparison import comparison_utils
+from ugbio_comparison.vcf_comparison_utils import annotate_concordance
 from ugbio_core.dna_sequence_utils import revcomp
 from ugbio_core.vcfbed import vcftools
 
@@ -311,7 +311,7 @@ def run_full_analysis(arg_values):
         ignore_fields=FIELDS_TO_IGNORE,
     )
     logger.info("Annotating vcf")
-    annotated_df, _ = comparison_utils.annotate_concordance(df, arg_values.reference)
+    annotated_df, _ = annotate_concordance(df, arg_values.reference)
 
     logger.info("insertion/ deletion statistics")
     ins_del_df = insertion_deletion_statistics(df)
