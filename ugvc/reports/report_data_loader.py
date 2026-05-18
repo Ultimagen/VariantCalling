@@ -54,10 +54,9 @@ class ReportDataLoader:
 
     def __get_rename_dict(self):
         if self.reference_version == "hg38":
-            return {"LCR-hs38": "LCR"}
+            return {}
         if self.reference_version == "hg19":
             return {
-                "LCR-hg19_tab_no_chr": "LCR",
                 "mappability.hg19.0_tab_no_chr": "mappability.0",
                 "ug_hcr_hg19_no_chr": "ug_hcr",
             }
@@ -91,11 +90,10 @@ class ReportDataLoader:
             "gq",
         ]
         if self.reference_version == "hg38":
-            return common_columns + ["LCR-hs38", "mappability.0", "ug_hcr", "callable"]
+            return common_columns + ["mappability.0", "ug_hcr", "callable"]
 
         if self.reference_version == "hg19":
             return common_columns + [
-                "LCR-hg19_tab_no_chr",
                 "mappability.hg19.0_tab_no_chr",
                 "ug_hcr_hg19_no_chr",
                 "callable",
