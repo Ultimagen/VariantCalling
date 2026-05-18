@@ -354,7 +354,6 @@ class ReportUtils:
                 "hmer Indel 6",
                 "hmer Indel 7",
                 "hmer Indel 8",
-                "non-hmer Indel w/o LCR",
             ]
             error_types_tab.drop(drop_list, errors="ignore", inplace=True)
             display(error_types_tab)
@@ -513,8 +512,6 @@ class ReportUtils:
             result = data[data["indel"]]
         elif cat == "non-hmer Indel":
             result = data[(data["indel"]) & (data["hmer_length"] == 0) & (data["indel_length"] > 0)]
-        elif cat == "non-hmer Indel w/o LCR":
-            result = data[(data["indel"]) & (data["hmer_length"] == 0) & (data["indel_length"] > 0) & (~data["LCR"])]
         elif cat == "hmer Indel <=4":
             result = data[(data["indel"]) & (data["hmer_length"] > 0) & (data["hmer_length"] <= 4)]
         elif cat == "hmer Indel >4,<=8":
