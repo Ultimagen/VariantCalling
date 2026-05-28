@@ -8,7 +8,7 @@ from ugvc.reports.report_utils import ErrorType
 class ReportDataLoader:
     def __init__(self, concordance_file: str, reference_version: str, exome_column_name: str):
         self.concordance_file = concordance_file
-        self.reference_version = reference_version
+        self.reference_version = self.__simplify_reference_version(reference_version)
         self.columns = self.__columns_subset(exome_column_name)
         self.rename_dict = self.__get_rename_dict()
 
@@ -61,6 +61,34 @@ class ReportDataLoader:
                 "ug_hcr_hg19_no_chr": "ug_hcr",
             }
         return {}
+
+    def __simplify_reference_version(self, reference_version: str) -> str:
+        """
+        Simplify the reference version string to a standard form.
+
+        Parameters
+        ----------
+        reference_version : str
+            The reference version string to simplify
+
+        Returns
+        -------
+        str
+            Simplified reference version ('hg38' or 'hg19')
+        """
+        hg38_patterns = ["hg38", "GRCh38", "GCA_000001405.15", "GCF_000001405.26", "hs38DH"]
+        hg19_patterns = ["hg19", "GRCh37", "GCA_000001405.1", "GCF_000001405.13", "b37", "hs37d5", "human_g1k_v37"]
+
+        for pattern in hg38_patterns:
+            if pattern in reference_version:
+                return "hg38"
+
+        for pattern in hg19_patterns:
+            if pattern in reference_version:
+                return "hg19"
+
+        # If no pattern matches, return the original version
+        return reference_version
 
     def __columns_subset(self, exome_column_name):
         common_columns = [
