@@ -76,15 +76,23 @@ class ReportDataLoader:
         str
             Simplified reference version ('hg38' or 'hg19')
         """
-        hg38_patterns = ["hg38", "GRCh38", "GCA_000001405.15", "GCF_000001405.26", "hs38DH"]
-        hg19_patterns = ["hg19", "GRCh37", "GCA_000001405.1", "GCF_000001405.13", "b37", "hs37d5", "human_g1k_v37"]
+        hg38_patterns = ["hg38", "GRCh38", "hs38DH"]
+        hg38_exact_names = ["GCA_000001405.15", "GCF_000001405.26"]
+        hg19_patterns = ["hg19", "GRCh37", "b37", "hs37d5", "human_g1k_v37"]
+        hg19_exact_names = ["GCA_000001405.1", "GCF_000001405.13"]
 
         for pattern in hg38_patterns:
             if pattern in reference_version:
                 return "hg38"
+        for exact_name in hg38_exact_names:
+            if reference_version == exact_name:
+                return "hg38"
 
         for pattern in hg19_patterns:
             if pattern in reference_version:
+                return "hg19"
+        for exact_name in hg19_exact_names:
+            if reference_version == exact_name:
                 return "hg19"
 
         # If no pattern matches, return the original version
